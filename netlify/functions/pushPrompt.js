@@ -1,7 +1,6 @@
-const fetch = require('node-fetch');
+const fetch = require("node-fetch");
 
 exports.handler = async function(event) {
-  // Gestion du pré-vol (preflight)
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -18,33 +17,40 @@ exports.handler = async function(event) {
     const prompt = JSON.parse(event.body);
 
     const repo = "spiresm/IA_marketing";
-    const path = `prompts/prompt-${Date.now()}.json`;
     const token = process.env.GITHUB_TOKEN;
+    const path = `prompts/prompt-${Date.now()}.json`;
 
-    const url = `https://api.github.com/repos/${repo}/contents/${path}`;
-    const content = Buffer.from(JSON.stringify(prompt, null, 2)).toString('base64');
+    const githubUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
+    const content = Buffer.from(JSON.stringify(prompt, null, 2)).toString("base64");
 
-    const res = await fetch(url, {
-      method: 'PUT',
+    const res = await fetch(githubUrl, {
+      method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        message: `Ajout d’un prompt depuis le site`,
+        message: "Ajout d’un prompt depuis le site",
         content: content
       })
     });
 
     const data = await res.json();
 
+    if (!res.ok) {
+      return {
+        statusCode: res.status,
+        body: JSON.stringify({ error: data.message || "Erreur GitHub" })
+      };
+    }
+
     return {
-      statusCode: res.status,
+      statusCode: 200,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify({ success: true, url: data.content.download_url })
     };
 
   } catch (error) {
