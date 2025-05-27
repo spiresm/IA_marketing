@@ -53,11 +53,13 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       border-radius: 8px;
     }
+    .carte canvas,
     .carte img {
       max-width: 150px;
       border-radius: 6px;
       cursor: pointer;
       transition: transform 0.3s ease;
+      display: block;
     }
     .carte img.zoomed {
       max-width: 100%;
@@ -107,12 +109,27 @@
             }
           }
 
+          const isImage = typeof image === "string" && (image.endsWith(".jpg") || image.endsWith(".jpeg") || image.endsWith(".png") || image.endsWith(".webp"));
+
           const div = document.createElement("div");
           div.className = "carte";
 
-          const imageHTML = image
-            ? `<img src="${image}" alt="Image" onclick="this.classList.toggle('zoomed')">`
-            : "";
+          let imageHTML = "";
+          if (isImage) {
+            imageHTML = `<canvas></canvas>`;
+            const img = new Image();
+            img.onload = function () {
+              const canvas = div.querySelector("canvas");
+              const ctx = canvas.getContext("2d");
+              const maxWidth = 300;
+              const scale = maxWidth / img.width;
+              canvas.width = maxWidth;
+              canvas.height = img.height * scale;
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              canvas.onclick = () => canvas.classList.toggle("zoomed");
+            };
+            img.src = image;
+          }
 
           div.innerHTML = `
             ${imageHTML}
