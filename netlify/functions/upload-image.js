@@ -29,7 +29,7 @@ exports.handler = async function(event) {
 
     const githubUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
 
-    const content = imageBase64; // déjà encodé base64 côté client
+    const content = imageBase64;
 
     const res = await fetch(githubUrl, {
       method: 'PUT',
