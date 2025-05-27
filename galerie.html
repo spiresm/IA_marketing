@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galerie des Prompts</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background-color: #f0f4f8;
+      color: #333;
+    }
+    .header {
+      background-color: #0077b6;
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 2em;
+    }
+    nav {
+      background-color: #ffffff;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    nav a {
+      text-decoration: none;
+      color: #0077b6;
+      font-weight: bold;
+      padding: 8px 16px;
+      border-radius: 20px;
+      transition: background-color 0.3s;
+    }
+    nav a:hover {
+      background-color: #e0f0ff;
+    }
+    .galerie {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .carte {
+      background: white;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-left: 5px solid #0077b6;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    .carte img {
+      max-width: 150px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    .carte img.zoomed {
+      max-width: 100%;
+      transform: scale(1.05);
+    }
+    .infos {
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Galerie des Prompts</h1>
+  </div>
+
+  <nav>
+    <a href="#">Accueil</a>
+    <a href="#">Mon profil</a>
+    <a href="#">Outils IA</a>
+    <a href="#">Prompts</a>
+    <a href="#">Cas d’usage</a>
+    <a href="#">Créer un tip</a>
+    <a href="#">Veille</a>
+  </nav>
+
+  <div class="galerie" id="galerie"></div>
+
+  <script>
+    async function chargerPrompts() {
+      const galerie = document.getElementById("galerie");
+      const res = await fetch("https://api.github.com/repos/spiresm/IA_marketing/contents/prompts");
+      const fichiers = await res.json();
+
+      for (const fichier of fichiers) {
+        if (fichier.name.endsWith(".json")) {
+          const raw = await fetch(fichier.download_url);
+          const data = await raw.json();
+
+          const div = document.createElement("div");
+          div.className = "carte";
+
+          const imageHTML = data.image || data.imageUrl
+            ? `<img src="${data.image || data.imageUrl}" alt="Image" onclick="this.classList.toggle('zoomed')">`
+            : "";
+
+          div.innerHTML = `
+            ${imageHTML}
+            <p class="infos"><strong>${data.auteur || "Inconnu"}</strong> • ${data.outil || "Outil"} • ${data.categorie || "Catégorie"}</p>
+            <p>${data.texte || ""}</p>
+          `;
+
+          galerie.appendChild(div);
+        }
+      }
+    }
+
+    window.onload = chargerPrompts;
+  </script>
+</body>
+</html>
