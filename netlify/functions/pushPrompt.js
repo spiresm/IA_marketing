@@ -64,7 +64,7 @@ exports.handler = async function(event) {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify({ error: error.message || "Erreur serveur inconnue" })
+      body: JSON.stringify({ error: error.message })
     };
   }
 };
