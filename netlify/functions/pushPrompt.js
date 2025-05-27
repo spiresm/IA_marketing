@@ -17,6 +17,8 @@ exports.handler = async function (event) {
 
   try {
     const prompt = JSON.parse(event.body);
+    console.log("📥 Données reçues dans pushPrompt :", prompt);
+
     console.log("📥 Données reçues :", prompt);
 
     const repo = "spiresm/IA_marketing";
@@ -40,6 +42,8 @@ exports.handler = async function (event) {
     });
 
     const data = await res.json();
+    console.log("📦 Réponse complète de GitHub :", data);
+
 
     console.log("📦 Réponse GitHub :", data);
 
