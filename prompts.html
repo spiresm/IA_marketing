@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Formulaire de Prompt</title>
+  <style>
+    /* … (votre CSS inchangé) … */
+  </style>
+</head>
+<body>
+  <div class="header"><h1>Espace IA Marketing</h1></div>
+  <nav>
+    <!-- … vos liens … -->
+  </nav>
+  <div class="container">
+    <h2>Partager un prompt</h2>
+    <form id="prompt-form">
+      <!-- … vos champs auteur / outil / catégorie / texte … -->
+      <label for="image-input">Image</label>
+      <div id="drop-zone">Déposez une image ici ou cliquez pour choisir</div>
+      <input type="file" id="image-input" accept="image/*" style="display: none" />
+      <img id="image-preview" src="#" alt="Preview" />
+      <button type="submit">Partager</button>
+    </form>
+
+    <div class="confirmation" id="confirmation-box">
+      <p>✅ Prompt partagé avec succès !</p>
+      <img id="confirmation-image" src="#" alt="Confirmation image" />
+      <p id="confirmation-texte"></p>
+    </div>
+  </div>
+
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('image-input');
+    const imagePreview = document.getElementById('image-preview');
+    const confirmationBox = document.getElementById('confirmation-box');
+    const confirmationImage = document.getElementById('confirmation-image');
+    const confirmationTexte = document.getElementById('confirmation-texte');
+    const form = document.getElementById('prompt-form');
+
+    // interactions drop-zone
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        showPreview(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) showPreview(fileInput.files[0]);
+    });
+
+    function showPreview(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        imagePreview.src = reader.result;
+        imagePreview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      // Récupère les champs
+      const data = {
+        auteur: form.auteur.value,
+        outil: form.outil.value,
+        categorie: form.categorie.value,
+        texte: form.texte.value
+      };
+
+      // Si on a un fichier, on l'encode en Base64
+      if (fileInput.files.length) {
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = async () => {
+          // reader.result = "data:image/…;base64,AAAA…"
+          const base64 = reader.result.split(',')[1];
+          data.fileBase64 = base64;
+          data.fileName   = file.name;
+          await sendPrompt(data);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        await sendPrompt(data);
+      }
+    });
+
+    async function sendPrompt(payload) {
+      // 1) on upload l'image et on récupère download_url
+      let imageUrl = '';
+      if (payload.fileBase64) {
+        const imageResp = await fetch('/.netlify/functions/uploadImage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileBase64: payload.fileBase64,
+            fileName: payload.fileName
+          })
+        });
+        if (!imageResp.ok) {
+          alert('Échec de l’upload de l’image');
+          return;
+        }
+        const { url } = await imageResp.json();
+        imageUrl = url;
+      }
+
+      // 2) on envoie le prompt complet
+      const promptResp = await fetch('/.netlify/functions/pushPrompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          auteur:    payload.auteur,
+          outil:     payload.outil,
+          categorie: payload.categorie,
+          texte:     payload.texte,
+          imageUrl
+        })
+      });
+
+      if (promptResp.ok) {
+        confirmationImage.src = imageUrl;
+        confirmationTexte.textContent = payload.texte;
+        confirmationBox.style.display = 'block';
+        form.reset();
+        imagePreview.style.display = 'none';
+      } else {
+        alert('Échec de l’envoi du prompt');
+      }
+    }
+  </script>
+</body>
+</html>
