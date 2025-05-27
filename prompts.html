@@ -113,6 +113,12 @@
     .btn-primary:hover {
       background-color: #005f8a;
     }
+    #message {
+      display: none;
+      margin-top: 20px;
+      text-align: center;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -203,10 +209,18 @@
         <div class="buttons">
           <button type="submit" class="btn-primary">Partager</button>
         </div>
+        <div id="message"></div>
       </form>
     </div>
   </div>
   <script>
+  function showMessage(text, isSuccess = true) {
+    const messageBox = document.getElementById("message");
+    messageBox.style.display = "block";
+    messageBox.style.color = isSuccess ? "green" : "red";
+    messageBox.textContent = text;
+  }
+
   const fileInput = document.getElementById("image-input");
   const imagePreview = document.getElementById("image-preview");
 
@@ -227,7 +241,7 @@
 
     const file = fileInput.files[0];
     if (!file) {
-      alert("Veuillez sélectionner une image.");
+      showMessage("Veuillez sélectionner une image.", false);
       return;
     }
 
@@ -238,7 +252,6 @@
       let imageUrl = null;
 
       try {
-        // Étape 1 : envoyer l'image à uploadImage
         const imageUploadRes = await fetch("/.netlify/functions/uploadImage", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -251,13 +264,12 @@
         const imageData = await imageUploadRes.json();
 
         if (!imageUploadRes.ok || !imageData.url) {
-          alert("Erreur lors de l'envoi de l'image : " + (imageData.error || "inconnue"));
+          showMessage("Erreur lors de l'envoi de l'image : " + (imageData.error || "inconnue"), false);
           return;
         }
 
         imageUrl = imageData.url;
 
-        // Étape 2 : envoyer les métadonnées du prompt
         const promptPayload = {
           auteur: document.getElementById("auteur").value,
           objectif: document.getElementById("objectif").value,
@@ -277,12 +289,12 @@
         const promptData = await promptRes.json();
 
         if (promptRes.ok) {
-          alert("Prompt partagé avec succès ✅");
+          showMessage("Prompt partagé avec succès ✅", true);
         } else {
-          alert("Erreur lors de l'enregistrement du prompt : " + (promptData.error || "inconnue"));
+          showMessage("Erreur lors de l'enregistrement du prompt : " + (promptData.error || "inconnue"), false);
         }
       } catch (err) {
-        alert("Erreur réseau : " + err.message);
+        showMessage("Erreur réseau : " + err.message, false);
       }
     };
 
