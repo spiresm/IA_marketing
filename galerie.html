@@ -1,172 +1,149 @@
-<template>
-  <div>
-    <header class="header">
-      <h1>Galerie des Prompts</h1>
-    </header>
-
-    <nav>
-      <a href="#">Accueil</a>
-      <a href="#">Mon profil</a>
-      <a href="#">Outils IA</a>
-      <a href="#">Prompts</a>
-      <a href="#">Cas d’usage</a>
-      <a href="#">Créer un tip</a>
-      <a href="#">Veille</a>
-    </nav>
-
-    <div class="galerie">
-      <div v-for="(prompt, index) in prompts" :key="index" class="carte">
-        <canvas
-          v-if="prompt.image && prompt.canvasData"
-          :ref="el => canvasRefs[index] = el"
-          class="image"
-          @click="toggleZoom(index)"
-        ></canvas>
-
-        <img
-          v-else-if="prompt.image"
-          :src="prompt.image"
-          alt="Image du prompt"
-          class="image"
-          @click="toggleZoom(index)"
-        />
-
-        <p class="infos">
-          <strong>{{ prompt.auteur || "Inconnu" }}</strong> •
-          {{ prompt.outil || "Outil" }} •
-          {{ prompt.categorie || "Catégorie" }}
-        </p>
-        <p>{{ prompt.texte }}</p>
-      </div>
-    </div>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galerie des Prompts</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background-color: #f0f4f8;
+      color: #333;
+    }
+    .header {
+      background-color: #0077b6;
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 2em;
+    }
+    nav {
+      background-color: #ffffff;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    nav a {
+      text-decoration: none;
+      color: #0077b6;
+      font-weight: bold;
+      padding: 8px 16px;
+      border-radius: 20px;
+      transition: background-color 0.3s;
+    }
+    nav a:hover {
+      background-color: #e0f0ff;
+    }
+    .galerie {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .carte {
+      background: white;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-left: 5px solid #0077b6;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    .carte canvas,
+    .carte img {
+      max-width: 150px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+      display: block;
+    }
+    .carte img.zoomed,
+    .carte canvas.zoomed {
+      max-width: 100%;
+      transform: scale(1.05);
+    }
+    .infos {
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Galerie des Prompts</h1>
   </div>
-</template>
 
-<script setup>
-import { ref, onMounted, nextTick } from 'vue';
+  <nav>
+    <a href="#">Accueil</a>
+    <a href="#">Mon profil</a>
+    <a href="#">Outils IA</a>
+    <a href="#">Prompts</a>
+    <a href="#">Cas d’usage</a>
+    <a href="#">Créer un tip</a>
+    <a href="#">Veille</a>
+  </nav>
 
-const prompts = ref([]);
-const canvasRefs = ref([]);
+  <div class="galerie" id="galerie"></div>
 
-const toggleZoom = (index) => {
-  const el = canvasRefs[index] || document.querySelectorAll('.image')[index];
-  if (el) el.classList.toggle('zoomed');
-};
+  <script>
+    async function chargerPrompts() {
+      const galerie = document.getElementById("galerie");
+      const res = await fetch("https://api.github.com/repos/spiresm/IA_marketing/contents/prompts");
+      const fichiers = await res.json();
 
-const chargerPrompts = async () => {
-  try {
-    const res = await fetch("https://api.github.com/repos/spiresm/IA_marketing/contents/prompts");
-    const fichiers = await res.json();
+      for (const fichier of fichiers) {
+        if (fichier.name.endsWith(".json")) {
+          const raw = await fetch(fichier.download_url);
+          const data = await raw.json();
 
-    for (const fichier of fichiers) {
-      if (fichier.name.endsWith(".json")) {
-        const raw = await fetch(fichier.download_url);
-        const data = await raw.json();
-
-        let image = data.image || data.imageUrl;
-        if (typeof image === "string" && image.startsWith("{\"url\":")) {
-          try {
-            image = JSON.parse(image).url;
-          } catch (e) {
-            image = null;
+          let image = data.image || data.imageUrl;
+          if (typeof image === "string" && image.startsWith("{\"url\":")) {
+            try {
+              image = JSON.parse(image).url;
+            } catch (e) {
+              image = null;
+            }
           }
-        }
 
-        const isImage = typeof image === "string" && /\.(jpg|jpeg|png|webp)$/i.test(image);
+          const isImage = typeof image === "string" && (image.endsWith(".jpg") || image.endsWith(".jpeg") || image.endsWith(".png") || image.endsWith(".webp"));
 
-        prompts.value.push({ ...data, image, canvasData: isImage });
-        await nextTick();
+          const div = document.createElement("div");
+          div.className = "carte";
 
-        if (isImage) {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = canvasRefs[prompts.value.length - 1];
-            if (canvas) {
+          let imageHTML = "";
+          if (isImage) {
+            imageHTML = `<canvas></canvas>`;
+            const img = new Image();
+            img.onload = function () {
+              const canvas = div.querySelector("canvas");
               const ctx = canvas.getContext("2d");
               const maxWidth = 300;
               const scale = Math.min(1, maxWidth / img.width);
               canvas.width = img.width * scale;
               canvas.height = img.height * scale;
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            }
-          };
-          img.src = image;
+              canvas.onclick = () => canvas.classList.toggle("zoomed");
+            };
+            img.src = image;
+          }
+
+          div.innerHTML = `
+            ${imageHTML}
+            <p class="infos"><strong>${data.auteur || "Inconnu"}</strong> • ${data.outil || "Outil"} • ${data.categorie || "Catégorie"}</p>
+            <p>${data.texte || ""}</p>
+          `;
+
+          galerie.appendChild(div);
         }
       }
     }
-  } catch (e) {
-    console.error("Erreur lors du chargement des prompts :", e);
-  }
-};
 
-onMounted(() => {
-  chargerPrompts();
-});
-</script>
-
-<style>
-body {
-  font-family: 'Segoe UI', sans-serif;
-  margin: 0;
-  background-color: #f0f4f8;
-  color: #333;
-}
-.header {
-  background-color: #0077b6;
-  color: white;
-  padding: 40px 20px;
-  text-align: center;
-}
-.header h1 {
-  margin: 0;
-  font-size: 2em;
-}
-nav {
-  background-color: #ffffff;
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  padding: 15px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-nav a {
-  text-decoration: none;
-  color: #0077b6;
-  font-weight: bold;
-  padding: 8px 16px;
-  border-radius: 20px;
-  transition: background-color 0.3s;
-}
-nav a:hover {
-  background-color: #e0f0ff;
-}
-.galerie {
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 0 20px;
-}
-.carte {
-  background: white;
-  padding: 15px;
-  margin-bottom: 20px;
-  border-left: 5px solid #0077b6;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-}
-.image {
-  max-width: 150px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: transform 0.3s ease;
-  display: block;
-}
-.zoomed {
-  max-width: 100%;
-  transform: scale(1.05);
-}
-.infos {
-  margin-top: 10px;
-  font-size: 0.9em;
-  color: #555;
-}
-</style>
+    window.onload = chargerPrompts;
+  </script>
+</body>
+</html>
