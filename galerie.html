@@ -53,7 +53,6 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       border-radius: 8px;
     }
-    .carte canvas,
     .carte img {
       max-width: 150px;
       border-radius: 6px;
@@ -61,8 +60,7 @@
       transition: transform 0.3s ease;
       display: block;
     }
-    .carte img.zoomed,
-    .carte canvas.zoomed {
+    .carte img.zoomed {
       max-width: 100%;
       transform: scale(1.05);
     }
@@ -91,55 +89,56 @@
   <div class="galerie" id="galerie"></div>
 
   <script>
+    // Configuration du dépôt et branche
+    const repoOwner = 'spiresm';
+    const repoName = 'IA_marketing';
+    const branch = 'main';
+    const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
+    const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
+
     async function chargerPrompts() {
-      const galerie = document.getElementById("galerie");
-      const res = await fetch("https://api.github.com/repos/spiresm/IA_marketing/contents/prompts");
-      const fichiers = await res.json();
+      const galerie = document.getElementById('galerie');
+      try {
+        const res = await fetch(apiBase + 'prompts');
+        if (!res.ok) throw new Error('Impossible de lister les prompts');
+        const fichiers = await res.json();
 
-      for (const fichier of fichiers) {
-        if (fichier.name.endsWith(".json")) {
-          const raw = await fetch(fichier.download_url);
-          const data = await raw.json();
+        for (const fichier of fichiers) {
+          if (fichier.name.endsWith('.json')) {
+            const raw = await fetch(fichier.download_url);
+            if (!raw.ok) continue;
+            const data = await raw.json();
 
-          let image = data.image || data.imageUrl;
-          if (typeof image === "string" && image.startsWith("{\"url\":")) {
-            try {
-              image = JSON.parse(image).url;
-            } catch (e) {
-              image = null;
+            // Construction de l'URL de l'image
+            let imagePath = data.image || data.imageUrl || '';
+            let imageUrl = '';
+            if (imagePath) {
+              if (/^https?:\/\//.test(imagePath)) {
+                imageUrl = imagePath;
+              } else {
+                // Relative path from images directory
+                imageUrl = rawBase + imagePath.replace(/^\//, '');
+              }
             }
+
+            // Création de la carte
+            const div = document.createElement('div');
+            div.className = 'carte';
+            const imageHTML = imageUrl
+              ? `<img src="${imageUrl}" alt="Image du prompt" onclick="this.classList.toggle('zoomed')">`
+              : '';
+
+            div.innerHTML = `
+              ${imageHTML}
+              <p class="infos"><strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}</p>
+              <p>${data.texte || ''}</p>
+            `;
+            galerie.appendChild(div);
           }
-
-          const isImage = typeof image === "string" && (image.endsWith(".jpg") || image.endsWith(".jpeg") || image.endsWith(".png") || image.endsWith(".webp"));
-
-          const div = document.createElement("div");
-          div.className = "carte";
-
-          let imageHTML = "";
-          if (isImage) {
-            imageHTML = `<canvas></canvas>`;
-            const img = new Image();
-            img.onload = function () {
-              const canvas = div.querySelector("canvas");
-              const ctx = canvas.getContext("2d");
-              const maxWidth = 300;
-              const scale = Math.min(1, maxWidth / img.width);
-              canvas.width = img.width * scale;
-              canvas.height = img.height * scale;
-              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              canvas.onclick = () => canvas.classList.toggle("zoomed");
-            };
-            img.src = image;
-          }
-
-          div.innerHTML = `
-            ${imageHTML}
-            <p class="infos"><strong>${data.auteur || "Inconnu"}</strong> • ${data.outil || "Outil"} • ${data.categorie || "Catégorie"}</p>
-            <p>${data.texte || ""}</p>
-          `;
-
-          galerie.appendChild(div);
         }
+      } catch (e) {
+        console.error(e);
+        galerie.innerHTML = '<p>Erreur de chargement de la galerie.</p>';
       }
     }
 
