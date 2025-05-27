@@ -20,6 +20,10 @@ exports.handler = async function(event) {
     const token = process.env.GITHUB_TOKEN;
     const path = `prompts/prompt-${Date.now()}.json`;
 
+    if (!token) {
+      throw new Error("Token GitHub manquant !");
+    }
+
     const githubUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
     const content = Buffer.from(JSON.stringify(prompt, null, 2)).toString("base64");
 
@@ -40,7 +44,7 @@ exports.handler = async function(event) {
     if (!res.ok) {
       return {
         statusCode: res.status,
-        body: JSON.stringify({ error: data.message || "Erreur GitHub" })
+        body: JSON.stringify({ error: data.message || "Erreur API GitHub" })
       };
     }
 
@@ -60,7 +64,7 @@ exports.handler = async function(event) {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: error.message || "Erreur serveur inconnue" })
     };
   }
 };
