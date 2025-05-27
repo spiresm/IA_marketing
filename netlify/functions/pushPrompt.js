@@ -1,15 +1,15 @@
 const fetch = require("node-fetch");
 
-exports.handler = async function(event) {
+exports.handler = async function (event) {
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS"
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
       },
-      body: ""
+      body: "",
     };
   }
 
@@ -21,7 +21,7 @@ exports.handler = async function(event) {
     const path = `prompts/prompt-${Date.now()}.json`;
 
     if (!token) {
-      throw new Error("Token GitHub manquant !");
+      throw new Error("Le token GitHub est manquant (GITHUB_TOKEN).");
     }
 
     const githubUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
@@ -31,12 +31,12 @@ exports.handler = async function(event) {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: "Ajout d’un prompt depuis le site",
-        content: content
-      })
+        message: "Ajout d’un prompt depuis le formulaire",
+        content: content,
+      }),
     });
 
     const data = await res.json();
@@ -44,7 +44,7 @@ exports.handler = async function(event) {
     if (!res.ok) {
       return {
         statusCode: res.status,
-        body: JSON.stringify({ error: data.message || "Erreur API GitHub" })
+        body: JSON.stringify({ error: data.message || "Erreur API GitHub" }),
       };
     }
 
@@ -52,19 +52,18 @@ exports.handler = async function(event) {
       statusCode: 200,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type"
+        "Access-Control-Allow-Headers": "Content-Type",
       },
-      body: JSON.stringify({ success: true, url: data.content.download_url })
+      body: JSON.stringify({ success: true, url: data.content.download_url }),
     };
-
   } catch (error) {
     return {
       statusCode: 500,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type"
+        "Access-Control-Allow-Headers": "Content-Type",
       },
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: error.message }),
     };
   }
 };
