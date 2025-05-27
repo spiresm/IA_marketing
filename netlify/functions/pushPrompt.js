@@ -16,7 +16,15 @@ exports.handler = async function (event) {
   }
 
   try {
-    const prompt = JSON.parse(event.body);
+    if (!event.body) {
+  console.error("❌ Aucune donnée reçue (body vide)");
+  return {
+    statusCode: 400,
+    body: JSON.stringify({ error: "Aucune donnée reçue" }),
+  };
+}
+const prompt = JSON.parse(event.body);
+
     console.log("📥 Données reçues dans pushPrompt :", prompt);
 
     console.log("📥 Données reçues :", prompt);
