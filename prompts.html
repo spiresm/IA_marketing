@@ -127,18 +127,11 @@
       <div class="card-title">
         Espace de Prompts Partagés
       </div>
-      <!-- Netlify form configuration -->
-      <form name="shared-prompts" method="POST" data-netlify="true" data-netlify-honeypot="bot-field">
-        <input type="hidden" name="form-name" value="shared-prompts">
-        <p class="hidden">
-          <label>Ne pas remplir si vous êtes humain: <input name="bot-field"></label>
-        </p>
-
+      <form id="upload-form">
         <div class="form-group">
           <label for="auteur">Nom de l'auteur</label>
           <input type="text" id="auteur" name="auteur" placeholder="Entrez votre nom" required />
         </div>
-
         <div class="form-group">
           <label for="objectif">Objectif du prompt</label>
           <select id="objectif" name="objectif" required>
@@ -154,7 +147,6 @@
             <option value="autre">Autre</option>
           </select>
         </div>
-
         <div class="form-group">
           <label for="outil">Outil d'IA ciblé</label>
           <select id="outil" name="outil" required>
@@ -168,7 +160,6 @@
             <option value="autre">Autre</option>
           </select>
         </div>
-
         <div class="form-group">
           <label for="categorie">Catégorie</label>
           <select id="categorie" name="categorie" required>
@@ -181,7 +172,6 @@
             <option value="autre">Autre</option>
           </select>
         </div>
-
         <div class="form-group">
           <label for="niveau">Niveau requis</label>
           <select id="niveau" name="niveau" required>
@@ -191,7 +181,6 @@
             <option value="avancé">Avancé</option>
           </select>
         </div>
-
         <div class="form-group">
           <label for="image">Image (drag & drop ou clic)</label>
           <div class="drag-drop" onclick="document.getElementById('image-input').click()">
@@ -199,17 +188,38 @@
             <input id="image-input" type="file" accept="image/*" name="image" style="display: none;" />
           </div>
         </div>
-
         <div class="form-group">
           <label for="texte">Prompt</label>
           <textarea id="texte" name="texte" rows="4" placeholder="Entrez votre prompt ici..." required></textarea>
         </div>
-
         <div class="buttons">
           <button type="submit" class="btn-primary">Partager</button>
         </div>
       </form>
     </div>
   </div>
+  <script>
+    document.getElementById("upload-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const file = document.getElementById("image-input").files[0];
+      if (!file) return alert("Veuillez sélectionner une image.");
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(",")[1];
+        const res = await fetch("/.netlify/functions/upload-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: base64, fileName: file.name }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          alert("Image uploadée avec succès : " + data.url);
+        } else {
+          alert("Erreur : " + (data.error || "échec de l'envoi"));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  </script>
 </body>
 </html>
