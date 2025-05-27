@@ -202,7 +202,8 @@
   <script>
 
 window.addEventListener('DOMContentLoaded', () => {
-
+  if (saved) {
+    prompts = JSON.parse(saved);
     afficherPrompts();
   }
 });
@@ -244,15 +245,36 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function ajouterPrompt() {
-      const auteur = document.getElementById('auteur').value.trim();
-      const objectif = document.getElementById('objectif').value;
-      const outil = document.getElementById('outil').value;
-      const prompt = document.getElementById('prompt').value.trim();
+        console.log("✅ ajouterPrompt appelée");
 
-      if (auteur && objectif && outil && prompt) {
-        const nouveauPrompt = { auteur, objectif, outil, prompt, image: imageDataURL };
+        const nouveauPrompt = {
+          auteur: document.getElementById("auteur").value,
+          outil: document.getElementById("outil").value,
+          type: document.getElementById("type").value,
+          texte: document.getElementById("texte").value,
+          image: document.getElementById("image").value
+        };
+
+        console.log("📦 Données à envoyer :", nouveauPrompt);
+
+        fetch("https://resplendent-cajeta-c1b048.netlify.app/.netlify/functions/pushPrompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(nouveauPrompt)
+        })
+        .then(res => res.json())
+        .then(data => {
+          console.log("✅ Réponse Netlify :", data);
+          alert("Prompt envoyé !");
+        })
+        .catch(err => {
+          console.error("❌ Erreur d'envoi :", err);
+          alert("Erreur lors de l'envoi !");
+        });
+};
         prompts.unshift(nouveauPrompt);
         afficherPrompts();
+        localStorage.setItem("prompts", JSON.stringify(prompts));
         document.getElementById('auteur').value = '';
         document.getElementById('objectif').value = '';
         document.getElementById('outil').value = '';
