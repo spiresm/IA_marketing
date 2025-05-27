@@ -15,52 +15,45 @@ exports.handler = async function(event) {
 
   try {
     const { imageBase64, fileName } = JSON.parse(event.body);
+    const repo = "spiresm/IA_marketing";
+    const token = process.env.GITHUB_TOKEN;
+    const path = `images/${Date.now()}-${fileName}`;
+    const content = imageBase64;
 
-    if (!imageBase64 || !fileName) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Paramètres manquants" }),
-      };
+    if (!token) {
+      throw new Error("Token GitHub manquant dans Netlify.");
     }
 
-    const repo = "spiresm/IA_marketing";
-    const path = `images/${Date.now()}-${fileName}`;
-    const token = process.env.GITHUB_TOKEN;
-
     const githubUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
-    const content = Buffer.from(imageBase64, 'base64').toString('base64');
 
     const res = await fetch(githubUrl, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        message: `Ajout d'une image depuis le site`,
+        message: `Ajout d'image`,
         content: content
       })
     });
 
+    const data = await res.json();
+
     if (!res.ok) {
-      const errorText = await res.text();
       return {
         statusCode: res.status,
-        body: JSON.stringify({ error: errorText }),
+        body: JSON.stringify({ error: data.message || "Erreur GitHub" })
       };
     }
 
-    const data = await res.json();
-
-    const imageUrl = data.content.download_url || `https://raw.githubusercontent.com/${repo}/main/${path}`;
-    
     return {
       statusCode: 200,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify({ url: imageUrl })
+      body: JSON.stringify({ url: data.content.download_url })
     };
 
   } catch (error) {
@@ -70,7 +63,7 @@ exports.handler = async function(event) {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify({ error: error.message || "Erreur interne" })
+      body: JSON.stringify({ error: error.message })
     };
   }
 };
