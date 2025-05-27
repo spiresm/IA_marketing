@@ -30,7 +30,7 @@
       margin-top: 15px;
       margin-bottom: 5px;
     }
-    input[type="text"], textarea {
+    input[type="text"], select, textarea {
       width: 100%;
       padding: 10px;
       border: 1px solid #ccc;
@@ -64,6 +64,19 @@
     button[type="submit"]:hover {
       background-color: #005f8a;
     }
+    .confirmation {
+      margin-top: 30px;
+      padding: 15px;
+      background-color: #e6ffed;
+      border: 1px solid #b7eb8f;
+      border-radius: 5px;
+      display: none;
+    }
+    .confirmation img {
+      max-width: 100%;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -73,17 +86,26 @@
       <label for="auteur">Auteur</label>
       <input type="text" id="auteur" placeholder="Auteur" required />
 
-      <label for="objectif">Objectif</label>
-      <input type="text" id="objectif" placeholder="Objectif" required />
-
-      <label for="outil">Outil</label>
-      <input type="text" id="outil" placeholder="Outil" required />
+      <label for="outil">Outil IA (image)</label>
+      <select id="outil" required>
+        <option value="">-- Choisir un outil --</option>
+        <option value="Midjourney">Midjourney</option>
+        <option value="DALL·E">DALL·E</option>
+        <option value="Stable Diffusion">Stable Diffusion</option>
+        <option value="Leonardo.ai">Leonardo.ai</option>
+        <option value="Firefly">Firefly</option>
+      </select>
 
       <label for="categorie">Catégorie</label>
-      <input type="text" id="categorie" placeholder="Catégorie" required />
-
-      <label for="niveau">Niveau</label>
-      <input type="text" id="niveau" placeholder="Niveau" required />
+      <select id="categorie" required>
+        <option value="">-- Choisir une catégorie --</option>
+        <option value="Portrait">Portrait</option>
+        <option value="Paysage">Paysage</option>
+        <option value="Science-fiction">Science-fiction</option>
+        <option value="Fantastique">Fantastique</option>
+        <option value="Abstrait">Abstrait</option>
+        <option value="Autre">Autre</option>
+      </select>
 
       <label for="texte">Prompt</label>
       <textarea id="texte" placeholder="Votre prompt ici" required></textarea>
@@ -94,11 +116,20 @@
 
       <button type="submit">Partager</button>
     </form>
+
+    <div class="confirmation" id="confirmation-box">
+      <p><strong>✅ Prompt partagé avec succès !</strong></p>
+      <div id="confirmation-image"></div>
+      <div id="confirmation-texte"></div>
+    </div>
   </div>
 
   <script>
     const fileInput = document.getElementById("image-input");
     const imagePreview = document.getElementById("image-preview");
+    const confirmationBox = document.getElementById("confirmation-box");
+    const confirmationImage = document.getElementById("confirmation-image");
+    const confirmationTexte = document.getElementById("confirmation-texte");
 
     fileInput.addEventListener("change", function () {
       const file = this.files[0];
@@ -130,7 +161,7 @@
         try {
           const imageUploadRes = await fetch("/.netlify/functions/uploadImage", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
             body: JSON.stringify({
               imageBase64: base64,
               fileName: file.name,
@@ -148,13 +179,8 @@
             imageData = { url: text };
           }
 
-          if (!imageUploadRes.ok) {
+          if (!imageUploadRes.ok || !imageData.url) {
             alert("Erreur HTTP lors de l'envoi de l'image : " + (imageData.error || imageUploadRes.status));
-            return;
-          }
-
-          if (!imageData.url) {
-            alert("Image envoyée mais pas d'URL reçue : " + JSON.stringify(imageData));
             return;
           }
 
@@ -162,10 +188,8 @@
 
           const promptPayload = {
             auteur: document.getElementById("auteur").value,
-            objectif: document.getElementById("objectif").value,
             outil: document.getElementById("outil").value,
             categorie: document.getElementById("categorie").value,
-            niveau: document.getElementById("niveau").value,
             texte: document.getElementById("texte").value,
             imageUrl: imageUrl,
           };
@@ -174,7 +198,7 @@
 
           const promptRes = await fetch("/.netlify/functions/pushPrompt", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
             body: JSON.stringify(promptPayload),
           });
 
@@ -190,7 +214,9 @@
           }
 
           if (promptRes.ok) {
-            alert("✅ Prompt partagé avec succès");
+            confirmationImage.innerHTML = `<img src="${imageUrl}" alt="Image partagée" />`;
+            confirmationTexte.textContent = promptPayload.texte;
+            confirmationBox.style.display = "block";
           } else {
             alert("❌ Erreur lors de l'enregistrement du prompt : " + (promptData.error || "inconnue"));
           }
