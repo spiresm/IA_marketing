@@ -19,7 +19,7 @@ exports.handler = async function(event) {
     if (!imageBase64 || !fileName) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Image ou nom de fichier manquant" }),
+        body: JSON.stringify({ error: "Paramètres manquants" }),
       };
     }
 
@@ -28,8 +28,7 @@ exports.handler = async function(event) {
     const token = process.env.GITHUB_TOKEN;
 
     const githubUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
-
-    const content = imageBase64;
+    const content = Buffer.from(imageBase64, 'base64').toString('base64');
 
     const res = await fetch(githubUrl, {
       method: 'PUT',
@@ -38,23 +37,30 @@ exports.handler = async function(event) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        message: `Ajout d’une image depuis le site`,
+        message: `Ajout d'une image depuis le site`,
         content: content
       })
     });
 
+    if (!res.ok) {
+      const errorText = await res.text();
+      return {
+        statusCode: res.status,
+        body: JSON.stringify({ error: errorText }),
+      };
+    }
+
     const data = await res.json();
 
+    const imageUrl = data.content.download_url || `https://raw.githubusercontent.com/${repo}/main/${path}`;
+    
     return {
-      statusCode: res.status,
+      statusCode: 200,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify({
-        url: data.content?.download_url || null,
-        sha: data.content?.sha || null
-      })
+      body: JSON.stringify({ url: imageUrl })
     };
 
   } catch (error) {
@@ -64,7 +70,7 @@ exports.handler = async function(event) {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: error.message || "Erreur interne" })
     };
   }
 };
