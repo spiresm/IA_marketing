@@ -207,41 +207,47 @@
     </div>
   </div>
   <script>
-    const fileInput = document.getElementById("image-input");
-    const imagePreview = document.getElementById("image-preview");
+  const fileInput = document.getElementById("image-input");
+  const imagePreview = document.getElementById("image-preview");
 
-    fileInput.addEventListener("change", function () {
-      const file = this.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          imagePreview.src = e.target.result;
-          imagePreview.style.display = "block";
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-
-    document.getElementById("upload-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const file = fileInput.files[0];
+  fileInput.addEventListener("change", function () {
+    const file = this.files[0];
+    if (file) {
       const reader = new FileReader();
+      reader.onload = function (e) {
+        imagePreview.src = e.target.result;
+        imagePreview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+  });
 
-      reader.onloadend = async () => {
-        const base64 = reader.result.split(",")[1];
+  document.getElementById("upload-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-        const payload = {
-          imageBase64: base64,
-          fileName: file.name,
-          auteur: document.getElementById("auteur").value,
-          objectif: document.getElementById("objectif").value,
-          outil: document.getElementById("outil").value,
-          categorie: document.getElementById("categorie").value,
-          niveau: document.getElementById("niveau").value,
-          texte: document.getElementById("texte").value
-        };
+    const file = fileInput.files[0];
+    if (!file) {
+      alert("Veuillez sélectionner une image.");
+      return;
+    }
 
+    const reader = new FileReader();
+
+    reader.onloadend = async () => {
+      const base64 = reader.result.split(",")[1];
+
+      const payload = {
+        imageBase64: base64,
+        fileName: file.name,
+        auteur: document.getElementById("auteur").value,
+        objectif: document.getElementById("objectif").value,
+        outil: document.getElementById("outil").value,
+        categorie: document.getElementById("categorie").value,
+        niveau: document.getElementById("niveau").value,
+        texte: document.getElementById("texte").value,
+      };
+
+      try {
         const res = await fetch("/.netlify/functions/pushPrompt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -249,28 +255,19 @@
         });
 
         const data = await res.json();
-        if (data.url) {
-          alert("Image uploadée avec succès : " + data.url);
-        } else {
-          alert("Erreur : " + (data.error || "échec de l'envoi"));
-        }
-      };
 
-      if (file) {
-        reader.readAsDataURL(file);
-      } else {
-        alert("Veuillez sélectionner une image.");
-      }
-    });
-        const data = await res.json();
         if (data.url) {
           alert("Image uploadée avec succès : " + data.url);
         } else {
           alert("Erreur : " + (data.error || "échec de l'envoi"));
         }
-      };
-      reader.readAsDataURL(file);
-    });
-  </script>
+      } catch (err) {
+        alert("Erreur réseau : " + err.message);
+      }
+    };
+
+    reader.readAsDataURL(file);
+  });
+</script>
 </body>
 </html>
