@@ -139,10 +139,22 @@
       <input type="text" id="auteur" name="auteur" required />
 
       <label for="outil">Outil IA utilisé</label>
-      <input type="text" id="outil" name="outil" required />
+      <select id="outil" name="outil" required>
+        <option value="Midjourney">Midjourney</option>
+        <option value="DALL·E">DALL·E</option>
+        <option value="Stable Diffusion">Stable Diffusion</option>
+        <option value="Firefly">Adobe Firefly</option>
+        <option value="Runway">Runway</option>
+      </select>
 
       <label for="categorie">Catégorie</label>
-      <input type="text" id="categorie" name="categorie" required />
+      <select id="categorie" name="categorie" required>
+        <option value="Portrait">Portrait</option>
+        <option value="Paysage">Paysage</option>
+        <option value="Concept Art">Concept Art</option>
+        <option value="Produit">Produit</option>
+        <option value="Architecture">Architecture</option>
+      </select>
 
       <label for="texte">Prompt</label>
       <textarea id="texte" name="texte" rows="5" required></textarea>
@@ -161,5 +173,89 @@
       <p id="confirmation-texte"></p>
     </div>
   </div>
+<script>
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('image-input');
+  const imagePreview = document.getElementById('image-preview');
+  const confirmationBox = document.getElementById('confirmation-box');
+  const confirmationImage = document.getElementById('confirmation-image');
+  const confirmationTexte = document.getElementById('confirmation-texte');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      fileInput.files = files;
+      showImagePreview(files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      showImagePreview(fileInput.files[0]);
+    }
+  });
+
+  function showImagePreview(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      imagePreview.src = reader.result;
+      imagePreview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  document.getElementById('prompt-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const imageUpload = await fetch('/.netlify/functions/uploadImage', {
+      method: 'POST',
+      body: formData
+    });
+
+    const imageData = await imageUpload.json();
+    const imageUrl = imageData.url || '';
+
+    const prompt = {
+      auteur: document.getElementById('auteur').value,
+      outil: document.getElementById('outil').value,
+      categorie: document.getElementById('categorie').value,
+      texte: document.getElementById('texte').value,
+      imageUrl: imageUrl
+    };
+
+    const response = await fetch('/.netlify/functions/pushPrompt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(prompt)
+    });
+
+    if (response.ok) {
+      confirmationBox.style.display = 'block';
+      confirmationImage.src = imageUrl;
+      confirmationTexte.textContent = prompt.texte;
+      document.getElementById('prompt-form').reset();
+      imagePreview.style.display = 'none';
+    }
+  });
+</script>
 </body>
 </html>
