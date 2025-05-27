@@ -235,31 +235,51 @@
 
     reader.onloadend = async () => {
       const base64 = reader.result.split(",")[1];
-
-      const payload = {
-        imageBase64: base64,
-        fileName: file.name,
-        auteur: document.getElementById("auteur").value,
-        objectif: document.getElementById("objectif").value,
-        outil: document.getElementById("outil").value,
-        categorie: document.getElementById("categorie").value,
-        niveau: document.getElementById("niveau").value,
-        texte: document.getElementById("texte").value,
-      };
+      let imageUrl = null;
 
       try {
-        const res = await fetch("/.netlify/functions/pushPrompt", {
+        // Étape 1 : envoyer l'image à uploadImage
+        const imageUploadRes = await fetch("/.netlify/functions/uploadImage", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            imageBase64: base64,
+            fileName: file.name,
+          }),
         });
 
-        const data = await res.json();
+        const imageData = await imageUploadRes.json();
 
-        if (data.url) {
-          alert("Image uploadée avec succès : " + data.url);
+        if (!imageUploadRes.ok || !imageData.url) {
+          alert("Erreur lors de l'envoi de l'image : " + (imageData.error || "inconnue"));
+          return;
+        }
+
+        imageUrl = imageData.url;
+
+        // Étape 2 : envoyer les métadonnées du prompt
+        const promptPayload = {
+          auteur: document.getElementById("auteur").value,
+          objectif: document.getElementById("objectif").value,
+          outil: document.getElementById("outil").value,
+          categorie: document.getElementById("categorie").value,
+          niveau: document.getElementById("niveau").value,
+          texte: document.getElementById("texte").value,
+          imageUrl: imageUrl,
+        };
+
+        const promptRes = await fetch("/.netlify/functions/pushPrompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(promptPayload),
+        });
+
+        const promptData = await promptRes.json();
+
+        if (promptRes.ok) {
+          alert("Prompt partagé avec succès ✅");
         } else {
-          alert("Erreur : " + (data.error || "échec de l'envoi"));
+          alert("Erreur lors de l'enregistrement du prompt : " + (promptData.error || "inconnue"));
         }
       } catch (err) {
         alert("Erreur réseau : " + err.message);
