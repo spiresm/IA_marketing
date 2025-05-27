@@ -1,6 +1,12 @@
 const fetch = require('node-fetch');
 
-exports.handler = async function (event) {
+exports.handler = async function (event) 
+if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type"{
   const prompt = JSON.parse(event.body);
 
   const repo = "spiresm/IA_marketing";
@@ -24,8 +30,12 @@ exports.handler = async function (event) {
 
   const data = await res.json();
   return {
-    statusCode: res.status,
-    body: JSON.stringify(data)
+  statusCode: res.status,
+  headers: {
+    "Access-Control-Allow-Origin": "*",  // autorise tous les domaines
+    "Access-Control-Allow-Headers": "Content-Type"
+  },
+  body: JSON.stringify(data)
   };
 };
 
