@@ -1,6 +1,8 @@
 const fetch = require("node-fetch");
 
 exports.handler = async function (event) {
+  console.log("✅ pushPrompt déclenché");
+
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -15,13 +17,14 @@ exports.handler = async function (event) {
 
   try {
     const prompt = JSON.parse(event.body);
+    console.log("📦 Données reçues :", prompt);
 
     const repo = "spiresm/IA_marketing";
     const token = process.env.GITHUB_TOKEN;
     const path = `prompts/prompt-${Date.now()}.json`;
 
     if (!token) {
-      throw new Error("Le token GitHub est manquant (GITHUB_TOKEN).");
+      throw new Error("❌ GITHUB_TOKEN manquant.");
     }
 
     const githubUrl = `https://api.github.com/repos/${repo}/contents/${path}`;
@@ -42,11 +45,14 @@ exports.handler = async function (event) {
     const data = await res.json();
 
     if (!res.ok) {
+      console.log("❌ Erreur GitHub :", data);
       return {
         statusCode: res.status,
         body: JSON.stringify({ error: data.message || "Erreur API GitHub" }),
       };
     }
+
+    console.log("✅ Prompt sauvegardé :", data.content.download_url);
 
     return {
       statusCode: 200,
@@ -57,6 +63,7 @@ exports.handler = async function (event) {
       body: JSON.stringify({ success: true, url: data.content.download_url }),
     };
   } catch (error) {
+    console.error("❌ Erreur serveur :", error);
     return {
       statusCode: 500,
       headers: {
