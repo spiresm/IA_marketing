@@ -83,7 +83,7 @@
     }
     #image-preview {
       display: none;
-      max-width: 100%;
+      max-width: 50%;
       margin-top: 10px;
       border-radius: 5px;
     }
@@ -111,7 +111,7 @@
       display: none;
     }
     .confirmation img {
-      max-width: 100%;
+      max-width: 50%;
       border-radius: 5px;
       margin-top: 10px;
     }
@@ -134,146 +134,32 @@
 
   <div class="container">
     <h2>Partager un prompt</h2>
-    <form id="upload-form">
-      <label for="auteur">Auteur</label>
-      <input type="text" id="auteur" placeholder="Auteur" required />
+    <form id="prompt-form">
+      <label for="auteur">Votre nom</label>
+      <input type="text" id="auteur" name="auteur" required />
 
-      <label for="objectif">Objectif</label>
-      <input type="text" id="objectif" placeholder="Objectif du prompt" required />
+      <label for="outil">Outil IA utilisé</label>
+      <input type="text" id="outil" name="outil" required />
 
-      <label for="niveau">Niveau</label>
-      <select id="niveau" required>
-        <option value="">-- Choisir un niveau --</option>
-        <option value="Débutant">Débutant</option>
-        <option value="Intermédiaire">Intermédiaire</option>
-        <option value="Avancé">Avancé</option>
-      </select>
+      <label for="categorie">Catégorie</label>
+      <input type="text" id="categorie" name="categorie" required />
 
       <label for="texte">Prompt</label>
-      <textarea id="texte" placeholder="Votre prompt ici" required></textarea>
+      <textarea id="texte" name="texte" rows="5" required></textarea>
 
       <label for="image-input">Image</label>
-      <div id="drop-zone">Déposez une image ici ou cliquez pour choisir un fichier</div>
-      <input type="file" id="image-input" accept="image/*" style="display:none;" />
-      <img id="image-preview" />
+      <div id="drop-zone">Déposez une image ici ou cliquez pour choisir</div>
+      <input type="file" id="image-input" accept="image/*" style="display: none" />
+      <img id="image-preview" src="#" alt="Preview" />
 
       <button type="submit">Partager</button>
     </form>
 
     <div class="confirmation" id="confirmation-box">
-      <p><strong>✅ Prompt partagé avec succès !</strong></p>
-      <div id="confirmation-image"></div>
-      <div id="confirmation-texte"></div>
+      <p>✅ Prompt partagé avec succès !</p>
+      <img id="confirmation-image" src="#" alt="Confirmation image" />
+      <p id="confirmation-texte"></p>
     </div>
   </div>
-
-  <script>
-    const dropZone = document.getElementById("drop-zone");
-    const fileInput = document.getElementById("image-input");
-    const imagePreview = document.getElementById("image-preview");
-    const confirmationBox = document.getElementById("confirmation-box");
-    const confirmationImage = document.getElementById("confirmation-image");
-    const confirmationTexte = document.getElementById("confirmation-texte");
-
-    dropZone.addEventListener("click", () => fileInput.click());
-
-    dropZone.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      dropZone.classList.add("dragover");
-    });
-
-    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
-
-    dropZone.addEventListener("drop", (e) => {
-      e.preventDefault();
-      dropZone.classList.remove("dragover");
-      const files = e.dataTransfer.files;
-      if (files.length) {
-        fileInput.files = files;
-        handleFile(files[0]);
-      }
-    });
-
-    fileInput.addEventListener("change", function () {
-      const file = this.files[0];
-      handleFile(file);
-    });
-
-    function handleFile(file) {
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          imagePreview.src = e.target.result;
-          imagePreview.style.display = "block";
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-
-    document.getElementById("upload-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const file = fileInput.files[0];
-      if (!file) {
-        alert("Veuillez sélectionner une image.");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result.split(",")[1];
-        let imageUrl = null;
-
-        try {
-          const imageUploadRes = await fetch("/.netlify/functions/uploadImage", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({
-              imageBase64: base64,
-              fileName: file.name,
-            }),
-          });
-
-          const imageData = await imageUploadRes.json();
-
-          if (!imageUploadRes.ok || !imageData.url) {
-            alert("Erreur HTTP lors de l'envoi de l'image : " + (imageData.error || imageUploadRes.status));
-            return;
-          }
-
-          imageUrl = imageData.url;
-
-          const promptPayload = {
-            auteur: document.getElementById("auteur").value,
-            objectif: document.getElementById("objectif").value,
-            niveau: document.getElementById("niveau").value,
-            texte: document.getElementById("texte").value,
-            imageUrl: imageUrl,
-          };
-
-          const promptRes = await fetch("/.netlify/functions/pushPrompt", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify(promptPayload),
-          });
-
-          const promptData = await promptRes.json();
-
-          if (promptRes.ok) {
-            confirmationImage.innerHTML = `<img src="${imageUrl}" alt="Image partagée" />`;
-            confirmationTexte.textContent = promptPayload.texte;
-            confirmationBox.style.display = "block";
-          } else {
-            alert("❌ Erreur lors de l'enregistrement du prompt : " + (promptData.error || "inconnue"));
-          }
-        } catch (err) {
-          console.error("Erreur réseau :", err);
-          alert("❌ Erreur réseau : " + err.message);
-        }
-      };
-
-      reader.readAsDataURL(file);
-    });
-  </script>
 </body>
 </html>
