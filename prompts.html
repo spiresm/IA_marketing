@@ -224,16 +224,44 @@
 
     document.getElementById("upload-form").addEventListener("submit", async (e) => {
       e.preventDefault();
+
       const file = fileInput.files[0];
-      if (!file) return alert("Veuillez sélectionner une image.");
       const reader = new FileReader();
+
       reader.onloadend = async () => {
         const base64 = reader.result.split(",")[1];
+
+        const payload = {
+          imageBase64: base64,
+          fileName: file.name,
+          auteur: document.getElementById("auteur").value,
+          objectif: document.getElementById("objectif").value,
+          outil: document.getElementById("outil").value,
+          categorie: document.getElementById("categorie").value,
+          niveau: document.getElementById("niveau").value,
+          texte: document.getElementById("texte").value
+        };
+
         const res = await fetch("/.netlify/functions/pushPrompt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64, fileName: file.name }),
+          body: JSON.stringify(payload),
         });
+
+        const data = await res.json();
+        if (data.url) {
+          alert("Image uploadée avec succès : " + data.url);
+        } else {
+          alert("Erreur : " + (data.error || "échec de l'envoi"));
+        }
+      };
+
+      if (file) {
+        reader.readAsDataURL(file);
+      } else {
+        alert("Veuillez sélectionner une image.");
+      }
+    });
         const data = await res.json();
         if (data.url) {
           alert("Image uploadée avec succès : " + data.url);
