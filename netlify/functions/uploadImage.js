@@ -1,17 +1,13 @@
-// netlify/functions/uploadImage.js
-const { Octokit } = require("@octokit/rest");
-
-// Instanciez Octokit avec votre token GitHub en variable d’environnement
+const { Octokit } = require('@octokit/rest');
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
 exports.handler = async (event) => {
   try {
-    // On suppose que vous parsez déjà le multipart/form-data pour obtenir :
-    // - fileBase64 : le contenu du fichier en Base64 (sans préfixe data:…)
-    // - fileName   : le nom original du fichier uploadé
-    const { fileBase64, fileName } = parseMultipart(event);
+    // 1) Parser le JSON envoyé par le front
+    const { fileBase64, fileName } = JSON.parse(event.body);
+    console.log('Serveur reçoit', fileName, '— base64 length:', fileBase64.length);
 
-    // On crée / met à jour le fichier dans le repo GitHub
+    // 2) Créer ou mettre à jour le fichier sur GitHub
     const { data } = await octokit.repos.createOrUpdateFileContents({
       owner: process.env.GITHUB_OWNER,
       repo: process.env.GITHUB_REPO,
@@ -20,29 +16,17 @@ exports.handler = async (event) => {
       content: fileBase64,
     });
 
-    // On renvoie bien download_url pour que <img src="…"> fonctionne
+    // 3) Renvoyer l'URL « raw » pour l'affichage
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: data.content.download_url }),
     };
 
   } catch (error) {
-    console.error(error);
+    console.error('uploadImage error:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message }),
     };
   }
 };
-
-/**
- * parseMultipart(event)
- * • Si vous utilisez déjà une librairie (busboy, formidable...), conservez votre parser.
- * • L'essentiel : obtenir fileBase64 et fileName.
- */
-function parseMultipart(event) {
-  // … votre code de parsing existant …
-  // Retournez exactement { fileBase64, fileName }
-  throw new Error("Implémenter parseMultipart selon votre setup");
-}
