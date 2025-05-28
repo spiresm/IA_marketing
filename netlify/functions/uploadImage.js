@@ -9,11 +9,13 @@ exports.handler = async (event) => {
 
     // 2) Créer ou mettre à jour le fichier sur GitHub
     const { data } = await octokit.repos.createOrUpdateFileContents({
-      owner: process.env.GITHUB_OWNER,
-      repo: process.env.GITHUB_REPO,
-      path: `images/${Date.now()}-${fileName}`,
-      message: `Ajout de ${fileName}`,
-      content: fileBase64,
+  owner: process.env.GITHUB_OWNER,
+  repo:  process.env.GITHUB_REPO,
+  path:  `images/${Date.now()}-${fileName}`,
+  message: `Ajout de ${fileName}`,
+  content: fileBase64,
+});
+
     });
 
     // 3) Renvoyer l'URL « raw » pour l'affichage
