@@ -116,34 +116,37 @@
           let imageUrl = '';
           const file = fileInput.value.files[0];
           if (file) {
+            console.log('Nom du fichier à uploader:', file.name);
             try {
               const base64 = await getBase64(file);
+              const payload = { fileBase64: base64, fileName: file.name };
+              console.log('Payload envoyé à uploadImage:', payload);
               const resp = await fetch('/.netlify/functions/uploadImage', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileBase64: base64, fileName: file.name })
+                body: JSON.stringify(payload)
               });
-              if (!resp.ok) throw new Error('Upload failed');
-              const { url } = await resp.json();
-              imageUrl = url;
+              if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+              const data = await resp.json();
+              console.log('Réponse de uploadImage:', data);
+              if (!data.url) throw new Error('Aucune URL retournée');
+              imageUrl = data.url;
             } catch (err) {
-              console.error(err);
+              console.error('Erreur uploadImage:', err);
               alert('Échec upload image');
               return;
             }
           }
-          // Envoi prompt
           try {
-            const resp = await fetch('/.netlify/functions/pushPrompt', {
+            const promptResp = await fetch('/.netlify/functions/pushPrompt', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ auteur: auteur.value, outil: outil.value, categorie: categorie.value, texte: texte.value, imageUrl })
             });
-            if (!resp.ok) throw new Error('Prompt failed');
+            if (!promptResp.ok) throw new Error(`Prompt failed: ${promptResp.status}`);
             confirmationImageUrl.value = imageUrl;
             confirmationTexte.value = texte.value;
             confirmationVisible.value = true;
-            // reset
             auteur.value = '';
             outil.value = 'Midjourney';
             categorie.value = 'Portrait';
@@ -151,7 +154,7 @@
             imagePreviewUrl.value = '';
             fileInput.value.value = null;
           } catch (err) {
-            console.error(err);
+            console.error('Erreur pushPrompt:', err);
             alert('Échec envoi prompt');
           }
         }
