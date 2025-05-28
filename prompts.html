@@ -1,25 +1,24 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Démo Formulaire de Prompt</title>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; margin: 0; background-color: #f0f4f8; color: #333; }
-    .header { background-color: #0077b6; color: white; padding: 40px 20px; text-align: center; }
-    .container { max-width: 600px; margin: 50px auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    nav { background-color: #fff; display: flex; justify-content: center; gap: 20px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    nav a { text-decoration: none; color: #0077b6; font-weight: bold; padding: 8px 16px; border-radius: 20px; transition: background-color 0.3s; }
-    nav a:hover { background-color: #e0f0ff; }
-    label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; }
-    input[type=text], select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-    #drop-zone { border: 2px dashed #0077b6; padding: 20px; text-align: center; color: #777; margin-top: 10px; border-radius: 5px; cursor: pointer; }
-    #drop-zone.dragover { background-color: #e0f7ff; }
-    #image-preview { max-width: 50%; margin-top: 10px; border-radius: 5px; display: none; }
-    button { display: block; width: 100%; background-color: #0077b6; color: white; border: none; padding: 12px; margin-top: 20px; font-size: 16px; border-radius: 5px; cursor: pointer; }
-    button:hover { background-color: #005f8a; }
-    .confirmation { margin-top: 30px; padding: 15px; background-color: #e6ffed; border: 1px solid #b7eb8f; border-radius: 5px; display: none; }
-    .confirmation img { max-width: 50%; margin-top: 10px; border-radius: 5px; }
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f4f8; color: #333; }
+    .header { background: #0077b6; color: #fff; padding: 30px; text-align: center; }
+    nav { background: #fff; display: flex; justify-content: center; gap: 15px; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    nav a { text-decoration: none; color: #0077b6; font-weight: bold; padding: 6px 12px; border-radius: 20px; transition: background 0.3s; }
+    nav a:hover { background: #e0f0ff; }
+    .container { max-width: 600px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    label { font-weight: bold; display: block; margin-top: 15px; }
+    input, select, textarea { width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; }
+    #drop-zone { border: 2px dashed #0077b6; padding: 20px; text-align: center; color: #777; margin-top: 10px; border-radius: 4px; cursor: pointer; }
+    #drop-zone.dragover { background: #e0f7ff; }
+    #image-preview { display: block; max-width: 50%; margin: 10px auto; border-radius: 4px; }
+    button { width: 100%; padding: 10px; background: #0077b6; color: #fff; border: none; border-radius: 4px; margin-top: 20px; cursor: pointer; }
+    button:hover { background: #005f8a; }
+    .confirmation { margin-top: 20px; padding: 15px; background: #e6ffed; border: 1px solid #b7eb8f; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -27,41 +26,50 @@
     <prompt-form />
   </div>
 
-  <!-- Vue 3 CDN -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script>
     const { ref } = Vue;
-    // Composant PromptForm
     const PromptForm = {
       template: `
-      <div>
-        <div class="header"><h1>Espace IA Marketing</h1></div>
-        <nav>
-          <a href="#">Accueil</a><a href="#">Mon profil</a><a href="#">Outils IA</a>
-          <a href="#">Prompts</a><a href="#">Cas d’usage</a><a href="#">Créer un tip</a><a href="#">Veille</a>
-        </nav>
-        <div class="container">
-          <h2>Partager un prompt</h2>
-          <form @submit.prevent="submitForm">
-            <label>Votre nom</label><input type="text" v-model="auteur" required />
-            <label>Outil IA utilisé</label>
-            <select v-model="outil"><option>Midjourney</option><option>DALL·E</option><option>Stable Diffusion</option><option>Adobe Firefly</option><option>Runway</option></select>
-            <label>Catégorie</label>
-            <select v-model="categorie"><option>Portrait</option><option>Paysage</option><option>Concept Art</option><option>Produit</option><option>Architecture</option></select>
-            <label>Prompt</label><textarea v-model="texte" rows="5" required></textarea>
-            <label>Image</label>
-            <div id="drop-zone" @click="triggerFile" @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">Déposez ou cliquez</div>
-            <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
-            <img :src="imagePreviewUrl" v-if="imagePreviewUrl" id="image-preview" style="display:block;"/>
-            <button type="submit">Partager</button>
-          </form>
-          <div class="confirmation" v-if="confirmationVisible">
-            <p>✅ Prompt partagé !</p>
-            <img :src="confirmationImageUrl" alt="confirmation" />
-            <p>{{ confirmationTexte }}</p>
+        <div>
+          <div class="header"><h1>Espace IA Marketing</h1></div>
+          <nav><a href="#">Accueil</a><a href="#">Mon profil</a><a href="#">Outils IA</a><a href="#">Prompts</a><a href="#">Cas d’usage</a><a href="#">Créer un tip</a><a href="#">Veille</a></nav>
+          <div class="container">
+            <h2>Partager un prompt</h2>
+            <form @submit.prevent="submitForm">
+              <label for="auteur">Votre nom</label>
+              <input id="auteur" v-model="auteur" required />
+
+              <label for="outil">Outil IA utilisé</label>
+              <select id="outil" v-model="outil">
+                <option>Midjourney</option><option>DALL·E</option><option>Stable Diffusion</option><option>Adobe Firefly</option><option>Runway</option>
+              </select>
+
+              <label for="categorie">Catégorie</label>
+              <select id="categorie" v-model="categorie">
+                <option>Portrait</option><option>Paysage</option><option>Concept Art</option><option>Produit</option><option>Architecture</option>
+              </select>
+
+              <label for="texte">Prompt</label>
+              <textarea id="texte" v-model="texte" rows="4" required></textarea>
+
+              <label>Image</label>
+              <div id="drop-zone" @click="triggerFile" @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
+                Déposez ou cliquez
+              </div>
+              <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
+              <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
+
+              <button type="submit">Partager</button>
+            </form>
+
+            <div class="confirmation" v-if="confirmationVisible">
+              <p>✅ Prompt partagé !</p>
+              <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
+              <p>{{ confirmationTexte }}</p>
+            </div>
           </div>
         </div>
-      </div>
       `,
       setup() {
         const auteur = ref('');
@@ -74,94 +82,86 @@
         const confirmationImageUrl = ref('');
         const confirmationTexte = ref('');
 
-        function triggerFile() { fileInput.value.click(); }
-        function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
-        function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+        function triggerFile() {
+          fileInput.value.click();
+        }
+        function onDragOver(e) {
+          e.currentTarget.classList.add('dragover');
+        }
+        function onDragLeave(e) {
+          e.currentTarget.classList.remove('dragover');
+        }
         function onDrop(e) {
           e.currentTarget.classList.remove('dragover');
           handleFile(e.dataTransfer.files[0]);
         }
-        function onFileChange(e) { handleFile(e.target.files[0]); }
+        function onFileChange(e) {
+          handleFile(e.target.files[0]);
+        }
         function handleFile(file) {
           const reader = new FileReader();
           reader.onload = () => { imagePreviewUrl.value = reader.result; };
           reader.readAsDataURL(file);
         }
         function getBase64(file) {
-          return new Promise((res, rej) => {
+          return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload = () => res(reader.result.split(',')[1]);
-            reader.onerror = rej;
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = () => reject();
             reader.readAsDataURL(file);
           });
         }
         async function submitForm() {
           confirmationVisible.value = false;
           let imageUrl = '';
-          const file = fileInput.value.files && fileInput.value.files[0];
+          const file = fileInput.value.files[0];
           if (file) {
             try {
-              const b64 = await getBase64(file);
+              const base64 = await getBase64(file);
               const resp = await fetch('/.netlify/functions/uploadImage', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileBase64: b64, fileName: file.name })
+                body: JSON.stringify({ fileBase64: base64, fileName: file.name })
               });
-              if (!resp.ok) {
-                throw new Error(`Upload failed with status ${resp.status}`);
-              }
-              const data = await resp.json();
-              if (!data.url) {
-                throw new Error('No URL returned from uploadImage');
-              }
-              imageUrl = data.url;
+              if (!resp.ok) throw new Error('Upload failed');
+              const { url } = await resp.json();
+              imageUrl = url;
             } catch (err) {
-              alert('Échec de l’upload de l’image. Voir console pour détails.');
-              console.error('uploadImage error:', err);
+              console.error(err);
+              alert('Échec upload image');
               return;
             }
           }
-          // Envoi du prompt
+          // Envoi prompt
           try {
-            const promptResp = await fetch('/.netlify/functions/pushPrompt', {
+            const resp = await fetch('/.netlify/functions/pushPrompt', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ auteur: auteur.value, outil: outil.value, categorie: categorie.value, texte: texte.value, imageUrl })
             });
-            if (!promptResp.ok) {
-              throw new Error(`Prompt failed with status ${promptResp.status}`);
-            }
+            if (!resp.ok) throw new Error('Prompt failed');
             confirmationImageUrl.value = imageUrl;
             confirmationTexte.value = texte.value;
             confirmationVisible.value = true;
-            // Reset form
+            // reset
             auteur.value = '';
             outil.value = 'Midjourney';
             categorie.value = 'Portrait';
             texte.value = '';
             imagePreviewUrl.value = '';
-            if (fileInput.value) fileInput.value.value = '';
+            fileInput.value.value = null;
           } catch (err) {
-            alert('Échec de l’envoi du prompt. Voir console pour détails.');
-            console.error('pushPrompt error:', err);
-          }
-        },
-              body: JSON.stringify({ fileBase64: b64, fileName: file.name })
-            });
-            const { url } = await resp.json(); imageUrl = url;
-          }
-          const promptResp = await fetch('/.netlify/functions/pushPrompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ auteur:auteur.value,outil:outil.value,categorie:categorie.value,texte:texte.value,imageUrl })});
-          if (promptResp.ok) {
-            confirmationImageUrl.value = imageUrl;
-            confirmationTexte.value = texte.value;
-            confirmationVisible.value = true;
-            auteur.value=''; outil.value='Midjourney'; categorie.value='Portrait'; texte.value=''; imagePreviewUrl.value='';
+            console.error(err);
+            alert('Échec envoi prompt');
           }
         }
 
-        return { auteur, outil, categorie, texte, fileInput, imagePreviewUrl,
-          confirmationVisible, confirmationImageUrl, confirmationTexte,
-          triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm };
+        return {
+          auteur, outil, categorie, texte, fileInput,
+          imagePreviewUrl, confirmationVisible,
+          confirmationImageUrl, confirmationTexte,
+          triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
+        };
       }
     };
 
