@@ -98,11 +98,54 @@
         async function submitForm() {
           confirmationVisible.value = false;
           let imageUrl = '';
-          const file = fileInput.value.files[0];
+          const file = fileInput.value.files && fileInput.value.files[0];
           if (file) {
-            const b64 = await getBase64(file);
-            const resp = await fetch('/.netlify/functions/uploadImage', {
-              method:'POST', headers:{'Content-Type':'application/json'},
+            try {
+              const b64 = await getBase64(file);
+              const resp = await fetch('/.netlify/functions/uploadImage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileBase64: b64, fileName: file.name })
+              });
+              if (!resp.ok) {
+                throw new Error(`Upload failed with status ${resp.status}`);
+              }
+              const data = await resp.json();
+              if (!data.url) {
+                throw new Error('No URL returned from uploadImage');
+              }
+              imageUrl = data.url;
+            } catch (err) {
+              alert('Échec de l’upload de l’image. Voir console pour détails.');
+              console.error('uploadImage error:', err);
+              return;
+            }
+          }
+          // Envoi du prompt
+          try {
+            const promptResp = await fetch('/.netlify/functions/pushPrompt', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ auteur: auteur.value, outil: outil.value, categorie: categorie.value, texte: texte.value, imageUrl })
+            });
+            if (!promptResp.ok) {
+              throw new Error(`Prompt failed with status ${promptResp.status}`);
+            }
+            confirmationImageUrl.value = imageUrl;
+            confirmationTexte.value = texte.value;
+            confirmationVisible.value = true;
+            // Reset form
+            auteur.value = '';
+            outil.value = 'Midjourney';
+            categorie.value = 'Portrait';
+            texte.value = '';
+            imagePreviewUrl.value = '';
+            if (fileInput.value) fileInput.value.value = '';
+          } catch (err) {
+            alert('Échec de l’envoi du prompt. Voir console pour détails.');
+            console.error('pushPrompt error:', err);
+          }
+        },
               body: JSON.stringify({ fileBase64: b64, fileName: file.name })
             });
             const { url } = await resp.json(); imageUrl = url;
