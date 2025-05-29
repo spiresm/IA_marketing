@@ -1,13 +1,15 @@
 name: Mise à jour automatique de la veille
 
 on:
-  workflow_dispatch:        # lancement manuel
+  workflow_dispatch:
   schedule:
-    - cron: '0 6 * * *'      # tous les jours à 6h UTC
+    - cron: '0 6 * * *'
 
 jobs:
   maj_veille:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -21,40 +23,22 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Générer les titres pour prompts.json
+      - name: Générer les titres
         run: node generate-prompts.js
 
-      - name: Update veille.html via ChatGPT
+      - name: Mettre à jour veille.html via ChatGPT
         run: node maj-veille.js
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-      - name: Commit and push (debug)
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+      - name: Commit & Push avec GITHUB_TOKEN
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-
-          echo "🔧 Configuration du remote..."
-          git remote -v
-          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
-          git remote -v
-
-          echo "📁 État du dépôt avant ajout :"
-          git status
-
-          echo "➕ Ajout des fichiers modifiés..."
-          git add veille.html
-
-          echo "📂 Fichiers en staging :"
-          git diff --cached
-
-          echo "📦 Commit si changement détecté..."
+          git add veille.html prompts.json
           if git diff --cached --quiet; then
-            echo "⚠️ Aucun changement détecté. Rien à commit."
+            echo "Aucun changement à committer"
           else
-            git commit -m "🔄 Mise à jour automatique de la veille avec ChatGPT"
-            echo "🚀 Push des modifications..."
-            git push origin HEAD:main
+            git commit -m "🔄 Mise à jour automatique"
+            git push origin main
           fi
