@@ -20,25 +20,26 @@ Formate la réponse en JSON comme ceci :
 Pas de texte autour, juste un tableau JSON pur.`;
 
 async function updateVeille() {
-  try {
-    const chatResponse = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7
-    });
+try {
+  const chatResponse = await openai.chat.completions.create({
+    model: 'gpt-3.5-turbo',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.7
+  });
 
-    const jsonText = chatResponse.choices[0].message.content;
-    const articles = JSON.parse(jsonText);
+  const jsonText = chatResponse.choices[0].message.content;
+  const articles = JSON.parse(jsonText);
 
-    const newContent = `const articlesDataOriginal = ${JSON.stringify(articles, null, 2)};`;
+  const newContent = `const articlesDataOriginal = ${JSON.stringify(articles, null, 2)};`;
+  let html = fs.readFileSync(filePath, 'utf-8');
+  html = html.replace(/const articlesDataOriginal = \[[\s\S]*?\];/, newContent);
+  fs.writeFileSync(filePath, html, 'utf-8');
 
-    let html = fs.readFileSync(filePath, 'utf-8');
-    html = html.replace(/const articlesDataOriginal = \[[\s\S]*?\];/, newContent);
-    fs.writeFileSync(filePath, html, 'utf-8');
+  console.log("✅ veille.html mise à jour !");
+} catch (err) {
+  console.error("❌ Erreur OpenAI :", err.message || err);
+}
 
-    console.log('✅ veille.html mise à jour avec les articles générés par ChatGPT');
-  } catch (err) {
-    console.error('❌ Erreur :', err.message);
   }
 }
 
