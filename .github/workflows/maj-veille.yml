@@ -1,37 +1,35 @@
-import fs from 'fs';
+name: Mise à jour automatique de la veille
 
-// Remplace ceci plus tard par un appel API réel ou OpenAI
-const articles = [
-  {
-    titre: "Nouveauté OpenAI : GPT-5 dévoilé",
-    url: "https://example.com/openai-gpt5",
-    outil: "ChatGPT",
-    categorie: "Innovation",
-    date: "2025-05-28",
-    resume: "OpenAI dévoile GPT-5 avec des capacités de raisonnement avancé."
-  },
-  {
-    titre: "Midjourney ajoute les vidéos génératives",
-    url: "https://example.com/midjourney-video",
-    outil: "Midjourney",
-    categorie: "Médias",
-    date: "2025-05-28",
-    resume: "Midjourney permet désormais de générer des vidéos réalistes."
-  }
-];
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Tous les jours à 6h UTC
+  workflow_dispatch:      # Permet de le lancer à la main
 
-const filePath = './veille.html';
-let html = fs.readFileSync(filePath, 'utf-8');
+jobs:
+  maj_veille:
+    runs-on: ubuntu-latest
 
-// Créer le nouveau contenu JS
-const newContent = `const articlesDataOriginal = ${JSON.stringify(articles, null, 2)};`;
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-// Remplacer la section JavaScript existante
-html = html.replace(
-  /const articlesDataOriginal = \[[\s\S]*?\];/,
-  newContent
-);
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
 
-// Sauvegarder
-fs.writeFileSync(filePath, html, 'utf-8');
-console.log('✅ veille.html mise à jour avec les nouveaux articles');
+      - name: Install dependencies
+        run: npm install
+
+      - name: Update veille.html avec GPT
+        run: node maj-veille.js
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Commit and push
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add veille.html
+          git commit -m "🔄 Mise à jour automatique de la veille avec ChatGPT"
+          git push
