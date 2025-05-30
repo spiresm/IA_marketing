@@ -1,74 +1,49 @@
-// maj-veille.js
+// convert_articles_format.js
 import fs from 'fs';
-import dayjs from 'dayjs';
+import { OpenAI } from 'openai';
 
-const INPUT_PATH = './articles-formattes.json';
-const OUTPUT_PATH = './veille.html';
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-console.log('⏳ Lecture des articles enrichis...');
+const INPUT_PATH = './prompts.json';
+const OUTPUT_PATH = './articles-formattes.json';
 
-let articles = [];
-try {
-  articles = JSON.parse(fs.readFileSync(INPUT_PATH, 'utf-8'));
-} catch (err) {
-  console.error('❌ Erreur lecture ou parsing articles-formattes.json :', err.message);
-  process.exit(1);
+async function enrichArticles() {
+  console.log('⏳ Lecture du fichier prompts.json...');
+  const titles = JSON.parse(fs.readFileSync(INPUT_PATH, 'utf-8'));
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const prompt = `Voici une liste de titres d'articles sur l'IA et le marketing. Pour chacun, génère un objet JSON contenant :
+- titre
+- resume (en une phrase)
+- date (utilise ${today})
+- outil
+- categorie
+- source (ex : TechCrunch, Wired, etc.)
+- url réaliste
+
+Réponds uniquement avec un tableau JSON.
+Titres :
+${titles.map(t => `- ${t}`).join('\n')}`;
+
+  console.log('⏳ Appel à l’API OpenAI...');
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.7,
+  });
+
+  const rawOutput = completion.choices[0].message.content;
+
+  try {
+    const articles = JSON.parse(rawOutput);
+    fs.writeFileSync(OUTPUT_PATH, JSON.stringify(articles, null, 2));
+    console.log('✅ prompts.json mis à jour avec des articles enrichis !');
+  } catch (err) {
+    console.error('❌ Erreur lors du parsing JSON :', err.message);
+    console.error('📝 Contenu reçu :', rawOutput);
+    process.exit(1);
+  }
 }
 
-// Regroupe par catégorie et outil
-const categories = {};
-const outils = {};
-
-for (const article of articles) {
-  if (!categories[article.categorie]) categories[article.categorie] = [];
-  if (!outils[article.outil]) outils[article.outil] = [];
-  categories[article.categorie].push(article);
-  outils[article.outil].push(article);
-}
-
-// Échantillonne 2 articles par catégorie et 1 article par outil
-const finalArticles = [];
-for (const cat of Object.keys(categories)) {
-  finalArticles.push(...categories[cat].slice(0, 2));
-}
-for (const tool of Object.keys(outils)) {
-  const [first] = outils[tool];
-  if (!finalArticles.includes(first)) finalArticles.push(first);
-}
-
-// Génère le HTML
-const articlesHTML = finalArticles.map(a => `
-  <div class="card">
-    <h3>${a.titre}</h3>
-    <p><strong>${a.date}</strong> – ${a.resume}</p>
-    <p><strong>Outil :</strong> ${a.outil} – <strong>Catégorie :</strong> ${a.categorie}</p>
-    <p><strong>Source :</strong> <a href="${a.url}" target="_blank">${a.source}</a></p>
-  </div>
-`).join('\n');
-
-const htmlTemplate = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <title>Veille IA Marketing</title>
-  <style>
-    body { font-family: sans-serif; padding: 2rem; background: #f4f4f4; }
-    h1 { text-align: center; }
-    .card {
-      background: white;
-      padding: 1rem;
-      border-radius: 10px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      margin-bottom: 1rem;
-    }
-  </style>
-</head>
-<body>
-  <h1>Veille IA Marketing</h1>
-  ${articlesHTML}
-  <footer style="text-align:center;margin-top:2rem;font-size:0.8rem;">Dernière mise à jour : ${dayjs().format('YYYY-MM-DD HH:mm')}</footer>
-</body>
-</html>`;
-
-fs.writeFileSync(OUTPUT_PATH, htmlTemplate);
-console.log('✅ veille.html généré avec succès !');
+enrichArticles();
