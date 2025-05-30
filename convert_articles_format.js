@@ -1,53 +1,36 @@
-import fs from 'fs/promises';
+// convert_articles_format.js
+import fs from 'fs';
 import { OpenAI } from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-console.log("⏳ Appel à l’API OpenAI...");
+const INPUT_PATH = './prompts.json';
+const OUTPUT_PATH = './articles-formattes.json';
 
-try {
-  const raw = JSON.parse(await fs.readFile('./raw-articles.json', 'utf-8'));
+async function enrichArticles() {
+  console.log('⏳ Lecture du fichier prompts.json...');
+  const titles = JSON.parse(fs.readFileSync(INPUT_PATH, 'utf-8'));
 
-  if (!Array.isArray(raw)) {
-    throw new Error("raw-articles.json doit contenir un tableau de titres (strings)");
-  }
+  const prompt = `Voici une liste de titres d'articles sur l'IA et le marketing. Pour chacun, génère un objet JSON contenant :\n- titre\n- resume (en une phrase)\n- date (aujourd'hui)\n- outil\n- categorie\n- source\n- url fictive\n\nRéponds avec un tableau JSON.\nTitres :\n${titles.map(t => `- ${t}`).join('\n')}`;
 
-  const prompt = `Voici des titres récents d'articles d'actualité technologique :\n\n${raw.map(t => `- ${t}`).join('\n')}
-
-Pour chacun, génère un objet JSON au format :
-[
-  {
-    "titre": "...",
-    "url": "...",
-    "outil": "...",
-    "categorie": "...",
-    "date": "2025-05-30",
-    "resume": "..."
-  }
-]
-Ne rajoute pas de texte autour, réponds uniquement avec un tableau JSON.`;
-
+  console.log('⏳ Appel à l’API OpenAI...');
   const completion = await openai.chat.completions.create({
     model: 'gpt-4',
-    messages: [
-      { role: 'system', content: "Tu génères un tableau JSON structuré à partir de titres d'articles tech." },
-      { role: 'user', content: prompt }
-    ],
-    temperature: 0.7
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.7,
   });
 
-  const result = completion.choices[0].message.content;
+  const rawOutput = completion.choices[0].message.content;
 
   try {
-    const parsed = JSON.parse(result);
-    await fs.writeFile('./articles-formattes.json', JSON.stringify(parsed, null, 2));
-    console.log("✅ articles-formattes.json généré avec succès !");
-  } catch (e) {
-    console.error("❌ Erreur JSON : ", e.message);
-    console.log("📝 Contenu reçu :\n", result);
+    const articles = JSON.parse(rawOutput);
+    fs.writeFileSync(OUTPUT_PATH, JSON.stringify(articles, null, 2));
+    console.log('✅ prompts.json mis à jour avec des articles enrichis !');
+  } catch (err) {
+    console.error('❌ Erreur lors du parsing JSON :', err.message);
+    console.error('📝 Contenu reçu :', rawOutput);
     process.exit(1);
   }
-} catch (err) {
-  console.error("❌ Erreur de lecture/écriture : ", err.message);
-  process.exit(1);
 }
+
+enrichArticles();
