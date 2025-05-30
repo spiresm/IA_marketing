@@ -1,125 +1,135 @@
-import fs from 'fs';
+import fs from 'fs/promises';
 import { OpenAI } from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const filePath = './veille.html';
-const articlesInputPath = './articles-formattes.json';
 
-async function updateVeille() {
-  try {
-    console.log('⏳ Chargement des articles...');
-    const rawArticles = JSON.parse(fs.readFileSync(articlesInputPath, 'utf-8'));
+const instructions = `
+À partir de cette liste brute d’articles (sous forme d’un tableau JSON), sélectionne :
+- Minimum 2 articles par catégorie (champ "categorie")
+- Au moins 1 article par outil distinct (champ "outil")
+- Pas de doublon (titre, date ou url identiques)
+- Les 20 articles les plus pertinents et récents
 
-    const instructions = `Garde uniquement 2 articles par catégorie (les plus récents) et un article par outil (si possible différent de ceux retenus dans les catégories). Chaque article doit inclure : 
-- un titre clair
-- un résumé concis
-- une date
-- un outil
-- une catégorie
-- une source (nom du site)
-- une URL valide
-
-Retourne un tableau JSON d'objets JavaScript bien formés avec ces propriétés : titre, resume, date, outil, categorie, source, url. Ne fais pas de phrase autour. Ne retourne que le tableau.`;
-
-    console.log('⏳ Appel à l’API OpenAI...');
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: 'Tu es un assistant qui aide à filtrer et structurer des articles pour une page de veille.' },
-        { role: 'user', content: `${instructions}\n\n${JSON.stringify(rawArticles, null, 2)}` }
-      ],
-      temperature: 0.7
-    });
-
-    const jsonText = completion.choices[0].message.content.trim();
-    const articles = JSON.parse(jsonText);
-    console.log('✅ Articles filtrés reçus');
-
-    const articlesJs = articles.map(article => JSON.stringify(article, null, 2));
-    const newHtml = injectIntoTemplate(articlesJs);
-    fs.writeFileSync(filePath, newHtml, 'utf-8');
-
-    console.log('✅ veille.html mise à jour !');
-  } catch (err) {
-    console.error('❌ Erreur mise à jour veille.html :', err.message || err);
-  }
+Pour chaque article, retourne un objet sous ce format EXACT :
+{
+  "titre": "...",
+  "resume": "...",
+  "date": "YYYY-MM-DD",
+  "outil": "...",
+  "categorie": "...",
+  "source": "...",
+  "url": "https://..."
 }
 
-function injectIntoTemplate(articlesJs) {
-  return `
+Retourne uniquement un tableau JSON valide, sans texte autour.
+`;
+
+try {
+  console.log('⏳ Lecture du fichier prompts.json...');
+  const promptsRaw = await fs.readFile('./prompts.json', 'utf-8');
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4',
+    messages: [
+      { role: 'system', content: 'Tu es un assistant qui reformate des articles en JSON structuré.' },
+      { role: 'user', content: `Voici la liste des articles :\n${promptsRaw}\n\n${instructions}` },
+    ],
+    temperature: 0.4,
+  });
+
+  const jsonText = completion.choices[0].message.content.trim();
+
+  console.log('\n🔍 JSON reçu :\n', jsonText);
+
+  let articles;
+  try {
+    articles = JSON.parse(jsonText);
+  } catch (err) {
+    console.error('❌ Erreur parsing JSON :', err.message);
+    console.log('📝 Contenu reçu :', jsonText);
+    process.exit(1);
+  }
+
+  const htmlArticles = articles.map((a) => {
+    return `  {
+    titre: "${a.titre}",
+    url: "${a.url}",
+    outil: "${a.outil}",
+    categorie: "${a.categorie}",
+    date: "${a.date}",
+    resume: "${a.resume} (Source : ${a.source})"
+  }`;
+  }).join(',\n');
+
+  const htmlTemplate = `
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Veille IA</title>
+  <meta charset="UTF-8">
+  <title>Veille IA Marketing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial; padding: 2rem; background: #f5f5f5; color: #333; }
-    .article { margin-bottom: 1.5rem; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-    .article h3 { margin: 0.2rem 0; }
-    .article small { color: gray; }
-    .pagination { margin-top: 2rem; }
-    .pagination button { margin: 0 5px; padding: 5px 10px; }
+    body { font-family: sans-serif; margin: 2rem; background: #f8f9fa; }
+    .card { background: white; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .date, .categorie, .outil { font-size: 0.9rem; color: #555; }
+    .titre { font-weight: bold; font-size: 1.2rem; margin: 0.5rem 0; }
+    .resume { margin-top: 0.5rem; }
+    nav { margin-bottom: 2rem; }
   </style>
 </head>
 <body>
-  <h1>Veille IA</h1>
-  <div id="articles"></div>
-  <div class="pagination">
-    <button onclick="prevPage()">← Précédent</button>
-    <span id="page-indicator"></span>
-    <button onclick="nextPage()">Suivant →</button>
-  </div>
+  <h1>📰 Veille IA Marketing</h1>
+  <nav>
+    <button onclick="sortBy('date')">Trier par date</button>
+    <button onclick="sortBy('categorie')">Trier par catégorie</button>
+    <button onclick="sortBy('outil')">Trier par outil</button>
+  </nav>
+
+  <div id="articles-container"></div>
 
   <script>
     const articlesDataOriginal = [
-      ${articlesJs.join(',\n      ')}
+${htmlArticles}
     ];
 
-    const articlesPerPage = 5;
-    let currentPage = 1;
+    let articles = [...articlesDataOriginal];
 
     function renderArticles() {
-      const start = (currentPage - 1) * articlesPerPage;
-      const end = start + articlesPerPage;
-      const pageArticles = articlesDataOriginal.slice(start, end);
-
-      const container = document.getElementById('articles');
-      container.innerHTML = '';
-
-      pageArticles.forEach(a => {
-        const div = document.createElement('div');
-        div.className = 'article';
+      const container = document.getElementById("articles-container");
+      container.innerHTML = "";
+      for (const article of articles) {
+        const div = document.createElement("div");
+        div.className = "card";
         div.innerHTML = \`
-          <h3><a href="\${a.url}" target="_blank">\${a.titre}</a></h3>
-          <p>\${a.resume}</p>
-          <small>\${a.date} – Outil : \${a.outil} – Catégorie : \${a.categorie} – Source : \${a.source}</small>
+          <div class="titre"><a href="\${article.url}" target="_blank">\${article.titre}</a></div>
+          <div class="date">📅 \${article.date}</div>
+          <div class="categorie">📁 \${article.categorie}</div>
+          <div class="outil">🛠️ \${article.outil}</div>
+          <div class="resume">\${article.resume}</div>
         \`;
         container.appendChild(div);
-      });
-
-      document.getElementById('page-indicator').textContent = 'Page ' + currentPage + ' / ' + Math.ceil(articlesDataOriginal.length / articlesPerPage);
-    }
-
-    function prevPage() {
-      if (currentPage > 1) {
-        currentPage--;
-        renderArticles();
       }
     }
 
-    function nextPage() {
-      if (currentPage < Math.ceil(articlesDataOriginal.length / articlesPerPage)) {
-        currentPage++;
-        renderArticles();
-      }
+    function sortBy(field) {
+      articles.sort((a, b) => a[field].localeCompare(b[field]));
+      renderArticles();
     }
 
     renderArticles();
   </script>
 
-  <!-- MAJ AUTO : ${new Date().toISOString()} -->
+  <footer style="margin-top: 2rem; font-size: 0.8rem; color: #777;">
+    Dernière mise à jour automatique : ${new Date().toISOString().split('T')[0]}
+  </footer>
 </body>
-</html>`;
-}
+</html>
+`;
 
-updateVeille();
+  await fs.writeFile('./veille.html', htmlTemplate, 'utf-8');
+  console.log('✅ veille.html mis à jour avec succès !');
+
+} catch (error) {
+  console.error('❌ Erreur générale :', error);
+  process.exit(1);
+}
