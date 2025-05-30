@@ -20,18 +20,20 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install dependencies (incl. dayjs)
+        run: |
+          npm install
+          npm install dayjs
 
       - name: Générer les titres
         run: node generate-prompts.js
 
-      - name: Enrichir les articles
+      - name: Enrichir les articles depuis prompts.json
         run: node convert_articles_format.js
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-      - name: Mettre à jour veille.html
+      - name: Mettre à jour veille.html via ChatGPT
         run: node maj-veille.js
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -40,11 +42,9 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add veille.html prompts.json articles-formattes.json || true
+          git add veille.html articles-formattes.json prompts.json
           if git diff --cached --quiet; then
             echo "Aucun changement à committer"
           else
             git commit -m "🔄 Mise à jour automatique"
             git push origin main
-          fi
-
