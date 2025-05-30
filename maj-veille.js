@@ -22,7 +22,7 @@ async function enrichArticles() {
 - source (ex : TechCrunch, Wired, etc.)
 - url réaliste
 
-Réponds uniquement avec un tableau JSON.
+Réponds uniquement avec un tableau JSON, sans texte avant ou après. Pas de commentaires. Juste le JSON.
 Titres :
 ${titles.map(t => `- ${t}`).join('\n')}`;
 
