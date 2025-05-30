@@ -9,7 +9,26 @@ const OUTPUT_PATH = './articles-formattes.json';
 
 async function enrichArticles() {
   console.log('⏳ Lecture du fichier prompts.json...');
-  const titles = JSON.parse(fs.readFileSync(INPUT_PATH, 'utf-8'));
+  let titles;
+
+  try {
+    const data = JSON.parse(fs.readFileSync(INPUT_PATH, 'utf-8'));
+
+    // S'assurer que chaque entrée est une string
+    titles = data.map((entry, i) => {
+      if (typeof entry === 'string') return entry;
+      if (typeof entry === 'object' && entry.titre) return entry.titre;
+      console.warn(`⚠️ Entrée invalide à l’index ${i}, ignorée.`);
+      return null;
+    }).filter(Boolean);
+
+    if (titles.length === 0) {
+      throw new Error('Aucun titre valide trouvé dans prompts.json.');
+    }
+  } catch (err) {
+    console.error('❌ Erreur lecture/parsing de prompts.json :', err.message);
+    process.exit(1);
+  }
 
   const prompt = `Voici une liste de titres d'articles sur l'IA et le marketing. Pour chacun, génère un objet JSON contenant :\n- titre\n- resume (en une phrase)\n- date (aujourd'hui)\n- outil\n- categorie\n- source\n- url fictive\n\nRéponds avec un tableau JSON.\nTitres :\n${titles.map(t => `- ${t}`).join('\n')}`;
 
