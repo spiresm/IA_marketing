@@ -1,111 +1,138 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Galerie des Prompts</title>
-  <style>
-    body { font-family: 'Segoe UI', sans-serif; margin: 0; background-color: #f0f4f8; color: #333; }
-    .header { background-color: #0077b6; color: white; padding: 40px 20px; text-align: center; }
-    .header h1 { margin: 0; font-size: 2em; }
-    nav { background-color: #ffffff; display: flex; justify-content: center; gap: 20px; padding: 15px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
-    nav a { text-decoration: none; color: #0077b6; font-weight: bold; padding: 8px 16px; border-radius: 20px; transition: background-color 0.3s; }
-    nav a:hover, nav a.active { background-color: #e0f0ff; }
-    .galerie { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-    .carte { background: white; padding: 15px; margin-bottom: 20px; border-left: 5px solid #0077b6; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; }
-    .carte img { max-width: 150px; border-radius: 6px; cursor: pointer; transition: transform 0.3s ease; display: block; }
-    .carte img.zoomed { max-width: 100%; transform: scale(1.05); }
-    .infos { margin-top: 10px; font-size: 0.9em; color: #555; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>Galerie des Prompts</h1>
-  </div>
+<script>
+  // Configuration GitHub (attention : clé visible dans le code, à éviter en production)
+  const GITHUB_TOKEN = '<script>
+  // Configuration GitHub (attention : clé visible dans le code, à éviter en production)
+  const GITHUB_TOKEN = 'VOTRE_CLÉ_ICI'; // ← remplace ici par ta clé réelle
+  const repoOwner = 'spiresm';
+  const repoName = 'IA_marketing';
+  const branch = 'main';
+  const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
+  const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
 
-  <nav>
-    <a href="#" class="active">Accueil</a>
-    <a href="#">Mon profil</a>
-    <a href="#">Outils IA</a>
-    <a href="#">Prompts</a>
-    <a href="#">Cas d’usage</a>
-    <a href="#">Créer un tip</a>
-    <a href="#">Veille</a>
-  </nav>
-
-  <div class="galerie" id="galerie"></div>
-
-  <script>
-    // Configuration GitHub (ne pas exposer en prod)
-    const GITHUB_TOKEN = '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'; // Scope repo nécessaire
-    const repoOwner = 'spiresm';
-    const repoName = 'IA_marketing';
-    const branch = 'main';
-    const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
-    const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
-
-    async function chargerPrompts() {
-      const galerie = document.getElementById('galerie');
-      try {
-        // Utiliser 'token' pour GitHub API
-        const res = await fetch(
-          `${apiBase}prompts?ref=${branch}`,
-          {
-            headers: {
-              Authorization: `token ${GITHUB_TOKEN}`,
-              Accept: 'application/vnd.github.v3+json'
-            }
+  async function chargerPrompts() {
+    const galerie = document.getElementById('galerie');
+    try {
+      const res = await fetch(
+        `${apiBase}prompts?ref=${branch}`,
+        {
+          headers: {
+            Authorization: `token ${GITHUB_TOKEN}`,
+            Accept: 'application/vnd.github.v3+json'
           }
-        );
-        if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
-        const fichiers = await res.json();
-
-        for (const fichier of fichiers) {
-          if (!fichier.name.endsWith('.json')) continue;
-
-          const rawRes = await fetch(fichier.download_url);
-          if (!rawRes.ok) continue;
-          const data = await rawRes.json();
-
-          // Construire l'URL de l'image
-          let imagePath = data.image || data.imageUrl || '';
-          let imageUrl = '';
-          if (imagePath) {
-            imageUrl = /^https?:\/\//.test(imagePath)
-              ? imagePath
-              : rawBase + imagePath.replace(/^\//, '');
-          }
-
-          // Créer la carte
-          const div = document.createElement('div');
-          div.className = 'carte';
-
-          if (imageUrl) {
-            const img = document.createElement('img');
-            img.src = imageUrl;
-            img.alt = 'Image du prompt';
-            img.onclick = () => img.classList.toggle('zoomed');
-            div.appendChild(img);
-          }
-
-          const infos = document.createElement('p');
-          infos.className = 'infos';
-          infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
-          div.appendChild(infos);
-
-          const texte = document.createElement('p');
-          texte.textContent = data.texte || '';
-          div.appendChild(texte);
-
-          galerie.appendChild(div);
         }
-      } catch (e) {
-        console.error(e);
-        galerie.innerHTML = `<p style="color:red;">${e.message}</p>`;
-      }
-    }
+      );
+      if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+      const fichiers = await res.json();
 
-    window.onload = chargerPrompts;
-  </script>
-</body>
-</html>
+      for (const fichier of fichiers) {
+        if (!fichier.name.endsWith('.json')) continue;
+
+        const rawRes = await fetch(fichier.download_url);
+        if (!rawRes.ok) continue;
+        const data = await rawRes.json();
+
+        let imagePath = data.image || data.imageUrl || '';
+        let imageUrl = '';
+        if (imagePath) {
+          imageUrl = /^https?:\/\//.test(imagePath)
+            ? imagePath
+            : rawBase + imagePath.replace(/^\//, '');
+        }
+
+        const div = document.createElement('div');
+        div.className = 'carte';
+
+        if (imageUrl) {
+          const img = document.createElement('img');
+          img.src = imageUrl;
+          img.alt = 'Image du prompt';
+          img.onclick = () => img.classList.toggle('zoomed');
+          div.appendChild(img);
+        }
+
+        const infos = document.createElement('p');
+        infos.className = 'infos';
+        infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
+        div.appendChild(infos);
+
+        const texte = document.createElement('p');
+        texte.textContent = data.texte || '';
+        div.appendChild(texte);
+
+        galerie.appendChild(div);
+      }
+    } catch (e) {
+      console.error(e);
+      galerie.innerHTML = `<p style="color:red;">${e.message}</p>`;
+    }
+  }
+
+  window.onload = chargerPrompts;
+</script>
+'; // ← remplace ici par ta clé réelle
+  const repoOwner = 'spiresm';
+  const repoName = 'IA_marketing';
+  const branch = 'main';
+  const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
+  const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
+
+  async function chargerPrompts() {
+    const galerie = document.getElementById('galerie');
+    try {
+      const res = await fetch(
+        `${apiBase}prompts?ref=${branch}`,
+        {
+          headers: {
+            Authorization: `token ${GITHUB_TOKEN}`,
+            Accept: 'application/vnd.github.v3+json'
+          }
+        }
+      );
+      if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+      const fichiers = await res.json();
+
+      for (const fichier of fichiers) {
+        if (!fichier.name.endsWith('.json')) continue;
+
+        const rawRes = await fetch(fichier.download_url);
+        if (!rawRes.ok) continue;
+        const data = await rawRes.json();
+
+        let imagePath = data.image || data.imageUrl || '';
+        let imageUrl = '';
+        if (imagePath) {
+          imageUrl = /^https?:\/\//.test(imagePath)
+            ? imagePath
+            : rawBase + imagePath.replace(/^\//, '');
+        }
+
+        const div = document.createElement('div');
+        div.className = 'carte';
+
+        if (imageUrl) {
+          const img = document.createElement('img');
+          img.src = imageUrl;
+          img.alt = 'Image du prompt';
+          img.onclick = () => img.classList.toggle('zoomed');
+          div.appendChild(img);
+        }
+
+        const infos = document.createElement('p');
+        infos.className = 'infos';
+        infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
+        div.appendChild(infos);
+
+        const texte = document.createElement('p');
+        texte.textContent = data.texte || '';
+        div.appendChild(texte);
+
+        galerie.appendChild(div);
+      }
+    } catch (e) {
+      console.error(e);
+      galerie.innerHTML = `<p style="color:red;">${e.message}</p>`;
+    }
+  }
+
+  window.onload = chargerPrompts;
+</script>
