@@ -1,7 +1,8 @@
-const { Octokit } = require('@octokit/rest');
+import { Octokit } from "@octokit/rest";
+
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
-exports.handler = async (event) => {
+export async function handler(event) {
   try {
     const { fileBase64, fileName } = JSON.parse(event.body);
     const imagePath = `images/${Date.now()}-${fileName}`;
@@ -18,12 +19,11 @@ exports.handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify({ url: data.content.download_url }),
     };
-
   } catch (error) {
-    console.error('❌ uploadImage error:', error);
+    console.error("Erreur uploadImage:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message }),
     };
   }
-};
+}
