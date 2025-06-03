@@ -11,19 +11,16 @@
       background-color: #f0f4f8;
       color: #333;
     }
-
     .header {
       background-color: #0077b6;
       color: white;
       padding: 40px 20px;
       text-align: center;
     }
-
     .header h1 {
       margin: 0;
       font-size: 2em;
     }
-
     nav {
       background-color: #ffffff;
       display: flex;
@@ -32,7 +29,6 @@
       padding: 15px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
-
     nav a {
       text-decoration: none;
       color: #0077b6;
@@ -41,14 +37,23 @@
       border-radius: 20px;
       transition: background-color 0.3s;
     }
-
     nav a:hover {
       background-color: #e0f0ff;
     }
 
+    .filtre {
+      text-align: center;
+      margin: 30px;
+    }
+    select {
+      font-size: 1em;
+      padding: 5px 10px;
+      border-radius: 6px;
+    }
+
     .galerie {
       max-width: 1000px;
-      margin: 40px auto;
+      margin: 20px auto;
       padding: 0 20px;
     }
 
@@ -71,8 +76,8 @@
       transition: transform 0.3s ease;
     }
 
-    .carte img.zoomed {
-      transform: scale(1.05);
+    .carte img:hover {
+      transform: scale(1.1);
     }
 
     .infos {
@@ -85,16 +90,23 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-wrap: wrap;
     }
 
     .prompt {
       font-weight: bold;
     }
 
-    .boutons {
-      margin-top: auto;
+    .right-side {
+      flex: 1;
       display: flex;
-      gap: 10px;
+      flex-direction: column;
+    }
+
+    .top-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .icon-btn {
@@ -114,6 +126,7 @@
   </style>
 </head>
 <body>
+
   <div class="header">
     <h1>Espace IA Marketing</h1>
   </div>
@@ -130,6 +143,18 @@
     <a href="galerie.html">Galerie</a>
   </nav>
 
+  <div class="filtre">
+    <label for="outilFilter">Filtrer par outil IA : </label>
+    <select id="outilFilter">
+      <option value="Tous">Tous</option>
+      <option value="Midjourney">Midjourney</option>
+      <option value="DALL·E">DALL·E</option>
+      <option value="Stable Diffusion">Stable Diffusion</option>
+      <option value="Adobe Firefly">Adobe Firefly</option>
+      <option value="Runway">Runway</option>
+    </select>
+  </div>
+
   <div class="galerie" id="galerie"></div>
 
   <script>
@@ -139,12 +164,18 @@
     const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
     const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
 
+    let allPrompts = [];
+
     async function chargerPrompts() {
       const galerie = document.getElementById('galerie');
+      galerie.innerHTML = '';
+
       try {
         const res = await fetch(`${apiBase}prompts?ref=${branch}`);
         if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
         const fichiers = await res.json();
+
+        allPrompts = [];
 
         for (const fichier of fichiers) {
           if (!fichier.name.endsWith('.json')) continue;
@@ -153,88 +184,103 @@
           if (!rawRes.ok) continue;
           const data = await rawRes.json();
 
-          let imagePath = data.image || data.imageUrl || '';
-          let imageUrl = '';
-          if (imagePath) {
-            imageUrl = /^https?:\/\//.test(imagePath)
-              ? imagePath
-              : rawBase + imagePath.replace(/^\//, '');
-          }
-
-          const div = document.createElement('div');
-          div.className = 'carte';
-
-          const img = document.createElement('img');
-          img.src = imageUrl;
-          img.alt = 'Image du prompt';
-          img.onclick = () => img.classList.toggle('zoomed');
-          div.appendChild(img);
-
-          const right = document.createElement('div');
-          right.style.flex = '1';
-
-          const infos = document.createElement('p');
-          infos.className = 'infos';
-          infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
-          right.appendChild(infos);
-
-          const texteDiv = document.createElement('div');
-          texteDiv.className = 'texte';
-          const texte = document.createElement('p');
-          texte.className = 'prompt';
-          texte.textContent = data.texte || '';
-          texteDiv.appendChild(texte);
-
-          const copyBtn = document.createElement('button');
-          copyBtn.className = 'icon-btn icon-copy';
-          copyBtn.title = "Copier le prompt";
-          copyBtn.innerHTML = '📋';
-          copyBtn.onclick = () => {
-            navigator.clipboard.writeText(data.texte || '');
-            copyBtn.innerText = '✅';
-            setTimeout(() => copyBtn.innerText = '📋', 1000);
-          };
-          texteDiv.appendChild(copyBtn);
-
-          right.appendChild(texteDiv);
-
-          const supprimerBtn = document.createElement('button');
-          supprimerBtn.className = 'icon-btn';
-          supprimerBtn.title = "Supprimer";
-          supprimerBtn.innerHTML = '🗑️';
-          supprimerBtn.onclick = async () => {
-            if (!confirm("Confirmer la suppression ?")) return;
-
-            try {
-              await fetch('/.netlify/functions/deletePrompt', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  promptPath: fichier.path,
-                  imagePath: data.imageUrl?.includes('images/')
-                    ? `images/${data.imageUrl.split('/').pop()}`
-                    : ''
-                })
-              });
-
-              galerie.removeChild(div);
-            } catch (err) {
-              alert("Erreur lors de la suppression");
-              console.error(err);
-            }
-          };
-
-          right.appendChild(supprimerBtn);
-
-          div.appendChild(right);
-          galerie.appendChild(div);
+          allPrompts.push({ data, path: fichier.path });
         }
+
+        afficherPrompts();
       } catch (e) {
         console.error('Erreur de chargement des prompts :', e);
-        document.getElementById('galerie').innerHTML = `<p style="color:red;">${e.message}</p>`;
+        galerie.innerHTML = `<p style="color:red;">${e.message}</p>`;
       }
     }
 
+    function afficherPrompts() {
+      const galerie = document.getElementById('galerie');
+      galerie.innerHTML = '';
+      const filtre = document.getElementById('outilFilter').value;
+
+      for (const { data, path } of allPrompts) {
+        if (filtre !== 'Tous' && data.outil !== filtre) continue;
+
+        const imagePath = data.image || data.imageUrl || '';
+        const imageUrl = /^https?:\/\//.test(imagePath)
+          ? imagePath
+          : rawBase + imagePath.replace(/^\//, '');
+
+        const div = document.createElement('div');
+        div.className = 'carte';
+
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = 'Image du prompt';
+        div.appendChild(img);
+
+        const right = document.createElement('div');
+        right.className = 'right-side';
+
+        const topLine = document.createElement('div');
+        topLine.className = 'top-line';
+
+        const infos = document.createElement('p');
+        infos.className = 'infos';
+        infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
+        topLine.appendChild(infos);
+
+        const supprimerBtn = document.createElement('button');
+        supprimerBtn.className = 'icon-btn';
+        supprimerBtn.title = "Supprimer";
+        supprimerBtn.innerHTML = '🗑️';
+        supprimerBtn.onclick = async () => {
+          if (!confirm("Confirmer la suppression ?")) return;
+
+          try {
+            await fetch('/.netlify/functions/deletePrompt', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                promptPath: path,
+                imagePath: data.imageUrl?.includes('images/')
+                  ? `images/${data.imageUrl.split('/').pop()}`
+                  : ''
+              })
+            });
+
+            div.remove();
+          } catch (err) {
+            alert("Erreur lors de la suppression");
+            console.error(err);
+          }
+        };
+        topLine.appendChild(supprimerBtn);
+
+        right.appendChild(topLine);
+
+        const texteDiv = document.createElement('div');
+        texteDiv.className = 'texte';
+
+        const texte = document.createElement('p');
+        texte.className = 'prompt';
+        texte.textContent = data.texte || '';
+        texteDiv.appendChild(texte);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'icon-btn icon-copy';
+        copyBtn.title = "Copier le prompt";
+        copyBtn.innerHTML = '📋';
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(data.texte || '');
+          copyBtn.innerText = '✅';
+          setTimeout(() => copyBtn.innerText = '📋', 1000);
+        };
+        texteDiv.appendChild(copyBtn);
+
+        right.appendChild(texteDiv);
+        div.appendChild(right);
+        galerie.appendChild(div);
+      }
+    }
+
+    document.getElementById('outilFilter').addEventListener('change', afficherPrompts);
     window.onload = chargerPrompts;
   </script>
 </body>
