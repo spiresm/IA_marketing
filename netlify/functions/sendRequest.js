@@ -22,9 +22,18 @@ exports.handler = async (event) => {
     console.error("Erreur de parsing JSON :", err);
     return {
       statusCode: 400,
-      body: JSON.stringify({ message: "JSON invalide reçu." }),
+      body: JSON.stringify({ message: "JSON invalide." }),
     };
   }
+
+  // Échappement basique anti-injection HTML
+  const escape = (str) =>
+    String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
 
   try {
     const transporter = nodemailer.createTransport({
@@ -40,13 +49,13 @@ exports.handler = async (event) => {
         <body style="font-family: Arial, sans-serif; color: #333;">
           <h2 style="color: #0077b6;">Nouvelle demande de production IA</h2>
           <table style="border-collapse: collapse; width: 100%; max-width: 600px;">
-            <tr><td style="padding: 8px; font-weight: bold;">👤 Nom :</td><td style="padding: 8px;">${data.nom}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">📧 Email :</td><td style="padding: 8px;">${data.email}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">🎬 Type :</td><td style="padding: 8px;">${data.type}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">🛰 Support :</td><td style="padding: 8px;">${data.support}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">⏱ Durée :</td><td style="padding: 8px;">${data.duree}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">📅 Livraison :</td><td style="padding: 8px;">${data.date}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">📝 Description :</td><td style="padding: 8px;">${data.description}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">👤 Nom :</td><td style="padding: 8px;">${escape(data.nom)}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">📧 Email :</td><td style="padding: 8px;">${escape(data.email)}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">🎬 Type :</td><td style="padding: 8px;">${escape(data.type)}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">🛰 Support :</td><td style="padding: 8px;">${escape(data.support)}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">⏱ Durée :</td><td style="padding: 8px;">${escape(data.duree)}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">📅 Livraison :</td><td style="padding: 8px;">${escape(data.date)}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">📝 Description :</td><td style="padding: 8px; white-space: pre-line;">${escape(data.description)}</td></tr>
           </table>
           <br>
           ${
@@ -78,4 +87,13 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ messa
+      body: JSON.stringify({ message: "Demande envoyée avec succès !" }),
+    };
+  } catch (error) {
+    console.error("Erreur d’envoi :", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Échec de l'envoi de l'email." }),
+    };
+  }
+};
