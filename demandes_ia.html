@@ -246,5 +246,122 @@
     </form>
     <p id="confirmation"></p>
   </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const dureeSelect = document.getElementById("duree");
+      for (let i = 0; i <= 60; i++) {
+        const option = document.createElement("option");
+        option.value = `${i} sec`;
+        option.textContent = `${i} sec`;
+        dureeSelect.appendChild(option);
+      }
+
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("reference");
+      const preview = document.getElementById("preview");
+      const form = document.getElementById("demandeIA");
+      const submitBtn = document.getElementById("submitBtn");
+      let selectedFiles = [];
+
+      const updatePreview = () => {
+        preview.innerHTML = "";
+        selectedFiles.forEach((file, index) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const container = document.createElement("div");
+            container.className = "preview-item";
+
+            const img = document.createElement("img");
+            img.src = e.target.result;
+
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "remove-btn";
+            removeBtn.innerHTML = "×";
+            removeBtn.onclick = () => {
+              selectedFiles.splice(index, 1);
+              updatePreview();
+            };
+
+            container.appendChild(img);
+            container.appendChild(removeBtn);
+            preview.appendChild(container);
+          };
+          reader.readAsDataURL(file);
+        });
+      };
+
+      const handleFiles = (files) => {
+        if (selectedFiles.length + files.length > 2) {
+          alert("Vous pouvez télécharger au maximum 2 images.");
+          return;
+        }
+        selectedFiles = selectedFiles.concat(Array.from(files));
+        updatePreview();
+      };
+
+      dropZone.addEventListener("click", () => fileInput.click());
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+      dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        handleFiles(e.dataTransfer.files);
+      });
+      fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        submitBtn.disabled = true;
+        submitBtn.classList.add("loading");
+        submitBtn.textContent = "Envoi en cours...";
+
+        const formData = new FormData(form);
+        const emailPrefix = formData.get("emailPrefix").trim();
+        const fullEmail = `${emailPrefix}@rtbf.be`;
+
+        const data = {
+          nom: formData.get("nom"),
+          email: fullEmail,
+          type: formData.get("type"),
+          support: formData.get("support"),
+          duree: formData.get("duree"),
+          date: formData.get("date"),
+          description: formData.get("description"),
+          images: [],
+        };
+
+        for (let file of selectedFiles) {
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          data.images.push(base64);
+        }
+
+        try {
+          const res = await fetch("/.netlify/functions/sendRequest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+          });
+          const result = await res.json();
+          document.getElementById("confirmation").textContent = result.message;
+        } catch (err) {
+          console.error("Erreur :", err);
+          alert("Erreur lors de l’envoi");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.classList.remove("loading");
+          submitBtn.textContent = "Envoyer la demande";
+        }
+      });
+    });
+  </script>
 </body>
 </html>
