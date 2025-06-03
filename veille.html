@@ -1,0 +1,95 @@
+<script>
+const apiKey = 'd669883b4df94a018c531821848f8dbcf'; // Remplace par ta vraie clé NewsAPI
+const outils = ['ChatGPT', 'Claude', 'Midjourney', 'Perplexity', 'Gemini', 'Mistral', 'Copy.ai', 'Runway', 'Hugging Face'];
+
+fetch(`https://newsapi.org/v2/everything?q=${encodeURIComponent(outils.join(' OR '))}&language=fr&sortBy=publishedAt&pageSize=20&apiKey=${apiKey}`)
+  .then(res => res.json())
+  .then(data => {
+    const articles = data.articles.map(a => {
+      const outilDetecte = outils.find(o => a.title.includes(o)) || 'Autre';
+      return {
+        titre: a.title,
+        url: a.url,
+        outil: outilDetecte,
+        categorie: "Innovation",
+        date: a.publishedAt.split('T')[0],
+        resume: a.description || 'Pas de résumé disponible.'
+      };
+    });
+
+    window.articlesDataOriginal = articles;
+    renderArticles();
+  })
+  .catch(err => console.error("Erreur API News:", err));
+</script>
+
+<!-- Là où était le tableau statique -->
+<script>
+let sortDescending = true;
+let currentPage = 1;
+const articlesPerPage = 5;
+
+function toggleSortOrder() {
+  sortDescending = !sortDescending;
+  document.getElementById('sort-toggle').textContent = `Trier par date 📅 ${sortDescending ? '↓' : '↑'}`;
+  renderArticles();
+}
+
+function changePage(delta) {
+  currentPage += delta;
+  renderArticles();
+}
+
+function renderArticles() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const outilFilter = document.getElementById('filtre-outil').value;
+  const catFilter = document.getElementById('filtre-categorie').value;
+  const container = document.getElementById('articles');
+  const pagination = document.getElementById('pagination');
+  container.innerHTML = '';
+  pagination.innerHTML = '';
+
+  if (!window.articlesDataOriginal) return;
+
+  const filteredData = window.articlesDataOriginal.filter(article => {
+    const haystack = (article.titre + article.resume).toLowerCase();
+    return (!search || haystack.includes(search)) &&
+           (!outilFilter || article.outil === outilFilter) &&
+           (!catFilter || article.categorie === catFilter);
+  }).sort((a, b) => {
+    const d1 = new Date(a.date), d2 = new Date(b.date);
+    return sortDescending ? d2 - d1 : d1 - d2;
+  });
+
+  const totalPages = Math.ceil(filteredData.length / articlesPerPage);
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const start = (currentPage - 1) * articlesPerPage;
+  const pageArticles = filteredData.slice(start, start + articlesPerPage);
+
+  pageArticles.forEach(article => {
+    const link = document.createElement('a');
+    link.href = article.url;
+    link.target = '_blank';
+    link.className = 'article-link';
+    link.innerHTML = `<div class="article">
+                        <div class="article-date-block">${article.date}</div>
+                        <div class="article-content">
+                          <h2>${article.titre}</h2>
+                          <div class="meta">Outil : ${article.outil} • Catégorie : ${article.categorie}</div>
+                          <p>${article.resume}</p>
+                        </div>
+                      </div>`;
+    container.appendChild(link);
+  });
+
+  if (totalPages > 1) {
+    pagination.innerHTML = `
+      <button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''}>Précédent</button>
+      Page ${currentPage} / ${totalPages}
+      <button onclick="changePage(1)" ${currentPage === totalPages ? 'disabled' : ''}>Suivant</button>
+    `;
+  }
+}
+</script>
