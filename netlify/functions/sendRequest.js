@@ -1,4 +1,3 @@
-// sendRequest.js (Netlify Function)
 const nodemailer = require("nodemailer");
 
 exports.handler = async (event) => {
@@ -43,9 +42,9 @@ exports.handler = async (event) => {
       </html>
     `;
 
-    const attachments = (data.images || []).map((img, index) => ({
-      filename: `reference${index + 1}.jpg`,
-      content: img.split("base64,")[1],
+    const attachments = (data.images || []).map((base64, i) => ({
+      filename: `reference_${i + 1}.jpg`,
+      content: base64.split("base64,")[1],
       encoding: "base64",
     }));
 
