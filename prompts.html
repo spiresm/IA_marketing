@@ -1,5 +1,89 @@
-<!-- ... <head> inchangé ... -->
-
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulaire de Prompt</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f4f8; color: #333; }
+    .header { background-color: #0077b6; color: white; padding: 40px 20px; text-align: center; }
+    .header h1 { margin: 0; font-size: 2em; }
+    nav {
+      background-color: #ffffff;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    nav a {
+      text-decoration: none;
+      color: #0077b6;
+      font-weight: bold;
+      padding: 8px 16px;
+      border-radius: 20px;
+      transition: background-color 0.3s;
+    }
+    nav a:hover {
+      background-color: #e0f0ff;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    label { font-weight: bold; display: block; margin-top: 15px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #drop-zone {
+      border: 2px dashed #0077b6;
+      padding: 20px;
+      text-align: center;
+      color: #777;
+      margin-top: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #drop-zone.dragover { background: #e0f7ff; }
+    #image-preview {
+      display: block;
+      max-width: 50%;
+      margin: 10px auto;
+      border-radius: 4px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #0077b6;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    button:hover { background: #005f8a; }
+    .confirmation {
+      margin-top: 20px;
+      padding: 15px;
+      background: #e6ffed;
+      border: 1px solid #b7eb8f;
+      border-radius: 4px;
+    }
+    .confirmation img {
+      max-width: 50%;
+      margin-top: 10px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
 <body>
   <div class="header">
     <h1>Espace IA Marketing</h1>
@@ -80,50 +164,34 @@
         const confirmationImageUrl = ref('');
         const confirmationTexte = ref('');
 
-        function triggerFile() {
-          fileInput.value?.click();
-        }
-
-        function onDragOver(e) {
-          e.currentTarget.classList.add('dragover');
-        }
-
-        function onDragLeave(e) {
-          e.currentTarget.classList.remove('dragover');
-        }
-
+        function triggerFile() { fileInput.value?.click(); }
+        function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
+        function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
         function onDrop(e) {
           e.currentTarget.classList.remove('dragover');
           const files = e.dataTransfer.files;
-          if (files && files.length) {
+          if (files.length) {
             fileInput.value.files = files;
             handleFile(files[0]);
           }
         }
-
         function onFileChange(e) {
           const file = e.target.files[0];
           if (file) handleFile(file);
         }
-
         function handleFile(file) {
-          if (!window.FileReader) return alert("Navigateur incompatible");
           const reader = new FileReader();
-          reader.onload = () => {
-            imagePreviewUrl.value = reader.result;
-          };
+          reader.onload = () => { imagePreviewUrl.value = reader.result; };
           reader.readAsDataURL(file);
         }
-
         function getBase64(file) {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result.split(',')[1]);
-            reader.onerror = () => reject(new Error("Erreur conversion base64"));
+            reader.onerror = () => reject();
             reader.readAsDataURL(file);
           });
         }
-
         async function submitForm() {
           confirmationVisible.value = false;
           let imageUrl = '';
@@ -152,14 +220,20 @@
             const promptResp = await fetch('/.netlify/functions/pushPrompt', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ auteur: auteur.value, outil: outil.value, categorie: categorie.value, texte: texte.value, imageUrl })
+              body: JSON.stringify({
+                auteur: auteur.value,
+                outil: outil.value,
+                categorie: categorie.value,
+                texte: texte.value,
+                imageUrl
+              })
             });
             if (!promptResp.ok) throw new Error(`Prompt failed: ${promptResp.status}`);
-
             confirmationImageUrl.value = imageUrl;
             confirmationTexte.value = texte.value;
             confirmationVisible.value = true;
 
+            // Reset form
             auteur.value = '';
             outil.value = 'Midjourney';
             categorie.value = 'Portrait';
