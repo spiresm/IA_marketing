@@ -60,6 +60,14 @@
       font-size: 1em;
       margin-top: 5px;
     }
+    .email-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .email-container input {
+      flex: 1;
+    }
     button {
       background-color: #0077b6;
       color: white;
@@ -95,8 +103,17 @@
   <div class="container">
     <h2>Formulaire de demande de production IA</h2>
     <form id="demandeIA" enctype="multipart/form-data">
-      <label>Nom du réalisateur :<input type="text" name="nom" required></label>
-      <label>Email :<input type="email" name="email" required></label>
+      <label>Nom du réalisateur :
+        <input type="text" name="nom" required>
+      </label>
+      
+      <label>Email :
+        <div class="email-container">
+          <input type="text" name="emailPrefix" id="emailPrefix" required placeholder="prenom.nom" pattern="^[a-zA-Z0-9._-]+$" title="Uniquement lettres, chiffres, points ou tirets">
+          <span>@rtbf.be</span>
+        </div>
+      </label>
+
       <label>Type de production :
         <select name="type" required>
           <option>Image</option>
@@ -105,67 +122,53 @@
           <option>Texte</option>
         </select>
       </label>
-      <label>Durée estimée du plan :<input type="text" name="duree" required></label>
-      <label>Date souhaitée de livraison :<input type="date" name="date" required></label>
-      <label>Images de référence :<input type="file" name="reference" accept="image/*"></label>
-      <label>Description du besoin :<textarea name="description" rows="6" required></textarea></label>
+      
+      <label>Durée estimée du plan :
+        <input type="text" name="duree" required>
+      </label>
+      
+      <label>Date souhaitée de livraison :
+        <input type="date" name="date" required>
+      </label>
+      
+      <label>Images de référence :
+        <input type="file" name="reference" accept="image/*">
+      </label>
+      
+      <label>Description du besoin :
+        <textarea name="description" rows="6" required></textarea>
+      </label>
+      
       <button type="submit">Envoyer la demande</button>
     </form>
     <p id="confirmation"></p>
   </div>
 
   <script>
-document.getElementById('demandeIA').addEventListener('submit', async function (e) {
-  e.preventDefault();
-  const form = e.target;
-  const formData = new FormData(form);
+document.addEventListener("DOMContentLoaded", function () {
+  // Pré-remplissage depuis localStorage
+  const savedEmailPrefix = localStorage.getItem("emailPrefix");
+  if (savedEmailPrefix) {
+    document.getElementById("emailPrefix").value = savedEmailPrefix;
+  }
 
-  // Récupération de l'image si présente
-  const file = formData.get("reference");
-  let imageBase64 = "";
+  document.getElementById('demandeIA').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
 
-  if (file && file.size > 0) {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
+    const emailPrefix = formData.get("emailPrefix").trim();
+    const fullEmail = emailPrefix + "@rtbf.be";
 
-    reader.onload = async () => {
-      imageBase64 = reader.result;
+    // Sauvegarder dans localStorage
+    localStorage.setItem("emailPrefix", emailPrefix);
 
-      const data = {
-        nom: formData.get("nom"),
-        email: formData.get("email"),
-        type: formData.get("type"),
-        duree: formData.get("duree"),
-        date: formData.get("date"),
-        description: formData.get("description"),
-        image: imageBase64
-      };
+    const file = formData.get("reference");
+    let imageBase64 = "";
 
-      try {
-        const res = await fetch("/.netlify/functions/sendRequest", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data)
-        });
-
-        const result = await res.json();
-        document.getElementById("confirmation").textContent = result.message;
-      } catch (error) {
-        console.error("Erreur côté client:", error);
-        alert("Erreur lors de l’envoi : " + error.message);
-      }
-    };
-
-    reader.onerror = () => {
-      alert("Impossible de lire l’image.");
-    };
-  } else {
-    // Cas sans image
     const data = {
       nom: formData.get("nom"),
-      email: formData.get("email"),
+      email: fullEmail,
       type: formData.get("type"),
       duree: formData.get("duree"),
       date: formData.get("date"),
@@ -173,25 +176,40 @@ document.getElementById('demandeIA').addEventListener('submit', async function (
       image: null
     };
 
-    try {
-      const res = await fetch("/.netlify/functions/sendRequest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data)
-      });
+    if (file && file.size > 0) {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        data.image = reader.result;
 
-      const result = await res.json();
-      document.getElementById("confirmation").textContent = result.message;
-    } catch (error) {
-      console.error("Erreur côté client:", error);
-      alert("Erreur lors de l’envoi : " + error.message);
+        await sendData(data);
+      };
+      reader.onerror = () => {
+        alert("Impossible de lire l’image.");
+      };
+      reader.readAsDataURL(file);
+    } else {
+      await sendData(data);
     }
-  }
+
+    async function sendData(payload) {
+      try {
+        const res = await fetch("/.netlify/functions/sendRequest", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        document.getElementById("confirmation").textContent = result.message;
+      } catch (error) {
+        console.error("Erreur côté client:", error);
+        alert("Erreur lors de l’envoi : " + error.message);
+      }
+    }
+  });
 });
 </script>
-
 
 </body>
 </html>
