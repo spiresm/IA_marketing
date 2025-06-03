@@ -1,3 +1,4 @@
+// netlify/functions/sendRequest.js
 const nodemailer = require("nodemailer");
 
 exports.handler = async (event) => {
@@ -33,11 +34,9 @@ exports.handler = async (event) => {
             <tr><td style="padding: 8px; font-weight: bold;">📝 Description :</td><td style="padding: 8px;">${data.description}</td></tr>
           </table>
           <br>
-          ${
-            data.images?.length
-              ? `<p><strong>📎 ${data.images.length} image(s) jointe(s)</strong></p>`
-              : `<p><i>Aucune image jointe.</i></p>`
-          }
+          ${data.images?.length
+            ? `<p><strong>📎 ${data.images.length} image(s) jointe(s)</strong></p>`
+            : `<p><i>Aucune image jointe.</i></p>`}
         </body>
       </html>
     `;
@@ -66,7 +65,10 @@ exports.handler = async (event) => {
     console.error("Erreur d’envoi :", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: "Erreur serveur : envoi échoué." }),
+      body: JSON.stringify({
+        message: "Erreur serveur : l'envoi de l'email a échoué.",
+        error: error.message,
+      }),
     };
   }
 };
