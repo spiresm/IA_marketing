@@ -1,10 +1,11 @@
+// sendRequest.js (Netlify Function)
 const nodemailer = require("nodemailer");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      body: "Méthode non autorisée",
+      body: JSON.stringify({ message: "Méthode non autorisée" }),
     };
   }
 
@@ -33,18 +34,20 @@ exports.handler = async (event) => {
             <tr><td style="padding: 8px; font-weight: bold;">📝 Description :</td><td style="padding: 8px;">${data.description}</td></tr>
           </table>
           <br>
-          ${data.images?.length ? `<p><strong>${data.images.length}</strong> image(s) jointe(s)</p>` : `<p><i>Aucune image jointe</i></p>`}
+          ${
+            data.images && data.images.length
+              ? `<h3 style="color: #0077b6;">📎 ${data.images.length} image(s) de référence jointe(s)</h3>`
+              : `<p><i>Aucune image de référence fournie.</i></p>`
+          }
         </body>
       </html>
     `;
 
-    const attachments = Array.isArray(data.images)
-      ? data.images.map((img, index) => ({
-          filename: `image-${index + 1}.jpg`,
-          content: img.split("base64,")[1],
-          encoding: "base64",
-        }))
-      : [];
+    const attachments = (data.images || []).map((img, index) => ({
+      filename: `reference${index + 1}.jpg`,
+      content: img.split("base64,")[1],
+      encoding: "base64",
+    }));
 
     const mailOptions = {
       from: process.env.MAIL_USER,
@@ -64,7 +67,7 @@ exports.handler = async (event) => {
     console.error("Erreur d’envoi :", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: "Échec de l'envoi de l'email." }),
+      body: JSON.stringify({ message: "Erreur serveur : envoi échoué." }),
     };
   }
 };
