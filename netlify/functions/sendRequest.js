@@ -1,3 +1,4 @@
+// sendRequest.js (Netlify Function)
 const nodemailer = require("nodemailer");
 
 exports.handler = async (event) => {
@@ -19,6 +20,7 @@ exports.handler = async (event) => {
       },
     });
 
+    // Email HTML
     const htmlContent = `
       <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
@@ -33,20 +35,18 @@ exports.handler = async (event) => {
             <tr><td style="padding: 8px; font-weight: bold;">📝 Description :</td><td style="padding: 8px;">${data.description}</td></tr>
           </table>
           <br>
-          ${
-            data.images && data.images.length > 0
-              ? `<h3 style="color: #0077b6;">📎 ${data.images.length} image(s) de référence jointe(s)</h3>`
-              : `<p><i>Aucune image de référence fournie.</i></p>`
-          }
+          ${data.images?.length ? `<p><strong>${data.images.length}</strong> image(s) jointe(s).</p>` : `<p><i>Aucune image jointe.</i></p>`}
         </body>
       </html>
     `;
 
-    const attachments = (data.images || []).map((base64, index) => ({
-      filename: `reference_${index + 1}.jpg`,
-      content: base64.split("base64,")[1],
-      encoding: "base64",
-    }));
+    const attachments = Array.isArray(data.images)
+      ? data.images.map((img, idx) => ({
+          filename: `reference_${idx + 1}.jpg`,
+          content: img.split("base64,")[1],
+          encoding: "base64",
+        }))
+      : [];
 
     const mailOptions = {
       from: process.env.MAIL_USER,
