@@ -15,6 +15,11 @@ export async function handler(event) {
       path,
       message: `Ajout de ${fileName}`,
       content: fileBase64,
+      branch: 'main',
+      committer: {
+        name: "Netlify Bot",
+        email: "bot@netlify.com"
+      }
     });
 
     return {
