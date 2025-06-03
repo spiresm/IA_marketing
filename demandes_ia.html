@@ -50,140 +50,8 @@
       animation: fadeIn 0.6s ease-out;
     }
     @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(15px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    h2 {
-      text-align: center;
-      color: #0077b6;
-      margin-bottom: 30px;
-      font-size: 1.7em;
-    }
-    form label {
-      display: block;
-      margin-top: 20px;
-      font-weight: 600;
-      color: #444;
-    }
-    form input,
-    form select,
-    form textarea {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 1em;
-      margin-top: 6px;
-      transition: border 0.3s, box-shadow 0.3s;
-      background-color: #f9fafb;
-    }
-    form input[type="date"] {
-      max-width: 220px;
-    }
-    form input:focus,
-    form select:focus,
-    form textarea:focus {
-      border-color: #0077b6;
-      box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.15);
-      outline: none;
-      background-color: #fff;
-    }
-    .email-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 6px;
-    }
-    .email-container input {
-      flex: 1;
-    }
-    .drop-zone {
-      background: #f1f1f1;
-      border: 2px dashed #ccc;
-      padding: 20px;
-      text-align: center;
-      border-radius: 8px;
-      cursor: pointer;
-      margin-top: 6px;
-    }
-    .drop-zone.dragover {
-      border-color: #0077b6;
-      background: #e0f4ff;
-    }
-    .preview {
-      display: flex;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-    .preview-item {
-      position: relative;
-      margin-right: 10px;
-    }
-    .preview-item img {
-      width: 80px;
-      height: 80px;
-      object-fit: cover;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    .remove-btn {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      background: red;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 18px;
-      height: 18px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    .limit-warning {
-      color: red;
-      font-size: 0.9em;
-      margin-top: 6px;
-    }
-    button {
-      width: 100%;
-      background-color: #0077b6;
-      color: white;
-      padding: 14px;
-      border: none;
-      border-radius: 8px;
-      font-size: 1.1em;
-      font-weight: bold;
-      margin-top: 30px;
-      cursor: pointer;
-      transition: background-color 0.3s, transform 0.2s;
-    }
-    button.loading::after {
-      content: "";
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      margin-left: 10px;
-      border: 2px solid #fff;
-      border-top: 2px solid transparent;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    #confirmation {
-      text-align: center;
-      margin-top: 20px;
-      font-weight: bold;
-      color: green;
-      animation: fadeIn 0.6s ease-out;
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
@@ -205,8 +73,148 @@
   </nav>
   <div class="container">
     <h2>Formulaire de demande de production IA</h2>
-    <!-- Formulaire inchangé -->
+    <form id="demandeIA">
+      <label>Nom du réalisateur : <input type="text" name="nom" required /></label>
+      <label>Email :
+        <div class="email-container">
+          <input type="text" name="emailPrefix" id="emailPrefix" required placeholder="initiales (ex: jd)" pattern="^[a-zA-Z]{2,10}$" title="Entrez vos initiales (2 à 10 lettres)" />
+          <span>@rtbf.be</span>
+        </div>
+      </label>
+      <label>Type de production :
+        <select name="type" required>
+          <option>Image</option>
+          <option>Vidéo</option>
+          <option>Son</option>
+          <option>Texte</option>
+        </select>
+      </label>
+      <label>Support de diffusion :
+        <select name="support" required>
+          <option value="">-- Sélectionner --</option>
+          <option value="TV">TV</option>
+          <option value="Radio">Radio</option>
+          <option value="Web">Web</option>
+          <option value="RS">RS</option>
+        </select>
+      </label>
+      <label>Durée estimée du plan : <select name="duree" id="duree" required></select></label>
+      <label>Date souhaitée de livraison : <input type="date" name="date" required /></label>
+      <label>Images de référence :</label>
+      <div class="drop-zone" id="dropZone">Glissez ici vos images ou cliquez pour sélectionner</div>
+      <input type="file" id="reference" name="reference" accept="image/*" multiple hidden />
+      <div class="preview" id="preview"></div>
+      <label>Description du besoin : <textarea name="description" rows="6" required></textarea></label>
+      <button type="submit" id="submitBtn">Envoyer la demande</button>
+    </form>
+    <p id="confirmation"></p>
   </div>
-  <!-- Script inchangé -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const dureeSelect = document.getElementById("duree");
+      for (let i = 0; i <= 60; i++) {
+        const option = document.createElement("option");
+        option.value = `${i} sec`;
+        option.textContent = `${i} sec`;
+        dureeSelect.appendChild(option);
+      }
+
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("reference");
+      const preview = document.getElementById("preview");
+      const form = document.getElementById("demandeIA");
+      const submitBtn = document.getElementById("submitBtn");
+      let selectedFiles = [];
+
+      const updatePreview = () => {
+        preview.innerHTML = "";
+        selectedFiles.forEach((file, index) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const container = document.createElement("div");
+            container.className = "preview-item";
+            const img = document.createElement("img");
+            img.src = e.target.result;
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "remove-btn";
+            removeBtn.innerHTML = "×";
+            removeBtn.onclick = () => {
+              selectedFiles.splice(index, 1);
+              updatePreview();
+            };
+            container.appendChild(img);
+            container.appendChild(removeBtn);
+            preview.appendChild(container);
+          };
+          reader.readAsDataURL(file);
+        });
+      };
+
+      dropZone.addEventListener("click", () => fileInput.click());
+      dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+      dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+      dropZone.addEventListener("drop", e => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        handleFiles(e.dataTransfer.files);
+      });
+      fileInput.addEventListener("change", e => handleFiles(e.target.files));
+
+      function handleFiles(files) {
+        const newFiles = Array.from(files);
+        if (selectedFiles.length + newFiles.length > 2) {
+          alert("Vous pouvez télécharger au maximum 2 images.");
+          return;
+        }
+        selectedFiles = selectedFiles.concat(newFiles);
+        updatePreview();
+      }
+
+      form.addEventListener("submit", async e => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        submitBtn.classList.add("loading");
+        submitBtn.textContent = "Envoi en cours...";
+        const formData = new FormData(form);
+        const emailPrefix = formData.get("emailPrefix").trim();
+        const fullEmail = `${emailPrefix}@rtbf.be`;
+        const data = {
+          nom: formData.get("nom"),
+          email: fullEmail,
+          type: formData.get("type"),
+          support: formData.get("support"),
+          duree: formData.get("duree"),
+          date: formData.get("date"),
+          description: formData.get("description"),
+          images: [],
+        };
+        for (let file of selectedFiles) {
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          data.images.push(base64);
+        }
+        try {
+          const res = await fetch("/.netlify/functions/sendRequest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+          });
+          const result = await res.json();
+          document.getElementById("confirmation").textContent = result.message;
+        } catch (err) {
+          console.error("Erreur :", err);
+          alert("Erreur lors de l’envoi");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.classList.remove("loading");
+          submitBtn.textContent = "Envoyer la demande";
+        }
+      });
+    });
+  </script>
 </body>
 </html>
