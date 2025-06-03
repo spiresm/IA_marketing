@@ -1,4 +1,5 @@
-import { Octokit } from "octokit";
+// netlify/functions/uploadImage.mjs
+import { Octokit } from '@octokit/rest';
 
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
@@ -11,7 +12,7 @@ export async function handler(event) {
     const { data } = await octokit.repos.createOrUpdateFileContents({
       owner: process.env.GITHUB_OWNER,
       repo: process.env.GITHUB_REPO,
-      path: path,
+      path,
       message: `Ajout de ${fileName}`,
       content: fileBase64,
     });
