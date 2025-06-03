@@ -1,6 +1,4 @@
-const fetch = require("node-fetch");
-
-exports.handler = async function (event) {
+export async function handler(event) {
   console.log("✅ pushPrompt appelée");
 
   if (event.httpMethod === "OPTIONS") {
@@ -17,20 +15,19 @@ exports.handler = async function (event) {
 
   try {
     if (!event.body) {
-  console.error("❌ Aucune donnée reçue (body vide)");
-  return {
-    statusCode: 400,
-    body: JSON.stringify({ error: "Aucune donnée reçue" }),
-  };
-}
-const prompt = JSON.parse(event.body);
+      console.error("❌ Aucune donnée reçue (body vide)");
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Aucune donnée reçue" }),
+      };
+    }
 
-    console.log("📥 Données reçues dans pushPrompt :", prompt);
-
+    const prompt = JSON.parse(event.body);
     console.log("📥 Données reçues :", prompt);
 
-    const repo = "spiresm/IA_marketing";
     const token = process.env.GITHUB_TOKEN;
+    const repo = "spiresm/IA_marketing";
+
     if (!token) throw new Error("❌ GITHUB_TOKEN manquant");
 
     const path = `prompts/prompt-${Date.now()}.json`;
@@ -52,9 +49,6 @@ const prompt = JSON.parse(event.body);
     const data = await res.json();
     console.log("📦 Réponse complète de GitHub :", data);
 
-
-    console.log("📦 Réponse GitHub :", data);
-
     if (!res.ok) {
       return {
         statusCode: res.status,
@@ -73,4 +67,4 @@ const prompt = JSON.parse(event.body);
       body: JSON.stringify({ error: err.message }),
     };
   }
-};
+}
