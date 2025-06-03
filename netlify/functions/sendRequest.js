@@ -1,4 +1,3 @@
-// sendRequest.js (Netlify Function)
 const nodemailer = require("nodemailer");
 
 exports.handler = async (event) => {
@@ -20,7 +19,6 @@ exports.handler = async (event) => {
       },
     });
 
-    // Email HTML
     const htmlContent = `
       <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
@@ -35,18 +33,18 @@ exports.handler = async (event) => {
             <tr><td style="padding: 8px; font-weight: bold;">📝 Description :</td><td style="padding: 8px;">${data.description}</td></tr>
           </table>
           <br>
-          ${data.images?.length ? `<p><strong>${data.images.length}</strong> image(s) jointe(s).</p>` : `<p><i>Aucune image jointe.</i></p>`}
+          ${data.images && data.images.length > 0
+            ? `<p>${data.images.length} image(s) jointe(s)</p>`
+            : `<p><i>Aucune image de référence fournie.</i></p>`}
         </body>
       </html>
     `;
 
-    const attachments = Array.isArray(data.images)
-      ? data.images.map((img, idx) => ({
-          filename: `reference_${idx + 1}.jpg`,
-          content: img.split("base64,")[1],
-          encoding: "base64",
-        }))
-      : [];
+    const attachments = (data.images || []).map((img, index) => ({
+      filename: `reference-${index + 1}.jpg`,
+      content: img.split("base64,")[1],
+      encoding: "base64",
+    }));
 
     const mailOptions = {
       from: process.env.MAIL_USER,
@@ -54,19 +52,3 @@ exports.handler = async (event) => {
       subject: `Nouvelle demande IA de ${data.nom}`,
       html: htmlContent,
       attachments,
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: "Demande envoyée avec succès !" }),
-    };
-  } catch (error) {
-    console.error("Erreur d’envoi :", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Échec de l'envoi de l'email." }),
-    };
-  }
-};
