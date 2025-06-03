@@ -36,15 +36,25 @@
     nav a:hover {
       background-color: #e0f0ff;
     }
+    #filters {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px auto;
+    }
+    select {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 1em;
+    }
     .galerie {
       max-width: 900px;
-      margin: 40px auto;
+      margin: 20px auto;
       padding: 0 20px;
     }
     .carte {
       background: white;
       display: flex;
-      justify-content: space-between;
       gap: 20px;
       padding: 15px;
       margin-bottom: 20px;
@@ -52,11 +62,14 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       border-radius: 8px;
       position: relative;
+      align-items: flex-start;
     }
     .carte img {
       max-width: 180px;
+      height: auto;
       border-radius: 6px;
       transition: transform 0.3s ease;
+      object-fit: cover;
     }
     .carte img:hover {
       transform: scale(2);
@@ -113,13 +126,6 @@
     .star.selected {
       color: gold;
     }
-    #filtre-outil {
-      margin: 20px auto;
-      display: block;
-      font-size: 1em;
-      padding: 6px 12px;
-      border-radius: 6px;
-    }
   </style>
 </head>
 <body>
@@ -140,14 +146,24 @@
     <a href="galerie.html">Galerie</a>
   </nav>
 
-  <select id="filtre-outil">
-    <option value="">Tous les outils</option>
-    <option>Midjourney</option>
-    <option>DALL·E</option>
-    <option>Stable Diffusion</option>
-    <option>Adobe Firefly</option>
-    <option>Runway</option>
-  </select>
+  <div id="filters">
+    <select id="filtre-outil">
+      <option value="">Tous les outils</option>
+      <option>Midjourney</option>
+      <option>DALL·E</option>
+      <option>Stable Diffusion</option>
+      <option>Adobe Firefly</option>
+      <option>Runway</option>
+    </select>
+    <select id="filtre-rating">
+      <option value="">Tous les ratings</option>
+      <option value="5">⭐⭐⭐⭐⭐</option>
+      <option value="4">⭐⭐⭐⭐</option>
+      <option value="3">⭐⭐⭐</option>
+      <option value="2">⭐⭐</option>
+      <option value="1">⭐</option>
+    </select>
+  </div>
 
   <div class="galerie" id="galerie"></div>
 
@@ -157,41 +173,38 @@
     const branch = 'main';
     const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
     const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
-
     let tousLesPrompts = [];
 
     async function chargerPrompts() {
-      const galerie = document.getElementById('galerie');
-      galerie.innerHTML = '';
-      try {
-        const res = await fetch(`${apiBase}prompts?ref=${branch}`);
-        if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
-        const fichiers = await res.json();
-        tousLesPrompts = fichiers.filter(f => f.name.endsWith('.json'));
-        afficherPrompts(tousLesPrompts);
-      } catch (e) {
-        console.error(e);
-        galerie.innerHTML = `<p style="color:red;">${e.message}</p>`;
-      }
+      const res = await fetch(`${apiBase}prompts?ref=${branch}`);
+      if (!res.ok) throw new Error('Erreur GitHub');
+      const fichiers = await res.json();
+      tousLesPrompts = fichiers.filter(f => f.name.endsWith('.json'));
+      afficherPrompts(tousLesPrompts);
     }
 
     function afficherPrompts(fichiers) {
       const galerie = document.getElementById('galerie');
       galerie.innerHTML = '';
-
       fichiers.forEach(async fichier => {
-        const rawRes = await fetch(fichier.download_url);
-        if (!rawRes.ok) return;
-        const data = await rawRes.json();
+        const res = await fetch(fichier.download_url);
+        if (!res.ok) return;
+        const data = await res.json();
 
-        const imagePath = data.image || data.imageUrl || '';
-        const imageUrl = imagePath.startsWith('http') ? imagePath : rawBase + imagePath;
+        const filtreOutil = document.getElementById('filtre-outil').value;
+        if (filtreOutil && data.outil !== filtreOutil) return;
+
+        const filtreRating = document.getElementById('filtre-rating').value;
+        const ratingKey = `rating-${fichier.name}`;
+        const currentRating = parseInt(localStorage.getItem(ratingKey)) || 0;
+        if (filtreRating && currentRating < parseInt(filtreRating)) return;
 
         const div = document.createElement('div');
         div.className = 'carte';
 
         const img = document.createElement('img');
-        img.src = imageUrl;
+        const imagePath = data.image || data.imageUrl || '';
+        img.src = imagePath.startsWith('http') ? imagePath : rawBase + imagePath;
         img.alt = 'Image';
         div.appendChild(img);
 
@@ -222,57 +235,45 @@
         };
         texteCol.appendChild(copierBtn);
 
-        const supprimerBtn = document.createElement('button');
-        supprimerBtn.className = 'supprimer-btn';
-        supprimerBtn.innerHTML = '🗑️';
-        supprimerBtn.onclick = async () => {
-          if (!confirm('Confirmer suppression ?')) return;
-          try {
-            await fetch('/.netlify/functions/deletePrompt', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                promptPath: fichier.path,
-                imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
-              })
-            });
-            div.remove();
-          } catch (err) {
-            alert('Erreur lors de la suppression');
-          }
-        };
-        div.appendChild(supprimerBtn);
-
         const ratingDiv = document.createElement('div');
         ratingDiv.className = 'rating';
         for (let i = 1; i <= 5; i++) {
           const star = document.createElement('span');
           star.className = 'star';
-          star.innerHTML = '★';
+          star.textContent = '★';
+          if (i <= currentRating) star.classList.add('selected');
           star.onclick = () => {
-            [...ratingDiv.children].forEach((s, idx) =>
-              s.classList.toggle('selected', idx < i)
-            );
+            localStorage.setItem(ratingKey, i);
+            afficherPrompts(tousLesPrompts);
           };
           ratingDiv.appendChild(star);
         }
         texteCol.appendChild(ratingDiv);
+
+        const supprimerBtn = document.createElement('button');
+        supprimerBtn.className = 'supprimer-btn';
+        supprimerBtn.innerHTML = '🗑️';
+        supprimerBtn.onclick = async () => {
+          if (!confirm('Confirmer suppression ?')) return;
+          await fetch('/.netlify/functions/deletePrompt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              promptPath: fichier.path,
+              imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
+            })
+          });
+          div.remove();
+        };
+        div.appendChild(supprimerBtn);
 
         div.appendChild(texteCol);
         galerie.appendChild(div);
       });
     }
 
-    document.getElementById('filtre-outil').addEventListener('change', (e) => {
-      const outil = e.target.value;
-      const filtrés = outil
-        ? tousLesPrompts.filter(f => f.name.endsWith('.json')).filter(async f => {
-            const d = await (await fetch(f.download_url)).json();
-            return d.outil === outil;
-          })
-        : tousLesPrompts;
-      afficherPrompts(filtrés);
-    });
+    document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
+    document.getElementById('filtre-rating').addEventListener('change', () => afficherPrompts(tousLesPrompts));
 
     window.onload = chargerPrompts;
   </script>
