@@ -2,7 +2,7 @@ const nodemailer = require("nodemailer");
 const multiparty = require("multiparty");
 const { Readable } = require("stream");
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
@@ -10,18 +10,18 @@ exports.handler = async (event) => {
     };
   }
 
-  // Créer une requête compatible multiparty
+  // Recréer une requête compatible stream
   const buffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
-  const fakeRequest = new Readable();
-  fakeRequest.push(buffer);
-  fakeRequest.push(null);
-  fakeRequest.headers = event.headers;
-  fakeRequest.method = event.httpMethod;
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+  stream.headers = event.headers;
+  stream.method = event.httpMethod;
 
   const form = new multiparty.Form();
 
   return new Promise((resolve) => {
-    form.parse(fakeRequest, async (err, fields, files) => {
+    form.parse(stream, async (err, fields, files) => {
       if (err) {
         console.error("Erreur de parsing:", err);
         return resolve({
@@ -78,4 +78,8 @@ ${description}
       }
     });
   });
+};
+
+exports.config = {
+  bodyParser: false,
 };
