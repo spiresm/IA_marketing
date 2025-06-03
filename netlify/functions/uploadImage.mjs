@@ -5,12 +5,12 @@ const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 export async function handler(event) {
   try {
     const { fileBase64, fileName } = JSON.parse(event.body);
-    const imagePath = `images/${Date.now()}-${fileName}`;
+    const path = `images/${Date.now()}-${fileName}`;
 
     const { data } = await octokit.repos.createOrUpdateFileContents({
       owner: process.env.GITHUB_OWNER,
       repo: process.env.GITHUB_REPO,
-      path: imagePath,
+      path,
       message: `Ajout de ${fileName}`,
       content: fileBase64,
     });
