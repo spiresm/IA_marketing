@@ -1,17 +1,32 @@
-// sendRequest.js (Netlify Function)
 const nodemailer = require("nodemailer");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      body: "Méthode non autorisée",
+      body: JSON.stringify({ message: "Méthode non autorisée" }),
+    };
+  }
+
+  let data;
+  try {
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: "Requête vide." }),
+      };
+    }
+
+    data = JSON.parse(event.body);
+  } catch (err) {
+    console.error("Erreur de parsing JSON :", err);
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: "JSON invalide reçu." }),
     };
   }
 
   try {
-    const data = JSON.parse(event.body);
-
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -63,13 +78,4 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "Demande envoyée avec succès !" }),
-    };
-  } catch (error) {
-    console.error("Erreur d’envoi :", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Échec de l'envoi de l'email." }),
-    };
-  }
-};
+      body: JSON.stringify({ messa
