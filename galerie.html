@@ -11,16 +11,14 @@
       background-color: #f0f4f8;
       color: #333;
     }
+
     .header {
       background-color: #0077b6;
       color: white;
       padding: 40px 20px;
       text-align: center;
     }
-    .header h1 {
-      margin: 0;
-      font-size: 2em;
-    }
+
     nav {
       background-color: #ffffff;
       display: flex;
@@ -29,6 +27,7 @@
       padding: 15px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
+
     nav a {
       text-decoration: none;
       color: #0077b6;
@@ -37,91 +36,83 @@
       border-radius: 20px;
       transition: background-color 0.3s;
     }
+
     nav a:hover {
       background-color: #e0f0ff;
     }
 
-    .filtre {
-      text-align: center;
-      margin: 30px;
-    }
-    select {
-      font-size: 1em;
-      padding: 5px 10px;
-      border-radius: 6px;
-    }
-
     .galerie {
       max-width: 1000px;
-      margin: 20px auto;
+      margin: 40px auto;
       padding: 0 20px;
     }
 
+    .filtre {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
     .carte {
+      background: white;
       display: flex;
       align-items: flex-start;
-      background: white;
+      justify-content: space-between;
+      gap: 20px;
       padding: 15px;
       margin-bottom: 20px;
       border-left: 5px solid #0077b6;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       border-radius: 8px;
-      gap: 20px;
+      position: relative;
     }
 
     .carte img {
-      max-width: 180px;
+      max-width: 200px;
       border-radius: 6px;
-      cursor: pointer;
       transition: transform 0.3s ease;
+      cursor: pointer;
     }
 
     .carte img:hover {
-      transform: scale(1.1);
+      transform: scale(1.4);
+    }
+
+    .texte-col {
+      flex: 1;
     }
 
     .infos {
       font-size: 0.9em;
       color: #555;
-      margin-bottom: 10px;
+      margin: 10px 0;
     }
 
-    .texte {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+    .copy-fixed {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: white;
+      border: none;
+      font-size: 1.1em;
+      cursor: pointer;
+      padding: 5px 8px;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
 
-    .prompt {
-      font-weight: bold;
-    }
-
-    .right-side {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .top-line {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .icon-btn {
+    .supprimer-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
       background: none;
       border: none;
-      cursor: pointer;
       font-size: 1.2em;
+      cursor: pointer;
+      color: #888;
     }
 
-    .icon-btn:hover {
-      color: red;
-    }
-
-    .icon-copy:hover {
-      color: green;
+    .supprimer-btn:hover {
+      color: #e00;
     }
   </style>
 </head>
@@ -143,19 +134,20 @@
     <a href="galerie.html">Galerie</a>
   </nav>
 
-  <div class="filtre">
-    <label for="outilFilter">Filtrer par outil IA : </label>
-    <select id="outilFilter">
-      <option value="Tous">Tous</option>
-      <option value="Midjourney">Midjourney</option>
-      <option value="DALL·E">DALL·E</option>
-      <option value="Stable Diffusion">Stable Diffusion</option>
-      <option value="Adobe Firefly">Adobe Firefly</option>
-      <option value="Runway">Runway</option>
-    </select>
+  <div class="galerie">
+    <div class="filtre">
+      <label for="filtre-outil">Filtrer par outil :</label>
+      <select id="filtre-outil">
+        <option value="">Tous</option>
+        <option value="Midjourney">Midjourney</option>
+        <option value="DALL·E">DALL·E</option>
+        <option value="Stable Diffusion">Stable Diffusion</option>
+        <option value="Adobe Firefly">Adobe Firefly</option>
+        <option value="Runway">Runway</option>
+      </select>
+    </div>
+    <div id="galerie"></div>
   </div>
-
-  <div class="galerie" id="galerie"></div>
 
   <script>
     const repoOwner = 'spiresm';
@@ -164,18 +156,15 @@
     const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
     const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
 
-    let allPrompts = [];
-
     async function chargerPrompts() {
       const galerie = document.getElementById('galerie');
+      const filtre = document.getElementById('filtre-outil').value;
       galerie.innerHTML = '';
 
       try {
         const res = await fetch(`${apiBase}prompts?ref=${branch}`);
         if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
         const fichiers = await res.json();
-
-        allPrompts = [];
 
         for (const fichier of fichiers) {
           if (!fichier.name.endsWith('.json')) continue;
@@ -184,103 +173,84 @@
           if (!rawRes.ok) continue;
           const data = await rawRes.json();
 
-          allPrompts.push({ data, path: fichier.path });
-        }
+          if (filtre && data.outil !== filtre) continue;
 
-        afficherPrompts();
+          let imagePath = data.image || data.imageUrl || '';
+          let imageUrl = '';
+          if (imagePath) {
+            imageUrl = /^https?:\/\//.test(imagePath)
+              ? imagePath
+              : rawBase + imagePath.replace(/^\//, '');
+          }
+
+          const div = document.createElement('div');
+          div.className = 'carte';
+
+          const img = document.createElement('img');
+          img.src = imageUrl;
+          img.alt = 'Image du prompt';
+          img.onclick = () => img.classList.toggle('zoomed');
+          div.appendChild(img);
+
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'copy-fixed';
+          copyBtn.innerHTML = '📋';
+          copyBtn.title = "Copier le prompt";
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(data.texte || '');
+            copyBtn.innerText = '✅';
+            setTimeout(() => copyBtn.innerText = '📋', 1000);
+          };
+          div.appendChild(copyBtn);
+
+          const texteCol = document.createElement('div');
+          texteCol.className = 'texte-col';
+
+          const infos = document.createElement('p');
+          infos.className = 'infos';
+          infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
+          texteCol.appendChild(infos);
+
+          const texte = document.createElement('p');
+          texte.textContent = data.texte || '';
+          texteCol.appendChild(texte);
+
+          div.appendChild(texteCol);
+
+          const supprimerBtn = document.createElement('button');
+          supprimerBtn.innerHTML = '🗑️';
+          supprimerBtn.className = 'supprimer-btn';
+          supprimerBtn.title = "Supprimer ce prompt";
+          supprimerBtn.onclick = async () => {
+            if (!confirm("Confirmer la suppression ?")) return;
+
+            try {
+              await fetch('/.netlify/functions/deletePrompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  promptPath: fichier.path,
+                  imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
+                })
+              });
+
+              galerie.removeChild(div);
+            } catch (err) {
+              alert("Erreur lors de la suppression");
+              console.error(err);
+            }
+          };
+
+          div.appendChild(supprimerBtn);
+          galerie.appendChild(div);
+        }
       } catch (e) {
         console.error('Erreur de chargement des prompts :', e);
         galerie.innerHTML = `<p style="color:red;">${e.message}</p>`;
       }
     }
 
-    function afficherPrompts() {
-      const galerie = document.getElementById('galerie');
-      galerie.innerHTML = '';
-      const filtre = document.getElementById('outilFilter').value;
-
-      for (const { data, path } of allPrompts) {
-        if (filtre !== 'Tous' && data.outil !== filtre) continue;
-
-        const imagePath = data.image || data.imageUrl || '';
-        const imageUrl = /^https?:\/\//.test(imagePath)
-          ? imagePath
-          : rawBase + imagePath.replace(/^\//, '');
-
-        const div = document.createElement('div');
-        div.className = 'carte';
-
-        const img = document.createElement('img');
-        img.src = imageUrl;
-        img.alt = 'Image du prompt';
-        div.appendChild(img);
-
-        const right = document.createElement('div');
-        right.className = 'right-side';
-
-        const topLine = document.createElement('div');
-        topLine.className = 'top-line';
-
-        const infos = document.createElement('p');
-        infos.className = 'infos';
-        infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
-        topLine.appendChild(infos);
-
-        const supprimerBtn = document.createElement('button');
-        supprimerBtn.className = 'icon-btn';
-        supprimerBtn.title = "Supprimer";
-        supprimerBtn.innerHTML = '🗑️';
-        supprimerBtn.onclick = async () => {
-          if (!confirm("Confirmer la suppression ?")) return;
-
-          try {
-            await fetch('/.netlify/functions/deletePrompt', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                promptPath: path,
-                imagePath: data.imageUrl?.includes('images/')
-                  ? `images/${data.imageUrl.split('/').pop()}`
-                  : ''
-              })
-            });
-
-            div.remove();
-          } catch (err) {
-            alert("Erreur lors de la suppression");
-            console.error(err);
-          }
-        };
-        topLine.appendChild(supprimerBtn);
-
-        right.appendChild(topLine);
-
-        const texteDiv = document.createElement('div');
-        texteDiv.className = 'texte';
-
-        const texte = document.createElement('p');
-        texte.className = 'prompt';
-        texte.textContent = data.texte || '';
-        texteDiv.appendChild(texte);
-
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'icon-btn icon-copy';
-        copyBtn.title = "Copier le prompt";
-        copyBtn.innerHTML = '📋';
-        copyBtn.onclick = () => {
-          navigator.clipboard.writeText(data.texte || '');
-          copyBtn.innerText = '✅';
-          setTimeout(() => copyBtn.innerText = '📋', 1000);
-        };
-        texteDiv.appendChild(copyBtn);
-
-        right.appendChild(texteDiv);
-        div.appendChild(right);
-        galerie.appendChild(div);
-      }
-    }
-
-    document.getElementById('outilFilter').addEventListener('change', afficherPrompts);
+    document.getElementById('filtre-outil').addEventListener('change', chargerPrompts);
     window.onload = chargerPrompts;
   </script>
 </body>
