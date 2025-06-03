@@ -175,8 +175,160 @@
     <a href="charte.html">Charte IA</a>
   </nav>
   <div class="container">
-    <!-- Ton formulaire peut maintenant être ajouté ici -->
-    <p>Contenu à insérer ici (formulaire, scripts...)</p>
+    <h2>Formulaire de demande de production IA</h2>
+    <form id="demandeIA">
+      <label>Nom du réalisateur :
+        <input type="text" name="nom" required />
+      </label>
+
+      <label>Email :
+        <div class="email-container">
+          <input type="text" name="emailPrefix" id="emailPrefix" required placeholder="initiales (ex: jd)" pattern="^[a-zA-Z]{2,10}$" title="Entrez vos initiales (2 à 10 lettres)" />
+          <span>@rtbf.be</span>
+        </div>
+      </label>
+
+      <label>Type de production :
+        <select name="type" required>
+          <option>Image</option>
+          <option>Vidéo</option>
+          <option>Son</option>
+          <option>Texte</option>
+        </select>
+      </label>
+
+      <label>Support de diffusion :
+        <select name="support" required>
+          <option value="">-- Sélectionner --</option>
+          <option value="TV">TV</option>
+          <option value="Radio">Radio</option>
+          <option value="Web">Web</option>
+          <option value="RS">RS</option>
+        </select>
+      </label>
+
+      <label>Durée estimée du plan :
+        <select name="duree" id="duree" required></select>
+      </label>
+
+      <label>Date souhaitée de livraison :
+        <input type="date" name="date" required />
+      </label>
+
+      <label>Images de référence :</label>
+      <div class="drop-zone" id="dropZone">Glissez ici vos images ou cliquez pour sélectionner</div>
+      <input type="file" id="reference" name="reference" accept="image/*" multiple hidden />
+      <div class="preview" id="preview"></div>
+
+      <label>Description du besoin :
+        <textarea name="description" rows="6" required></textarea>
+      </label>
+
+      <button type="submit" id="submitBtn">Envoyer la demande</button>
+    </form>
+    <p id="confirmation"></p>
   </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const dureeSelect = document.getElementById("duree");
+      for (let i = 0; i <= 60; i++) {
+        dureeSelect.innerHTML += `<option value="${i} sec">${i} sec</option>`;
+      }
+
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("reference");
+      const preview = document.getElementById("preview");
+      const form = document.getElementById("demandeIA");
+      const submitBtn = document.getElementById("submitBtn");
+
+      let selectedFiles = [];
+
+      const updatePreview = () => {
+        preview.innerHTML = "";
+        selectedFiles.forEach(file => {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const img = document.createElement("img");
+            img.src = e.target.result;
+            preview.appendChild(img);
+          };
+          reader.readAsDataURL(file);
+        });
+      };
+
+      dropZone.addEventListener("click", () => fileInput.click());
+
+      dropZone.addEventListener("dragover", e => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+      });
+
+      dropZone.addEventListener("drop", e => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        selectedFiles = [...selectedFiles, ...e.dataTransfer.files];
+        updatePreview();
+      });
+
+      fileInput.addEventListener("change", e => {
+        selectedFiles = [...selectedFiles, ...e.target.files];
+        updatePreview();
+      });
+
+      form.addEventListener("submit", async e => {
+        e.preventDefault();
+
+        submitBtn.disabled = true;
+        submitBtn.classList.add("loading");
+        submitBtn.textContent = "Envoi en cours...";
+
+        const formData = new FormData(form);
+        const emailPrefix = formData.get("emailPrefix").trim();
+        const fullEmail = `${emailPrefix}@rtbf.be`;
+
+        const data = {
+          nom: formData.get("nom"),
+          email: fullEmail,
+          type: formData.get("type"),
+          support: formData.get("support"),
+          duree: formData.get("duree"),
+          date: formData.get("date"),
+          description: formData.get("description"),
+          images: [],
+        };
+
+        for (let file of selectedFiles) {
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          data.images.push(base64);
+        }
+
+        try {
+          const res = await fetch("/.netlify/functions/sendRequest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+          });
+          const result = await res.json();
+          document.getElementById("confirmation").textContent = result.message;
+        } catch (err) {
+          console.error("Erreur :", err);
+          alert("Erreur lors de l’envoi");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.classList.remove("loading");
+          submitBtn.textContent = "Envoyer la demande";
+        }
+      });
+    });
+  </script>
 </body>
 </html>
