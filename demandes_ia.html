@@ -1,94 +1,308 @@
-<!-- ...header et nav identiques... -->
-
-<div class="container">
-  <h2>Formulaire de demande de production IA</h2>
-  <form id="demandeIA" enctype="multipart/form-data">
-    <!-- ...autres champs... -->
-    <label>Images de référence :
-      <input type="file" name="reference" accept="image/*" multiple>
-    </label>
-    <!-- ...autres champs... -->
-    <button type="submit" id="submitBtn">Envoyer la demande</button>
-  </form>
-  <p id="confirmation"></p>
-</div>
-
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const select = document.getElementById("duree");
-    for (let i = 0; i <= 60; i++) {
-      const opt = document.createElement("option");
-      opt.value = `${i} sec`;
-      opt.textContent = `${i} sec`;
-      select.appendChild(opt);
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Demande IA - Espace IA</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background-color: #f0f4f8;
+      color: #333;
     }
 
-    const form = document.getElementById("demandeIA");
-    const button = document.getElementById("submitBtn");
+    .header {
+      background-color: #0077b6;
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+    }
 
-    form.addEventListener("submit", async function (e) {
-      e.preventDefault();
-      button.disabled = true;
-      button.textContent = "Envoi...";
+    .header h1 {
+      margin: 0;
+      font-size: 2em;
+    }
 
-      const formData = new FormData(form);
-      const files = form.querySelector('input[name="reference"]').files;
-      const imagesBase64 = [];
+    nav {
+      background-color: #ffffff;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
 
-      const emailPrefix = formData.get("emailPrefix").trim();
-      const fullEmail = emailPrefix + "@rtbf.be";
+    nav a {
+      text-decoration: none;
+      color: #0077b6;
+      font-weight: bold;
+      padding: 8px 16px;
+      border-radius: 20px;
+      transition: background-color 0.3s;
+    }
 
-      const data = {
-        nom: formData.get("nom"),
-        email: fullEmail,
-        type: formData.get("type"),
-        support: formData.get("support"),
-        duree: formData.get("duree"),
-        date: formData.get("date"),
-        description: formData.get("description"),
-        images: []
-      };
+    nav a:hover {
+      background-color: #e0f0ff;
+    }
 
-      if (files.length > 0) {
-        let loaded = 0;
-        for (let file of files) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            imagesBase64.push(reader.result);
-            loaded++;
-            if (loaded === files.length) {
-              data.images = imagesBase64;
-              sendData(data);
-            }
-          };
-          reader.onerror = () => alert("Erreur de lecture d’image.");
-          reader.readAsDataURL(file);
-        }
-      } else {
-        sendData(data);
+    .container {
+      max-width: 650px;
+      margin: 40px auto;
+      background: white;
+      padding: 40px 35px;
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h2 {
+      text-align: center;
+      color: #0077b6;
+      margin-bottom: 30px;
+      font-size: 1.7em;
+    }
+
+    form label {
+      display: block;
+      margin-top: 20px;
+      font-weight: 600;
+      color: #444;
+    }
+
+    form input,
+    form select,
+    form textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1em;
+      margin-top: 6px;
+      transition: border 0.3s, box-shadow 0.3s;
+      background-color: #f9fafb;
+    }
+
+    form input:focus,
+    form select:focus,
+    form textarea:focus {
+      border-color: #0077b6;
+      box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.15);
+      outline: none;
+      background-color: #fff;
+    }
+
+    .email-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .email-container input {
+      flex: 1;
+    }
+
+    button {
+      width: 100%;
+      background-color: #0077b6;
+      color: white;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1em;
+      font-weight: bold;
+      margin-top: 30px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+
+    button:hover {
+      background-color: #005f8a;
+      transform: translateY(-2px);
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    #confirmation {
+      text-align: center;
+      margin-top: 20px;
+      font-weight: bold;
+      color: green;
+      animation: fadeIn 0.6s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Espace IA Marketing</h1>
+  </div>
+  <nav>
+    <a href="index.html">Accueil</a>
+    <a href="profil.html">Mon profil</a>
+    <a href="outils.html">Outils IA</a>
+    <a href="prompts.html">Prompts</a>
+    <a href="cas-usages.html">Cas d’usage</a>
+    <a href="creer-tip.html">Créer un tip</a>
+    <a href="veille.html">Veille</a>
+    <a href="equipe.html">Équipe</a>
+    <a href="galerie.html">Galerie</a>
+    <a href="charte.html">Charte IA</a>
+  </nav>
+
+  <div class="container">
+    <h2>Formulaire de demande de production IA</h2>
+    <form id="demandeIA" enctype="multipart/form-data">
+      <label>Nom du réalisateur :
+        <input type="text" name="nom" required />
+      </label>
+
+      <label>Email :
+        <div class="email-container">
+          <input type="text" name="emailPrefix" id="emailPrefix" required placeholder="initiales (ex: jd)" pattern="^[a-zA-Z]{2,10}$" title="Entrez vos initiales (2 à 10 lettres)" />
+          <span>@rtbf.be</span>
+        </div>
+      </label>
+
+      <label>Type de production :
+        <select name="type" required>
+          <option>Image</option>
+          <option>Vidéo</option>
+          <option>Son</option>
+          <option>Texte</option>
+        </select>
+      </label>
+
+      <label>Support de diffusion :
+        <select name="support" required>
+          <option value="">-- Sélectionner --</option>
+          <option value="TV">TV</option>
+          <option value="Radio">Radio</option>
+          <option value="Web">Web</option>
+          <option value="RS">RS</option>
+        </select>
+      </label>
+
+      <label>Durée estimée du plan :
+        <select name="duree" id="duree" required>
+          <option value="">-- Sélectionner --</option>
+        </select>
+      </label>
+
+      <label>Date souhaitée de livraison :
+        <input type="date" name="date" required />
+      </label>
+
+      <label>Images de référence :
+        <input type="file" name="reference" accept="image/*" multiple />
+      </label>
+
+      <label>Description du besoin :
+        <textarea name="description" rows="6" required></textarea>
+      </label>
+
+      <button type="submit" id="submitBtn">Envoyer la demande</button>
+    </form>
+    <p id="confirmation"></p>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const savedEmailPrefix = localStorage.getItem("emailPrefix");
+      if (savedEmailPrefix) {
+        document.getElementById("emailPrefix").value = savedEmailPrefix;
       }
 
-      async function sendData(payload) {
-        try {
-          const res = await fetch("/.netlify/functions/sendRequest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const text = await res.text();
+      const select = document.getElementById("duree");
+      for (let i = 0; i <= 60; i++) {
+        const opt = document.createElement("option");
+        opt.value = `${i} sec`;
+        opt.textContent = `${i} sec`;
+        select.appendChild(opt);
+      }
+
+      const form = document.getElementById("demandeIA");
+      const button = document.getElementById("submitBtn");
+
+      form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        button.disabled = true;
+        button.textContent = "Envoi en cours...";
+
+        const formData = new FormData(form);
+        const emailPrefix = formData.get("emailPrefix").trim();
+        const fullEmail = emailPrefix + "@rtbf.be";
+
+        localStorage.setItem("emailPrefix", emailPrefix);
+
+        const files = form.querySelector('input[name="reference"]').files;
+        const imagesBase64 = [];
+
+        const data = {
+          nom: formData.get("nom"),
+          email: fullEmail,
+          type: formData.get("type"),
+          support: formData.get("support"),
+          duree: formData.get("duree"),
+          date: formData.get("date"),
+          description: formData.get("description"),
+          images: [],
+        };
+
+        const sendData = async (payload) => {
           try {
-            const result = JSON.parse(text);
+            const res = await fetch("/.netlify/functions/sendRequest", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            const result = await res.json();
             document.getElementById("confirmation").textContent = result.message;
-          } catch {
-            document.getElementById("confirmation").textContent = "Erreur inconnue.";
+          } catch (error) {
+            console.error("Erreur client :", error);
+            alert("Erreur lors de l’envoi : " + error.message);
+          } finally {
+            button.disabled = false;
+            button.textContent = "Envoyer la demande";
           }
-        } catch (err) {
-          alert("Échec d'envoi : " + err.message);
-        } finally {
-          button.disabled = false;
-          button.textContent = "Envoyer la demande";
+        };
+
+        if (files.length > 0) {
+          let loaded = 0;
+          for (let file of files) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              imagesBase64.push(reader.result);
+              loaded++;
+              if (loaded === files.length) {
+                data.images = imagesBase64;
+                sendData(data);
+              }
+            };
+            reader.onerror = () => alert("Erreur de lecture d’image.");
+            reader.readAsDataURL(file);
+          }
+        } else {
+          sendData(data);
         }
-      }
+      });
     });
-  });
-</script>
+  </script>
+</body>
+</html>
