@@ -33,18 +33,22 @@ exports.handler = async (event) => {
             <tr><td style="padding: 8px; font-weight: bold;">📝 Description :</td><td style="padding: 8px;">${data.description}</td></tr>
           </table>
           <br>
-          ${data.images && data.images.length > 0
-            ? `<p>${data.images.length} image(s) jointe(s)</p>`
-            : `<p><i>Aucune image de référence fournie.</i></p>`}
+          ${
+            Array.isArray(data.images) && data.images.length
+              ? `<p><strong>${data.images.length}</strong> image(s) jointe(s)</p>`
+              : `<p><i>Aucune image de référence jointe.</i></p>`
+          }
         </body>
       </html>
     `;
 
-    const attachments = (data.images || []).map((img, index) => ({
-      filename: `reference-${index + 1}.jpg`,
-      content: img.split("base64,")[1],
-      encoding: "base64",
-    }));
+    const attachments = Array.isArray(data.images)
+      ? data.images.map((img, index) => ({
+          filename: `image-${index + 1}.jpg`,
+          content: img.split("base64,")[1],
+          encoding: "base64",
+        }))
+      : [];
 
     const mailOptions = {
       from: process.env.MAIL_USER,
@@ -52,3 +56,10 @@ exports.handler = async (event) => {
       subject: `Nouvelle demande IA de ${data.nom}`,
       html: htmlContent,
       attachments,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(
