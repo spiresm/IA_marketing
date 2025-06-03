@@ -122,6 +122,7 @@
         <option value="copilot">Copilot</option>
         <option value="notion">Notion AI</option>
         <option value="runway">Runway</option>
+        <option value="adobe">Adobe</option>
       </select>
     </div>
     <div id="news-container"></div>
@@ -129,9 +130,9 @@
 
   <script>
     const apiKey = 'd7a09af0695b961ca491657b7291e461';
-    const query = 'intelligence artificielle';
-    const countries = ['fr', 'ca', 'be', 'ch'];
-    const urls = countries.map(c => `https://api.mediastack.com/v1/news?access_key=${apiKey}&languages=fr&countries=${c}&keywords=${encodeURIComponent(query)}&limit=10`);
+    const query = 'intelligence artificielle OR IA OR adobe';
+    const countries = ['fr', 'be', 'ch', 'ca'];
+    const url = `https://api.mediastack.com/v1/news?access_key=${apiKey}&languages=fr&keywords=${encodeURIComponent(query)}&limit=50`;
 
     let articles = [];
 
@@ -166,14 +167,18 @@
       });
     }
 
-    Promise.all(urls.map(url => fetch(url).then(r => r.json()))).
-      then(responses => {
-        responses.forEach(data => {
-          if (data.data) articles = articles.concat(data.data);
-        });
+    fetch(url)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        articles = data.data || [];
         renderArticles();
-      }).
-      catch(error => {
+      })
+      .catch(error => {
         console.error('Erreur :', error);
         document.getElementById('news-container').innerHTML = '<p>Erreur de chargement des actualités.</p>';
       });
