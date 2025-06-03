@@ -91,6 +91,7 @@
     <a href="galerie.html">Galerie</a>
     <a href="charte.html">Charte IA</a>
   </nav>
+
   <div class="container">
     <h2>Formulaire de demande de production IA</h2>
     <form id="demandeIA" enctype="multipart/form-data">
@@ -114,49 +115,49 @@
   </div>
 
   <script>
-    document.getElementById('demandeIA').addEventListener('submit', async function(e) {
+    const form = document.getElementById("demandeIA");
+
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const form = e.target;
       const formData = new FormData(form);
+      let imageUrl = "";
 
-      const res = await fetch('/.netlify/functions/sendRequest', {
-        method: 'POST',
-        body: formData
-      });
+      try {
+        // Étape 1 : upload image si fournie
+        const file = formData.get("reference");
+        if (file && file.size > 0) {
+          const uploadRes = await fetch("/.netlify/functions/uploadImage", {
+            method: "POST",
+            body: formData
+          });
+          const uploadJson = await uploadRes.json();
+          imageUrl = uploadJson.url || "";
+        }
 
-      const result = await res.json();
-      document.getElementById('confirmation').textContent = result.message;
+        // Étape 2 : envoi des données texte + image
+        const payload = {
+          nom: formData.get("nom"),
+          email: formData.get("email"),
+          type: formData.get("type"),
+          duree: formData.get("duree"),
+          date: formData.get("date"),
+          description: formData.get("description"),
+          imageUrl: imageUrl
+        };
+
+        const res = await fetch("/.netlify/functions/sendRequest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await res.json();
+        document.getElementById("confirmation").textContent = result.message || "Demande envoyée !";
+      } catch (error) {
+        console.error("Erreur côté client:", error);
+        alert("Erreur lors de l’envoi : " + error.message);
+      }
     });
   </script>
-
-  <script>
-  const form = document.querySelector("form");
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const formData = new FormData(form);
-
-try {
-  const response = await fetch("/.netlify/functions/sendRequest", {
-    method: "POST",
-    body: formData
-  });
-
-  const contentType = response.headers.get("content-type");
-  if (!contentType || !contentType.includes("application/json")) {
-    throw new Error("Réponse du serveur non valide");
-  }
-
-  const result = await response.json();
-  alert(result.message || "Envoyé !");
-} catch (error) {
-  console.error("Erreur côté client:", error);
-  alert("Erreur lors de l’envoi : " + error.message);
-}
-
-    }
-  });
-</script>
-
 </body>
 </html>
