@@ -33,11 +33,7 @@ exports.handler = async (event) => {
             <tr><td style="padding: 8px; font-weight: bold;">📝 Description :</td><td style="padding: 8px;">${data.description}</td></tr>
           </table>
           <br>
-          ${
-            Array.isArray(data.images) && data.images.length
-              ? `<p><strong>${data.images.length}</strong> image(s) jointe(s)</p>`
-              : `<p><i>Aucune image de référence jointe.</i></p>`
-          }
+          ${data.images?.length ? `<p><strong>${data.images.length}</strong> image(s) jointe(s)</p>` : `<p><i>Aucune image jointe</i></p>`}
         </body>
       </html>
     `;
@@ -62,4 +58,13 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify(
+      body: JSON.stringify({ message: "Demande envoyée avec succès !" }),
+    };
+  } catch (error) {
+    console.error("Erreur d’envoi :", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Échec de l'envoi de l'email." }),
+    };
+  }
+};
