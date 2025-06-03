@@ -1,257 +1,179 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Galerie des Prompts</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      background-color: #f0f4f8;
-      color: #333;
-    }
+<!-- ...head et nav inchangés... -->
 
-    .header {
-      background-color: #0077b6;
-      color: white;
-      padding: 40px 20px;
-      text-align: center;
-    }
-
-    nav {
-      background-color: #ffffff;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      padding: 15px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    nav a {
-      text-decoration: none;
-      color: #0077b6;
-      font-weight: bold;
-      padding: 8px 16px;
-      border-radius: 20px;
-      transition: background-color 0.3s;
-    }
-
-    nav a:hover {
-      background-color: #e0f0ff;
-    }
-
-    .galerie {
-      max-width: 1000px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
-
-    .filtre {
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    .carte {
-      background: white;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 20px;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-left: 5px solid #0077b6;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      border-radius: 8px;
-      position: relative;
-    }
-
-    .carte img {
-      max-width: 200px;
-      border-radius: 6px;
-      transition: transform 0.3s ease;
-      cursor: pointer;
-    }
-
-    .carte img:hover {
-      transform: scale(1.4);
-    }
-
-    .texte-col {
-      flex: 1;
-    }
-
-    .infos {
-      font-size: 0.9em;
-      color: #555;
-      margin: 10px 0;
-    }
-
-    .copy-fixed {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: white;
-      border: none;
-      font-size: 1.1em;
-      cursor: pointer;
-      padding: 5px 8px;
-      border-radius: 6px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-    }
-
-    .supprimer-btn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: none;
-      border: none;
-      font-size: 1.2em;
-      cursor: pointer;
-      color: #888;
-    }
-
-    .supprimer-btn:hover {
-      color: #e00;
-    }
-  </style>
-</head>
-<body>
-
-  <div class="header">
-    <h1>Espace IA Marketing</h1>
+<div class="galerie">
+  <div class="filtre">
+    <label for="filtre-outil">Filtrer par outil :</label>
+    <select id="filtre-outil">
+      <option value="">Tous</option>
+      <option value="Midjourney">Midjourney</option>
+      <option value="DALL·E">DALL·E</option>
+      <option value="Stable Diffusion">Stable Diffusion</option>
+      <option value="Adobe Firefly">Adobe Firefly</option>
+      <option value="Runway">Runway</option>
+    </select>
   </div>
+  <div id="galerie"></div>
+</div>
 
-  <nav>
-    <a href="index.html">Accueil</a>
-    <a href="profil.html">Mon profil</a>
-    <a href="outils.html">Outils IA</a>
-    <a href="prompts.html">Prompts</a>
-    <a href="cas-usages.html">Cas d’usage</a>
-    <a href="creer-tip.html">Créer un tip</a>
-    <a href="veille.html">Veille</a>
-    <a href="equipe.html">Équipe</a>
-    <a href="galerie.html">Galerie</a>
-  </nav>
+<script>
+  const repoOwner = 'spiresm';
+  const repoName = 'IA_marketing';
+  const branch = 'main';
+  const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
+  const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
 
-  <div class="galerie">
-    <div class="filtre">
-      <label for="filtre-outil">Filtrer par outil :</label>
-      <select id="filtre-outil">
-        <option value="">Tous</option>
-        <option value="Midjourney">Midjourney</option>
-        <option value="DALL·E">DALL·E</option>
-        <option value="Stable Diffusion">Stable Diffusion</option>
-        <option value="Adobe Firefly">Adobe Firefly</option>
-        <option value="Runway">Runway</option>
-      </select>
-    </div>
-    <div id="galerie"></div>
-  </div>
+  async function chargerPrompts() {
+    const galerie = document.getElementById('galerie');
+    const filtre = document.getElementById('filtre-outil').value;
+    galerie.innerHTML = '';
 
-  <script>
-    const repoOwner = 'spiresm';
-    const repoName = 'IA_marketing';
-    const branch = 'main';
-    const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
-    const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
+    try {
+      const res = await fetch(`${apiBase}prompts?ref=${branch}`);
+      if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+      const fichiers = await res.json();
 
-    async function chargerPrompts() {
-      const galerie = document.getElementById('galerie');
-      const filtre = document.getElementById('filtre-outil').value;
-      galerie.innerHTML = '';
+      for (const fichier of fichiers) {
+        if (!fichier.name.endsWith('.json')) continue;
 
-      try {
-        const res = await fetch(`${apiBase}prompts?ref=${branch}`);
-        if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
-        const fichiers = await res.json();
+        const rawRes = await fetch(fichier.download_url);
+        if (!rawRes.ok) continue;
+        const data = await rawRes.json();
 
-        for (const fichier of fichiers) {
-          if (!fichier.name.endsWith('.json')) continue;
+        if (filtre && data.outil !== filtre) continue;
 
-          const rawRes = await fetch(fichier.download_url);
-          if (!rawRes.ok) continue;
-          const data = await rawRes.json();
-
-          if (filtre && data.outil !== filtre) continue;
-
-          let imagePath = data.image || data.imageUrl || '';
-          let imageUrl = '';
-          if (imagePath) {
-            imageUrl = /^https?:\/\//.test(imagePath)
-              ? imagePath
-              : rawBase + imagePath.replace(/^\//, '');
-          }
-
-          const div = document.createElement('div');
-          div.className = 'carte';
-
-          const img = document.createElement('img');
-          img.src = imageUrl;
-          img.alt = 'Image du prompt';
-          img.onclick = () => img.classList.toggle('zoomed');
-          div.appendChild(img);
-
-          const copyBtn = document.createElement('button');
-          copyBtn.className = 'copy-fixed';
-          copyBtn.innerHTML = '📋';
-          copyBtn.title = "Copier le prompt";
-          copyBtn.onclick = () => {
-            navigator.clipboard.writeText(data.texte || '');
-            copyBtn.innerText = '✅';
-            setTimeout(() => copyBtn.innerText = '📋', 1000);
-          };
-          div.appendChild(copyBtn);
-
-          const texteCol = document.createElement('div');
-          texteCol.className = 'texte-col';
-
-          const infos = document.createElement('p');
-          infos.className = 'infos';
-          infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
-          texteCol.appendChild(infos);
-
-          const texte = document.createElement('p');
-          texte.textContent = data.texte || '';
-          texteCol.appendChild(texte);
-
-          div.appendChild(texteCol);
-
-          const supprimerBtn = document.createElement('button');
-          supprimerBtn.innerHTML = '🗑️';
-          supprimerBtn.className = 'supprimer-btn';
-          supprimerBtn.title = "Supprimer ce prompt";
-          supprimerBtn.onclick = async () => {
-            if (!confirm("Confirmer la suppression ?")) return;
-
-            try {
-              await fetch('/.netlify/functions/deletePrompt', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  promptPath: fichier.path,
-                  imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
-                })
-              });
-
-              galerie.removeChild(div);
-            } catch (err) {
-              alert("Erreur lors de la suppression");
-              console.error(err);
-            }
-          };
-
-          div.appendChild(supprimerBtn);
-          galerie.appendChild(div);
+        let imagePath = data.image || data.imageUrl || '';
+        let imageUrl = '';
+        if (imagePath) {
+          imageUrl = /^https?:\/\//.test(imagePath)
+            ? imagePath
+            : rawBase + imagePath.replace(/^\//, '');
         }
-      } catch (e) {
-        console.error('Erreur de chargement des prompts :', e);
-        galerie.innerHTML = `<p style="color:red;">${e.message}</p>`;
-      }
-    }
 
-    document.getElementById('filtre-outil').addEventListener('change', chargerPrompts);
-    window.onload = chargerPrompts;
-  </script>
-</body>
-</html>
+        const div = document.createElement('div');
+        div.className = 'carte';
+
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = 'Image du prompt';
+        img.onclick = () => img.classList.toggle('zoomed');
+        div.appendChild(img);
+
+        const texteCol = document.createElement('div');
+        texteCol.className = 'texte-col';
+
+        const infos = document.createElement('p');
+        infos.className = 'infos';
+        infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
+        texteCol.appendChild(infos);
+
+        const texte = document.createElement('p');
+        texte.textContent = data.texte || '';
+        texteCol.appendChild(texte);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-below';
+        copyBtn.innerHTML = '📋 Copier';
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(data.texte || '');
+          copyBtn.innerText = '✅ Copié';
+          setTimeout(() => copyBtn.innerText = '📋 Copier', 1000);
+        };
+        texteCol.appendChild(copyBtn);
+
+        div.appendChild(texteCol);
+
+        const supprimerBtn = document.createElement('button');
+        supprimerBtn.innerHTML = '🗑️';
+        supprimerBtn.className = 'supprimer-btn';
+        supprimerBtn.title = "Supprimer ce prompt";
+        supprimerBtn.onclick = async () => {
+          if (!confirm("Confirmer la suppression ?")) return;
+
+          try {
+            await fetch('/.netlify/functions/deletePrompt', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                promptPath: fichier.path,
+                imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
+              })
+            });
+
+            galerie.removeChild(div);
+          } catch (err) {
+            alert("Erreur lors de la suppression");
+            console.error(err);
+          }
+        };
+
+        div.appendChild(supprimerBtn);
+        galerie.appendChild(div);
+      }
+    } catch (e) {
+      console.error('Erreur de chargement des prompts :', e);
+      galerie.innerHTML = `<p style="color:red;">${e.message}</p>`;
+    }
+  }
+
+  document.getElementById('filtre-outil').addEventListener('change', chargerPrompts);
+  window.onload = chargerPrompts;
+</script>
+
+<style>
+  .carte {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    background: white;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-left: 5px solid #0077b6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    position: relative;
+  }
+
+  .carte img {
+    max-width: 200px;
+    border-radius: 6px;
+    transition: transform 0.3s ease;
+    cursor: pointer;
+  }
+
+  .carte img:hover {
+    transform: scale(1.4);
+  }
+
+  .texte-col {
+    flex: 1;
+  }
+
+  .copy-below {
+    margin-top: 8px;
+    background: #eef;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .copy-below:hover {
+    background-color: #d5e8ff;
+  }
+
+  .supprimer-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    color: #888;
+  }
+
+  .supprimer-btn:hover {
+    color: #e00;
+  }
+</style>
