@@ -1,281 +1,139 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Galerie des Prompts</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      background-color: #f0f4f8;
-      color: #333;
-    }
-    .header {
-      background-color: #0077b6;
-      color: white;
-      padding: 40px 20px;
-      text-align: center;
-    }
-    nav {
-      background-color: #ffffff;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      padding: 15px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-    nav a {
-      text-decoration: none;
-      color: #0077b6;
-      font-weight: bold;
-      padding: 8px 16px;
-      border-radius: 20px;
-      transition: background-color 0.3s;
-    }
-    nav a:hover {
-      background-color: #e0f0ff;
-    }
-    #filters {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin: 20px auto;
-    }
-    select {
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 1em;
-    }
-    .galerie {
-      max-width: 900px;
-      margin: 20px auto;
-      padding: 0 20px;
-    }
-    .carte {
-      background: white;
-      display: flex;
-      gap: 20px;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-left: 5px solid #0077b6;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      border-radius: 8px;
-      position: relative;
-      align-items: flex-start;
-    }
-    .carte img {
-      max-width: 180px;
-      height: auto;
-      border-radius: 6px;
-      transition: transform 0.3s ease;
-      object-fit: cover;
-    }
-    .carte img:hover {
-      transform: scale(2);
-      z-index: 10;
-    }
-    .texte-col {
-      flex: 1;
-      position: relative;
-    }
-    .outil-highlight {
-      display: inline-block;
-      margin-bottom: 6px;
-      padding: 4px 10px;
-      font-size: 1.1em;
-      font-weight: bold;
-      color: #0077b6;
-      background-color: #e6f3fa;
-      border-radius: 6px;
-    }
-    .infos {
-      font-size: 0.9em;
-      color: #555;
-      margin: 6px 0;
-    }
-    .copier-btn {
-      background-color: #eee;
-      border: none;
-      padding: 6px 12px;
-      font-size: 0.9em;
-      cursor: pointer;
-      border-radius: 4px;
-      margin-top: 8px;
-    }
-    .supprimer-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: none;
-      border: none;
-      font-size: 1.2em;
-      cursor: pointer;
-      color: #999;
-    }
-    .rating {
-      position: absolute;
-      right: 10px;
-      bottom: 10px;
-    }
-    .star {
-      font-size: 1.2em;
-      color: #ccc;
-      cursor: pointer;
-    }
-    .star.selected {
-      color: gold;
-    }
-  </style>
-</head>
-<body>
+<!-- ... Head et Style inchangés ... -->
 
-  <div class="header">
-    <h1>Espace IA Marketing</h1>
-  </div>
+<div id="filters">
+  <input type="text" id="filtre-nom" placeholder="Filtrer par nom..." />
+  <select id="filtre-outil">
+    <option value="">Tous les outils</option>
+    <option>Midjourney</option>
+    <option>DALL·E</option>
+    <option>Stable Diffusion</option>
+    <option>Adobe Firefly</option>
+    <option>Runway</option>
+  </select>
+  <select id="filtre-rating">
+    <option value="">Tous les ratings</option>
+    <option value="5">⭐⭐⭐⭐⭐</option>
+    <option value="4">⭐⭐⭐⭐</option>
+    <option value="3">⭐⭐⭐</option>
+    <option value="2">⭐⭐</option>
+    <option value="1">⭐</option>
+  </select>
+</div>
 
-  <nav>
-    <a href="index.html">Accueil</a>
-    <a href="profil.html">Mon profil</a>
-    <a href="outils.html">Outils IA</a>
-    <a href="prompts.html">Prompts</a>
-    <a href="cas-usages.html">Cas d’usage</a>
-    <a href="creer-tip.html">Créer un tip</a>
-    <a href="veille.html">Veille</a>
-    <a href="equipe.html">Équipe</a>
-    <a href="galerie.html">Galerie</a>
-  </nav>
+<div class="galerie" id="galerie"></div>
 
-  <div id="filters">
-    <select id="filtre-outil">
-      <option value="">Tous les outils</option>
-      <option>Midjourney</option>
-      <option>DALL·E</option>
-      <option>Stable Diffusion</option>
-      <option>Adobe Firefly</option>
-      <option>Runway</option>
-    </select>
-    <select id="filtre-rating">
-      <option value="">Tous les ratings</option>
-      <option value="5">⭐⭐⭐⭐⭐</option>
-      <option value="4">⭐⭐⭐⭐</option>
-      <option value="3">⭐⭐⭐</option>
-      <option value="2">⭐⭐</option>
-      <option value="1">⭐</option>
-    </select>
-  </div>
+<script>
+  const repoOwner = 'spiresm';
+  const repoName = 'IA_marketing';
+  const branch = 'main';
+  const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
+  const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
+  let tousLesPrompts = [];
 
-  <div class="galerie" id="galerie"></div>
+  async function chargerPrompts() {
+    const res = await fetch(`${apiBase}prompts?ref=${branch}`);
+    if (!res.ok) throw new Error('Erreur GitHub');
+    const fichiers = await res.json();
+    tousLesPrompts = fichiers.filter(f => f.name.endsWith('.json'));
+    afficherPrompts(tousLesPrompts);
+  }
 
-  <script>
-    const repoOwner = 'spiresm';
-    const repoName = 'IA_marketing';
-    const branch = 'main';
-    const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
-    const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
-    let tousLesPrompts = [];
+  function afficherPrompts(fichiers) {
+    const galerie = document.getElementById('galerie');
+    galerie.innerHTML = '';
 
-    async function chargerPrompts() {
-      const res = await fetch(`${apiBase}prompts?ref=${branch}`);
-      if (!res.ok) throw new Error('Erreur GitHub');
-      const fichiers = await res.json();
-      tousLesPrompts = fichiers.filter(f => f.name.endsWith('.json'));
-      afficherPrompts(tousLesPrompts);
-    }
+    const filtreOutil = document.getElementById('filtre-outil').value;
+    const filtreRating = document.getElementById('filtre-rating').value;
+    const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
 
-    function afficherPrompts(fichiers) {
-      const galerie = document.getElementById('galerie');
-      galerie.innerHTML = '';
-      fichiers.forEach(async fichier => {
-        const res = await fetch(fichier.download_url);
-        if (!res.ok) return;
-        const data = await res.json();
+    fichiers.forEach(async fichier => {
+      const res = await fetch(fichier.download_url);
+      if (!res.ok) return;
+      const data = await res.json();
 
-        const filtreOutil = document.getElementById('filtre-outil').value;
-        if (filtreOutil && data.outil !== filtreOutil) return;
+      const ratingKey = `rating-${fichier.name}`;
+      const currentRating = parseInt(localStorage.getItem(ratingKey)) || 0;
 
-        const filtreRating = document.getElementById('filtre-rating').value;
-        const ratingKey = `rating-${fichier.name}`;
-        const currentRating = parseInt(localStorage.getItem(ratingKey)) || 0;
-        if (filtreRating && currentRating < parseInt(filtreRating)) return;
+      if (filtreOutil && data.outil !== filtreOutil) return;
+      if (filtreRating && currentRating < parseInt(filtreRating)) return;
+      if (filtreNom && !(data.auteur || '').toLowerCase().includes(filtreNom)) return;
 
-        const div = document.createElement('div');
-        div.className = 'carte';
+      const div = document.createElement('div');
+      div.className = 'carte';
 
-        const img = document.createElement('img');
-        const imagePath = data.image || data.imageUrl || '';
-        img.src = imagePath.startsWith('http') ? imagePath : rawBase + imagePath;
-        img.alt = 'Image';
-        div.appendChild(img);
+      const img = document.createElement('img');
+      const imagePath = data.image || data.imageUrl || '';
+      img.src = imagePath.startsWith('http') ? imagePath : rawBase + imagePath;
+      img.alt = 'Image';
+      div.appendChild(img);
 
-        const texteCol = document.createElement('div');
-        texteCol.className = 'texte-col';
+      const texteCol = document.createElement('div');
+      texteCol.className = 'texte-col';
 
-        const outilTag = document.createElement('div');
-        outilTag.className = 'outil-highlight';
-        outilTag.textContent = data.outil || 'Outil';
-        texteCol.appendChild(outilTag);
+      const outilTag = document.createElement('div');
+      outilTag.className = 'outil-highlight';
+      outilTag.textContent = data.outil || 'Outil';
+      texteCol.appendChild(outilTag);
 
-        const infos = document.createElement('p');
-        infos.className = 'infos';
-        infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.categorie || 'Catégorie'}`;
-        texteCol.appendChild(infos);
+      const infos = document.createElement('p');
+      infos.className = 'infos';
+      infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.categorie || 'Catégorie'}`;
+      texteCol.appendChild(infos);
 
-        const texte = document.createElement('p');
-        texte.textContent = data.texte || '';
-        texteCol.appendChild(texte);
+      const texte = document.createElement('p');
+      texte.textContent = data.texte || '';
+      texteCol.appendChild(texte);
 
-        const copierBtn = document.createElement('button');
-        copierBtn.className = 'copier-btn';
-        copierBtn.textContent = 'Copier';
-        copierBtn.onclick = () => {
-          navigator.clipboard.writeText(data.texte || '');
-          copierBtn.textContent = '✔ Copié !';
-          setTimeout(() => (copierBtn.textContent = 'Copier'), 1500);
+      const copierBtn = document.createElement('button');
+      copierBtn.className = 'copier-btn';
+      copierBtn.textContent = 'Copier';
+      copierBtn.onclick = () => {
+        navigator.clipboard.writeText(data.texte || '');
+        copierBtn.textContent = '✔ Copié !';
+        setTimeout(() => (copierBtn.textContent = 'Copier'), 1500);
+      };
+      texteCol.appendChild(copierBtn);
+
+      const ratingDiv = document.createElement('div');
+      ratingDiv.className = 'rating';
+      for (let i = 1; i <= 5; i++) {
+        const star = document.createElement('span');
+        star.className = 'star';
+        star.textContent = '★';
+        if (i <= currentRating) star.classList.add('selected');
+        star.onclick = () => {
+          localStorage.setItem(ratingKey, i);
+          afficherPrompts(tousLesPrompts);
         };
-        texteCol.appendChild(copierBtn);
+        ratingDiv.appendChild(star);
+      }
+      texteCol.appendChild(ratingDiv);
 
-        const ratingDiv = document.createElement('div');
-        ratingDiv.className = 'rating';
-        for (let i = 1; i <= 5; i++) {
-          const star = document.createElement('span');
-          star.className = 'star';
-          star.textContent = '★';
-          if (i <= currentRating) star.classList.add('selected');
-          star.onclick = () => {
-            localStorage.setItem(ratingKey, i);
-            afficherPrompts(tousLesPrompts);
-          };
-          ratingDiv.appendChild(star);
-        }
-        texteCol.appendChild(ratingDiv);
+      const supprimerBtn = document.createElement('button');
+      supprimerBtn.className = 'supprimer-btn';
+      supprimerBtn.innerHTML = '🗑️';
+      supprimerBtn.onclick = async () => {
+        if (!confirm('Confirmer suppression ?')) return;
+        await fetch('/.netlify/functions/deletePrompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            promptPath: fichier.path,
+            imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
+          })
+        });
+        div.remove();
+      };
+      div.appendChild(supprimerBtn);
 
-        const supprimerBtn = document.createElement('button');
-        supprimerBtn.className = 'supprimer-btn';
-        supprimerBtn.innerHTML = '🗑️';
-        supprimerBtn.onclick = async () => {
-          if (!confirm('Confirmer suppression ?')) return;
-          await fetch('/.netlify/functions/deletePrompt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              promptPath: fichier.path,
-              imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
-            })
-          });
-          div.remove();
-        };
-        div.appendChild(supprimerBtn);
+      div.appendChild(texteCol);
+      galerie.appendChild(div);
+    });
+  }
 
-        div.appendChild(texteCol);
-        galerie.appendChild(div);
-      });
-    }
+  document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
+  document.getElementById('filtre-rating').addEventListener('change', () => afficherPrompts(tousLesPrompts));
+  document.getElementById('filtre-nom').addEventListener('input', () => afficherPrompts(tousLesPrompts));
 
-    document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
-    document.getElementById('filtre-rating').addEventListener('change', () => afficherPrompts(tousLesPrompts));
-
-    window.onload = chargerPrompts;
-  </script>
-</body>
-</html>
+  window.onload = chargerPrompts;
+</script>
