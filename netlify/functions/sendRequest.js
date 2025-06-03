@@ -19,14 +19,12 @@ exports.handler = async (event) => {
 
     data = JSON.parse(event.body);
   } catch (err) {
-    console.error("Erreur de parsing JSON :", err);
     return {
       statusCode: 400,
       body: JSON.stringify({ message: "JSON invalide." }),
     };
   }
 
-  // Échappement basique anti-injection HTML
   const escape = (str) =>
     String(str)
       .replace(/&/g, "&amp;")
@@ -59,28 +57,28 @@ exports.handler = async (event) => {
           </table>
           <br>
           ${
-            data.image
-              ? `<h3 style="color: #0077b6;">📎 Image de référence jointe</h3>`
+            data.images && data.images.length
+              ? `<h3 style="color: #0077b6;">📎 ${data.images.length} image(s) jointe(s)</h3>`
               : `<p><i>Aucune image de référence fournie.</i></p>`
           }
         </body>
       </html>
     `;
 
+    const attachments = Array.isArray(data.images)
+      ? data.images.map((img, i) => ({
+          filename: `image-${i + 1}.jpg`,
+          content: img.split("base64,")[1],
+          encoding: "base64",
+        }))
+      : [];
+
     const mailOptions = {
       from: process.env.MAIL_USER,
       to: "spi@rtbf.be",
       subject: `Nouvelle demande IA de ${data.nom}`,
       html: htmlContent,
-      attachments: data.image
-        ? [
-            {
-              filename: "reference.jpg",
-              content: data.image.split("base64,")[1],
-              encoding: "base64",
-            },
-          ]
-        : [],
+      attachments,
     };
 
     await transporter.sendMail(mailOptions);
