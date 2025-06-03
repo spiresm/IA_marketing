@@ -34,16 +34,16 @@ exports.handler = async (event) => {
           </table>
           <br>
           ${
-            data.images && data.images.length
-              ? `<h3 style="color: #0077b6;">📎 ${data.images.length} image(s) de référence jointe(s)</h3>`
-              : `<p><i>Aucune image de référence fournie.</i></p>`
+            data.images?.length
+              ? `<p><strong>📎 ${data.images.length} image(s) jointe(s)</strong></p>`
+              : `<p><i>Aucune image jointe.</i></p>`
           }
         </body>
       </html>
     `;
 
-    const attachments = (data.images || []).map((base64, i) => ({
-      filename: `reference_${i + 1}.jpg`,
+    const attachments = (data.images || []).map((base64, index) => ({
+      filename: `image_${index + 1}.jpg`,
       content: base64.split("base64,")[1],
       encoding: "base64",
     }));
