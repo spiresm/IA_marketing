@@ -17,15 +17,17 @@ exports.handler = async function (event) {
 
   try {
     if (!event.body) {
-      console.error("❌ Aucune donnée reçue (body vide)");
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Aucune donnée reçue" }),
-      };
-    }
+  console.error("❌ Aucune donnée reçue (body vide)");
+  return {
+    statusCode: 400,
+    body: JSON.stringify({ error: "Aucune donnée reçue" }),
+  };
+}
+const prompt = JSON.parse(event.body);
 
-    const prompt = JSON.parse(event.body);
     console.log("📥 Données reçues dans pushPrompt :", prompt);
+
+    console.log("📥 Données reçues :", prompt);
 
     const repo = "spiresm/IA_marketing";
     const token = process.env.GITHUB_TOKEN;
@@ -49,6 +51,9 @@ exports.handler = async function (event) {
 
     const data = await res.json();
     console.log("📦 Réponse complète de GitHub :", data);
+
+
+    console.log("📦 Réponse GitHub :", data);
 
     if (!res.ok) {
       return {
