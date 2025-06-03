@@ -113,6 +113,25 @@
     .supprimer-btn:hover {
       color: #e00;
     }
+
+    .stars {
+      display: flex;
+      gap: 3px;
+      margin-top: 10px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .star {
+      cursor: pointer;
+      font-size: 1.2em;
+      color: #bbb;
+      transition: color 0.2s;
+    }
+
+    .star.active {
+      color: gold;
+    }
   </style>
 </head>
 <body>
@@ -143,6 +162,16 @@
         <option value="Adobe Firefly">Adobe Firefly</option>
         <option value="Runway">Runway</option>
       </select>
+      &nbsp;&nbsp;&nbsp;
+      <label for="filtre-note">Note minimale :</label>
+      <select id="filtre-note">
+        <option value="0">Toutes</option>
+        <option value="1">⭐ ou +</option>
+        <option value="2">⭐⭐ ou +</option>
+        <option value="3">⭐⭐⭐ ou +</option>
+        <option value="4">⭐⭐⭐⭐ ou +</option>
+        <option value="5">⭐⭐⭐⭐⭐</option>
+      </select>
     </div>
     <div id="galerie"></div>
   </div>
@@ -156,7 +185,8 @@
 
     async function chargerPrompts() {
       const galerie = document.getElementById('galerie');
-      const filtre = document.getElementById('filtre-outil').value;
+      const filtreOutil = document.getElementById('filtre-outil').value;
+      const noteMin = parseInt(document.getElementById('filtre-note').value, 10);
       galerie.innerHTML = '';
 
       try {
@@ -171,15 +201,17 @@
           if (!rawRes.ok) continue;
           const data = await rawRes.json();
 
-          if (filtre && data.outil !== filtre) continue;
+          if (filtreOutil && data.outil !== filtreOutil) continue;
 
           let imagePath = data.image || data.imageUrl || '';
-          let imageUrl = '';
-          if (imagePath) {
-            imageUrl = /^https?:\/\//.test(imagePath)
-              ? imagePath
-              : rawBase + imagePath.replace(/^\//, '');
-          }
+          let imageUrl = /^https?:\/\//.test(imagePath)
+            ? imagePath
+            : rawBase + imagePath.replace(/^\//, '');
+
+          const id = fichier.name;
+
+          const rating = parseInt(localStorage.getItem(`rating-${id}`)) || 0;
+          if (rating < noteMin) continue;
 
           const div = document.createElement('div');
           div.className = 'carte';
@@ -212,15 +244,28 @@
           };
           texteCol.appendChild(copyBtn);
 
+          // ⭐ Rating system
+          const starsDiv = document.createElement('div');
+          starsDiv.className = 'stars';
+          for (let i = 1; i <= 5; i++) {
+            const star = document.createElement('span');
+            star.className = 'star' + (i <= rating ? ' active' : '');
+            star.textContent = '★';
+            star.onclick = () => {
+              localStorage.setItem(`rating-${id}`, i);
+              chargerPrompts(); // reload to update filter
+            };
+            starsDiv.appendChild(star);
+          }
+          texteCol.appendChild(starsDiv);
+
           div.appendChild(texteCol);
 
           const supprimerBtn = document.createElement('button');
           supprimerBtn.innerHTML = '🗑️';
           supprimerBtn.className = 'supprimer-btn';
-          supprimerBtn.title = "Supprimer ce prompt";
           supprimerBtn.onclick = async () => {
             if (!confirm("Confirmer la suppression ?")) return;
-
             try {
               await fetch('/.netlify/functions/deletePrompt', {
                 method: 'POST',
@@ -230,15 +275,14 @@
                   imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
                 })
               });
-
               galerie.removeChild(div);
             } catch (err) {
               alert("Erreur lors de la suppression");
               console.error(err);
             }
           };
-
           div.appendChild(supprimerBtn);
+
           galerie.appendChild(div);
         }
       } catch (e) {
@@ -248,6 +292,7 @@
     }
 
     document.getElementById('filtre-outil').addEventListener('change', chargerPrompts);
+    document.getElementById('filtre-note').addEventListener('change', chargerPrompts);
     window.onload = chargerPrompts;
   </script>
 </body>
