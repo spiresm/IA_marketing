@@ -115,28 +115,83 @@
   </div>
 
   <script>
-  document.getElementById('demandeIA').addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const params = new URLSearchParams();
-    formData.forEach((value, key) => params.append(key, value));
+document.getElementById('demandeIA').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+
+  // Récupération de l'image si présente
+  const file = formData.get("reference");
+  let imageBase64 = "";
+
+  if (file && file.size > 0) {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+
+    reader.onload = async () => {
+      imageBase64 = reader.result;
+
+      const data = {
+        nom: formData.get("nom"),
+        email: formData.get("email"),
+        type: formData.get("type"),
+        duree: formData.get("duree"),
+        date: formData.get("date"),
+        description: formData.get("description"),
+        image: imageBase64
+      };
+
+      try {
+        const res = await fetch("/.netlify/functions/sendRequest", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+        document.getElementById("confirmation").textContent = result.message;
+      } catch (error) {
+        console.error("Erreur côté client:", error);
+        alert("Erreur lors de l’envoi : " + error.message);
+      }
+    };
+
+    reader.onerror = () => {
+      alert("Impossible de lire l’image.");
+    };
+  } else {
+    // Cas sans image
+    const data = {
+      nom: formData.get("nom"),
+      email: formData.get("email"),
+      type: formData.get("type"),
+      duree: formData.get("duree"),
+      date: formData.get("date"),
+      description: formData.get("description"),
+      image: null
+    };
 
     try {
       const res = await fetch("/.netlify/functions/sendRequest", {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
+          "Content-Type": "application/json",
         },
-        body: params
+        body: JSON.stringify(data)
       });
+
       const result = await res.json();
       document.getElementById("confirmation").textContent = result.message;
     } catch (error) {
       console.error("Erreur côté client:", error);
       alert("Erreur lors de l’envoi : " + error.message);
     }
-  });
+  }
+});
 </script>
+
 
 </body>
 </html>
