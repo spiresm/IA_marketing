@@ -11,16 +11,19 @@
       background-color: #f0f4f8;
       color: #333;
     }
+
     .header {
       background-color: #0077b6;
       color: white;
       padding: 40px 20px;
       text-align: center;
     }
+
     .header h1 {
       margin: 0;
       font-size: 2em;
     }
+
     nav {
       background-color: #ffffff;
       display: flex;
@@ -29,6 +32,7 @@
       padding: 15px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
+
     nav a {
       text-decoration: none;
       color: #0077b6;
@@ -37,56 +41,79 @@
       border-radius: 20px;
       transition: background-color 0.3s;
     }
+
     nav a:hover {
       background-color: #e0f0ff;
     }
+
     .galerie {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 40px auto;
       padding: 0 20px;
     }
+
     .carte {
+      display: flex;
+      align-items: flex-start;
       background: white;
       padding: 15px;
       margin-bottom: 20px;
       border-left: 5px solid #0077b6;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       border-radius: 8px;
+      gap: 20px;
     }
+
     .carte img {
-      max-width: 150px;
+      max-width: 180px;
       border-radius: 6px;
       cursor: pointer;
       transition: transform 0.3s ease;
-      display: block;
     }
+
     .carte img.zoomed {
-      max-width: 100%;
       transform: scale(1.05);
     }
+
     .infos {
-      margin-top: 10px;
       font-size: 0.9em;
       color: #555;
+      margin-bottom: 10px;
     }
-    .carte button {
-      margin-top: 10px;
-      background-color: #ff4d4d;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
+
+    .texte {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .prompt {
       font-weight: bold;
-      font-size: 0.9em;
     }
-    .carte button:hover {
-      background-color: #cc0000;
+
+    .boutons {
+      margin-top: auto;
+      display: flex;
+      gap: 10px;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.2em;
+    }
+
+    .icon-btn:hover {
+      color: red;
+    }
+
+    .icon-copy:hover {
+      color: green;
     }
   </style>
 </head>
 <body>
-
   <div class="header">
     <h1>Espace IA Marketing</h1>
   </div>
@@ -137,25 +164,44 @@
           const div = document.createElement('div');
           div.className = 'carte';
 
-          if (imageUrl) {
-            const img = document.createElement('img');
-            img.src = imageUrl;
-            img.alt = 'Image du prompt';
-            img.onclick = () => img.classList.toggle('zoomed');
-            div.appendChild(img);
-          }
+          const img = document.createElement('img');
+          img.src = imageUrl;
+          img.alt = 'Image du prompt';
+          img.onclick = () => img.classList.toggle('zoomed');
+          div.appendChild(img);
+
+          const right = document.createElement('div');
+          right.style.flex = '1';
 
           const infos = document.createElement('p');
           infos.className = 'infos';
           infos.innerHTML = `<strong>${data.auteur || 'Inconnu'}</strong> • ${data.outil || 'Outil'} • ${data.categorie || 'Catégorie'}`;
-          div.appendChild(infos);
+          right.appendChild(infos);
 
+          const texteDiv = document.createElement('div');
+          texteDiv.className = 'texte';
           const texte = document.createElement('p');
+          texte.className = 'prompt';
           texte.textContent = data.texte || '';
-          div.appendChild(texte);
+          texteDiv.appendChild(texte);
+
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'icon-btn icon-copy';
+          copyBtn.title = "Copier le prompt";
+          copyBtn.innerHTML = '📋';
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(data.texte || '');
+            copyBtn.innerText = '✅';
+            setTimeout(() => copyBtn.innerText = '📋', 1000);
+          };
+          texteDiv.appendChild(copyBtn);
+
+          right.appendChild(texteDiv);
 
           const supprimerBtn = document.createElement('button');
-          supprimerBtn.textContent = '🗑️ Supprimer';
+          supprimerBtn.className = 'icon-btn';
+          supprimerBtn.title = "Supprimer";
+          supprimerBtn.innerHTML = '🗑️';
           supprimerBtn.onclick = async () => {
             if (!confirm("Confirmer la suppression ?")) return;
 
@@ -165,18 +211,22 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   promptPath: fichier.path,
-                  imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
+                  imagePath: data.imageUrl?.includes('images/')
+                    ? `images/${data.imageUrl.split('/').pop()}`
+                    : ''
                 })
               });
 
-              galerie.removeChild(div); // Supprimer la carte du DOM
+              galerie.removeChild(div);
             } catch (err) {
               alert("Erreur lors de la suppression");
               console.error(err);
             }
           };
 
-          div.appendChild(supprimerBtn);
+          right.appendChild(supprimerBtn);
+
+          div.appendChild(right);
           galerie.appendChild(div);
         }
       } catch (e) {
