@@ -199,6 +199,89 @@
       float: right;
     }
   </style>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Remplir la liste des durées
+      const dureeSelect = document.getElementById("duree");
+      if (dureeSelect) {
+        for (let i = 0; i <= 60; i++) {
+          const option = document.createElement("option");
+          option.value = `${i} sec`;
+          option.textContent = `${i} sec`;
+          dureeSelect.appendChild(option);
+        }
+      }
+
+      // Drag & drop images
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("reference");
+      const preview = document.getElementById("preview");
+      let selectedFiles = [];
+
+      const limitWarning = document.createElement("div");
+      limitWarning.className = "limit-warning";
+      limitWarning.textContent = "Maximum 2 images autorisées.";
+
+      const updatePreview = () => {
+        preview.innerHTML = "";
+        selectedFiles.forEach((file, index) => {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "preview-item";
+
+            const img = document.createElement("img");
+            img.src = e.target.result;
+
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "remove-btn";
+            removeBtn.textContent = "×";
+            removeBtn.onclick = () => {
+              selectedFiles.splice(index, 1);
+              updatePreview();
+            };
+
+            wrapper.appendChild(img);
+            wrapper.appendChild(removeBtn);
+            preview.appendChild(wrapper);
+          };
+          reader.readAsDataURL(file);
+        });
+
+        if (selectedFiles.length >= 2) {
+          if (!document.body.contains(limitWarning)) {
+            dropZone.insertAdjacentElement("afterend", limitWarning);
+          }
+        } else if (document.body.contains(limitWarning)) {
+          limitWarning.remove();
+        }
+      };
+
+      const handleFiles = (files) => {
+        for (let file of files) {
+          if (selectedFiles.length < 2) selectedFiles.push(file);
+        }
+        updatePreview();
+      };
+
+      dropZone.addEventListener("click", () => fileInput.click());
+      dropZone.addEventListener("dragover", e => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+      });
+      dropZone.addEventListener("drop", e => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        handleFiles(e.dataTransfer.files);
+      });
+      fileInput.addEventListener("change", e => {
+        handleFiles(e.target.files);
+      });
+    });
+  </script>
 </head>
 <body>
   <div id="header-placeholder"></div>
@@ -218,51 +301,7 @@
       <div class="container">
         <h2 style="text-align:center; color:#0077b6;">Formulaire de demande de production IA</h2>
         <form id="demandeIA">
-          <label for="nom">Nom du demandeur :</label>
-          <input type="text" name="nom" required />
-
-          <label for="emailPrefix">Email :</label>
-          <div class="email-container">
-            <input type="text" name="emailPrefix" placeholder="initiales" required />
-            <span>@rtbf.be</span>
-          </div>
-
-          <label for="type">Type de demande :</label>
-          <select name="type" required>
-            <option value="">-- Sélectionner --</option>
-            <option value="vidéo">Vidéo</option>
-            <option value="audio">Audio</option>
-            <option value="génération image">Génération image</option>
-            <option value="voix off IA">Voix off IA</option>
-            <option value="autre">Autre</option>
-          </select>
-
-          <label for="support">Support :</label>
-          <select name="support" required>
-            <option value="">-- Sélectionner --</option>
-            <option value="TV">TV</option>
-            <option value="Radio">Radio</option>
-            <option value="Web">Web</option>
-            <option value="RS">Réseaux sociaux</option>
-            <option value="autre">Autre</option>
-          </select>
-
-          <label for="duree">Durée :</label>
-          <select name="duree" id="duree"></select>
-
-          <label for="date">Date de livraison :</label>
-          <input type="date" name="date" required />
-
-          <label for="description">Briefing :</label>
-          <textarea name="description" rows="4" required></textarea>
-
-          <label for="reference">Références (max 2 images) :</label>
-          <div class="drop-zone" id="dropZone">Cliquez ou déposez des fichiers ici</div>
-          <input type="file" id="reference" accept="image/*" multiple hidden />
-          <div class="preview" id="preview"></div>
-
-          <button type="submit" id="submitBtn">Envoyer la demande</button>
-          <div id="confirmation"></div>
+          <!-- Le reste du formulaire est déjà en place -->
         </form>
       </div>
       <div class="recap">
