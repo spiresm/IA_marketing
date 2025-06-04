@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Demande IA - Espace IA</title>
   <style>
-    body { visibility: hidden; }
+    body { visibility: hidden; margin: 0; font-family: sans-serif; }
 
     .flex-container {
       display: flex;
@@ -36,11 +36,6 @@
       overflow-y: auto;
     }
 
-    .recap h3 {
-      color: #0077b6;
-      margin-bottom: 10px;
-    }
-
     .ticket {
       background: white;
       border-left: 4px solid #0077b6;
@@ -51,45 +46,40 @@
       font-size: 0.9em;
     }
 
+    .recap h3 {
+      color: #0077b6;
+      margin-bottom: 10px;
+    }
+
     .recap button {
-      margin-top: 6px;
+      margin-bottom: 10px;
       background: red;
       color: white;
       border: none;
-      padding: 5px 10px;
+      padding: 6px 12px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.8em;
     }
 
-    form label {
+    label {
       display: block;
       margin-top: 20px;
-      font-weight: 600;
-      color: #444;
+      font-weight: bold;
     }
 
-    form input,
-    form select,
-    form textarea {
+    input, select, textarea {
       width: 100%;
-      padding: 12px 14px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 1em;
       margin-top: 6px;
-      background-color: #f9fafb;
-    }
-
-    input[name="emailPrefix"],
-    input[name="date"] {
-      max-width: 200px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
     }
 
     .email-container {
       display: flex;
-      align-items: center;
       gap: 8px;
+      align-items: center;
     }
 
     .drop-zone {
@@ -109,9 +99,8 @@
 
     .preview {
       display: flex;
-      flex-wrap: wrap;
-      margin-top: 10px;
       gap: 10px;
+      margin-top: 10px;
     }
 
     .preview-item {
@@ -123,7 +112,6 @@
       height: 80px;
       object-fit: cover;
       border-radius: 6px;
-      border: 1px solid #ccc;
     }
 
     .remove-btn {
@@ -140,30 +128,29 @@
       cursor: pointer;
     }
 
-    .limit-warning {
-      color: red;
-      font-size: 0.9em;
-      margin-top: 6px;
-    }
-
-    button {
-      width: 100%;
-      background-color: #0077b6;
+    button[type="submit"] {
+      margin-top: 30px;
+      background: #0077b6;
       color: white;
       padding: 14px;
       border: none;
       border-radius: 8px;
       font-size: 1.1em;
       font-weight: bold;
-      margin-top: 30px;
+      width: 100%;
       cursor: pointer;
     }
 
     #confirmation {
-      text-align: center;
       margin-top: 20px;
+      text-align: center;
       font-weight: bold;
       color: green;
+    }
+
+    .limit-warning {
+      color: red;
+      margin-top: 6px;
     }
   </style>
 </head>
@@ -172,13 +159,14 @@
 
   <main>
     <div class="flex-container">
+      <!-- FORMULAIRE -->
       <div class="container">
-        <h2 style="text-align:center; color:#0077b6;">Formulaire de demande de production IA</h2>
+        <h2 style="text-align:center; color:#0077b6;">Formulaire de demande IA</h2>
         <form id="demandeIA">
           <label for="nom">Nom du demandeur :</label>
           <input type="text" name="nom" required />
 
-          <label for="emailPrefix">Email :</label>
+          <label>Email :</label>
           <div class="email-container">
             <input type="text" name="emailPrefix" placeholder="initiales" required />
             <span>@rtbf.be</span>
@@ -223,6 +211,7 @@
         </form>
       </div>
 
+      <!-- RÉCAPITULATIF -->
       <div class="recap">
         <h3>Récapitulatif des demandes</h3>
         <button id="viderRecap">🗑 Vider le récapitulatif</button>
@@ -232,6 +221,7 @@
   </main>
 
   <script>
+    // Chargement du header
     fetch("header.html")
       .then(res => res.text())
       .then(data => {
@@ -239,73 +229,68 @@
         document.body.style.visibility = "visible";
       })
       .catch(err => {
-        console.error("Erreur chargement header :", err);
+        console.error("Erreur de chargement du header :", err);
         document.body.style.visibility = "visible";
       });
 
+    // Script principal
     document.addEventListener("DOMContentLoaded", () => {
       const dureeSelect = document.getElementById("duree");
       for (let i = 0; i <= 60; i++) {
-        const option = document.createElement("option");
-        option.value = `${i} sec`;
-        option.textContent = `${i} sec`;
-        dureeSelect.appendChild(option);
+        const opt = document.createElement("option");
+        opt.value = `${i} sec`;
+        opt.textContent = `${i} sec`;
+        dureeSelect.appendChild(opt);
       }
 
+      const form = document.getElementById("demandeIA");
+      const recapList = document.getElementById("recapList");
+      const viderBtn = document.getElementById("viderRecap");
       const dropZone = document.getElementById("dropZone");
       const fileInput = document.getElementById("reference");
       const preview = document.getElementById("preview");
-      const form = document.getElementById("demandeIA");
       const submitBtn = document.getElementById("submitBtn");
-      const recapList = document.getElementById("recapList");
-      const viderBtn = document.getElementById("viderRecap");
+      const limitWarning = document.createElement("div");
+      limitWarning.className = "limit-warning";
+      limitWarning.textContent = "Maximum 2 images autorisées.";
+
       let selectedFiles = [];
 
-      function afficherTicket(data, index) {
-        const ticket = document.createElement("div");
-        ticket.className = "ticket";
-
-        const content = document.createElement("div");
-        content.innerHTML = `
-          <strong>${data.nom}</strong> (${data.type})<br>
-          Support : ${data.support}<br>
-          Durée : ${data.duree}<br>
-          Livraison : ${data.date}<br>
-          <em>${data.description.substring(0, 50)}...</em>
-        `;
-
-        const removeBtn = document.createElement("button");
-        removeBtn.textContent = "Supprimer";
-        removeBtn.onclick = () => {
-          let demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-          demandes.splice(index, 1);
-          localStorage.setItem("demandesIA", JSON.stringify(demandes));
-          afficherTousLesTickets();
-        };
-
-        ticket.appendChild(content);
-        ticket.appendChild(removeBtn);
-        recapList.appendChild(ticket);
-      }
-
-      function afficherTousLesTickets() {
+      const afficherTickets = () => {
         recapList.innerHTML = "";
         const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-        demandes.forEach((d, i) => afficherTicket(d, i));
-      }
+        demandes.forEach((data, index) => {
+          const ticket = document.createElement("div");
+          ticket.className = "ticket";
+          ticket.innerHTML = `
+            <strong>${data.nom}</strong> (${data.type})<br>
+            Support : ${data.support}<br>
+            Durée : ${data.duree}<br>
+            Livraison : ${data.date}<br>
+            <em>${data.description.substring(0, 50)}...</em><br>
+          `;
 
-      afficherTousLesTickets();
+          const del = document.createElement("button");
+          del.textContent = "Supprimer";
+          del.onclick = () => {
+            demandes.splice(index, 1);
+            localStorage.setItem("demandesIA", JSON.stringify(demandes));
+            afficherTickets();
+          };
+
+          ticket.appendChild(del);
+          recapList.appendChild(ticket);
+        });
+      };
+
+      afficherTickets();
 
       viderBtn.addEventListener("click", () => {
-        if (confirm("Voulez-vous vraiment tout effacer ?")) {
+        if (confirm("Supprimer toutes les demandes ?")) {
           localStorage.removeItem("demandesIA");
           recapList.innerHTML = "";
         }
       });
-
-      const limitWarning = document.createElement("div");
-      limitWarning.className = "limit-warning";
-      limitWarning.textContent = "Maximum 2 images autorisées.";
 
       const updatePreview = () => {
         preview.innerHTML = "";
@@ -318,16 +303,16 @@
             const img = document.createElement("img");
             img.src = e.target.result;
 
-            const removeBtn = document.createElement("button");
-            removeBtn.className = "remove-btn";
-            removeBtn.textContent = "×";
-            removeBtn.onclick = () => {
+            const btn = document.createElement("button");
+            btn.className = "remove-btn";
+            btn.textContent = "×";
+            btn.onclick = () => {
               selectedFiles.splice(index, 1);
               updatePreview();
             };
 
             wrapper.appendChild(img);
-            wrapper.appendChild(removeBtn);
+            wrapper.appendChild(btn);
             preview.appendChild(wrapper);
           };
           reader.readAsDataURL(file);
@@ -337,12 +322,14 @@
           if (!document.body.contains(limitWarning)) {
             dropZone.insertAdjacentElement("afterend", limitWarning);
           }
-        } else if (document.body.contains(limitWarning)) {
-          limitWarning.remove();
+        } else {
+          if (document.body.contains(limitWarning)) {
+            limitWarning.remove();
+          }
         }
       };
 
-      const handleFiles = (files) => {
+      const handleFiles = files => {
         for (let file of files) {
           if (selectedFiles.length < 2) selectedFiles.push(file);
         }
@@ -372,18 +359,17 @@
         submitBtn.textContent = "Envoi en cours...";
 
         const formData = new FormData(form);
-        const emailPrefix = formData.get("emailPrefix").trim();
-        const fullEmail = `${emailPrefix}@rtbf.be`;
+        const email = `${formData.get("emailPrefix")}@rtbf.be`;
 
         const data = {
           nom: formData.get("nom"),
-          email: fullEmail,
+          email,
           type: formData.get("type"),
           support: formData.get("support"),
           duree: formData.get("duree"),
           date: formData.get("date"),
           description: formData.get("description"),
-          images: [],
+          images: []
         };
 
         for (let file of selectedFiles) {
@@ -397,16 +383,21 @@
         }
 
         try {
-          // Simule une requête réussie (à remplacer par votre envoi réel)
-          await new Promise(r => setTimeout(r, 500));
-          document.getElementById("confirmation").textContent = "Demande envoyée avec succès !";
+          const res = await fetch("/.netlify/functions/sendRequest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+          });
+          const result = await res.json();
+          document.getElementById("confirmation").textContent = result.message || "Demande envoyée !";
 
           let demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
           demandes.unshift(data);
           localStorage.setItem("demandesIA", JSON.stringify(demandes));
-          afficherTousLesTickets();
+          afficherTickets();
         } catch (err) {
-          alert("Erreur lors de l’envoi.");
+          console.error("Erreur d’envoi :", err);
+          alert("Erreur lors de l’envoi : " + err.message);
         } finally {
           submitBtn.disabled = false;
           submitBtn.textContent = "Envoyer la demande";
