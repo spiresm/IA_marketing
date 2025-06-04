@@ -8,6 +8,7 @@
   <style>
     body { visibility: hidden; margin: 0; }
     main { display: none; }
+
     .flex-wrapper {
       display: flex;
       justify-content: center;
@@ -16,6 +17,7 @@
       padding: 40px 20px;
       flex-wrap: wrap;
     }
+
     .container {
       flex: 1 1 600px;
       max-width: 700px;
@@ -24,12 +26,14 @@
       border-radius: 14px;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
     }
+
     form label {
       display: block;
       margin-top: 20px;
       font-weight: 600;
       color: #444;
     }
+
     form input,
     form select,
     form textarea {
@@ -41,15 +45,18 @@
       margin-top: 6px;
       background-color: #f9fafb;
     }
+
     input[name="emailPrefix"],
     input[name="date"] {
       max-width: 200px;
     }
+
     .email-container {
       display: flex;
       align-items: center;
       gap: 8px;
     }
+
     .drop-zone {
       background: #f1f1f1;
       border: 2px dashed #ccc;
@@ -59,19 +66,23 @@
       cursor: pointer;
       margin-top: 6px;
     }
+
     .drop-zone.dragover {
       border-color: #0077b6;
       background: #e0f4ff;
     }
+
     .preview {
       display: flex;
       flex-wrap: wrap;
       margin-top: 10px;
       gap: 10px;
     }
+
     .preview-item {
       position: relative;
     }
+
     .preview-item img {
       width: 80px;
       height: 80px;
@@ -79,6 +90,7 @@
       border-radius: 6px;
       border: 1px solid #ccc;
     }
+
     .remove-btn {
       position: absolute;
       top: -6px;
@@ -92,11 +104,13 @@
       font-size: 12px;
       cursor: pointer;
     }
+
     .limit-warning {
       color: red;
       font-size: 0.9em;
       margin-top: 6px;
     }
+
     button {
       width: 100%;
       background-color: #0077b6;
@@ -109,12 +123,14 @@
       margin-top: 30px;
       cursor: pointer;
     }
+
     #confirmation {
       text-align: center;
       margin-top: 20px;
       font-weight: bold;
       color: green;
     }
+
     .recap {
       flex: 0 1 300px;
       background: #f9fafb;
@@ -124,10 +140,12 @@
       max-height: 90vh;
       overflow-y: auto;
     }
+
     .recap h3 {
       margin-top: 0;
       color: #0077b6;
     }
+
     .ticket {
       background: white;
       padding: 10px;
@@ -138,6 +156,7 @@
       font-size: 0.9em;
       cursor: pointer;
     }
+
     .recap button {
       background: red;
       color: white;
@@ -147,6 +166,7 @@
       cursor: pointer;
       margin-bottom: 10px;
     }
+
     #modal {
       position: fixed;
       top: 0;
@@ -159,6 +179,7 @@
       align-items: center;
       z-index: 1000;
     }
+
     #modal .content {
       background: white;
       padding: 20px;
@@ -167,6 +188,7 @@
       max-height: 80vh;
       overflow-y: auto;
     }
+
     #modal button {
       background: #0077b6;
       color: white;
@@ -177,21 +199,19 @@
       float: right;
     }
   </style>
-  <script defer src="form-handler.js"></script>
+</head>
+<body>
+  <div id="header-placeholder"></div>
   <script>
     fetch("header.html")
       .then(res => res.text())
       .then(data => {
-        const headerEl = document.getElementById("header-placeholder");
-        if (headerEl) headerEl.innerHTML = data;
+        document.getElementById("header-placeholder").innerHTML = data;
         document.body.style.visibility = "visible";
-        const mainEl = document.querySelector("main");
-        if (mainEl) mainEl.style.display = "block";
+        document.querySelector("main").style.display = "block";
       });
   </script>
-</head>
-<body>
-  <div id="header-placeholder"></div>
+
   <main>
     <div class="flex-wrapper">
       <div class="container">
@@ -257,5 +277,136 @@
       <button onclick="document.getElementById('modal').style.display='none'">Fermer</button>
     </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const dureeSelect = document.getElementById("duree");
+      for (let i = 0; i <= 60; i++) {
+        const option = document.createElement("option");
+        option.value = `${i} sec`;
+        option.textContent = `${i} sec`;
+        dureeSelect.appendChild(option);
+      }
+
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("reference");
+      const preview = document.getElementById("preview");
+      const form = document.getElementById("demandeIA");
+      const submitBtn = document.getElementById("submitBtn");
+      let selectedFiles = [];
+
+      const limitWarning = document.createElement("div");
+      limitWarning.className = "limit-warning";
+      limitWarning.textContent = "Maximum 2 images autorisées.";
+
+      const updatePreview = () => {
+        preview.innerHTML = "";
+        selectedFiles.forEach((file, index) => {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "preview-item";
+
+            const img = document.createElement("img");
+            img.src = e.target.result;
+
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "remove-btn";
+            removeBtn.textContent = "×";
+            removeBtn.onclick = () => {
+              selectedFiles.splice(index, 1);
+              updatePreview();
+            };
+
+            wrapper.appendChild(img);
+            wrapper.appendChild(removeBtn);
+            preview.appendChild(wrapper);
+          };
+          reader.readAsDataURL(file);
+        });
+
+        if (selectedFiles.length >= 2) {
+          if (!document.body.contains(limitWarning)) {
+            dropZone.insertAdjacentElement("afterend", limitWarning);
+          }
+        } else if (document.body.contains(limitWarning)) {
+          limitWarning.remove();
+        }
+      };
+
+      const handleFiles = (files) => {
+        for (let file of files) {
+          if (selectedFiles.length < 2) selectedFiles.push(file);
+        }
+        updatePreview();
+      };
+
+      dropZone.addEventListener("click", () => fileInput.click());
+      dropZone.addEventListener("dragover", e => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+      });
+      dropZone.addEventListener("drop", e => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        handleFiles(e.dataTransfer.files);
+      });
+      fileInput.addEventListener("change", e => {
+        handleFiles(e.target.files);
+      });
+
+      form.addEventListener("submit", async e => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        submitBtn.classList.add("loading");
+        submitBtn.textContent = "Envoi en cours...";
+
+        const formData = new FormData(form);
+        const emailPrefix = formData.get("emailPrefix").trim();
+        const fullEmail = `${emailPrefix}@rtbf.be`;
+
+        const data = {
+          nom: formData.get("nom"),
+          email: fullEmail,
+          type: formData.get("type"),
+          support: formData.get("support"),
+          duree: formData.get("duree"),
+          date: formData.get("date"),
+          description: formData.get("description"),
+          images: [],
+        };
+
+        for (let file of selectedFiles) {
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          data.images.push(base64);
+        }
+
+        try {
+          const res = await fetch("/.netlify/functions/sendRequest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+          });
+          const result = await res.json();
+          document.getElementById("confirmation").textContent = result.message;
+        } catch (err) {
+          console.error("Erreur :", err);
+          alert("Erreur lors de l’envoi");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.classList.remove("loading");
+          submitBtn.textContent = "Envoyer la demande";
+        }
+      });
+    });
+  </script>
 </body>
 </html>
