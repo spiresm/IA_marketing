@@ -81,6 +81,19 @@
       margin-top: 15px;
       border-radius: 10px;
     }
+    .loader {
+      display: block;
+      margin: 20px auto;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #ccc;
+      border-top: 4px solid #0077b6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -144,11 +157,12 @@
             <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
             <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
 
-            <button type="submit">Partager</button>
+            <div v-if="isLoading" class="loader"></div>
+            <button v-else type="submit">Partager</button>
           </form>
 
           <div class="confirmation" v-if="confirmationVisible">
-            <p>✅ Votre prompt a bien été envoyé vers la galerie !</p>
+            <p>✅ Prompt partagé avec succès vers la <strong>galerie</strong> !</p>
             <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
             <p>{{ confirmationTexte }}</p>
           </div>
@@ -164,6 +178,7 @@
         const confirmationVisible = ref(false);
         const confirmationImageUrl = ref('');
         const confirmationTexte = ref('');
+        const isLoading = ref(false);
 
         function triggerFile() {
           fileInput.value?.click();
@@ -199,13 +214,16 @@
             reader.readAsDataURL(file);
           });
         }
+
         async function submitForm() {
           confirmationVisible.value = false;
+          isLoading.value = true;
+
           let imageUrl = '';
           const file = fileInput.value?.files?.[0];
 
-          if (file) {
-            try {
+          try {
+            if (file) {
               const base64 = await getBase64(file);
               const payload = { fileBase64: base64, fileName: file.name };
               const resp = await fetch('/.netlify/functions/uploadImage', {
@@ -215,15 +233,9 @@
               });
               if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
               const data = await resp.json();
-              if (!data.url) throw new Error('Aucune URL retournée');
               imageUrl = data.url;
-            } catch (err) {
-              alert('Échec upload image');
-              return;
             }
-          }
 
-          try {
             const promptResp = await fetch('/.netlify/functions/pushPrompt', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -235,7 +247,9 @@
                 imageUrl
               })
             });
+
             if (!promptResp.ok) throw new Error(`Prompt failed: ${promptResp.status}`);
+
             confirmationImageUrl.value = imageUrl;
             confirmationTexte.value = texte.value;
             confirmationVisible.value = true;
@@ -249,6 +263,8 @@
             fileInput.value.value = null;
           } catch (err) {
             alert('Échec envoi prompt');
+          } finally {
+            isLoading.value = false;
           }
         }
 
@@ -256,6 +272,7 @@
           auteur, outil, categorie, texte, fileInput,
           imagePreviewUrl, confirmationVisible,
           confirmationImageUrl, confirmationTexte,
+          isLoading,
           triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
         };
       }
