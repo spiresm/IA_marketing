@@ -104,34 +104,34 @@
     }
 
     function getNombreDemandes() {
-      // Remplacez ceci par une logique réelle
-      return 4;
+      return fetch("demandes.json")
+        .then(response => response.json())
+        .then(data => {
+          return data.filter(demande => demande.statut === "ouvert").length;
+        })
+        .catch(error => {
+          console.error("Erreur lors du chargement des demandes :", error);
+          return 0;
+        });
     }
 
     function afficherNotificationDemandes() {
       const notif = document.getElementById("notif-count");
-      if (!notif) {
-        console.warn("Élément notif-count non trouvé dans le DOM.");
-        return;
-      }
-      const count = getNombreDemandes();
-      if (count > 0) {
+      if (!notif) return;
+
+      getNombreDemandes().then(count => {
         notif.textContent = count;
-        notif.style.display = "inline-block";
-      } else {
-        notif.style.display = "none";
-      }
+        notif.style.display = count > 0 ? "inline-block" : "none";
+      });
     }
 
     fetch("header.html")
       .then(response => response.text())
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
+        afficherNotificationDemandes();
         document.body.style.visibility = "visible";
         afficherFiche('fiche-accueil');
-        setTimeout(() => {
-          afficherNotificationDemandes();
-        }, 0);
       })
       .catch(err => {
         console.error("Erreur de chargement du header:", err);
