@@ -6,7 +6,7 @@
   <title>Demande IA - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    body { visibility: hidden; margin: 0; font-family: sans-serif; }
+    body { visibility: hidden; margin: 0; }
     main { display: none; }
 
     .flex-wrapper {
@@ -63,44 +63,36 @@
       margin-bottom: 10px;
     }
 
-    /* Modal */
-    .modal {
-      display: none;
+    #modal {
       position: fixed;
-      z-index: 10;
-      left: 0;
       top: 0;
-      width: 100%;
-      height: 100%;
-      overflow: auto;
-      background-color: rgba(0,0,0,0.6);
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
     }
 
-    .modal-content {
-      background-color: white;
-      margin: 10% auto;
+    #modal .content {
+      background: white;
       padding: 20px;
-      border-radius: 10px;
-      width: 90%;
+      border-radius: 8px;
       max-width: 500px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      max-height: 80vh;
+      overflow-y: auto;
     }
 
-    .modal-content pre {
-      white-space: pre-wrap;
-      font-family: inherit;
-    }
-
-    .close-modal {
-      color: #aaa;
+    #modal button {
+      background: #0077b6;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-top: 10px;
       float: right;
-      font-size: 24px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .close-modal:hover {
-      color: #000;
     }
   </style>
 </head>
@@ -119,14 +111,14 @@
   <main>
     <div class="flex-wrapper">
 
-      <!-- FORMULAIRE -->
+      <!-- FORMULAIRE ORIGINAL -->
       <div class="container">
-        <h2 style="text-align:center; color:#0077b6;">Formulaire de demande de production IA</h2>
+        <h2 style="text-align:center; color:#0077b6;">Formulaire de demande IA</h2>
         <form id="demandeIA">
           <label for="nom">Nom du demandeur :</label>
           <input type="text" name="nom" required />
 
-          <label for="emailPrefix">Email :</label>
+          <label>Email :</label>
           <div class="email-container">
             <input type="text" name="emailPrefix" placeholder="initiales" required />
             <span>@rtbf.be</span>
@@ -171,7 +163,7 @@
         </form>
       </div>
 
-      <!-- RECAP -->
+      <!-- RÉCAPITULATIF -->
       <div class="recap">
         <h3>Récapitulatif des demandes</h3>
         <button id="viderRecap">🗑 Vider</button>
@@ -181,11 +173,11 @@
     </div>
   </main>
 
-  <!-- MODAL -->
-  <div class="modal" id="modal">
-    <div class="modal-content">
-      <span class="close-modal" id="closeModal">&times;</span>
-      <pre id="modalText"></pre>
+  <!-- MODALE DÉTAIL DEMANDE -->
+  <div id="modal">
+    <div class="content">
+      <div id="modalBody"></div>
+      <button onclick="document.getElementById('modal').style.display='none'">Fermer</button>
     </div>
   </div>
 
@@ -201,177 +193,20 @@
         <em>${data.description.slice(0, 60)}...</em>
       `;
       div.addEventListener("click", () => {
-        const modal = document.getElementById("modal");
-        const modalText = document.getElementById("modalText");
-        modalText.textContent =
-          `Nom : ${data.nom}\n` +
-          `Email : ${data.email}\n` +
-          `Type : ${data.type}\n` +
-          `Support : ${data.support}\n` +
-          `Durée : ${data.duree}\n` +
-          `Date de livraison : ${data.date}\n\n` +
-          `Briefing :\n${data.description}`;
-        modal.style.display = "block";
+        const body = `
+          <p><strong>Nom :</strong> ${data.nom}</p>
+          <p><strong>Email :</strong> ${data.email}</p>
+          <p><strong>Type :</strong> ${data.type}</p>
+          <p><strong>Support :</strong> ${data.support}</p>
+          <p><strong>Durée :</strong> ${data.duree}</p>
+          <p><strong>Date :</strong> ${data.date}</p>
+          <p><strong>Briefing :</strong><br>${data.description}</p>
+        `;
+        document.getElementById("modalBody").innerHTML = body;
+        document.getElementById("modal").style.display = "flex";
       });
       recapList.prepend(div);
     };
-
-    const saveToLocalStorage = (data) => {
-      const list = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      list.push(data);
-      localStorage.setItem("demandesIA", JSON.stringify(list));
-    };
-
-    const loadRecap = () => {
-      const list = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      list.forEach(appendToRecap);
-    };
-
-    document.getElementById("viderRecap").addEventListener("click", () => {
-      localStorage.removeItem("demandesIA");
-      document.getElementById("recapList").innerHTML = "";
-    });
-
-    document.getElementById("closeModal").addEventListener("click", () => {
-      document.getElementById("modal").style.display = "none";
-    });
-
-    window.addEventListener("click", (event) => {
-      if (event.target === document.getElementById("modal")) {
-        document.getElementById("modal").style.display = "none";
-      }
-    });
-
-    document.addEventListener("DOMContentLoaded", () => {
-      loadRecap();
-
-      const dureeSelect = document.getElementById("duree");
-      for (let i = 0; i <= 60; i++) {
-        const option = document.createElement("option");
-        option.value = `${i} sec`;
-        option.textContent = `${i} sec`;
-        dureeSelect.appendChild(option);
-      }
-
-      const dropZone = document.getElementById("dropZone");
-      const fileInput = document.getElementById("reference");
-      const preview = document.getElementById("preview");
-      const form = document.getElementById("demandeIA");
-      const submitBtn = document.getElementById("submitBtn");
-      let selectedFiles = [];
-
-      const limitWarning = document.createElement("div");
-      limitWarning.className = "limit-warning";
-      limitWarning.textContent = "Maximum 2 images autorisées.";
-
-      const updatePreview = () => {
-        preview.innerHTML = "";
-        selectedFiles.forEach((file, index) => {
-          const reader = new FileReader();
-          reader.onload = e => {
-            const wrapper = document.createElement("div");
-            wrapper.className = "preview-item";
-
-            const img = document.createElement("img");
-            img.src = e.target.result;
-
-            const removeBtn = document.createElement("button");
-            removeBtn.className = "remove-btn";
-            removeBtn.textContent = "×";
-            removeBtn.onclick = () => {
-              selectedFiles.splice(index, 1);
-              updatePreview();
-            };
-
-            wrapper.appendChild(img);
-            wrapper.appendChild(removeBtn);
-            preview.appendChild(wrapper);
-          };
-          reader.readAsDataURL(file);
-        });
-
-        if (selectedFiles.length >= 2) {
-          if (!document.body.contains(limitWarning)) {
-            dropZone.insertAdjacentElement("afterend", limitWarning);
-          }
-        } else if (document.body.contains(limitWarning)) {
-          limitWarning.remove();
-        }
-      };
-
-      const handleFiles = (files) => {
-        for (let file of files) {
-          if (selectedFiles.length < 2) selectedFiles.push(file);
-        }
-        updatePreview();
-      };
-
-      dropZone.addEventListener("click", () => fileInput.click());
-      dropZone.addEventListener("dragover", e => {
-        e.preventDefault();
-        dropZone.classList.add("dragover");
-      });
-      dropZone.addEventListener("dragleave", () => {
-        dropZone.classList.remove("dragover");
-      });
-      dropZone.addEventListener("drop", e => {
-        e.preventDefault();
-        dropZone.classList.remove("dragover");
-        handleFiles(e.dataTransfer.files);
-      });
-      fileInput.addEventListener("change", e => {
-        handleFiles(e.target.files);
-      });
-
-      form.addEventListener("submit", async e => {
-        e.preventDefault();
-        submitBtn.disabled = true;
-        submitBtn.textContent = "Envoi en cours...";
-
-        const formData = new FormData(form);
-        const emailPrefix = formData.get("emailPrefix").trim();
-        const fullEmail = `${emailPrefix}@rtbf.be`;
-
-        const data = {
-          nom: formData.get("nom"),
-          email: fullEmail,
-          type: formData.get("type"),
-          support: formData.get("support"),
-          duree: formData.get("duree"),
-          date: formData.get("date"),
-          description: formData.get("description"),
-          images: [],
-        };
-
-        for (let file of selectedFiles) {
-          const base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-          data.images.push(base64);
-        }
-
-        try {
-          const res = await fetch("/.netlify/functions/sendRequest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-          });
-          const result = await res.json();
-          document.getElementById("confirmation").textContent = result.message;
-          appendToRecap(data);
-          saveToLocalStorage(data);
-        } catch (err) {
-          console.error("Erreur :", err);
-          alert("Erreur lors de l’envoi");
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Envoyer la demande";
-        }
-      });
-    });
   </script>
 </body>
 </html>
