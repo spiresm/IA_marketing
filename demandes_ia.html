@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Demande IA - Espace IA</title>
-  <link rel="stylesheet" href="style.css" />
   <style>
     body { visibility: hidden; }
     main { display: none; }
@@ -156,20 +155,20 @@
       font-weight: bold;
       color: green;
     }
+
+    .recap button {
+      margin-top: 6px;
+      background: red;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8em;
+    }
   </style>
 </head>
 <body>
-  <div id="header-placeholder"></div>
-  <script>
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => {
-        document.getElementById("header-placeholder").innerHTML = data;
-        document.body.style.visibility = "visible";
-        document.querySelector("main").style.display = "block";
-      });
-  </script>
-
   <main>
     <div class="flex-container">
       <div class="container">
@@ -225,6 +224,7 @@
 
       <div class="recap">
         <h3>Récapitulatif des demandes</h3>
+        <button id="viderRecap">🗑 Vider le récapitulatif</button>
         <div id="recapList"></div>
       </div>
     </div>
@@ -247,6 +247,45 @@
       const submitBtn = document.getElementById("submitBtn");
       const recapList = document.getElementById("recapList");
       let selectedFiles = [];
+
+      function afficherTicket(data, index = null) {
+        const ticket = document.createElement("div");
+        ticket.className = "ticket";
+
+        const content = document.createElement("div");
+        content.innerHTML = `
+          <strong>${data.nom}</strong> (${data.type})<br>
+          Support : ${data.support}<br>
+          Durée : ${data.duree}<br>
+          Livraison : ${data.date}<br>
+          <em>${data.description.substring(0, 50)}...</em>
+        `;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Supprimer";
+        removeBtn.onclick = () => {
+          let demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+          demandes.splice(index, 1);
+          localStorage.setItem("demandesIA", JSON.stringify(demandes));
+          recapList.innerHTML = "";
+          demandes.forEach((d, i) => afficherTicket(d, i));
+        };
+
+        ticket.appendChild(content);
+        ticket.appendChild(removeBtn);
+        recapList.appendChild(ticket);
+      }
+
+      // Charger les tickets existants
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      demandes.forEach((demande, index) => afficherTicket(demande, index));
+
+      document.getElementById("viderRecap").addEventListener("click", () => {
+        if (confirm("Voulez-vous vraiment supprimer toutes les demandes ?")) {
+          localStorage.removeItem("demandesIA");
+          recapList.innerHTML = "";
+        }
+      });
 
       const limitWarning = document.createElement("div");
       limitWarning.className = "limit-warning";
@@ -314,7 +353,6 @@
       form.addEventListener("submit", async e => {
         e.preventDefault();
         submitBtn.disabled = true;
-        submitBtn.classList.add("loading");
         submitBtn.textContent = "Envoi en cours...";
 
         const formData = new FormData(form);
@@ -355,20 +393,14 @@
           alert("Erreur lors de l’envoi");
         } finally {
           submitBtn.disabled = false;
-          submitBtn.classList.remove("loading");
           submitBtn.textContent = "Envoyer la demande";
 
-          // Ajout au récapitulatif
-          const ticket = document.createElement("div");
-          ticket.className = "ticket";
-          ticket.innerHTML = `
-            <strong>${data.nom}</strong> (${data.type})<br>
-            Support : ${data.support}<br>
-            Durée : ${data.duree}<br>
-            Livraison : ${data.date}<br>
-            <em>${data.description.substring(0, 50)}...</em>
-          `;
-          recapList.prepend(ticket);
+          let demandesExistantes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+          demandesExistantes.unshift(data);
+          localStorage.setItem("demandesIA", JSON.stringify(demandesExistantes));
+
+          recapList.innerHTML = "";
+          demandesExistantes.forEach((d, i) => afficherTicket(d, i));
         }
       });
     });
