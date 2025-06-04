@@ -1,251 +1,43 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Galerie des Prompts - Espace IA</title>
-  <link rel="stylesheet" href="style.css" />
-  <style>
-    body {
-      visibility: hidden;
-    }
+.carte {
+  display: flex;
+  gap: 20px;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-left: 5px solid #0077b6;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  background: white;
+  position: relative;
+  align-items: flex-start;
+  overflow: visible; /* important pour le zoom */
+}
 
-    /* === Défilement au survol === */
-    .prompt-scroll {
-      max-height: 80px;
-      overflow: hidden;
-      position: relative;
-    }
-    .prompt-scroll p {
-      position: relative;
-      transition: transform 10s linear;
-    }
-    .prompt-scroll:hover p {
-      transform: translateY(calc(-100% + 80px));
-    }
+.carte img {
+  max-width: 180px;
+  height: auto;
+  border-radius: 6px;
+  transition: transform 0.3s ease;
+  z-index: 1;
+  position: relative;
+}
 
-    .carte {
-      display: flex;
-      gap: 20px;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-left: 5px solid #0077b6;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      border-radius: 8px;
-      background: white;
-      position: relative;
-      align-items: flex-start;
-    }
-    .carte img {
-      max-width: 180px;
-      height: auto;
-      border-radius: 6px;
-      transition: transform 0.3s ease;
-    }
-    .carte img:hover {
-      transform: scale(2);
-      z-index: 10;
-    }
-    .texte-col {
-      flex: 1;
-      position: relative;
-    }
-    .outil-highlight {
-      display: inline-block;
-      margin-bottom: 6px;
-      padding: 4px 10px;
-      font-size: 1.1em;
-      font-weight: bold;
-      color: #0077b6;
-      background-color: #e6f3fa;
-      border-radius: 6px;
-    }
-    .infos {
-      font-size: 0.9em;
-      color: #555;
-      margin: 6px 0;
-    }
-    .copier-btn {
-      background-color: #eee;
-      border: none;
-      padding: 6px 12px;
-      font-size: 0.9em;
-      cursor: pointer;
-      border-radius: 4px;
-      margin-top: 8px;
-    }
-    .rating {
-      position: absolute;
-      right: 10px;
-      bottom: 10px;
-    }
-    .star {
-      font-size: 1.2em;
-      color: #ccc;
-      cursor: pointer;
-    }
-    .star.selected {
-      color: gold;
-    }
-    .supprimer-btn {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: none;
-      border: none;
-      font-size: 1.4em;
-      cursor: pointer;
-      color: #999;
-    }
-  </style>
-</head>
-<body>
+.carte img:hover {
+  transform: scale(2);
+  z-index: 100;
+}
 
-<div id="header-placeholder"></div>
-
-<main style="display:none;">
-  <div id="filters">
-    <input type="text" id="filtre-nom" placeholder="Filtrer par nom..." />
-    <select id="filtre-outil">
-      <option value="">Tous les outils</option>
-      <option>Midjourney</option>
-      <option>DALL·E</option>
-      <option>Stable Diffusion</option>
-      <option>Adobe Firefly</option>
-      <option>Runway</option>
-    </select>
-    <select id="filtre-rating">
-      <option value="">Tous les ratings</option>
-      <option value="5">⭐⭐⭐⭐⭐</option>
-      <option value="4">⭐⭐⭐⭐</option>
-      <option value="3">⭐⭐⭐</option>
-      <option value="2">⭐⭐</option>
-      <option value="1">⭐</option>
-    </select>
-  </div>
-  <div class="galerie" id="galerie"></div>
-</main>
-
-<script>
-  fetch("header.html")
-    .then(res => res.text())
-    .then(data => {
-      document.getElementById("header-placeholder").innerHTML = data;
-      document.body.style.visibility = "visible";
-      document.querySelector("main").style.display = "block";
-    });
-
-  const repoOwner = 'spiresm';
-  const repoName = 'IA_marketing';
-  const branch = 'main';
-  const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
-  const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
-  let tousLesPrompts = [];
-
-  async function chargerPrompts() {
-    const res = await fetch(`${apiBase}prompts?ref=${branch}`);
-    if (!res.ok) throw new Error('Erreur GitHub');
-    const fichiers = await res.json();
-    tousLesPrompts = fichiers.filter(f => f.name.endsWith('.json'));
-    afficherPrompts(tousLesPrompts);
-  }
-
-  function afficherPrompts(fichiers) {
-    const galerie = document.getElementById('galerie');
-    galerie.innerHTML = '';
-
-    const filtreOutil = document.getElementById('filtre-outil').value;
-    const filtreRating = document.getElementById('filtre-rating').value;
-    const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
-
-    fichiers.forEach(async fichier => {
-      const res = await fetch(fichier.download_url);
-      if (!res.ok) return;
-      const data = await res.json();
-
-      const ratingKey = `rating-${fichier.name}`;
-      const currentRating = parseInt(localStorage.getItem(ratingKey)) || 0;
-
-      if (filtreOutil && data.outil !== filtreOutil) return;
-      if (filtreRating && currentRating < parseInt(filtreRating)) return;
-      if (filtreNom && !(data.auteur || '').toLowerCase().includes(filtreNom)) return;
-
-      const div = document.createElement('div');
-      div.className = 'carte';
-
-      const img = document.createElement('img');
-      const imagePath = data.image || data.imageUrl || '';
-      img.src = imagePath.startsWith('http') ? imagePath : rawBase + imagePath;
-      img.alt = 'Image';
-      div.appendChild(img);
-
-      const texteCol = document.createElement('div');
-      texteCol.className = 'texte-col';
-
-      texteCol.innerHTML = `
-        <div class="outil-highlight">${data.outil || 'Outil'}</div>
-        <p class="infos"><strong>${data.auteur || 'Inconnu'}</strong> • ${data.categorie || 'Catégorie'}</p>
-      `;
-
-      const texteWrapper = document.createElement('div');
-      texteWrapper.className = 'prompt-scroll';
-      const texte = document.createElement('p');
-      texte.textContent = data.texte || '';
-      texteWrapper.appendChild(texte);
-      texteCol.appendChild(texteWrapper);
-
-      const copierBtn = document.createElement('button');
-      copierBtn.className = 'copier-btn';
-      copierBtn.textContent = 'Copier';
-      copierBtn.onclick = () => {
-        navigator.clipboard.writeText(data.texte || '');
-        copierBtn.textContent = '✔ Copié !';
-        setTimeout(() => copierBtn.textContent = 'Copier', 1500);
-      };
-      texteCol.appendChild(copierBtn);
-
-      const ratingDiv = document.createElement('div');
-      ratingDiv.className = 'rating';
-      for (let i = 1; i <= 5; i++) {
-        const star = document.createElement('span');
-        star.className = 'star';
-        star.textContent = '★';
-        if (i <= currentRating) star.classList.add('selected');
-        star.onclick = () => {
-          localStorage.setItem(ratingKey, i);
-          afficherPrompts(tousLesPrompts);
-        };
-        ratingDiv.appendChild(star);
-      }
-      texteCol.appendChild(ratingDiv);
-
-      const supprimerBtn = document.createElement('button');
-      supprimerBtn.className = 'supprimer-btn';
-      supprimerBtn.innerHTML = '🗑️';
-      supprimerBtn.onclick = async () => {
-        if (!confirm('Confirmer suppression ?')) return;
-        await fetch('/.netlify/functions/deletePrompt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            promptPath: fichier.path,
-            imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
-          })
-        });
-        div.remove();
-      };
-
-      div.appendChild(supprimerBtn);
-      div.appendChild(texteCol);
-      galerie.appendChild(div);
-    });
-  }
-
-  document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
-  document.getElementById('filtre-rating').addEventListener('change', () => afficherPrompts(tousLesPrompts));
-  document.getElementById('filtre-nom').addEventListener('input', () => afficherPrompts(tousLesPrompts));
-
-  window.onload = chargerPrompts;
-</script>
-</body>
-</html>
+/* Bouton Copier */
+.copier-btn {
+  background-color: #0077b6;
+  color: #fff;
+  font-weight: bold;
+  border: none;
+  padding: 8px 14px;
+  font-size: 0.9em;
+  cursor: pointer;
+  border-radius: 6px;
+  margin-top: 10px;
+}
+.copier-btn:hover {
+  background-color: #005f8a;
+}
