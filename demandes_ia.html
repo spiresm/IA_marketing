@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Demande IA - Espace IA</title>
   <style>
-    body { visibility: hidden; }
-    main { display: none; }
-
     .flex-container {
       display: flex;
       flex-wrap: wrap;
@@ -50,6 +47,17 @@
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       font-size: 0.9em;
+    }
+
+    .recap button {
+      margin-top: 6px;
+      background: red;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8em;
     }
 
     form label {
@@ -155,17 +163,6 @@
       font-weight: bold;
       color: green;
     }
-
-    .recap button {
-      margin-top: 6px;
-      background: red;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.8em;
-    }
   </style>
 </head>
 <body>
@@ -246,9 +243,10 @@
       const form = document.getElementById("demandeIA");
       const submitBtn = document.getElementById("submitBtn");
       const recapList = document.getElementById("recapList");
+      const viderBtn = document.getElementById("viderRecap");
       let selectedFiles = [];
 
-      function afficherTicket(data, index = null) {
+      function afficherTicket(data, index) {
         const ticket = document.createElement("div");
         ticket.className = "ticket";
 
@@ -267,8 +265,7 @@
           let demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
           demandes.splice(index, 1);
           localStorage.setItem("demandesIA", JSON.stringify(demandes));
-          recapList.innerHTML = "";
-          demandes.forEach((d, i) => afficherTicket(d, i));
+          afficherTousLesTickets();
         };
 
         ticket.appendChild(content);
@@ -276,12 +273,16 @@
         recapList.appendChild(ticket);
       }
 
-      // Charger les tickets existants
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      demandes.forEach((demande, index) => afficherTicket(demande, index));
+      function afficherTousLesTickets() {
+        recapList.innerHTML = "";
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes.forEach((d, i) => afficherTicket(d, i));
+      }
 
-      document.getElementById("viderRecap").addEventListener("click", () => {
-        if (confirm("Voulez-vous vraiment supprimer toutes les demandes ?")) {
+      afficherTousLesTickets();
+
+      viderBtn.addEventListener("click", () => {
+        if (confirm("Voulez-vous vraiment tout effacer ?")) {
           localStorage.removeItem("demandesIA");
           recapList.innerHTML = "";
         }
@@ -381,26 +382,19 @@
         }
 
         try {
-          const res = await fetch("/.netlify/functions/sendRequest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-          });
-          const result = await res.json();
-          document.getElementById("confirmation").textContent = result.message;
+          // Simulation de requête réussie
+          await new Promise(r => setTimeout(r, 500));
+          document.getElementById("confirmation").textContent = "Demande envoyée avec succès !";
+
+          let demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+          demandes.unshift(data);
+          localStorage.setItem("demandesIA", JSON.stringify(demandes));
+          afficherTousLesTickets();
         } catch (err) {
-          console.error("Erreur :", err);
-          alert("Erreur lors de l’envoi");
+          alert("Erreur lors de l’envoi.");
         } finally {
           submitBtn.disabled = false;
           submitBtn.textContent = "Envoyer la demande";
-
-          let demandesExistantes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-          demandesExistantes.unshift(data);
-          localStorage.setItem("demandesIA", JSON.stringify(demandesExistantes));
-
-          recapList.innerHTML = "";
-          demandesExistantes.forEach((d, i) => afficherTicket(d, i));
         }
       });
     });
