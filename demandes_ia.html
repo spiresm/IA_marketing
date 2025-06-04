@@ -9,13 +9,48 @@
     body { visibility: hidden; }
     main { display: none; }
 
+    .flex-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 20px;
+    }
+
     .container {
+      flex: 1 1 600px;
       max-width: 700px;
-      margin: 40px auto;
       background: white;
       padding: 40px 35px;
       border-radius: 14px;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .recap {
+      flex: 0 1 300px;
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+      height: fit-content;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .recap h3 {
+      color: #0077b6;
+      margin-bottom: 10px;
+    }
+
+    .ticket {
+      background: white;
+      border-left: 4px solid #0077b6;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      font-size: 0.9em;
     }
 
     form label {
@@ -136,55 +171,62 @@
   </script>
 
   <main>
-    <div class="container">
-      <h2 style="text-align:center; color:#0077b6;">Formulaire de demande de production IA</h2>
-      <form id="demandeIA">
-        <label for="nom">Nom du demandeur :</label>
-        <input type="text" name="nom" required />
+    <div class="flex-container">
+      <div class="container">
+        <h2 style="text-align:center; color:#0077b6;">Formulaire de demande de production IA</h2>
+        <form id="demandeIA">
+          <label for="nom">Nom du demandeur :</label>
+          <input type="text" name="nom" required />
 
-        <label for="emailPrefix">Email :</label>
-        <div class="email-container">
-          <input type="text" name="emailPrefix" placeholder="initiales" required />
-          <span>@rtbf.be</span>
-        </div>
+          <label for="emailPrefix">Email :</label>
+          <div class="email-container">
+            <input type="text" name="emailPrefix" placeholder="initiales" required />
+            <span>@rtbf.be</span>
+          </div>
 
-        <label for="type">Type de demande :</label>
-        <select name="type" required>
-          <option value="">-- Sélectionner --</option>
-          <option value="vidéo">Vidéo</option>
-          <option value="audio">Audio</option>
-          <option value="génération image">Génération image</option>
-          <option value="voix off IA">Voix off IA</option>
-          <option value="autre">Autre</option>
-        </select>
+          <label for="type">Type de demande :</label>
+          <select name="type" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="vidéo">Vidéo</option>
+            <option value="audio">Audio</option>
+            <option value="génération image">Génération image</option>
+            <option value="voix off IA">Voix off IA</option>
+            <option value="autre">Autre</option>
+          </select>
 
-        <label for="support">Support :</label>
-        <select name="support" required>
-          <option value="">-- Sélectionner --</option>
-          <option value="TV">TV</option>
-          <option value="Radio">Radio</option>
-          <option value="Web">Web</option>
-          <option value="RS">Réseaux sociaux</option>
-          <option value="autre">Autre</option>
-        </select>
+          <label for="support">Support :</label>
+          <select name="support" required>
+            <option value="">-- Sélectionner --</option>
+            <option value="TV">TV</option>
+            <option value="Radio">Radio</option>
+            <option value="Web">Web</option>
+            <option value="RS">Réseaux sociaux</option>
+            <option value="autre">Autre</option>
+          </select>
 
-        <label for="duree">Durée :</label>
-        <select name="duree" id="duree"></select>
+          <label for="duree">Durée :</label>
+          <select name="duree" id="duree"></select>
 
-        <label for="date">Date de livraison :</label>
-        <input type="date" name="date" required />
+          <label for="date">Date de livraison :</label>
+          <input type="date" name="date" required />
 
-        <label for="description">Briefing :</label>
-        <textarea name="description" rows="4" required></textarea>
+          <label for="description">Briefing :</label>
+          <textarea name="description" rows="4" required></textarea>
 
-        <label for="reference">Références (max 2 images) :</label>
-        <div class="drop-zone" id="dropZone">Cliquez ou déposez des fichiers ici</div>
-        <input type="file" id="reference" accept="image/*" multiple hidden />
-        <div class="preview" id="preview"></div>
+          <label for="reference">Références (max 2 images) :</label>
+          <div class="drop-zone" id="dropZone">Cliquez ou déposez des fichiers ici</div>
+          <input type="file" id="reference" accept="image/*" multiple hidden />
+          <div class="preview" id="preview"></div>
 
-        <button type="submit" id="submitBtn">Envoyer la demande</button>
-        <div id="confirmation"></div>
-      </form>
+          <button type="submit" id="submitBtn">Envoyer la demande</button>
+          <div id="confirmation"></div>
+        </form>
+      </div>
+
+      <div class="recap">
+        <h3>Récapitulatif des demandes</h3>
+        <div id="recapList"></div>
+      </div>
     </div>
   </main>
 
@@ -203,6 +245,7 @@
       const preview = document.getElementById("preview");
       const form = document.getElementById("demandeIA");
       const submitBtn = document.getElementById("submitBtn");
+      const recapList = document.getElementById("recapList");
       let selectedFiles = [];
 
       const limitWarning = document.createElement("div");
@@ -314,6 +357,18 @@
           submitBtn.disabled = false;
           submitBtn.classList.remove("loading");
           submitBtn.textContent = "Envoyer la demande";
+
+          // Ajout au récapitulatif
+          const ticket = document.createElement("div");
+          ticket.className = "ticket";
+          ticket.innerHTML = `
+            <strong>${data.nom}</strong> (${data.type})<br>
+            Support : ${data.support}<br>
+            Durée : ${data.duree}<br>
+            Livraison : ${data.date}<br>
+            <em>${data.description.substring(0, 50)}...</em>
+          `;
+          recapList.prepend(ticket);
         }
       });
     });
