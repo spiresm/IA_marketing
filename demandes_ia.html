@@ -105,6 +105,21 @@
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       font-size: 0.9em;
+    }
+
+    .ticket .close {
+      position: absolute;
+      top: 5px;
+      right: 10px;
+      background: red;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 14px;
+      line-height: 20px;
+      text-align: center;
       cursor: pointer;
     }
   </style>
@@ -112,19 +127,28 @@
 <body>
   <div id="header-placeholder"></div>
   <script>
+    function mettreAJourBulleDemandes() {
+      const notif = document.getElementById("notif-count");
+      if (!notif) return;
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      notif.textContent = demandes.length;
+      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+    }
+
     fetch("header.html")
       .then(res => res.text())
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
         document.body.style.visibility = "visible";
         document.querySelector("main").style.display = "block";
+        mettreAJourBulleDemandes();
       });
   </script>
 
   <main>
     <div class="flex-wrapper">
       <div class="container">
-        <h2>Formulaire de demande de production IA</h2>
+        <h2 style="text-align:center; color:#0077b6;">Formulaire de demande de production IA</h2>
         <form id="demandeIA">
           <label for="nom">Nom :</label>
           <input type="text" name="nom" required />
@@ -161,7 +185,7 @@
           <label for="date">Date :</label>
           <input type="date" name="date" required />
 
-          <label for="description">Description :</label>
+          <label for="description">Briefing :</label>
           <textarea name="description" rows="4" required></textarea>
 
           <button type="submit" id="submitBtn">Envoyer</button>
@@ -170,12 +194,6 @@
 
       <div class="recap">
         <h3>Récapitulatif des demandes</h3>
-        <label for="filtre-duree">Filtrer par durée :</label>
-        <select id="filtre-duree">
-          <option value="">-- Toutes --</option>
-          <option value="30 sec">30 sec</option>
-          <option value="60 sec">60 sec</option>
-        </select>
         <div id="recapList"></div>
       </div>
     </div>
@@ -184,7 +202,6 @@
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const recapList = document.getElementById("recapList");
-      const select = document.getElementById("filtre-duree");
       const dureeFormSelect = document.getElementById("duree");
       const form = document.getElementById("demandeIA");
       const submitBtn = document.getElementById("submitBtn");
@@ -198,16 +215,25 @@
 
       function chargerDemandes() {
         const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-        const filtre = select.value;
         recapList.innerHTML = "";
 
-        demandes.forEach((d) => {
-          if (!filtre || d.duree === filtre) {
-            const div = document.createElement("div");
-            div.className = "ticket";
-            div.textContent = `${d.nom} - ${d.type} - ${d.duree}`;
-            recapList.appendChild(div);
-          }
+        demandes.forEach((d, index) => {
+          const div = document.createElement("div");
+          div.className = "ticket";
+          div.innerHTML = `${d.nom} - ${d.type} - ${d.duree}`;
+
+          const btn = document.createElement("button");
+          btn.className = "close";
+          btn.textContent = "×";
+          btn.onclick = () => {
+            demandes.splice(index, 1);
+            localStorage.setItem("demandesIA", JSON.stringify(demandes));
+            chargerDemandes();
+            mettreAJourBulleDemandes();
+          };
+
+          div.appendChild(btn);
+          recapList.appendChild(div);
         });
       }
 
@@ -258,9 +284,9 @@
         localStorage.setItem("demandesIA", JSON.stringify(demandes));
         form.reset();
         chargerDemandes();
+        mettreAJourBulleDemandes();
       });
 
-      select.addEventListener("change", chargerDemandes);
       chargerDemandes();
     });
   </script>
