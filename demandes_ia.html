@@ -6,7 +6,7 @@
   <title>Demande IA - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    body { visibility: hidden; margin: 0; }
+    body { visibility: hidden; margin: 0; font-family: sans-serif; }
     main { display: none; }
 
     .flex-wrapper {
@@ -25,110 +25,6 @@
       padding: 40px 35px;
       border-radius: 14px;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-    }
-
-    form label {
-      display: block;
-      margin-top: 20px;
-      font-weight: 600;
-      color: #444;
-    }
-
-    form input,
-    form select,
-    form textarea {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 1em;
-      margin-top: 6px;
-      background-color: #f9fafb;
-    }
-
-    input[name="emailPrefix"],
-    input[name="date"] {
-      max-width: 200px;
-    }
-
-    .email-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .drop-zone {
-      background: #f1f1f1;
-      border: 2px dashed #ccc;
-      padding: 20px;
-      text-align: center;
-      border-radius: 8px;
-      cursor: pointer;
-      margin-top: 6px;
-    }
-
-    .drop-zone.dragover {
-      border-color: #0077b6;
-      background: #e0f4ff;
-    }
-
-    .preview {
-      display: flex;
-      flex-wrap: wrap;
-      margin-top: 10px;
-      gap: 10px;
-    }
-
-    .preview-item {
-      position: relative;
-    }
-
-    .preview-item img {
-      width: 80px;
-      height: 80px;
-      object-fit: cover;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-
-    .remove-btn {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      background: red;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 18px;
-      height: 18px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-
-    .limit-warning {
-      color: red;
-      font-size: 0.9em;
-      margin-top: 6px;
-    }
-
-    button {
-      width: 100%;
-      background-color: #0077b6;
-      color: white;
-      padding: 14px;
-      border: none;
-      border-radius: 8px;
-      font-size: 1.1em;
-      font-weight: bold;
-      margin-top: 30px;
-      cursor: pointer;
-    }
-
-    #confirmation {
-      text-align: center;
-      margin-top: 20px;
-      font-weight: bold;
-      color: green;
     }
 
     .recap {
@@ -154,6 +50,7 @@
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       font-size: 0.9em;
+      cursor: pointer;
     }
 
     .recap button {
@@ -164,6 +61,46 @@
       border-radius: 6px;
       cursor: pointer;
       margin-bottom: 10px;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 10;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.6);
+    }
+
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .modal-content pre {
+      white-space: pre-wrap;
+      font-family: inherit;
+    }
+
+    .close-modal {
+      color: #aaa;
+      float: right;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .close-modal:hover {
+      color: #000;
     }
   </style>
 </head>
@@ -181,6 +118,7 @@
 
   <main>
     <div class="flex-wrapper">
+
       <!-- FORMULAIRE -->
       <div class="container">
         <h2 style="text-align:center; color:#0077b6;">Formulaire de demande de production IA</h2>
@@ -233,17 +171,80 @@
         </form>
       </div>
 
-      <!-- RÉCAPITULATIF -->
+      <!-- RECAP -->
       <div class="recap">
         <h3>Récapitulatif des demandes</h3>
         <button id="viderRecap">🗑 Vider</button>
         <div id="recapList"></div>
       </div>
+
     </div>
   </main>
 
+  <!-- MODAL -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <span class="close-modal" id="closeModal">&times;</span>
+      <pre id="modalText"></pre>
+    </div>
+  </div>
+
   <script>
+    const appendToRecap = (data) => {
+      const recapList = document.getElementById("recapList");
+      const div = document.createElement("div");
+      div.className = "ticket";
+      div.innerHTML = `
+        <strong>${data.nom}</strong><br>
+        ${data.type} - ${data.support} - ${data.duree}<br>
+        📅 ${data.date}<br>
+        <em>${data.description.slice(0, 60)}...</em>
+      `;
+      div.addEventListener("click", () => {
+        const modal = document.getElementById("modal");
+        const modalText = document.getElementById("modalText");
+        modalText.textContent =
+          `Nom : ${data.nom}\n` +
+          `Email : ${data.email}\n` +
+          `Type : ${data.type}\n` +
+          `Support : ${data.support}\n` +
+          `Durée : ${data.duree}\n` +
+          `Date de livraison : ${data.date}\n\n` +
+          `Briefing :\n${data.description}`;
+        modal.style.display = "block";
+      });
+      recapList.prepend(div);
+    };
+
+    const saveToLocalStorage = (data) => {
+      const list = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      list.push(data);
+      localStorage.setItem("demandesIA", JSON.stringify(list));
+    };
+
+    const loadRecap = () => {
+      const list = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      list.forEach(appendToRecap);
+    };
+
+    document.getElementById("viderRecap").addEventListener("click", () => {
+      localStorage.removeItem("demandesIA");
+      document.getElementById("recapList").innerHTML = "";
+    });
+
+    document.getElementById("closeModal").addEventListener("click", () => {
+      document.getElementById("modal").style.display = "none";
+    });
+
+    window.addEventListener("click", (event) => {
+      if (event.target === document.getElementById("modal")) {
+        document.getElementById("modal").style.display = "none";
+      }
+    });
+
     document.addEventListener("DOMContentLoaded", () => {
+      loadRecap();
+
       const dureeSelect = document.getElementById("duree");
       for (let i = 0; i <= 60; i++) {
         const option = document.createElement("option");
@@ -322,37 +323,6 @@
         handleFiles(e.target.files);
       });
 
-      const appendToRecap = (data) => {
-        const recapList = document.getElementById("recapList");
-        const div = document.createElement("div");
-        div.className = "ticket";
-        div.innerHTML = `
-          <strong>${data.nom}</strong><br>
-          ${data.type} - ${data.support} - ${data.duree}<br>
-          📅 ${data.date}<br>
-          <em>${data.description.slice(0, 60)}...</em>
-        `;
-        recapList.prepend(div);
-      };
-
-      const saveToLocalStorage = (data) => {
-        const list = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-        list.push(data);
-        localStorage.setItem("demandesIA", JSON.stringify(list));
-      };
-
-      const loadRecap = () => {
-        const list = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-        list.forEach(appendToRecap);
-      };
-
-      document.getElementById("viderRecap").addEventListener("click", () => {
-        localStorage.removeItem("demandesIA");
-        document.getElementById("recapList").innerHTML = "";
-      });
-
-      loadRecap();
-
       form.addEventListener("submit", async e => {
         e.preventDefault();
         submitBtn.disabled = true;
@@ -391,7 +361,6 @@
           });
           const result = await res.json();
           document.getElementById("confirmation").textContent = result.message;
-
           appendToRecap(data);
           saveToLocalStorage(data);
         } catch (err) {
