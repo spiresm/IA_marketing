@@ -115,6 +115,11 @@
       cursor: pointer;
     }
 
+    button.loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
     #confirmation {
       text-align: center;
       margin-top: 20px;
@@ -127,9 +132,14 @@
   <div id="header-placeholder"></div>
   <script>
     fetch("header.html")
-      .then(res => res.text())
+      .then(res => res.ok ? res.text() : Promise.reject("Header non trouvé"))
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
+        document.body.style.visibility = "visible";
+        document.querySelector("main").style.display = "block";
+      })
+      .catch(err => {
+        console.error("Erreur chargement header:", err);
         document.body.style.visibility = "visible";
         document.querySelector("main").style.display = "block";
       });
@@ -306,7 +316,12 @@
             body: JSON.stringify(data)
           });
           const result = await res.json();
-          document.getElementById("confirmation").textContent = result.message;
+          document.getElementById("confirmation").textContent = result.message || "Demande envoyée avec succès ✅";
+
+          form.reset();
+          selectedFiles = [];
+          preview.innerHTML = "";
+          limitWarning.remove();
         } catch (err) {
           console.error("Erreur :", err);
           alert("Erreur lors de l’envoi");
