@@ -98,19 +98,16 @@
     .ticket {
       position: relative;
       background: white;
-      padding: 10px 35px 10px 10px;
+      padding: 10px 10px 10px 10px;
       margin-bottom: 10px;
       border-left: 4px solid #0077b6;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       font-size: 0.85em;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
+      cursor: default;
     }
 
     .ticket-content {
-      flex: 1;
       overflow: hidden;
       white-space: normal;
       display: -webkit-box;
@@ -120,6 +117,9 @@
     }
 
     .ticket .close {
+      position: absolute;
+      top: 6px;
+      right: 8px;
       background: transparent;
       color: #555;
       border: 1px solid #ccc;
@@ -133,13 +133,32 @@
       cursor: pointer;
       padding: 0;
       transition: all 0.2s ease;
-      margin-left: 10px;
     }
 
     .ticket .close:hover {
       color: white;
       background-color: #e60023;
       border-color: #e60023;
+    }
+
+    .tooltip {
+      display: none;
+      position: absolute;
+      z-index: 1000;
+      background: #fff;
+      color: #333;
+      border: 1px solid #ccc;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      max-width: 300px;
+      font-size: 0.9em;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
@@ -240,13 +259,15 @@
         demandes.forEach((d, index) => {
           const div = document.createElement("div");
           div.className = "ticket";
-          div.innerHTML = `
-            <div class="ticket-content">
-              <strong>${d.nom}</strong> (${d.email})<br>
-              ${d.type} | ${d.support} | ${d.duree} | ${d.date}<br>
-              <em>${d.description}</em>
-            </div>
+
+          const content = document.createElement("div");
+          content.className = "ticket-content";
+          content.innerHTML = `
+            <strong>${d.nom}</strong> (${d.email})<br>
+            ${d.type} | ${d.support} | ${d.duree} | ${d.date}<br>
+            <em>${d.description}</em>
           `;
+          div.appendChild(content);
 
           const btn = document.createElement("button");
           btn.className = "close";
@@ -257,8 +278,32 @@
             chargerDemandes();
             mettreAJourBulleDemandes();
           };
-
           div.appendChild(btn);
+
+          const tooltip = document.createElement("div");
+          tooltip.className = "tooltip";
+          tooltip.innerHTML = `
+            <strong>${d.nom}</strong> (${d.email})<br>
+            <b>Type :</b> ${d.type}<br>
+            <b>Support :</b> ${d.support}<br>
+            <b>Durée :</b> ${d.duree}<br>
+            <b>Date :</b> ${d.date}<br>
+            <b>Briefing :</b><br>
+            <em>${d.description}</em>
+          `;
+          document.body.appendChild(tooltip);
+
+          div.addEventListener("mouseenter", (e) => {
+            tooltip.style.display = "block";
+            const rect = div.getBoundingClientRect();
+            tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
+            tooltip.style.left = `${rect.left + window.scrollX}px`;
+          });
+
+          div.addEventListener("mouseleave", () => {
+            tooltip.style.display = "none";
+          });
+
           recapList.appendChild(div);
         });
       }
