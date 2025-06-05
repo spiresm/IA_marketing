@@ -23,22 +23,8 @@
       50% { transform: scale(1.02); }
       100% { transform: scale(1); }
     }
-    .recap {
-      flex: 0 1 320px;
-      background: #f9fafb;
-      padding: 20px;
-      border-radius: 14px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-      height: 90vh;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
+    .recap { flex: 0 1 320px; background: #f9fafb; padding: 20px; border-radius: 14px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); max-height: 90vh; overflow-y: auto; }
     .recap h3 { margin-top: 0; color: #0077b6; margin-bottom: 10px; }
-    .recap > #recapList {
-      flex-grow: 1;
-      overflow-y: auto;
-    }
     .ticket {
       position: relative;
       background: white;
@@ -57,6 +43,7 @@
 </head>
 <body>
   <div id="header-placeholder"></div>
+  
   <main>
     <div class="flex-wrapper">
       <div class="container">
@@ -122,7 +109,170 @@
       </div>
     </div>
   </main>
-  <script src="script.js"></script>
+  <div id="modal">
+    <div class="modal-content">
+      <button class="close-modal" title="Fermer">&times;</button>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+  <script>
+    const couleursParChaine = {
+      'Classic 21': 'purple',
+      'La Une': 'red',
+      'Tipik': 'green',
+      'La première': 'blue',
+      'La Trois': 'mediumorchid',
+      'Auvio': 'black',
+      'vivacité': 'orange',
+      'Musiq3': 'hotpink'
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const dureeSelect = document.getElementById("duree");
+      for (let i = 0; i <= 60; i++) {
+        const opt = document.createElement("option");
+        opt.value = `${i} sec`;
+        opt.textContent = `${i} sec`;
+        dureeSelect.appendChild(opt);
+      }
+
+      const form = document.getElementById("demandeIA");
+      const recapList = document.getElementById("recapList");
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+        const demande = {
+          nom: data.get("nom"),
+          email: `${data.get("emailPrefix") || ''}@rtbf.be`,
+          type: data.get("type"),
+          support: data.get("support"),
+          duree: data.get("duree"),
+          date: data.get("date"),
+          description: data.get("description"),
+          chaine: data.get("chaine"),
+          traite: false
+        };
+
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes.push(demande);
+        localStorage.setItem("demandesIA", JSON.stringify(demandes));
+
+        fetch("/.netlify/functions/sendRequest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(demande)
+        })
+        .then(res => {
+          if (!res.ok) throw new Error("Échec de l'envoi du mail");
+          alert("Demande envoyée avec succès et mail transmis !");
+          form.reset();
+          afficherDemandes();
+        })
+        .catch(err => {
+          console.error("Erreur d'envoi :", err);
+          alert("Le ticket est créé, mais l'envoi d'e-mail a échoué.");
+          form.reset();
+          afficherDemandes();
+        });
+      });
+
+      function afficherDemandes() {
+        const filtreNom = document.getElementById("filtreNom").value.toLowerCase();
+        const filtreDate = document.getElementById("filtreDate").value;
+
+        let demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes = demandes.filter(d => d.nom.toLowerCase().includes(filtreNom));
+
+        if (filtreDate === "asc") {
+          demandes.sort((a, b) => new Date(a.date) - new Date(b.date));
+        } else if (filtreDate === "desc") {
+          demandes.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
+        recapList.innerHTML = "";
+
+        demandes.forEach((d, index) => {
+          const div = document.createElement("div");
+          const couleur = couleursParChaine[d.chaine] || "#0077b6";
+          div.className = "ticket";
+          div.style.borderLeftColor = couleur;
+          div.innerHTML = `
+            <div style="display:flex; justify-content: space-between; align-items:center">
+              <span><strong>${d.nom}</strong></span>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-weight: bold; font-size: 1.1em;">${d.type}</span>
+                <span>${d.duree}</span>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+              <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
+              <small style="color:#666;">📅 ${d.date}</small>
+            </div>
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+              <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
+              <div>
+                ${d.traite ? '' : `<button title="Marquer comme traité" data-index="${index}" class="btn-traite" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">✔️</button>`}
+                <button title="Supprimer" data-index="${index}" class="btn-supprimer" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">🗑️</button>
+              </div>
+            </div>
+          `;
+
+          div.addEventListener("click", () => {
+            const modal = document.getElementById("modal");
+            const modalBody = document.getElementById("modal-body");
+            modalBody.textContent = `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}\nDate : ${d.date}\n\n${d.description}`;
+            modal.style.display = "flex";
+          });
+
+          div.querySelector('.btn-supprimer').addEventListener('click', (e) => {
+            e.stopPropagation();
+            supprimerDemande(index);
+          });
+
+          const btnTraite = div.querySelector('.btn-traite');
+          if (btnTraite) {
+            btnTraite.addEventListener('click', (e) => {
+              e.stopPropagation();
+              marquerTraite(index);
+            });
+          }
+
+          recapList.appendChild(div);
+        });
+      }
+
+      function supprimerDemande(index) {
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes.splice(index, 1);
+        localStorage.setItem("demandesIA", JSON.stringify(demandes));
+        afficherDemandes();
+      }
+
+      function marquerTraite(index) {
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes[index].traite = true;
+        localStorage.setItem("demandesIA", JSON.stringify(demandes));
+        afficherDemandes();
+      }
+
+      document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
+      document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
+
+      afficherDemandes();
+
+      const closeModal = document.querySelector(".close-modal");
+      closeModal.addEventListener("click", () => {
+        document.getElementById("modal").style.display = "none";
+      });
+
+      document.getElementById("modal").addEventListener("click", (e) => {
+        if (e.target.id === "modal") {
+          e.target.style.display = "none";
+        }
+      });
+    });
+  </script>
   <script>
     fetch("header.html")
       .then(res => res.text())
