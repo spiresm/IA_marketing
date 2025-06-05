@@ -5,25 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Demande IA - Espace IA</title>
   <style>
-    body { margin: 0; font-family: sans-serif; }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+    }
 
+    /* Header */
     header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background-color: #0077b6;
+      color: white;
+      padding: 12px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 24px;
-      background-color: #0077b6;
-      color: white;
     }
 
     header img {
       height: 36px;
     }
 
-    nav {
-      flex-grow: 1;
+    .logo-title {
       display: flex;
-      justify-content: center;
+      align-items: center;
+      gap: 12px;
+    }
+
+    nav {
+      display: flex;
       gap: 24px;
     }
 
@@ -31,6 +42,42 @@
       color: white;
       text-decoration: none;
       font-size: 1em;
+    }
+
+    /* Mobile menu toggle */
+    .menu-toggle {
+      display: none;
+      font-size: 24px;
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      nav {
+        display: none;
+        flex-direction: column;
+        background-color: #0077b6;
+        position: absolute;
+        top: 60px;
+        right: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      }
+
+      nav.show {
+        display: flex;
+      }
+
+      .menu-toggle {
+        display: block;
+      }
     }
 
     #notif-wrapper {
@@ -95,11 +142,6 @@
       background-color: #f9fafb;
     }
 
-    input[name="emailPrefix"],
-    input[name="date"] {
-      max-width: 200px;
-    }
-
     .email-container {
       display: flex;
       align-items: center;
@@ -137,12 +179,6 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
       max-height: 90vh;
       overflow-y: auto;
-    }
-
-    .recap h3 {
-      margin-top: 0;
-      color: #0077b6;
-      margin-bottom: 10px;
     }
 
     .ticket {
@@ -214,206 +250,11 @@
   </style>
 </head>
 <body>
+
   <header>
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <img src="logo.png" alt="Logo" />
-      <h1 style="margin: 0; font-size: 1.5em;">Espace IA</h1>
+    <div class="logo-title">
+      <img src="logo.png" alt="Logo">
+      <h1 style="margin: 0;">Espace IA</h1>
     </div>
-    <nav>
-      <a href="#">Accueil</a>
-      <a href="#">Demandes</a>
-      <a href="#">Statistiques</a>
-    </nav>
-    <div id="notif-wrapper">
-      <button id="notif-button">🔔</button>
-      <span id="notif-count">0</span>
-    </div>
-  </header>
 
-  <main>
-    <div class="flex-wrapper">
-      <div class="container">
-        <h2 style="text-align:center; color:#0077b6;">Formulaire de demande de production IA</h2>
-        <form id="demandeIA">
-          <label for="nom">Nom :</label>
-          <input type="text" name="nom" required />
-
-          <label for="emailPrefix">Email :</label>
-          <div class="email-container">
-            <input type="text" name="emailPrefix" placeholder="initiales" required />
-            <span>@rtbf.be</span>
-          </div>
-
-          <label for="type">Type :</label>
-          <select name="type" required>
-            <option value="">-- Sélectionner --</option>
-            <option value="vidéo">Vidéo</option>
-            <option value="audio">Audio</option>
-            <option value="génération image">Génération image</option>
-            <option value="voix off IA">Voix off IA</option>
-            <option value="autre">Autre</option>
-          </select>
-
-          <label for="support">Support :</label>
-          <select name="support" required>
-            <option value="">-- Sélectionner --</option>
-            <option value="TV">TV</option>
-            <option value="Radio">Radio</option>
-            <option value="Web">Web</option>
-            <option value="RS">Réseaux sociaux</option>
-            <option value="autre">Autre</option>
-          </select>
-
-          <label for="duree">Durée :</label>
-          <select name="duree" id="duree"></select>
-
-          <label for="date">Date :</label>
-          <input type="date" name="date" required />
-
-          <label for="description">Briefing :</label>
-          <textarea name="description" rows="4" required></textarea>
-
-          <button type="submit" id="submitBtn">Envoyer</button>
-        </form>
-      </div>
-
-      <div class="recap">
-        <h3>Récapitulatif des demandes</h3>
-        <div id="recapList"></div>
-      </div>
-    </div>
-  </main>
-
-  <script>
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      const dureeFormSelect = document.getElementById("duree");
-      const form = document.getElementById("demandeIA");
-      const submitBtn = document.getElementById("submitBtn");
-
-      for (let i = 0; i <= 60; i++) {
-        const option = document.createElement("option");
-        option.value = `${i} sec`;
-        option.textContent = `${i} sec`;
-        dureeFormSelect.appendChild(option);
-      }
-
-      function chargerDemandes() {
-        const recapList = document.getElementById("recapList");
-        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-        recapList.innerHTML = "";
-
-        demandes.forEach((d, index) => {
-          const div = document.createElement("div");
-          div.className = "ticket";
-
-          const content = document.createElement("div");
-          content.className = "ticket-content";
-          content.innerHTML = `
-            <strong>${d.nom}</strong> (${d.email})<br>
-            ${d.type} | ${d.support} | ${d.duree} | ${d.date}<br>
-            <em>${d.description}</em>
-          `;
-          div.appendChild(content);
-
-          const btn = document.createElement("button");
-          btn.className = "close";
-          btn.textContent = "×";
-          btn.onclick = () => {
-            demandes.splice(index, 1);
-            localStorage.setItem("demandesIA", JSON.stringify(demandes));
-            chargerDemandes();
-            mettreAJourBulleDemandes();
-          };
-          div.appendChild(btn);
-
-          const tooltip = document.createElement("div");
-          tooltip.className = "tooltip";
-          tooltip.innerHTML = `
-            <strong>${d.nom}</strong> (${d.email})<br>
-            <b>Type :</b> ${d.type}<br>
-            <b>Support :</b> ${d.support}<br>
-            <b>Durée :</b> ${d.duree}<br>
-            <b>Date :</b> ${d.date}<br>
-            <b>Briefing :</b><br>
-            <em>${d.description}</em>
-          `;
-          document.body.appendChild(tooltip);
-
-          div.addEventListener("mouseenter", (e) => {
-            tooltip.style.display = "block";
-            const rect = div.getBoundingClientRect();
-            tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
-            tooltip.style.left = `${rect.left + window.scrollX}px`;
-          });
-
-          div.addEventListener("mouseleave", () => {
-            tooltip.style.display = "none";
-          });
-
-          recapList.appendChild(div);
-        });
-      }
-
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        submitBtn.disabled = true;
-        submitBtn.classList.add("loading");
-        submitBtn.textContent = "Envoi en cours...";
-
-        const data = new FormData(form);
-        const email = `${data.get("emailPrefix")}@rtbf.be`;
-        const nouvelleDemande = {
-          nom: data.get("nom"),
-          email: email,
-          type: data.get("type"),
-          support: data.get("support"),
-          duree: data.get("duree"),
-          date: data.get("date"),
-          description: data.get("description")
-        };
-
-        try {
-          const res = await fetch("/.netlify/functions/sendRequest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(nouvelleDemande)
-          });
-          if (!res.ok) throw new Error("Échec d'envoi du mail");
-
-          const resSave = await fetch("/.netlify/functions/saveDemande", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(nouvelleDemande)
-          });
-          if (!resSave.ok) throw new Error("Échec de la sauvegarde JSON");
-
-        } catch (err) {
-          console.error("Erreur lors de l'envoi ou sauvegarde:", err);
-          alert("Erreur lors de l'envoi ou de la sauvegarde.");
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.classList.remove("loading");
-          submitBtn.textContent = "Envoyer";
-        }
-
-        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-        demandes.push(nouvelleDemande);
-        localStorage.setItem("demandesIA", JSON.stringify(demandes));
-        form.reset();
-        chargerDemandes();
-        mettreAJourBulleDemandes();
-      });
-
-      chargerDemandes();
-      mettreAJourBulleDemandes();
-    });
-  </script>
-</body>
-</html>
+    <b
