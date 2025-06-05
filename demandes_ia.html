@@ -26,18 +26,18 @@
     .recap { flex: 0 1 320px; background: #f9fafb; padding: 20px; border-radius: 14px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); max-height: 90vh; overflow-y: auto; }
     .recap h3 { margin-top: 0; color: #0077b6; margin-bottom: 10px; }
     .ticket {
-  position: relative;
-  background: white;
-  padding: 12px 14px;
-  margin-bottom: 12px;
-  border-left: 4px solid #0077b6;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  font-size: 0.95em;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+      position: relative;
+      background: white;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      border-left: 4px solid #0077b6;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      font-size: 0.95em;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
     .ticket span { display: block; line-height: 1.4em; }
   </style>
 </head>
@@ -98,14 +98,13 @@
       <div class="recap">
         <h3>Récapitulatif des demandes</h3>
         <div style="margin-bottom: 10px;">
-            <input type="text" id="filtreNom" placeholder="Filtrer par nom" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
-            <select id="filtreDate" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-              <option value="">Trier par date</option>
-              <option value="asc">Date croissante</option>
-              <option value="desc">Date décroissante</option>
-            </select>
-          </div>
-        
+          <input type="text" id="filtreNom" placeholder="Filtrer par nom" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
+          <select id="filtreDate" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+            <option value="">Trier par date</option>
+            <option value="asc">Date croissante</option>
+            <option value="desc">Date décroissante</option>
+          </select>
+        </div>
         <div id="recapList"></div>
       </div>
     </div>
@@ -145,7 +144,7 @@
         const data = new FormData(form);
         const demande = {
           nom: data.get("nom"),
-          email: `${data.get("emailPrefix")}@rtbf.be`,
+          email: `${data.get("emailPrefix") || ''}@rtbf.be`,
           type: data.get("type"),
           support: data.get("support"),
           duree: data.get("duree"),
@@ -168,8 +167,7 @@
           if (!res.ok) throw new Error("Échec de l'envoi du mail");
           alert("Demande envoyée avec succès et mail transmis !");
           form.reset();
-          
-afficherDemandes();
+          afficherDemandes();
         })
         .catch(err => {
           console.error("Erreur d'envoi :", err);
@@ -180,100 +178,86 @@ afficherDemandes();
       });
 
       function afficherDemandes() {
-  document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
-  document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
-  
-  const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-  const filtreNom = document.getElementById("filtreNom").value.toLowerCase();
-  const filtreDate = document.getElementById("filtreDate").value;
+        const filtreNom = document.getElementById("filtreNom").value.toLowerCase();
+        const filtreDate = document.getElementById("filtreDate").value;
 
-  let demandesFiltrees = demandes.filter(d => d.nom.toLowerCase().includes(filtreNom));
+        let demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes = demandes.filter(d => d.nom.toLowerCase().includes(filtreNom));
 
-  // Appliquer filtre durée si présent
-  
+        if (filtreDate === "asc") {
+          demandes.sort((a, b) => new Date(a.date) - new Date(b.date));
+        } else if (filtreDate === "desc") {
+          demandes.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
 
-  if (filtreDate === "asc") {
-    demandesFiltrees.sort((a, b) => new Date(a.date) - new Date(b.date));
-  } else if (filtreDate === "desc") {
-    demandesFiltrees.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }
+        recapList.innerHTML = "";
 
-  recapList.innerHTML = "";
-if (demandesFiltrees.length === 0) {
-  recapList.innerHTML = "<p style='color: #999;'>Aucune demande à afficher.</p>";
-  return;
-}
-demandesFiltrees.forEach((d, index) => {
-  const couleur = couleursParChaine[d.chaine] || "#0077b6";
-  const div = document.createElement("div");
-  div.className = "ticket";
-  div.style.borderLeftColor = couleur;
-  div.innerHTML = `
-    <div style="display:flex; justify-content: space-between; align-items:center">
-      <span><strong>${d.nom}</strong></span>
-      <div style="display:flex; align-items:center; gap:12px;">
-        <span style="font-size:1.1em; font-weight: bold;">${d.type}</span>
-        <span>${d.duree}</span>
-      </div>
-    </div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-      <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
-      <small style="color:#666;">📅 ${d.date}</small>
-    </div>
-    <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-      <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
-      <div>
-        ${d.traite ? '' : `<button title="Marquer comme traité" data-index="${index}" class="btn-traite" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">✔️</button>`}
-        <button title="Supprimer" data-index="${index}" class="btn-supprimer" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">🗑️</button>
-      </div>
-    </div>
-  `;
+        demandes.forEach((d, index) => {
+          const div = document.createElement("div");
+          const couleur = couleursParChaine[d.chaine] || "#0077b6";
+          div.className = "ticket";
+          div.style.borderLeftColor = couleur;
+          div.innerHTML = `
+            <div style="display:flex; justify-content: space-between; align-items:center">
+              <span><strong>${d.nom}</strong></span>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-weight: bold; font-size: 1.1em;">${d.type}</span>
+                <span>${d.duree}</span>
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+              <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
+              <small style="color:#666;">📅 ${d.date}</small>
+            </div>
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+              <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
+              <div>
+                ${d.traite ? '' : `<button title="Marquer comme traité" data-index="${index}" class="btn-traite" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">✔️</button>`}
+                <button title="Supprimer" data-index="${index}" class="btn-supprimer" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">🗑️</button>
+              </div>
+            </div>
+          `;
 
-  div.addEventListener("click", () => {
-    const modal = document.getElementById("modal");
-    const modalBody = document.getElementById("modal-body");
-    modalBody.textContent = `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}
-Date : ${d.date}
+          div.addEventListener("click", () => {
+            const modal = document.getElementById("modal");
+            const modalBody = document.getElementById("modal-body");
+            modalBody.textContent = `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}\nDate : ${d.date}\n\n${d.description}`;
+            modal.style.display = "flex";
+          });
 
-${d.description}`;
-    modal.style.display = "flex";
-  });
+          div.querySelector('.btn-supprimer').addEventListener('click', (e) => {
+            e.stopPropagation();
+            supprimerDemande(index);
+          });
 
-  
-});
+          const btnTraite = div.querySelector('.btn-traite');
+          if (btnTraite) {
+            btnTraite.addEventListener('click', (e) => {
+              e.stopPropagation();
+              marquerTraite(index);
+            });
+          }
 
-  
-});
-    });
+          recapList.appendChild(div);
+        });
+      }
 
-        div.querySelector('.btn-supprimer').addEventListener('click', (e) => {
-      e.stopPropagation();
-      supprimerDemande(index);
-    });
-    const btnTraite = div.querySelector('.btn-traite');
-    if (btnTraite) {
-      btnTraite.addEventListener('click', (e) => {
-        e.stopPropagation();
-        marquerTraite(index);
-      });
-    }
-    recapList.appendChild(div);
-  });
-}
+      function supprimerDemande(index) {
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes.splice(index, 1);
+        localStorage.setItem("demandesIA", JSON.stringify(demandes));
+        afficherDemandes();
+      }
 
-function supprimerDemande(index) {
-  const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-  demandes.splice(index, 1);
-  localStorage.setItem("demandesIA", JSON.stringify(demandes));
-  afficherDemandes();
-}
+      function marquerTraite(index) {
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes[index].traite = true;
+        localStorage.setItem("demandesIA", JSON.stringify(demandes));
+        afficherDemandes();
+      }
 
-function marquerTraite(index) {
-  const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-  demandes[index].traite = true;
-  localStorage.setItem("demandesIA", JSON.stringify(demandes));
-  afficherDemandes();
-}
+      document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
+      document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
 
       afficherDemandes();
 
