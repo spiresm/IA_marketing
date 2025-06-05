@@ -30,6 +30,7 @@
   </style>
 </head>
 <body>
+  <div id="header-placeholder"></div>
   <header>Demande IA - Espace IA</header>
   <main>
     <div class="flex-wrapper">
@@ -139,26 +140,54 @@
       });
 
       function afficherDemandes() {
-        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-        recapList.innerHTML = "";
-        demandes.forEach((d) => {
-          const div = document.createElement("div");
-          div.className = "ticket";
-          const couleur = couleursParChaine[d.chaine] || '#0077b6';
-          div.style.borderLeftColor = couleur;
-          div.innerHTML = `
-            <span><strong>${d.nom}</strong> - ${d.type} - ${d.duree}</span>
-            <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
-          `;
-          div.addEventListener("click", () => {
-            const modal = document.getElementById("modal");
-            const modalBody = document.getElementById("modal-body");
-            modalBody.textContent = `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}\nDate : ${d.date}\n\n${d.description}`;
-            modal.style.display = "flex";
-          });
-          recapList.appendChild(div);
-        });
-      }
+  const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+  recapList.innerHTML = "";
+  demandes.forEach((d, index) => {
+    const div = document.createElement("div");
+    div.className = "ticket";
+    const couleur = couleursParChaine[d.chaine] || '#0077b6';
+    div.style.borderLeftColor = couleur;
+    const etat = d.traite ? '<span style="color:green">✅</span>' : '<span style="color:#999">⏳</span>';
+
+    div.innerHTML = `
+      <div style="display:flex; justify-content: space-between; align-items:center">
+        <span><strong>${d.nom}</strong> - ${d.type} - ${d.duree}</span>
+        <div>
+          <button title="Marquer comme traité" onclick="marquerTraite(${index}); event.stopPropagation();">✔</button>
+          <button title="Supprimer" onclick="supprimerDemande(${index}); event.stopPropagation();">🗑</button>
+        </div>
+      </div>
+      <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
+      ${etat}
+    `;
+
+    div.addEventListener("click", () => {
+      const modal = document.getElementById("modal");
+      const modalBody = document.getElementById("modal-body");
+      modalBody.textContent = `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}
+Date : ${d.date}
+
+${d.description}`;
+      modal.style.display = "flex";
+    });
+
+    recapList.appendChild(div);
+  });
+}
+
+function supprimerDemande(index) {
+  const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+  demandes.splice(index, 1);
+  localStorage.setItem("demandesIA", JSON.stringify(demandes));
+  afficherDemandes();
+}
+
+function marquerTraite(index) {
+  const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+  demandes[index].traite = true;
+  localStorage.setItem("demandesIA", JSON.stringify(demandes));
+  afficherDemandes();
+}
 
       afficherDemandes();
 
@@ -173,6 +202,13 @@
         }
       });
     });
+  </script>
+  <script>
+    fetch("header.html")
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById("header-placeholder").innerHTML = data;
+      });
   </script>
 </body>
 </html>
