@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Demande IA - Espace IA</title>
+  <link rel="stylesheet" href="style.css" />
   <style>
     body { margin: 0; font-family: sans-serif; }
     main { padding: 20px; }
@@ -104,10 +105,6 @@
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       font-size: 0.9em;
-      overflow: hidden;
-      max-height: 4.5em;
-      line-height: 1.5em;
-      text-overflow: ellipsis;
       cursor: pointer;
     }
 
@@ -136,7 +133,6 @@
       border-color: #e60023;
     }
 
-    /* MODAL STYLES */
     #modal {
       display: none;
       position: fixed;
@@ -242,7 +238,6 @@
     </div>
   </main>
 
-  <!-- MODAL -->
   <div id="modal">
     <div class="modal-content">
       <button class="close-modal" title="Fermer">&times;</button>
@@ -252,67 +247,38 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      const recapList = document.getElementById("recapList");
-      const dureeFormSelect = document.getElementById("duree");
-      const form = document.getElementById("demandeIA");
-      const submitBtn = document.getElementById("submitBtn");
+      const dureeSelect = document.getElementById("duree");
+      for (let i = 0; i <= 60; i++) {
+        const opt = document.createElement("option");
+        opt.value = `${i} sec`;
+        opt.textContent = `${i} sec`;
+        dureeSelect.appendChild(opt);
+      }
 
+      const form = document.getElementById("demandeIA");
+      const recapList = document.getElementById("recapList");
       const modal = document.getElementById("modal");
       const modalBody = document.getElementById("modal-body");
-      const closeModalBtn = document.querySelector(".close-modal");
+      const closeModal = document.querySelector(".close-modal");
 
-      for (let i = 0; i <= 60; i++) {
-        const option = document.createElement("option");
-        option.value = `${i} sec`;
-        option.textContent = `${i} sec`;
-        dureeFormSelect.appendChild(option);
-      }
+      closeModal.addEventListener("click", () => {
+        modal.style.display = "none";
+      });
 
-      function chargerDemandes() {
-        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-        recapList.innerHTML = "";
-
-        demandes.forEach((d, index) => {
-          const div = document.createElement("div");
-          div.className = "ticket";
-
-          const texteTicket = `${d.nom} - ${d.type} - ${d.duree} - ${d.support}\nDate : ${d.date}\n\n${d.description}`;
-          div.setAttribute("data-fulltext", texteTicket);
-
-          div.innerHTML = `
-            <span>${d.nom} - ${d.type} - ${d.duree}</span>
-            <button class="close" title="Supprimer">&times;</button>
-          `;
-
-          div.addEventListener("click", (e) => {
-            if (e.target.classList.contains("close")) return;
-            const contenu = div.getAttribute("data-fulltext");
-            modalBody.textContent = contenu;
-            modal.style.display = "flex";
-          });
-
-          div.querySelector(".close").onclick = (e) => {
-            e.stopPropagation();
-            demandes.splice(index, 1);
-            localStorage.setItem("demandesIA", JSON.stringify(demandes));
-            chargerDemandes();
-          };
-
-          recapList.appendChild(div);
-        });
-      }
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          modal.style.display = "none";
+        }
+      });
 
       form.addEventListener("submit", (e) => {
         e.preventDefault();
-        submitBtn.disabled = true;
-        submitBtn.classList.add("loading");
-        submitBtn.textContent = "Envoi en cours...";
-
         const data = new FormData(form);
         const email = `${data.get("emailPrefix")}@rtbf.be`;
+
         const nouvelleDemande = {
           nom: data.get("nom"),
-          email: email,
+          email,
           type: data.get("type"),
           support: data.get("support"),
           duree: data.get("duree"),
@@ -323,26 +289,41 @@
         const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
         demandes.push(nouvelleDemande);
         localStorage.setItem("demandesIA", JSON.stringify(demandes));
-
         form.reset();
-        submitBtn.disabled = false;
-        submitBtn.classList.remove("loading");
-        submitBtn.textContent = "Envoyer";
-
-        chargerDemandes();
+        afficherDemandes();
       });
 
-      closeModalBtn.onclick = () => {
-        modal.style.display = "none";
-      };
+      function afficherDemandes() {
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        recapList.innerHTML = "";
+        demandes.forEach((d, index) => {
+          const div = document.createElement("div");
+          div.className = "ticket";
+          div.setAttribute("data-fulltext", `${d.nom} - ${d.type} - ${d.duree} - ${d.support}\nDate : ${d.date}\n\n${d.description}`);
 
-      modal.onclick = (e) => {
-        if (e.target === modal) {
-          modal.style.display = "none";
-        }
-      };
+          div.innerHTML = `
+            <span>${d.nom} - ${d.type} - ${d.duree}</span>
+            <button class="close" title="Supprimer">&times;</button>
+          `;
 
-      chargerDemandes();
+          div.addEventListener("click", (e) => {
+            if (e.target.classList.contains("close")) return;
+            modalBody.textContent = div.getAttribute("data-fulltext");
+            modal.style.display = "flex";
+          });
+
+          div.querySelector(".close").addEventListener("click", (e) => {
+            e.stopPropagation();
+            demandes.splice(index, 1);
+            localStorage.setItem("demandesIA", JSON.stringify(demandes));
+            afficherDemandes();
+          });
+
+          recapList.appendChild(div);
+        });
+      }
+
+      afficherDemandes();
     });
   </script>
 </body>
