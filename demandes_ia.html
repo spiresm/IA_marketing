@@ -27,16 +27,6 @@
     .recap h3 { margin-top: 0; color: #0077b6; margin-bottom: 10px; }
     .ticket { position: relative; background: white; padding: 12px 16px; margin-bottom: 12px; border-left: 4px solid #0077b6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); font-size: 0.9em; display: flex; flex-direction: column; }
     .ticket span { display: block; line-height: 1.4em; }
-    .ticket-buttons { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-    .ticket-buttons button { background: none; border: none; cursor: pointer; padding: 4px; font-size: 1.2em; }
-    .status-label { font-size: 0.85em; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-    .status-non-traite { background-color: #ffd166; color: #333; }
-    .status-traite { color: green; }
-    #modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 100; justify-content: center; align-items: center; }
-    #modal .modal-content { background: #fff; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80%; overflow-y: auto; padding: 20px; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    #modal .close-modal { position: absolute; top: 10px; right: 10px; background: #fff; color: #555; border: 1px solid #ccc; border-radius: 50%; width: 28px; height: 28px; font-size: 18px; font-weight: bold; line-height: 26px; text-align: center; cursor: pointer; }
-    #modal .close-modal:hover { color: white; background-color: #e60023; border-color: #e60023; }
-    #modal .modal-body { white-space: pre-line; color: #333; }
   </style>
 </head>
 <body>
@@ -105,10 +95,84 @@
   </div>
   <script>
     const couleursParChaine = {
-      'Classic 21': 'purple', 'La Une': 'red', 'Tipik': 'green',
-      'La première': 'blue', 'La Trois': 'mediumorchid',
-      'Auvio': 'black', 'vivacité': 'orange', 'Musiq3': 'hotpink'
+      'Classic 21': 'purple',
+      'La Une': 'red',
+      'Tipik': 'green',
+      'La première': 'blue',
+      'La Trois': 'mediumorchid',
+      'Auvio': 'black',
+      'vivacité': 'orange',
+      'Musiq3': 'hotpink'
     };
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const dureeSelect = document.getElementById("duree");
+      for (let i = 0; i <= 60; i++) {
+        const opt = document.createElement("option");
+        opt.value = `${i} sec`;
+        opt.textContent = `${i} sec`;
+        dureeSelect.appendChild(opt);
+      }
+
+      const form = document.getElementById("demandeIA");
+      const recapList = document.getElementById("recapList");
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const data = new FormData(form);
+        const demande = {
+          nom: data.get("nom"),
+          email: `${data.get("emailPrefix")}@rtbf.be`,
+          type: data.get("type"),
+          support: data.get("support"),
+          duree: data.get("duree"),
+          date: data.get("date"),
+          description: data.get("description"),
+          chaine: data.get("chaine")
+        };
+
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes.push(demande);
+        localStorage.setItem("demandesIA", JSON.stringify(demandes));
+        form.reset();
+        afficherDemandes();
+      });
+
+      function afficherDemandes() {
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        recapList.innerHTML = "";
+        demandes.forEach((d) => {
+          const div = document.createElement("div");
+          div.className = "ticket";
+          const couleur = couleursParChaine[d.chaine] || '#0077b6';
+          div.style.borderLeftColor = couleur;
+          div.innerHTML = `
+            <span><strong>${d.nom}</strong> - ${d.type} - ${d.duree}</span>
+            <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
+          `;
+          div.addEventListener("click", () => {
+            const modal = document.getElementById("modal");
+            const modalBody = document.getElementById("modal-body");
+            modalBody.textContent = `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}\nDate : ${d.date}\n\n${d.description}`;
+            modal.style.display = "flex";
+          });
+          recapList.appendChild(div);
+        });
+      }
+
+      afficherDemandes();
+
+      const closeModal = document.querySelector(".close-modal");
+      closeModal.addEventListener("click", () => {
+        document.getElementById("modal").style.display = "none";
+      });
+
+      document.getElementById("modal").addEventListener("click", (e) => {
+        if (e.target.id === "modal") {
+          e.target.style.display = "none";
+        }
+      });
+    });
   </script>
 </body>
 </html>
