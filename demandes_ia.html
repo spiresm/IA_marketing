@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Demande IA - Espace IA</title>
-  <link rel="stylesheet" href="style.css" />
   <style>
     body { margin: 0; font-family: sans-serif; }
     main { padding: 20px; }
@@ -112,10 +111,6 @@
       cursor: pointer;
     }
 
-    .ticket:hover {
-      z-index: 10;
-    }
-
     .ticket .close {
       position: absolute;
       top: 6px;
@@ -141,11 +136,9 @@
       border-color: #e60023;
     }
 
-    /* Suppression de l'affichage au hover (::after) */
-
-    /* Styles pour la modal */
+    /* MODAL STYLES */
     #modal {
-      display: none; /* masquée par défaut */
+      display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.5);
@@ -195,8 +188,6 @@
   </style>
 </head>
 <body>
-  <div id="header-placeholder"></div>
-
   <main>
     <div class="flex-wrapper">
       <div class="container">
@@ -251,7 +242,7 @@
     </div>
   </main>
 
-  <!-- Conteneur de la fenêtre modale -->
+  <!-- MODAL -->
   <div id="modal">
     <div class="modal-content">
       <button class="close-modal" title="Fermer">&times;</button>
@@ -260,33 +251,16 @@
   </div>
 
   <script>
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      if (!notif) return;
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-    }
-
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => {
-        document.getElementById("header-placeholder").innerHTML = data;
-        mettreAJourBulleDemandes();
-      });
-
     document.addEventListener("DOMContentLoaded", () => {
       const recapList = document.getElementById("recapList");
       const dureeFormSelect = document.getElementById("duree");
       const form = document.getElementById("demandeIA");
       const submitBtn = document.getElementById("submitBtn");
 
-      // Sélection des éléments de la modale
       const modal = document.getElementById("modal");
       const modalBody = document.getElementById("modal-body");
       const closeModalBtn = document.querySelector(".close-modal");
 
-      // Remplissage du select "durée"
       for (let i = 0; i <= 60; i++) {
         const option = document.createElement("option");
         option.value = `${i} sec`;
@@ -294,7 +268,6 @@
         dureeFormSelect.appendChild(option);
       }
 
-      // Fonction pour charger et afficher les tickets
       function chargerDemandes() {
         const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
         recapList.innerHTML = "";
@@ -303,7 +276,6 @@
           const div = document.createElement("div");
           div.className = "ticket";
 
-          // Texte complet du ticket à stocker dans un attribut data
           const texteTicket = `${d.nom} - ${d.type} - ${d.duree} - ${d.support}\nDate : ${d.date}\n\n${d.description}`;
           div.setAttribute("data-fulltext", texteTicket);
 
@@ -312,35 +284,32 @@
             <button class="close" title="Supprimer">&times;</button>
           `;
 
-          // Clic sur la croix pour supprimer
-          div.querySelector(".close").onclick = (e) => {
-            e.stopPropagation(); // empêcher la propagation au clic du ticket
-            demandes.splice(index, 1);
-            localStorage.setItem("demandesIA", JSON.stringify(demandes));
-            chargerDemandes();
-            mettreAJourBulleDemandes();
-          };
-
-          // Clic sur le div du ticket pour ouvrir la modale
-          div.onclick = () => {
+          div.addEventListener("click", (e) => {
+            if (e.target.classList.contains("close")) return;
             const contenu = div.getAttribute("data-fulltext");
             modalBody.textContent = contenu;
             modal.style.display = "flex";
+          });
+
+          div.querySelector(".close").onclick = (e) => {
+            e.stopPropagation();
+            demandes.splice(index, 1);
+            localStorage.setItem("demandesIA", JSON.stringify(demandes));
+            chargerDemandes();
           };
 
           recapList.appendChild(div);
         });
       }
 
-      // Soumission du formulaire
-      form.addEventListener("submit", async (e) => {
+      form.addEventListener("submit", (e) => {
         e.preventDefault();
         submitBtn.disabled = true;
         submitBtn.classList.add("loading");
         submitBtn.textContent = "Envoi en cours...";
 
         const data = new FormData(form);
-        const email = `${data.get("emailPrefix")}` + "@rtbf.be";
+        const email = `${data.get("emailPrefix")}@rtbf.be`;
         const nouvelleDemande = {
           nom: data.get("nom"),
           email: email,
@@ -351,42 +320,22 @@
           description: data.get("description")
         };
 
-        try {
-          await fetch("/.netlify/functions/sendRequest", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(nouvelleDemande)
-          });
-
-          await fetch("/.netlify/functions/saveDemande", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(nouvelleDemande)
-          });
-
-        } catch (err) {
-          console.error("Erreur lors de l'envoi ou sauvegarde:", err);
-          alert("Erreur lors de l'envoi ou de la sauvegarde.");
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.classList.remove("loading");
-          submitBtn.textContent = "Envoyer";
-        }
-
         const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
         demandes.push(nouvelleDemande);
         localStorage.setItem("demandesIA", JSON.stringify(demandes));
+
         form.reset();
+        submitBtn.disabled = false;
+        submitBtn.classList.remove("loading");
+        submitBtn.textContent = "Envoyer";
+
         chargerDemandes();
-        mettreAJourBulleDemandes();
       });
 
-      // Clic sur la croix de la modale pour fermer
       closeModalBtn.onclick = () => {
         modal.style.display = "none";
       };
 
-      // Fermer la modale en cliquant en dehors du contenu
       modal.onclick = (e) => {
         if (e.target === modal) {
           modal.style.display = "none";
