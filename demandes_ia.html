@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Demande IA - Espace IA</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Demande IA – Espace IA</title>
   <style>
     body { margin: 0; font-family: sans-serif; }
 
@@ -128,6 +127,7 @@
     }
 
     .recap {
+      position: relative; /* Permet de positionner le tooltip par rapport à ce conteneur */
       flex: 0 1 320px;
       background: #f9fafb;
       padding: 20px;
@@ -186,22 +186,16 @@
 
     .tooltip {
       display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      z-index: 99;
+      position: absolute; /* Positionné par rapport à .recap */
       background: #ffffff;
       border: 1px solid #ccc;
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       white-space: pre-line;
       padding: 10px;
       width: 300px;
       color: #333;
-    }
-
-    .ticket:hover .tooltip {
-      display: block;
+      z-index: 1000;
     }
   </style>
 </head>
@@ -222,7 +216,9 @@
     <a href="equipe.html">Équipe</a>
     <a href="galerie.html">Galerie</a>
     <a href="charte.html">Charte IA</a>
-    <a href="demandes_ia.html">Demandes IA <span class="notif-bubble" id="notif-count">0</span></a>
+    <a href="demandes_ia.html">
+      Demandes IA <span class="notif-bubble" id="notif-count">0</span>
+    </a>
   </nav>
 
   <main>
@@ -275,6 +271,8 @@
       <div class="recap">
         <h3>Récapitulatif des demandes</h3>
         <div id="recapList"></div>
+        <!-- Tooltip global, positionné par JS -->
+        <div id="tooltip-global" class="tooltip"></div>
       </div>
     </div>
   </main>
@@ -293,7 +291,9 @@
       const dureeFormSelect = document.getElementById("duree");
       const form = document.getElementById("demandeIA");
       const submitBtn = document.getElementById("submitBtn");
+      const tooltipGlobal = document.getElementById("tooltip-global");
 
+      // Remplir le select "durée"
       for (let i = 0; i <= 60; i++) {
         const option = document.createElement("option");
         option.value = `${i} sec`;
@@ -308,10 +308,10 @@
         demandes.forEach((d, index) => {
           const div = document.createElement("div");
           div.className = "ticket";
-          const texteTicket = `${d.nom} - ${d.type} - ${d.duree} - ${d.support}\n${d.description}`;
-          // Preview (up to 3 lines via CSS)
+
+          // Aperçu du ticket
           const spanPreview = document.createElement("span");
-          spanPreview.textContent = `${d.nom} - ${d.type} - ${d.duree}`;
+          spanPreview.textContent = `${d.nom} – ${d.type} – ${d.duree}`;
           div.appendChild(spanPreview);
 
           // Bouton suppression
@@ -327,11 +327,27 @@
           };
           div.appendChild(btnClose);
 
-          // Tooltip complet
-          const tooltip = document.createElement("div");
-          tooltip.className = "tooltip";
-          tooltip.textContent = texteTicket;
-          div.appendChild(tooltip);
+          // Stocker le texte complet dans data-tooltip
+          const texteComplet = `${d.nom} – ${d.type} – ${d.duree} – ${d.support}\n${d.description}`;
+          div.dataset.tooltip = texteComplet;
+
+          // Événements pour afficher/cacher le tooltip global
+          div.addEventListener("mouseenter", (evt) => {
+            const ticketRect = evt.currentTarget.getBoundingClientRect();
+            const recapRect = document.getElementById("recap").getBoundingClientRect();
+
+            tooltipGlobal.textContent = evt.currentTarget.dataset.tooltip;
+            tooltipGlobal.style.display = "block";
+
+            const leftPos = recapRect.right + 10;
+            const topPos = ticketRect.top;
+            tooltipGlobal.style.left = `${leftPos}px`;
+            tooltipGlobal.style.top = `${topPos}px`;
+          });
+
+          div.addEventListener("mouseleave", () => {
+            tooltipGlobal.style.display = "none";
+          });
 
           recapList.appendChild(div);
         });
@@ -340,7 +356,7 @@
       form.addEventListener("submit", (e) => {
         e.preventDefault();
         submitBtn.disabled = true;
-        submitBtn.textContent = "Envoi en cours...";
+        submitBtn.textContent = "Envoi en cours…";
 
         const data = new FormData(form);
         const email = `${data.get("emailPrefix")}@rtbf.be`;
@@ -351,15 +367,17 @@
           support: data.get("support"),
           duree: data.get("duree"),
           date: data.get("date"),
-          description: data.get("description")
+          description: data.get("description"),
         };
 
         const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
         demandes.push(nouvelleDemande);
         localStorage.setItem("demandesIA", JSON.stringify(demandes));
+
         form.reset();
         chargerDemandes();
         mettreAJourBulleDemandes();
+
         submitBtn.disabled = false;
         submitBtn.textContent = "Envoyer";
       });
