@@ -119,20 +119,15 @@
   </style>
 </head>
 <body>
-
   <div id="header-placeholder"></div>
-
   <main>
     <h2>L'équipe</h2>
-
     <div class="button-wrapper">
       <a href="profil.html" class="create-btn">
         <span style="font-size: 1.2em;">➕</span> Créer son profil
       </a>
     </div>
-
-    <div id="team-section" class="team-container">
-    </div>
+    <div id="team-section" class="team-container"></div>
   </main>
 
   <script>
@@ -167,51 +162,54 @@
       document.body.appendChild(section);
     });
 
-    const profil = JSON.parse(localStorage.getItem('profilUtilisateur'));
-    if (profil && profil.nom && profil.fonction) {
-      const customId = 'profilUtilisateur';
-      members.push(customId);
+    fetch("profil.json")
+      .then(res => res.json())
+      .then(data => {
+        const profil = data.profilUtilisateur;
+        if (profil && profil.nom && profil.fonction) {
+          const customId = 'profilUtilisateur';
+          members.push(customId);
 
-      const teamSection = document.getElementById('team-section');
-      const div = document.createElement('div');
-      div.className = "team-member";
-      div.setAttribute("onclick", `showCard('${customId}')`);
-      div.innerHTML = `
-        <img src="${profil.photo}" alt="Photo de ${profil.nom}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:10px; border:2px solid #0077b6;">
-        <h3>${profil.nom}</h3>
-        <p>${profil.fonction}</p>
-      `;
-      teamSection.appendChild(div);
+          const teamSection = document.getElementById('team-section');
+          const div = document.createElement('div');
+          div.className = "team-member";
+          div.setAttribute("onclick", `showCard('${customId}')`);
+          div.innerHTML = `
+            <img src="${profil.photo}" alt="Photo de ${profil.nom}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:10px; border:2px solid #0077b6;">
+            <h3>${profil.nom}</h3>
+            <p>${profil.fonction}</p>
+          `;
+          teamSection.appendChild(div);
 
-      const section = document.createElement('div');
-      section.innerHTML = `
-        <div id="${customId}-card" class="note-card">
-          <h3>${profil.nom}</h3>
-          <p><strong>Poste :</strong> ${profil.fonction}</p>
-          <p><strong>Équipe :</strong> ${profil.equipe}</p>
-          <p><strong>Description :</strong> ${profil.description}</p>
-          <p><strong>Email :</strong> <a href="mailto:${profil.email}">${profil.email}</a></p>
-          <p><strong>Téléphone :</strong> ${profil.tel}</p>
-          <p><strong>LinkedIn :</strong> <a href="${profil.linkedin}" target="_blank">${profil.linkedin}</a></p>
-          <p><strong>Outils IA maîtrisés :</strong> ${profil.outils.join(', ')}</p>
-          <hr>
-          <p><strong>Notes :</strong></p>
-          <p id="${customId}-content"></p>
-          <button onclick="editNote('${customId}')">✏️ Éditer</button>
-          <button onclick="deleteProfil()">🗑️ Supprimer le profil</button>
-          <button class="back-btn" onclick="goBack()">← Retour à l'équipe</button>
-        </div>
-        <div id="${customId}-note" class="note-section">
-          <h3>Éditer les notes de ${profil.nom}</h3>
-          <textarea id="${customId}-text"></textarea>
-          <div>
-            <button class="back-btn" onclick="goBack()">← Retour</button>
-            <button onclick="saveNote('${customId}')">Enregistrer</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(section);
-    }
+          const section = document.createElement('div');
+          section.innerHTML = `
+            <div id="${customId}-card" class="note-card">
+              <h3>${profil.nom}</h3>
+              <p><strong>Poste :</strong> ${profil.fonction}</p>
+              <p><strong>Équipe :</strong> ${profil.equipe}</p>
+              <p><strong>Description :</strong> ${profil.description}</p>
+              <p><strong>Email :</strong> <a href="mailto:${profil.email}">${profil.email}</a></p>
+              <p><strong>Téléphone :</strong> ${profil.tel}</p>
+              <p><strong>LinkedIn :</strong> <a href="${profil.linkedin}" target="_blank">${profil.linkedin}</a></p>
+              <p><strong>Outils IA maîtrisés :</strong> ${profil.outils.join(', ')}</p>
+              <hr>
+              <p><strong>Notes :</strong></p>
+              <p id="${customId}-content">${profil.note || ''}</p>
+              <button onclick="editNote('${customId}')">✏️ Éditer</button>
+              <button class="back-btn" onclick="goBack()">← Retour à l'équipe</button>
+            </div>
+            <div id="${customId}-note" class="note-section">
+              <h3>Éditer les notes de ${profil.nom}</h3>
+              <textarea id="${customId}-text">${profil.note || ''}</textarea>
+              <div>
+                <button class="back-btn" onclick="goBack()">← Retour</button>
+                <button onclick="saveNote('${customId}')">Enregistrer</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(section);
+        }
+      });
 
     function showCard(id) {
       document.getElementById('team-section').style.display = 'none';
@@ -235,46 +233,24 @@
 
     function saveNote(id) {
       const content = document.getElementById(id + '-text').value;
-      localStorage.setItem('note-' + id, content);
-      document.getElementById(id + '-note').style.display = 'none';
-      document.getElementById(id + '-content').textContent = content;
-      document.getElementById(id + '-card').style.display = 'block';
-    }
-
-    function deleteProfil() {
-      if (confirm("Êtes-vous sûr de vouloir supprimer votre profil ? Cette action est irréversible.")) {
-        localStorage.removeItem('profilUtilisateur');
-        localStorage.removeItem('note-profilUtilisateur');
-
-        const card = document.getElementById('profilUtilisateur-card');
-        const note = document.getElementById('profilUtilisateur-note');
-        if (card) card.remove();
-        if (note) note.remove();
-
-        const teamSection = document.getElementById('team-section');
-        const members = teamSection.getElementsByClassName('team-member');
-        for (let member of members) {
-          if (member.innerHTML.includes(profil.nom)) {
-            member.remove();
-            break;
-          }
-        }
-
-        goBack();
-        alert("Votre profil a été supprimé.");
+      if (id === 'profilUtilisateur') {
+        fetch('profil.json')
+          .then(res => res.json())
+          .then(data => {
+            data.profilUtilisateur.note = content;
+            return fetch('profil.json', {
+              method: 'POST', // ou PUT selon ton backend
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+          })
+          .then(() => {
+            document.getElementById(id + '-note').style.display = 'none';
+            document.getElementById(id + '-content').textContent = content;
+            document.getElementById(id + '-card').style.display = 'block';
+          })
+          .catch(err => alert("Erreur de sauvegarde: " + err));
       }
-    }
-
-    window.onload = function () {
-      members.forEach(id => {
-        const note = localStorage.getItem('note-' + id);
-        if (note) {
-          const text = document.getElementById(id + '-text');
-          const content = document.getElementById(id + '-content');
-          if (text) text.value = note;
-          if (content) content.textContent = note;
-        }
-      });
     }
   </script>
 </body>
