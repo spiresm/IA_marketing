@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Demande IA - Espace IA</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
   <style>
     body { margin: 0; font-family: sans-serif; }
 
@@ -37,6 +37,7 @@
       color: white;
       font-weight: bold;
       position: relative;
+      padding: 4px 8px;
     }
 
     nav a:hover {
@@ -122,6 +123,10 @@
       transition: background-color 0.3s ease;
     }
 
+    button:hover {
+      background-color: #005f8a;
+    }
+
     .recap {
       flex: 0 1 320px;
       background: #f9fafb;
@@ -130,6 +135,12 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
       max-height: 90vh;
       overflow-y: auto;
+    }
+
+    .recap h3 {
+      margin-top: 0;
+      color: #0077b6;
+      margin-bottom: 10px;
     }
 
     .ticket {
@@ -141,28 +152,11 @@
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       font-size: 0.9em;
-      overflow: hidden;
+      overflow: visible;
       max-height: 4.5em;
       line-height: 1.5em;
       text-overflow: ellipsis;
       cursor: pointer;
-    }
-
-    .ticket:hover::after {
-      content: attr(data-fulltext);
-      position: absolute;
-      top: 100%;
-      left: 0;
-      z-index: 99;
-      background: #ffffff;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      white-space: pre-line;
-      padding: 10px;
-      width: 300px;
-      color: #333;
-      display: block;
     }
 
     .ticket .close {
@@ -180,6 +174,34 @@
       line-height: 18px;
       text-align: center;
       cursor: pointer;
+      padding: 0;
+      transition: all 0.2s ease;
+    }
+
+    .ticket .close:hover {
+      color: white;
+      background-color: #e60023;
+      border-color: #e60023;
+    }
+
+    .tooltip {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 99;
+      background: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      white-space: pre-line;
+      padding: 10px;
+      width: 300px;
+      color: #333;
+    }
+
+    .ticket:hover .tooltip {
+      display: block;
     }
   </style>
 </head>
@@ -287,15 +309,30 @@
           const div = document.createElement("div");
           div.className = "ticket";
           const texteTicket = `${d.nom} - ${d.type} - ${d.duree} - ${d.support}\n${d.description}`;
-          div.setAttribute("data-fulltext", texteTicket);
+          // Preview (up to 3 lines via CSS)
+          const spanPreview = document.createElement("span");
+          spanPreview.textContent = `${d.nom} - ${d.type} - ${d.duree}`;
+          div.appendChild(spanPreview);
 
-          div.innerHTML = `<span>${d.nom} - ${d.type} - ${d.duree}</span><button class='close' title='Supprimer'>&times;</button>`;
-          div.querySelector(".close").onclick = () => {
+          // Bouton suppression
+          const btnClose = document.createElement("button");
+          btnClose.className = "close";
+          btnClose.innerHTML = "&times;";
+          btnClose.title = "Supprimer";
+          btnClose.onclick = () => {
             demandes.splice(index, 1);
             localStorage.setItem("demandesIA", JSON.stringify(demandes));
             chargerDemandes();
             mettreAJourBulleDemandes();
           };
+          div.appendChild(btnClose);
+
+          // Tooltip complet
+          const tooltip = document.createElement("div");
+          tooltip.className = "tooltip";
+          tooltip.textContent = texteTicket;
+          div.appendChild(tooltip);
+
           recapList.appendChild(div);
         });
       }
@@ -306,7 +343,7 @@
         submitBtn.textContent = "Envoi en cours...";
 
         const data = new FormData(form);
-        const email = `${data.get("emailPrefix")}` + "@rtbf.be";
+        const email = `${data.get("emailPrefix")}@rtbf.be`;
         const nouvelleDemande = {
           nom: data.get("nom"),
           email: email,
