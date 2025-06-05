@@ -68,7 +68,7 @@
     }
 
     .team-member h3 {
-      margin: 0 0 10px;
+      margin: 10px 0 10px;
       color: #0077b6;
       font-size: 1.2em;
     }
@@ -203,6 +203,52 @@
       document.body.appendChild(section);
     });
 
+    // Charger le profil utilisateur si présent
+    const profil = JSON.parse(localStorage.getItem('profilUtilisateur'));
+    if (profil && profil.nom && profil.fonction) {
+      const customId = 'profilUtilisateur';
+      members.push(customId);
+
+      const teamSection = document.getElementById('team-section');
+      const div = document.createElement('div');
+      div.className = "team-member";
+      div.setAttribute("onclick", `showCard('${customId}')`);
+      div.innerHTML = `
+        <img src="${profil.photo}" alt="Photo de ${profil.nom}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:10px; border:2px solid #0077b6;">
+        <h3>${profil.nom}</h3>
+        <p>${profil.fonction}</p>
+      `;
+      teamSection.appendChild(div);
+
+      const section = document.createElement('div');
+      section.innerHTML = `
+        <div id="${customId}-card" class="note-card">
+          <h3>${profil.nom}</h3>
+          <p><strong>Poste :</strong> ${profil.fonction}</p>
+          <p><strong>Équipe :</strong> ${profil.equipe}</p>
+          <p><strong>Description :</strong> ${profil.description}</p>
+          <p><strong>Email :</strong> <a href="mailto:${profil.email}">${profil.email}</a></p>
+          <p><strong>Téléphone :</strong> ${profil.tel}</p>
+          <p><strong>LinkedIn :</strong> <a href="${profil.linkedin}" target="_blank">${profil.linkedin}</a></p>
+          <p><strong>Outils IA maîtrisés :</strong> ${profil.outils.join(', ')}</p>
+          <hr>
+          <p><strong>Notes :</strong></p>
+          <p id="${customId}-content"></p>
+          <button onclick="editNote('${customId}')">✏️ Éditer</button>
+          <button class="back-btn" onclick="goBack()">← Retour à l'équipe</button>
+        </div>
+        <div id="${customId}-note" class="note-section">
+          <h3>Éditer les notes de ${profil.nom}</h3>
+          <textarea id="${customId}-text"></textarea>
+          <div>
+            <button class="back-btn" onclick="goBack()">← Retour</button>
+            <button onclick="saveNote('${customId}')">Enregistrer</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(section);
+    }
+
     function showCard(id) {
       document.getElementById('team-section').style.display = 'none';
       document.getElementById(id + '-card').style.display = 'block';
@@ -215,8 +261,10 @@
 
     function goBack() {
       members.forEach(id => {
-        document.getElementById(id + '-note').style.display = 'none';
-        document.getElementById(id + '-card').style.display = 'none';
+        const note = document.getElementById(id + '-note');
+        const card = document.getElementById(id + '-card');
+        if (note) note.style.display = 'none';
+        if (card) card.style.display = 'none';
       });
       document.getElementById('team-section').style.display = 'grid';
     }
@@ -233,8 +281,10 @@
       members.forEach(id => {
         const note = localStorage.getItem('note-' + id);
         if (note) {
-          document.getElementById(id + '-text').value = note;
-          document.getElementById(id + '-content').textContent = note;
+          const text = document.getElementById(id + '-text');
+          const content = document.getElementById(id + '-content');
+          if (text) text.value = note;
+          if (content) content.textContent = note;
         }
       });
     }
