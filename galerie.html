@@ -103,21 +103,6 @@
       background-color: #005f8a;
     }
 
-    .rating {
-      margin-top: 10px;
-    }
-
-    .star {
-      font-size: 1.2em;
-      color: #ccc;
-      cursor: pointer;
-      margin-right: 4px;
-    }
-
-    .star.selected {
-      color: gold;
-    }
-
     .supprimer-btn {
       position: absolute;
       top: 10px;
@@ -143,13 +128,16 @@
         <option>Adobe Firefly</option>
         <option>Runway</option>
       </select>
-      <select id="filtre-rating">
-        <option value="">Tous les ratings</option>
-        <option value="5">⭐⭐⭐⭐⭐</option>
-        <option value="4">⭐⭐⭐⭐</option>
-        <option value="3">⭐⭐⭐</option>
-        <option value="2">⭐⭐</option>
-        <option value="1">⭐</option>
+      <select id="filtre-chaine">
+        <option value="">Toutes les chaînes</option>
+        <option>La Une</option>
+        <option>tipik</option>
+        <option>La Trois</option>
+        <option>La première</option>
+        <option>Classic 21</option>
+        <option>vivacité</option>
+        <option>Musiq3</option>
+        <option>Auvio</option>
       </select>
     </div>
     <div class="galerie" id="galerie"></div>
@@ -184,19 +172,16 @@
       galerie.innerHTML = '';
 
       const filtreOutil = document.getElementById('filtre-outil').value;
-      const filtreRating = document.getElementById('filtre-rating').value;
       const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
+      const filtreChaine = document.getElementById('filtre-chaine').value;
 
       fichiers.forEach(async fichier => {
         const res = await fetch(fichier.download_url);
         if (!res.ok) return;
         const data = await res.json();
 
-        const ratingKey = `rating-${fichier.name}`;
-        const currentRating = parseInt(localStorage.getItem(ratingKey)) || 0;
-
         if (filtreOutil && data.outil !== filtreOutil) return;
-        if (filtreRating && currentRating < parseInt(filtreRating)) return;
+        if (filtreChaine && data.chaine !== filtreChaine) return;
         if (
           filtreNom &&
           !((data.auteur || '').toLowerCase().includes(filtreNom) ||
@@ -217,7 +202,7 @@
 
         texteCol.innerHTML = `
           <div class="outil-highlight">${data.outil || 'Outil'}</div>
-          <p class="infos"><strong>${data.auteur || 'Inconnu'}</strong> • ${data.categorie || 'Catégorie'}</p>
+          <p class="infos"><strong>${data.auteur || 'Inconnu'}</strong> • ${data.categorie || 'Catégorie'}${data.chaine ? ' • ' + data.chaine : ''}</p>
           <p>${data.texte || ''}</p>
         `;
 
@@ -230,21 +215,6 @@
           setTimeout(() => copierBtn.textContent = 'Copier', 1500);
         };
         texteCol.appendChild(copierBtn);
-
-        const ratingDiv = document.createElement('div');
-        ratingDiv.className = 'rating';
-        for (let i = 1; i <= 5; i++) {
-          const star = document.createElement('span');
-          star.className = 'star';
-          star.textContent = '★';
-          if (i <= currentRating) star.classList.add('selected');
-          star.onclick = () => {
-            localStorage.setItem(ratingKey, i);
-            afficherPrompts(tousLesPrompts);
-          };
-          ratingDiv.appendChild(star);
-        }
-        texteCol.appendChild(ratingDiv);
 
         const supprimerBtn = document.createElement('button');
         supprimerBtn.className = 'supprimer-btn';
@@ -269,8 +239,8 @@
     }
 
     document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
-    document.getElementById('filtre-rating').addEventListener('change', () => afficherPrompts(tousLesPrompts));
     document.getElementById('filtre-nom').addEventListener('input', () => afficherPrompts(tousLesPrompts));
+    document.getElementById('filtre-chaine').addEventListener('change', () => afficherPrompts(tousLesPrompts));
 
     window.onload = chargerPrompts;
   </script>
