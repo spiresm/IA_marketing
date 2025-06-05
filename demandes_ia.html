@@ -15,13 +15,9 @@
     form input, form select, form textarea { width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid #ccc; font-size: 1em; margin-top: 6px; background-color: #f9fafb; }
     input[name="emailPrefix"], input[name="date"] { max-width: 200px; }
     .email-container { display: flex; align-items: center; gap: 8px; }
-    button { width: 100%; background-color: #0077b6; color: white; padding: 14px; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; margin-top: 30px; cursor: pointer; transition: background-color 0.3s ease; }
+    button { background-color: #0077b6; color: white; padding: 10px 12px; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; margin-top: 15px; cursor: pointer; transition: background-color 0.3s ease; }
     button:hover { background-color: #005f8a; }
-    button.loading {
-      opacity: 0.6;
-      pointer-events: none;
-      animation: pulse 1.2s infinite;
-    }
+    button.loading { opacity: 0.6; pointer-events: none; animation: pulse 1.2s infinite; }
     @keyframes pulse {
       0% { transform: scale(1); }
       50% { transform: scale(1.02); }
@@ -29,11 +25,13 @@
     }
     .recap { flex: 0 1 320px; background: #f9fafb; padding: 20px; border-radius: 14px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05); max-height: 90vh; overflow-y: auto; }
     .recap h3 { margin-top: 0; color: #0077b6; margin-bottom: 10px; }
-    .ticket { position: relative; background: white; padding: 12px 16px; margin-bottom: 12px; border-left: 4px solid #0077b6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); font-size: 0.9em; cursor: pointer; min-height: 4.5em; display: flex; flex-direction: column; justify-content: center; }
-    .ticket span { display: block; line-height: 1.4em; max-height: 4.2em; overflow: hidden; }
+    .ticket { position: relative; background: white; padding: 12px 16px; margin-bottom: 12px; border-left: 4px solid #0077b6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); font-size: 0.9em; display: flex; flex-direction: column; }
+    .ticket span { display: block; line-height: 1.4em; }
+    .ticket-buttons { display: flex; gap: 8px; margin-top: 8px; }
+    .ticket-buttons button { padding: 6px 10px; font-size: 0.75em; }
     #modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 100; justify-content: center; align-items: center; }
     #modal .modal-content { background: #fff; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80%; overflow-y: auto; padding: 20px; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    #modal .close-modal { position: absolute; top: 10px; right: 10px; background: #fff; color: #555; border: 1px solid #ccc; border-radius: 50%; width: 28px; height: 28px; font-size: 18px; font-weight: bold; line-height: 26px; text-align: center; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1); z-index: 101; }
+    #modal .close-modal { position: absolute; top: 10px; right: 10px; background: #fff; color: #555; border: 1px solid #ccc; border-radius: 50%; width: 28px; height: 28px; font-size: 18px; font-weight: bold; line-height: 26px; text-align: center; cursor: pointer; }
     #modal .close-modal:hover { color: white; background-color: #e60023; border-color: #e60023; }
     #modal .modal-body { white-space: pre-line; color: #333; }
   </style>
@@ -158,10 +156,11 @@
       });
 
       form.addEventListener("submit", (e) => {
+        e.preventDefault();
         const submitBtn = document.getElementById("submitBtn");
         submitBtn.classList.add("loading");
         submitBtn.textContent = "Envoi...";
-        e.preventDefault();
+
         const data = new FormData(form);
         const email = `${data.get("emailPrefix")}@rtbf.be`;
 
@@ -173,21 +172,19 @@
           duree: data.get("duree"),
           date: data.get("date"),
           description: data.get("description"),
-          chaine: data.get("chaine")
+          chaine: data.get("chaine"),
+          traite: false
         };
 
         const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
         demandes.push(nouvelleDemande);
         localStorage.setItem("demandesIA", JSON.stringify(demandes));
+
         fetch("/.netlify/functions/sendRequest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(nouvelleDemande)
-        })
-        .then(res => {
-          if (!res.ok) throw new Error("Échec de l'envoi du mail");
-        })
-        .catch(err => {
+        }).catch(err => {
           console.error("Erreur d'envoi :", err);
           alert("Le ticket est créé, mais l'envoi d'e-mail a échoué.");
         });
@@ -202,22 +199,49 @@
       function afficherDemandes() {
         const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
         recapList.innerHTML = "";
-        demandes.forEach((d) => {
+        demandes.forEach((d, i) => {
           const div = document.createElement("div");
           div.className = "ticket";
           const couleur = couleursParChaine[d.chaine] || '#0077b6';
           div.style.borderLeftColor = couleur;
+
+          if (d.traite) {
+            div.style.opacity = 0.6;
+            div.style.pointerEvents = 'none';
+          }
+
           div.setAttribute("data-fulltext", `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}\nDate : ${d.date}\n\n${d.description}`);
+
           div.innerHTML = `
             <span>${d.nom} - ${d.type} - ${d.duree}</span>
             <span style="color: ${couleur}; font-weight: bold;">${d.chaine}</span>
+            <div class="ticket-buttons">
+              <button onclick="marquerTraite(${i})">✅ Traité</button>
+              <button onclick="supprimerDemande(${i})" style="color:red;">🗑 Supprimer</button>
+            </div>
           `;
+
           div.addEventListener("click", () => {
             modalBody.textContent = div.getAttribute("data-fulltext");
             modal.style.display = "flex";
           });
+
           recapList.appendChild(div);
         });
+      }
+
+      window.supprimerDemande = function(index) {
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes.splice(index, 1);
+        localStorage.setItem("demandesIA", JSON.stringify(demandes));
+        afficherDemandes();
+      }
+
+      window.marquerTraite = function(index) {
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes[index].traite = true;
+        localStorage.setItem("demandesIA", JSON.stringify(demandes));
+        afficherDemandes();
       }
 
       afficherDemandes();
