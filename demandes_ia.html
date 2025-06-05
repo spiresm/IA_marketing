@@ -2,11 +2,12 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Demande IA - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
     body { margin: 0; font-family: sans-serif; }
+    main { padding: 20px; }
 
     .flex-wrapper {
       display: flex;
@@ -43,6 +44,11 @@
       font-size: 1em;
       margin-top: 6px;
       background-color: #f9fafb;
+    }
+
+    input[name="emailPrefix"],
+    input[name="date"] {
+      max-width: 200px;
     }
 
     .email-container {
@@ -93,15 +99,21 @@
     .ticket {
       position: relative;
       background: white;
-      padding: 10px 35px 10px 10px;
-      margin-bottom: 10px;
+      padding: 12px 12px 12px 16px;
+      margin-bottom: 12px;
       border-left: 4px solid #0077b6;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       font-size: 0.9em;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      overflow: hidden;
+      max-height: 4.5em;
+      line-height: 1.5em;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+
+    .ticket:hover {
+      z-index: 10;
     }
 
     .ticket .close {
@@ -128,27 +140,31 @@
       background-color: #e60023;
       border-color: #e60023;
     }
+
+    .ticket::after {
+      content: attr(data-fulltext);
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 99;
+      background: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      white-space: pre-line;
+      padding: 10px;
+      width: 300px;
+      display: none;
+      color: #333;
+    }
+
+    .ticket:hover::after {
+      display: block;
+    }
   </style>
 </head>
 <body>
   <div id="header-placeholder"></div>
-
-  <script>
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      if (!notif) return;
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-    }
-
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => {
-        document.getElementById("header-placeholder").innerHTML = data;
-        mettreAJourBulleDemandes();
-      });
-  </script>
 
   <main>
     <div class="flex-wrapper">
@@ -205,6 +221,21 @@
   </main>
 
   <script>
+    function mettreAJourBulleDemandes() {
+      const notif = document.getElementById("notif-count");
+      if (!notif) return;
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      notif.textContent = demandes.length;
+      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+    }
+
+    fetch("header.html")
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById("header-placeholder").innerHTML = data;
+        mettreAJourBulleDemandes();
+      });
+
     document.addEventListener("DOMContentLoaded", () => {
       const recapList = document.getElementById("recapList");
       const dureeFormSelect = document.getElementById("duree");
@@ -225,19 +256,22 @@
         demandes.forEach((d, index) => {
           const div = document.createElement("div");
           div.className = "ticket";
-          div.innerHTML = `<span>${d.nom} - ${d.type} - ${d.duree}</span>`;
 
-          const btn = document.createElement("button");
-          btn.className = "close";
-          btn.textContent = "×";
-          btn.onclick = () => {
+          const texteTicket = `${d.nom} - ${d.type} - ${d.duree} - ${d.support}\n${d.description}`;
+          div.setAttribute("data-fulltext", texteTicket);
+
+          div.innerHTML = `
+            <span>${d.nom} - ${d.type} - ${d.duree}</span>
+            <button class="close" title="Supprimer">&times;</button>
+          `;
+
+          div.querySelector(".close").onclick = () => {
             demandes.splice(index, 1);
             localStorage.setItem("demandesIA", JSON.stringify(demandes));
             chargerDemandes();
             mettreAJourBulleDemandes();
           };
 
-          div.appendChild(btn);
           recapList.appendChild(div);
         });
       }
@@ -249,7 +283,7 @@
         submitBtn.textContent = "Envoi en cours...";
 
         const data = new FormData(form);
-        const email = `${data.get("emailPrefix")}@rtbf.be`;
+        const email = `${data.get("emailPrefix")}` + "@rtbf.be";
         const nouvelleDemande = {
           nom: data.get("nom"),
           email: email,
@@ -272,6 +306,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(nouvelleDemande)
           });
+
         } catch (err) {
           console.error("Erreur lors de l'envoi ou sauvegarde:", err);
           alert("Erreur lors de l'envoi ou de la sauvegarde.");
