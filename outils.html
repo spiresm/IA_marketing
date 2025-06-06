@@ -4,13 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Outils IA - Espace IA</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="notif.js"></script>
   <style>
     body {
       opacity: 0;
       transition: opacity 0.3s ease-in;
       margin: 0;
+      font-family: Arial, sans-serif;
     }
 
     main {
@@ -139,7 +138,6 @@
   </style>
 </head>
 <body>
-  <div id="header-placeholder"></div>
   <main>
     <div class="container">
       <div class="filters">
@@ -153,43 +151,55 @@
         </select>
         <select id="filtre-categorie">
           <option value="">Toutes les catégories</option>
-          <option>redaction</option>
-          <option>resume</option>
-          <option>generation</option>
-          <option>voice</option>
-          <option>music</option>
-          <option>code</option>
+          <option value="redaction">redaction</option>
+          <option value="resume">resume</option>
+          <option value="generation">generation</option>
+          <option value="voice">voice</option>
+          <option value="music">music</option>
+          <option value="code">code</option>
         </select>
         <select id="filtre-expert">
           <option value="">Tous les experts</option>
+          <option value="expert1">expert1</option>
+          <option value="expert2">expert2</option>
         </select>
       </div>
       <div class="grid" id="tools-grid"></div>
     </div>
   </main>
-  <script src="tools-full.js"></script>
-  <script>
-    fetch("header.html")
-      .then(res => res.text())
-      .then(html => {
-        document.getElementById("header-placeholder").innerHTML = html;
-      })
-      .catch(() => {
-        document.getElementById("header-placeholder").innerHTML =
-          "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-      })
-      .finally(() => {
-        document.body.style.opacity = "1";
-        if (typeof updateTicketNotif === "function") {
-          updateTicketNotif();
-        }
-      });
 
-    function renderToolsWithTooltips(tools) {
+  <script>
+    const tools = [
+      {
+        nom: "GPT Rédacteur",
+        description: "Un outil de rédaction intelligent",
+        info: "Idéal pour créer des articles, emails ou contenus optimisés SEO.",
+        type: "texte",
+        categories: ["redaction", "generation"],
+        expert: "expert1",
+        lien: "#"
+      },
+      {
+        nom: "AI Painter",
+        description: "Génère des images à partir de prompts",
+        info: "Utilise une IA visuelle pour transformer les idées en visuels.",
+        type: "image",
+        categories: ["generation"],
+        expert: "expert2",
+        lien: "#"
+      }
+    ];
+
+    const searchInput = document.getElementById("search");
+    const filtreType = document.getElementById("filtre-type");
+    const filtreCategorie = document.getElementById("filtre-categorie");
+    const filtreExpert = document.getElementById("filtre-expert");
+
+    function renderToolsWithTooltips(filteredTools) {
       const grid = document.getElementById("tools-grid");
       grid.innerHTML = "";
 
-      tools.forEach(tool => {
+      filteredTools.forEach(tool => {
         const card = document.createElement("div");
         card.className = "card";
 
@@ -209,9 +219,35 @@
       });
     }
 
-    if (typeof tools !== "undefined") {
-      renderToolsWithTooltips(tools);
+    function applyFilters() {
+      const search = searchInput.value.toLowerCase();
+      const type = filtreType.value;
+      const categorie = filtreCategorie.value;
+      const expert = filtreExpert.value;
+
+      const filtered = tools.filter(tool => {
+        const matchSearch =
+          tool.nom.toLowerCase().includes(search) ||
+          tool.description.toLowerCase().includes(search);
+        const matchType = !type || tool.type === type;
+        const matchCategorie = !categorie || tool.categories.includes(categorie);
+        const matchExpert = !expert || tool.expert === expert;
+        return matchSearch && matchType && matchCategorie && matchExpert;
+      });
+
+      renderToolsWithTooltips(filtered);
     }
+
+    // Événements
+    searchInput.addEventListener("input", applyFilters);
+    filtreType.addEventListener("change", applyFilters);
+    filtreCategorie.addEventListener("change", applyFilters);
+    filtreExpert.addEventListener("change", applyFilters);
+
+    // Affichage initial
+    document.addEventListener("DOMContentLoaded", () => {
+      renderToolsWithTooltips(tools);
+    });
   </script>
 </body>
 </html>
