@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -71,96 +73,105 @@
 </head>
 <body>
 
-<div id="header-placeholder"></div>
+  <div id="header-placeholder"></div>
 
-<main>
-  <div class="filters">
-    <input type="search" id="searchInput" placeholder="Rechercher un mot-clé..." />
-    <select id="toolFilter">
-      <option value="">Tous les outils</option>
-      <option value="chatgpt">ChatGPT</option>
-      <option value="midjourney">Midjourney</option>
-      <option value="firefly">Firefly</option>
-      <option value="claude">Claude</option>
-      <option value="bard">Bard</option>
-      <option value="gemini">Gemini</option>
-      <option value="perplexity">Perplexity</option>
-      <option value="copilot">Copilot</option>
-      <option value="notion">Notion AI</option>
-      <option value="runway">Runway</option>
-    </select>
-  </div>
-  <div id="news-container"></div>
-</main>
+  <main>
+    <div class="filters">
+      <input type="search" id="searchInput" placeholder="Rechercher un mot-clé..." />
+      <select id="toolFilter">
+        <option value="">Tous les outils</option>
+        <option value="chatgpt">ChatGPT</option>
+        <option value="midjourney">Midjourney</option>
+        <option value="firefly">Firefly</option>
+        <option value="claude">Claude</option>
+        <option value="bard">Bard</option>
+        <option value="gemini">Gemini</option>
+        <option value="perplexity">Perplexity</option>
+        <option value="copilot">Copilot</option>
+        <option value="notion">Notion AI</option>
+        <option value="runway">Runway</option>
+      </select>
+    </div>
+    <div id="news-container"></div>
+  </main>
 
-<script>
-  fetch("header.html")
-    .then(r => r.text())
-    .then(html => {
-      document.getElementById("header-placeholder").innerHTML = html;
-      document.getElementById("header-placeholder").style.display = "block";
-      document.querySelector("main").style.display = "block";
-      document.body.style.visibility = "visible";
+  <script>
+    fetch("header.html")
+      .then(r => r.text())
+      .then(html => {
+        const placeholder = document.getElementById("header-placeholder");
+        placeholder.innerHTML = html;
 
-      // ⚠️ Utilise un léger délai pour garantir que le script est chargé
-      setTimeout(() => {
+        const scripts = placeholder.querySelectorAll("script");
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement("script");
+          if (oldScript.src) {
+            newScript.src = oldScript.src;
+          } else {
+            newScript.textContent = oldScript.textContent;
+          }
+          document.body.appendChild(newScript);
+        });
+
+        document.getElementById("header-placeholder").style.display = "block";
+        document.querySelector("main").style.display = "block";
+        document.body.style.visibility = "visible";
+
         if (typeof updateTicketNotif === "function") {
           updateTicketNotif();
         }
-      }, 50);
-    });
+      });
 
-  const url = '/.netlify/functions/fetchNews';
-  let articles = [];
+    const url = '/.netlify/functions/fetchNews';
+    let articles = [];
 
-  function renderArticles() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const tool = document.getElementById('toolFilter').value.toLowerCase();
-    const container = document.getElementById('news-container');
-    container.innerHTML = '';
+    function renderArticles() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const tool = document.getElementById('toolFilter').value.toLowerCase();
+      const container = document.getElementById('news-container');
+      container.innerHTML = '';
 
-    const filtered = articles.filter(article => {
-      const content = `${article.title} ${article.description}`.toLowerCase();
-      return (!searchTerm || content.includes(searchTerm)) &&
-             (!tool || content.includes(tool));
-    });
+      const filtered = articles.filter(article => {
+        const content = `${article.title} ${article.description}`.toLowerCase();
+        return (!searchTerm || content.includes(searchTerm)) &&
+               (!tool || content.includes(tool));
+      });
 
-    if (filtered.length === 0) {
-      container.innerHTML = '<p style="text-align:center">Aucune actualité correspondante.</p>';
-      return;
+      if (filtered.length === 0) {
+        container.innerHTML = '<p style="text-align:center">Aucune actualité correspondante.</p>';
+        return;
+      }
+
+      filtered.forEach(article => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="date">${article.published_at?.split('T')[0] || 'Date inconnue'}</div>
+          <h2>${article.title}</h2>
+          <p class="meta">Source : ${article.source || 'N/A'}</p>
+          <p>${article.description || ''}</p>
+          <p><a href="${article.url}" target="_blank">Lire l'article complet</a></p>
+        `;
+        container.appendChild(card);
+      });
     }
 
-    filtered.forEach(article => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = `
-        <div class="date">${article.published_at?.split('T')[0] || 'Date inconnue'}</div>
-        <h2>${article.title}</h2>
-        <p class="meta">Source : ${article.source || 'N/A'}</p>
-        <p>${article.description || ''}</p>
-        <p><a href="${article.url}" target="_blank">Lire l'article complet</a></p>
-      `;
-      container.appendChild(card);
-    });
-  }
+    fetch(url)
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      })
+      .then(data => {
+        articles = data.data || [];
+        renderArticles();
+      })
+      .catch(error => {
+        console.error('Erreur :', error);
+        document.getElementById('news-container').innerHTML = '<p>Erreur de chargement des actualités.</p>';
+      });
 
-  fetch(url)
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      return response.json();
-    })
-    .then(data => {
-      articles = data.data || [];
-      renderArticles();
-    })
-    .catch(error => {
-      console.error('Erreur :', error);
-      document.getElementById('news-container').innerHTML = '<p>Erreur de chargement des actualités.</p>';
-    });
-
-  document.getElementById('searchInput').addEventListener('input', renderArticles);
-  document.getElementById('toolFilter').addEventListener('change', renderArticles);
-</script>
-
+    document.getElementById('searchInput').addEventListener('input', renderArticles);
+    document.getElementById('toolFilter').addEventListener('change', renderArticles);
+  </script>
 </body>
 </html>
