@@ -4,34 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Demande IA - Espace IA</title>
+  <link rel="stylesheet" href="style.css" />
   <style>
-    body { margin: 0; font-family: sans-serif; background-color: #f0f2f5; }
-    header {
-      background-color: #0077b6;
-      color: white;
-      padding: 20px;
-      text-align: center;
-      font-size: 1.5em;
-      font-weight: bold;
-      position: relative;
+    body {
+      opacity: 0;
+      margin: 0;
+      font-family: sans-serif;
+      background-color: #f0f2f5;
+      transition: opacity 0.3s ease-in;
     }
-    #notif {
-      position: absolute;
-      top: 10px;
-      right: 20px;
-    }
-    #notif-count {
-      background: red;
-      color: white;
-      font-size: 0.75em;
-      padding: 2px 6px;
-      border-radius: 12px;
+    main {
       display: none;
-      min-width: 20px;
-      text-align: center;
-      font-weight: bold;
     }
-    main { padding: 20px; }
     .flex-wrapper {
       display: flex;
       justify-content: center;
@@ -144,13 +128,25 @@
       font-size: 1.5em;
       cursor: pointer;
     }
+    /* Bulle notification dans le header */
+    #notif-count {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: red;
+      color: white;
+      font-size: 0.75em;
+      padding: 2px 6px;
+      border-radius: 12px;
+      display: none;
+      min-width: 20px;
+      text-align: center;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-  <header>
-    Espace IA - Demandes
-    <div id="notif"><span id="notif-count">0</span></div>
-  </header>
+  <div id="header-placeholder"></div>
 
   <main>
     <div class="flex-wrapper">
@@ -233,183 +229,185 @@
     </div>
   </div>
 
-<script>
-  const couleursParChaine = {
-    'Classic 21': 'purple',
-    'La Une': 'red',
-    'Tipik': 'green',
-    'La première': 'blue',
-    'La Trois': 'mediumorchid',
-    'Auvio': 'black',
-    'vivacité': 'orange',
-    'Musiq3': 'hotpink'
-  };
+  <script>
+    // Chargement du header/menu + mise en place de la bulle notification
+    fetch("header.html")
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById("header-placeholder").innerHTML = data;
+        document.body.style.opacity = "1";
+        document.querySelector("main").style.display = "block";
+        mettreAJourBulleDemandes();
+      });
 
-  // Met à jour la bulle de notification
-  function mettreAJourBulleDemandes() {
-    const notif = document.getElementById("notif-count");
-    if (!notif) return;
-    const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-    notif.textContent = demandes.length;
-    notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-  }
+    const couleursParChaine = {
+      'Classic 21': 'purple',
+      'La Une': 'red',
+      'Tipik': 'green',
+      'La première': 'blue',
+      'La Trois': 'mediumorchid',
+      'Auvio': 'black',
+      'vivacité': 'orange',
+      'Musiq3': 'hotpink'
+    };
 
-  function afficherDemandes() {
-    const recapList = document.getElementById("recapList");
-    const filtreNom = document.getElementById("filtreNom").value.toLowerCase();
-    const filtreDate = document.getElementById("filtreDate").value;
-    const filtreDuree = document.getElementById("filtreDuree").value;
-
-    let demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-
-    demandes = demandes.filter(d => d.nom.toLowerCase().includes(filtreNom));
-    if (filtreDuree) {
-      demandes = demandes.filter(d => d.duree === filtreDuree);
+    function mettreAJourBulleDemandes() {
+      const notif = document.getElementById("notif-count");
+      if (!notif) return;
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      notif.textContent = demandes.length;
+      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
     }
 
-    if (filtreDate === "asc") {
-      demandes.sort((a,b) => new Date(a.date) - new Date(b.date));
-    } else if (filtreDate === "desc") {
-      demandes.sort((a,b) => new Date(b.date) - new Date(a.date));
-    }
+    function afficherDemandes() {
+      const recapList = document.getElementById("recapList");
+      const filtreNom = document.getElementById("filtreNom").value.toLowerCase();
+      const filtreDate = document.getElementById("filtreDate").value;
+      const filtreDuree = document.getElementById("filtreDuree").value;
 
-    recapList.innerHTML = "";
+      let demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
 
-    demandes.forEach((d, index) => {
-      const couleur = couleursParChaine[d.chaine] || "#0077b6";
-      const div = document.createElement("div");
-      div.className = "ticket";
-      div.style.borderLeftColor = couleur;
-      div.innerHTML = `
-        <div style="display:flex; justify-content: space-between; align-items:center">
-          <span><strong>${d.nom}</strong></span>
-          <div style="display:flex; align-items:center; gap:12px;">
-            <span style="font-size:1.1em; font-weight: bold;">${d.type}</span>
-            <span>${d.duree}</span>
+      demandes = demandes.filter(d => d.nom.toLowerCase().includes(filtreNom));
+      if (filtreDuree) {
+        demandes = demandes.filter(d => d.duree === filtreDuree);
+      }
+
+      if (filtreDate === "asc") {
+        demandes.sort((a,b) => new Date(a.date) - new Date(b.date));
+      } else if (filtreDate === "desc") {
+        demandes.sort((a,b) => new Date(b.date) - new Date(a.date));
+      }
+
+      recapList.innerHTML = "";
+
+      demandes.forEach((d, index) => {
+        const couleur = couleursParChaine[d.chaine] || "#0077b6";
+        const div = document.createElement("div");
+        div.className = "ticket";
+        div.style.borderLeftColor = couleur;
+        div.innerHTML = `
+          <div style="display:flex; justify-content: space-between; align-items:center">
+            <span><strong>${d.nom}</strong></span>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:1.1em; font-weight: bold;">${d.type}</span>
+              <span>${d.duree}</span>
+            </div>
           </div>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-          <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
-          <small style="color:#666;">📅 ${d.date}</small>
-        </div>
-        <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-          <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
-          <div>
-            ${d.traite ? '' : `<button title="Marquer comme traité" data-index="${index}" class="btn-traite" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">✔️</button>`}
-            <button title="Supprimer" data-index="${index}" class="btn-supprimer" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">🗑️</button>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+            <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
+            <small style="color:#666;">📅 ${d.date}</small>
           </div>
-        </div>
-      `;
+          <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+            <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
+            <div>
+              ${d.traite ? '' : `<button title="Marquer comme traité" data-index="${index}" class="btn-traite" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">✔️</button>`}
+              <button title="Supprimer" data-index="${index}" class="btn-supprimer" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">🗑️</button>
+            </div>
+          </div>
+        `;
 
-      // Affiche le détail dans modal au clic
-      div.addEventListener("click", () => {
-        const modal = document.getElementById("modal");
-        const modalBody = document.getElementById("modal-body");
-        modalBody.textContent = `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}
+        div.addEventListener("click", () => {
+          const modal = document.getElementById("modal");
+          const modalBody = document.getElementById("modal-body");
+          modalBody.textContent = `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}
 Date : ${d.date}
 
 ${d.description}`;
-        modal.style.display = "flex";
+          modal.style.display = "flex";
+        });
+
+        div.querySelector('.btn-supprimer')?.addEventListener('click', e => {
+          e.stopPropagation();
+          supprimerDemande(index);
+        });
+
+        div.querySelector('.btn-traite')?.addEventListener('click', e => {
+          e.stopPropagation();
+          marquerTraite(index);
+        });
+
+        recapList.appendChild(div);
       });
 
-      div.querySelector('.btn-supprimer')?.addEventListener('click', e => {
-        e.stopPropagation();
-        supprimerDemande(index);
-      });
-
-      div.querySelector('.btn-traite')?.addEventListener('click', e => {
-        e.stopPropagation();
-        marquerTraite(index);
-      });
-
-      recapList.appendChild(div);
-    });
-
-    mettreAJourBulleDemandes();
-  }
-
-  function supprimerDemande(index) {
-    const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-    demandes.splice(index, 1);
-    localStorage.setItem("demandesIA", JSON.stringify(demandes));
-    afficherDemandes();
-  }
-
-  function marquerTraite(index) {
-    const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-    demandes[index].traite = true;
-    localStorage.setItem("demandesIA", JSON.stringify(demandes));
-    afficherDemandes();
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    // Remplissage durée
-    const dureeSelect = document.getElementById("duree");
-    for (let i=0; i<=60; i++) {
-      const opt = document.createElement("option");
-      opt.value = `${i} sec`;
-      opt.textContent = `${i} sec`;
-      dureeSelect.appendChild(opt);
+      mettreAJourBulleDemandes();
     }
 
-    // Écoute formulaire
-    const form = document.getElementById("demandeIA");
-    form.addEventListener("submit", async e => {
-      e.preventDefault();
-      const data = new FormData(form);
-      const demande = {
-        nom: data.get("nom"),
-        email: `${data.get("emailPrefix")}@rtbf.be`,
-        type: data.get("type"),
-        support: data.get("support"),
-        duree: data.get("duree"),
-        date: data.get("date"),
-        description: data.get("description"),
-        chaine: data.get("chaine"),
-        traite: false
-      };
-
+    function supprimerDemande(index) {
       const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      demandes.push(demande);
+      demandes.splice(index, 1);
       localStorage.setItem("demandesIA", JSON.stringify(demandes));
+      afficherDemandes();
+    }
 
-      try {
-        const res = await fetch("/.netlify/functions/sendRequest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(demande)
-        });
-        if (!res.ok) throw new Error("Échec de l'envoi du mail");
-        alert("Demande envoyée avec succès et mail transmis !");
-        form.reset();
-        afficherDemandes();
-      } catch (err) {
-        console.error("Erreur d'envoi :", err);
-        alert("Le ticket est créé, mais l'envoi d'e-mail a échoué.");
-        form.reset();
-        afficherDemandes();
+    function marquerTraite(index) {
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      demandes[index].traite = true;
+      localStorage.setItem("demandesIA", JSON.stringify(demandes));
+      afficherDemandes();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const dureeSelect = document.getElementById("duree");
+      for (let i=0; i<=60; i++) {
+        const opt = document.createElement("option");
+        opt.value = `${i} sec`;
+        opt.textContent = `${i} sec`;
+        dureeSelect.appendChild(opt);
       }
+
+      const form = document.getElementById("demandeIA");
+      form.addEventListener("submit", async e => {
+        e.preventDefault();
+        const data = new FormData(form);
+        const demande = {
+          nom: data.get("nom"),
+          email: `${data.get("emailPrefix")}@rtbf.be`,
+          type: data.get("type"),
+          support: data.get("support"),
+          duree: data.get("duree"),
+          date: data.get("date"),
+          description: data.get("description"),
+          chaine: data.get("chaine"),
+          traite: false
+        };
+
+        const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+        demandes.push(demande);
+        localStorage.setItem("demandesIA", JSON.stringify(demandes));
+
+        try {
+          const res = await fetch("/.netlify/functions/sendRequest", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(demande)
+          });
+          if (!res.ok) throw new Error("Échec de l'envoi du mail");
+          alert("Demande envoyée avec succès et mail transmis !");
+          form.reset();
+          afficherDemandes();
+        } catch (err) {
+          console.error("Erreur d'envoi :", err);
+          alert("Le ticket est créé, mais l'envoi d'e-mail a échoué.");
+          form.reset();
+          afficherDemandes();
+        }
+      });
+
+      document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
+      document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
+      document.getElementById("filtreDuree").addEventListener("change", afficherDemandes);
+
+      document.querySelector(".close-modal").addEventListener("click", () => {
+        document.getElementById("modal").style.display = "none";
+      });
+      document.getElementById("modal").addEventListener("click", e => {
+        if (e.target.id === "modal") {
+          e.target.style.display = "none";
+        }
+      });
+
+      afficherDemandes();
     });
-
-    // Écouteurs filtres
-    document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
-    document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
-    document.getElementById("filtreDuree").addEventListener("change", afficherDemandes);
-
-    // Modal fermeture
-    document.querySelector(".close-modal").addEventListener("click", () => {
-      document.getElementById("modal").style.display = "none";
-    });
-    document.getElementById("modal").addEventListener("click", e => {
-      if (e.target.id === "modal") {
-        e.target.style.display = "none";
-      }
-    });
-
-    // Affichage initial
-    afficherDemandes();
-  });
-</script>
-
+  </script>
 </body>
 </html>
