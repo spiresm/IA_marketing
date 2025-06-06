@@ -11,6 +11,11 @@
       margin: 0;
       padding: 0;
       background: #f5f5f5;
+      opacity: 0;
+      transition: opacity 0.3s ease-in;
+    }
+    main {
+      display: none;
     }
     .container {
       max-width: 600px;
@@ -44,28 +49,45 @@
       font-size: 1rem;
       cursor: pointer;
     }
+    .dropzone {
+      padding: 20px;
+      text-align: center;
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      background: #fafafa;
+      color: #666;
+      cursor: pointer;
+    }
+    .dropzone.dragover {
+      background: #e0f7fa;
+      border-color: #0077b6;
+      color: #0077b6;
+    }
   </style>
 </head>
 <body>
   <div id="header-placeholder"></div>
-  <div class="container">
-    <h1 id="form-title">Créer un profil</h1>
-    <form id="profil-form">
-      <input type="text" id="name" placeholder="Nom complet" required />
-      <select id="pole" required>
-        <option value="">-- Sélectionner un pôle --</option>
-        <option value="Pôle créa.">Pôle créa.</option>
-        <option value="CRM">CRM</option>
-        <option value="Communication">Communication</option>
-        <option value="Partenariats">Partenariats</option>
-        <option value="Marketing digital">Marketing digital</option>
-      </select>
-      <input type="url" id="photo" placeholder="URL de la photo" />
-      <label>Outils IA maîtrisés :</label>
-      <div id="tools-list"></div>
-      <button type="submit" id="submit-btn">Créer</button>
-    </form>
-  </div>
+  <main>
+    <div class="container">
+      <h1 id="form-title">Créer un profil</h1>
+      <form id="profil-form">
+        <input type="text" id="name" placeholder="Nom complet" required />
+        <select id="pole" required>
+          <option value="">-- Sélectionner un pôle --</option>
+          <option value="Pôle créa.">Pôle créa.</option>
+          <option value="CRM">CRM</option>
+          <option value="Communication">Communication</option>
+          <option value="Partenariats">Partenariats</option>
+          <option value="Marketing digital">Marketing digital</option>
+        </select>
+        <input type="url" id="photo" placeholder="URL de la photo" />
+        <div class="dropzone" id="dropzone">Glisser-déposer une image ici ou cliquer</div>
+        <label>Outils IA maîtrisés :</label>
+        <div id="tools-list"></div>
+        <button type="submit" id="submit-btn">Créer</button>
+      </form>
+    </div>
+  </main>
 
   <script>
     const allTools = [
@@ -88,7 +110,11 @@
       .then(response => response.text())
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
-        mettreAJourBulleDemandes();
+        requestAnimationFrame(() => {
+          document.body.style.opacity = "1";
+          document.querySelector("main").style.display = "block";
+          mettreAJourBulleDemandes();
+        });
       });
 
     const params = new URLSearchParams(window.location.search);
@@ -102,6 +128,7 @@
     const toolsDiv = document.getElementById("tools-list");
     const title = document.getElementById("form-title");
     const submitBtn = document.getElementById("submit-btn");
+    const dropzone = document.getElementById("dropzone");
 
     allTools.forEach(tool => {
       const label = document.createElement("label");
@@ -124,6 +151,39 @@
         const cb = [...toolsDiv.querySelectorAll("input")].find(c => c.value === t);
         if (cb) cb.checked = true;
       });
+    }
+
+    dropzone.addEventListener("click", () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = e => handleFileUpload(e.target.files[0]);
+      input.click();
+    });
+
+    dropzone.addEventListener("dragover", e => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("dragover");
+    });
+
+    dropzone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      if (e.dataTransfer.files.length) {
+        handleFileUpload(e.dataTransfer.files[0]);
+      }
+    });
+
+    function handleFileUpload(file) {
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        photoInput.value = evt.target.result;
+      };
+      reader.readAsDataURL(file);
     }
 
     document.getElementById("profil-form").addEventListener("submit", function(e) {
