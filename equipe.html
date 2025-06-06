@@ -84,6 +84,11 @@
       height: 220px;
       overflow: hidden;
       cursor: move;
+      transition: box-shadow 0.2s;
+    }
+
+    .vignette:hover {
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
 
     .vignette h2 {
@@ -138,6 +143,12 @@
     .drag-over {
       outline: 2px dashed #0077b6;
     }
+
+    .vignette a {
+      text-decoration: none;
+      color: inherit;
+      flex: 1;
+    }
   </style>
 </head>
 <body>
@@ -178,13 +189,6 @@
       });
     }
 
-    function enregistrerOrdre() {
-      const nouvellesFiches = Array.from(document.querySelectorAll('.vignette'));
-      const nomsOrdonnés = nouvellesFiches.map(div => div.dataset.nom);
-      profils.sort((a, b) => nomsOrdonnés.indexOf(a.name) - nomsOrdonnés.indexOf(b.name));
-      localStorage.setItem("profilsEquipe", JSON.stringify(profils));
-    }
-
     function afficherProfils() {
       const filtre = filterSelect.value;
       profilsList.innerHTML = "";
@@ -204,19 +208,25 @@
         div.draggable = true;
         div.dataset.nom = profil.name;
 
-        div.innerHTML = `
-          <div>
-            <h2>${profil.name}</h2>
-            ${profil.photo ? `<img src="${profil.photo}" alt="Photo de ${profil.name}" />` : ""}
-            <div class="competences">${profil.tools.join(", ")}</div>
-          </div>
-          <button class="btn-delete" onclick="supprimerProfil(${index})">Supprimer</button>
+        const content = document.createElement("a");
+        content.href = `fiche.html?nom=${encodeURIComponent(profil.name)}`;
+        content.innerHTML = `
+          <h2>${profil.name}</h2>
+          ${profil.photo ? `<img src="${profil.photo}" alt="Photo de ${profil.name}" />` : ""}
+          <div class="competences">${profil.tools.join(", ")}</div>
         `;
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "btn-delete";
+        deleteBtn.textContent = "Supprimer";
+        deleteBtn.onclick = (e) => {
+          e.preventDefault();
+          supprimerProfil(index);
+        };
 
         // Drag events
         div.addEventListener("dragstart", (e) => {
           e.dataTransfer.setData("text/plain", profil.name);
-          e.currentTarget.classList.add("dragging");
         });
 
         div.addEventListener("dragover", (e) => {
@@ -242,10 +252,8 @@
           }
         });
 
-        div.addEventListener("dragend", (e) => {
-          e.currentTarget.classList.remove("dragging");
-        });
-
+        div.appendChild(content);
+        div.appendChild(deleteBtn);
         profilsList.appendChild(div);
       });
     }
