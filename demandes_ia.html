@@ -7,21 +7,14 @@
   <link rel="stylesheet" href="style.css" />
   <style>
     body {
-      visibility: hidden;
+      opacity: 0;
       margin: 0;
       font-family: sans-serif;
       background-color: #f0f2f5;
+      transition: opacity 0.3s ease-in;
     }
     main {
       display: none;
-    }
-    header {
-      background-color: #0077b6;
-      color: white;
-      padding: 20px;
-      text-align: center;
-      font-size: 1.5em;
-      font-weight: bold;
     }
     .flex-wrapper {
       display: flex;
@@ -77,16 +70,6 @@
     button:hover {
       background-color: #005f8a;
     }
-    button.loading {
-      opacity: 0.6;
-      pointer-events: none;
-      animation: pulse 1.2s infinite;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.02); }
-      100% { transform: scale(1); }
-    }
     .recap {
       flex: 0 1 320px;
       background: #f9fafb;
@@ -102,7 +85,6 @@
       margin-bottom: 10px;
     }
     .ticket {
-      position: relative;
       background: white;
       padding: 12px 14px;
       margin-bottom: 12px;
@@ -110,9 +92,6 @@
       border-radius: 8px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       font-size: 0.95em;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
     }
     .ticket span {
       display: block;
@@ -122,7 +101,6 @@
 </head>
 <body>
   <div id="header-placeholder"></div>
-
   <main>
     <div class="flex-wrapper">
       <div class="container">
@@ -176,27 +154,27 @@
       </div>
       <div class="recap">
         <h3>Récapitulatif des demandes</h3>
-        <div style="margin-bottom: 10px;">
-          <input type="text" id="filtreNom" placeholder="Filtrer par nom" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
-          <select id="filtreDate" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-            <option value="">Trier par date</option>
-            <option value="asc">Date croissante</option>
-            <option value="desc">Date décroissante</option>
-          </select>
-        </div>
+        <input type="text" id="filtreNom" placeholder="Filtrer par nom" style="width:100%; margin-bottom:10px; padding:8px; border-radius:6px;">
+        <select id="filtreDate" style="width:100%; padding:8px; border-radius:6px;">
+          <option value="">Trier par date</option>
+          <option value="asc">Date croissante</option>
+          <option value="desc">Date décroissante</option>
+        </select>
         <div id="recapList"></div>
       </div>
     </div>
   </main>
-
-  <div id="modal">
-    <div class="modal-content">
-      <button class="close-modal" title="Fermer">&times;</button>
-      <div class="modal-body" id="modal-body"></div>
-    </div>
-  </div>
-
   <script>
+    fetch("header.html")
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById("header-placeholder").innerHTML = data;
+        document.body.style.opacity = "1";
+        document.querySelector("main").style.display = "block";
+        mettreAJourBulleDemandes();
+        afficherDemandes();
+      });
+
     function mettreAJourBulleDemandes() {
       const notif = document.getElementById("notif-count");
       if (!notif) return;
@@ -205,27 +183,41 @@
       notif.style.display = demandes.length > 0 ? "inline-block" : "none";
     }
 
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => {
-        document.getElementById("header-placeholder").innerHTML = data;
-        document.body.style.visibility = "visible";
-        document.querySelector("main").style.display = "block";
-        mettreAJourBulleDemandes();
+    function afficherDemandes() {
+      const recap = document.getElementById("recapList");
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      recap.innerHTML = "";
+      demandes.forEach(demande => {
+        recap.innerHTML += `
+          <div class="ticket">
+            <span><strong>${demande.nom}</strong> – ${demande.type}</span>
+            <span>${demande.date}</span>
+            <span>${demande.description}</span>
+          </div>
+        `;
       });
-  </script>
+    }
 
-  <script>
-    const couleursParChaine = {
-      'Classic 21': 'purple',
-      'La Une': 'red',
-      'Tipik': 'green',
-      'La première': 'blue',
-      'La Trois': 'mediumorchid',
-      'Auvio': 'black',
-      'vivacité': 'orange',
-      'Musiq3': 'hotpink'
-    };
+    document.getElementById("demandeIA").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const data = {
+        nom: form.nom.value,
+        email: form.emailPrefix.value + "@rtbf.be",
+        type: form.type.value,
+        support: form.support.value,
+        chaine: form.chaine.value,
+        duree: form.duree.value,
+        date: form.date.value,
+        description: form.description.value
+      };
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      demandes.push(data);
+      localStorage.setItem("demandesIA", JSON.stringify(demandes));
+      form.reset();
+      afficherDemandes();
+      mettreAJourBulleDemandes();
+    });
 
     document.addEventListener("DOMContentLoaded", () => {
       const dureeSelect = document.getElementById("duree");
@@ -235,10 +227,6 @@
         opt.textContent = `${i} sec`;
         dureeSelect.appendChild(opt);
       }
-
-      // Le reste de ton script de gestion des demandes reste inchangé
-      // ...
-      // Comme il dépasse le message, je peux le renvoyer dans la suite si tu veux
     });
   </script>
 </body>
