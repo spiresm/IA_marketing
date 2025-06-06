@@ -81,39 +81,6 @@
       margin-bottom: 10px;
       border: 2px solid #0077b6;
     }
-    .note-section, .note-card {
-      max-width: 600px;
-      margin: 40px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      display: none;
-    }
-    .note-section h3, .note-card h3 {
-      margin-top: 0;
-    }
-    .note-section textarea {
-      width: 100%;
-      height: 150px;
-      padding: 10px;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    .note-section button, .note-card button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      background: #0077b6;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .note-section .back-btn, .note-card .back-btn {
-      background: #444;
-      margin-right: 10px;
-    }
   </style>
 </head>
 <body>
@@ -130,52 +97,12 @@
   <script>
     const members = ['elise', 'yasmine', 'elvis', 'naim', 'philippe', 'sabrina', 'dominique', 'jeremy'];
 
-    members.forEach(id => {
-      const section = document.createElement('div');
-      section.innerHTML = `
-        <div id="${id}-card" class="note-card">
-          <h3>Notes de ${id.charAt(0).toUpperCase() + id.slice(1)}</h3>
-          <p id="${id}-content"></p>
-          <button onclick="editNote('${id}')">✏️ Éditer</button>
-          <button class="back-btn" onclick="goBack()">← Retour à l'équipe</button>
-        </div>
-        <div id="${id}-note" class="note-section">
-          <h3>Éditer les notes de ${id.charAt(0).toUpperCase() + id.slice(1)}</h3>
-          <textarea id="${id}-text"></textarea>
-          <div>
-            <button class="back-btn" onclick="goBack()">← Retour</button>
-            <button onclick="saveNote('${id}')">Enregistrer</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(section);
-    });
-
-    function showCard(id) {
-      document.getElementById('team-section').style.display = 'none';
-      document.getElementById(id + '-card').style.display = 'block';
-    }
-
-    function editNote(id) {
-      document.getElementById(id + '-card').style.display = 'none';
-      document.getElementById(id + '-note').style.display = 'block';
-    }
-
-    function goBack() {
-      members.concat(['profilUtilisateur']).forEach(id => {
-        const note = document.getElementById(id + '-note');
-        const card = document.getElementById(id + '-card');
-        if (note) note.style.display = 'none';
-        if (card) card.style.display = 'none';
-      });
-      document.getElementById('team-section').style.display = 'grid';
-    }
-
-    function saveNote(id) {
-      const content = document.getElementById(id + '-text').value;
-      document.getElementById(id + '-note').style.display = 'none';
-      document.getElementById(id + '-content').textContent = content;
-      document.getElementById(id + '-card').style.display = 'block';
+    function mettreAJourBulleDemandes() {
+      const notif = document.getElementById("notif-count");
+      if (!notif) return;
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      notif.textContent = demandes.length;
+      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
     }
 
     fetch("header.html")
@@ -197,7 +124,6 @@
         members.forEach(id => {
           const div = document.createElement('div');
           div.className = "team-member";
-          div.setAttribute("onclick", `showCard('${id}')`);
           div.innerHTML = `
             <img src="images/${id}.jpg" alt="Photo de ${id}" class="member-photo">
             <h3>${id.charAt(0).toUpperCase() + id.slice(1)}</h3>
@@ -205,50 +131,6 @@
           `;
           teamSection.appendChild(div);
         });
-
-        fetch("/profil")
-          .then(res => res.json())
-          .then(profil => {
-            if (!profil || !profil.nom) return;
-            const id = 'profilUtilisateur';
-            const div = document.createElement('div');
-            div.className = "team-member";
-            div.setAttribute("onclick", `showCard('${id}')`);
-            div.innerHTML = `
-              <img src="${profil.photo}" alt="Photo de ${profil.nom}" class="member-photo">
-              <h3>${profil.nom}</h3>
-              <p>${profil.fonction}</p>
-            `;
-            teamSection.appendChild(div);
-
-            const section = document.createElement('div');
-            section.innerHTML = `
-              <div id="${id}-card" class="note-card">
-                <h3>${profil.nom}</h3>
-                <p><strong>Poste :</strong> ${profil.fonction}</p>
-                <p><strong>Équipe :</strong> ${profil.equipe}</p>
-                <p><strong>Description :</strong> ${profil.description}</p>
-                <p><strong>Email :</strong> <a href="mailto:${profil.email}">${profil.email}</a></p>
-                <p><strong>Téléphone :</strong> ${profil.tel}</p>
-                <p><strong>LinkedIn :</strong> <a href="${profil.linkedin}" target="_blank">${profil.linkedin}</a></p>
-                <p><strong>Outils IA maîtrisés :</strong> ${Array.isArray(profil.outils) ? profil.outils.join(', ') : ''}</p>
-                <hr>
-                <p><strong>Notes :</strong></p>
-                <p id="${id}-content">${profil.note || ''}</p>
-                <button onclick="editNote('${id}')">✏️ Éditer</button>
-                <button class="back-btn" onclick="goBack()">← Retour à l'équipe</button>
-              </div>
-              <div id="${id}-note" class="note-section">
-                <h3>Éditer les notes de ${profil.nom}</h3>
-                <textarea id="${id}-text">${profil.note || ''}</textarea>
-                <div>
-                  <button class="back-btn" onclick="goBack()">← Retour</button>
-                  <button onclick="saveNote('${id}')">Enregistrer</button>
-                </div>
-              </div>
-            `;
-            document.body.appendChild(section);
-          });
       });
   </script>
 </body>
