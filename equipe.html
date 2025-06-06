@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Équipe - Droit à l'image et IA</title>
+  <title>Equipe - Droit à l'image et IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
     body {
@@ -11,6 +11,8 @@
       transition: opacity 0.3s ease-in;
       margin: 0;
       font-family: sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
     }
 
     main {
@@ -49,18 +51,15 @@
       background-color: #005f94;
     }
 
-    .btn-create span {
-      font-size: 1.4rem;
-      margin-right: 8px;
-    }
-
     .filter-container {
-      margin-bottom: 20px;
       text-align: center;
+      margin-bottom: 20px;
     }
 
-    select {
+    .filter-container select,
+    .filter-container input {
       padding: 10px;
+      margin: 5px;
       border-radius: 6px;
       border: 1px solid #ccc;
       font-size: 1rem;
@@ -80,15 +79,14 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
       height: 240px;
-      overflow: hidden;
       cursor: grab;
-      transition: box-shadow 0.2s;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
     .vignette:hover {
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
     }
 
     .vignette h2 {
@@ -102,8 +100,8 @@
 
     .vignette .pole {
       font-size: 0.85rem;
-      color: #777;
-      margin-bottom: 5px;
+      font-weight: bold;
+      margin-bottom: 6px;
     }
 
     .vignette img {
@@ -124,7 +122,6 @@
 
     .competences {
       font-size: 0.9rem;
-      color: #333;
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -136,10 +133,7 @@
       margin-top: auto;
     }
 
-    .btn-delete,
-    .btn-edit {
-      background-color: #0077b6;
-      color: white;
+    .btn-edit, .btn-delete {
       padding: 6px 12px;
       border: none;
       border-radius: 6px;
@@ -147,16 +141,14 @@
       cursor: pointer;
     }
 
+    .btn-edit {
+      background-color: #0077b6;
+      color: white;
+    }
+
     .btn-delete {
       background-color: #e63946;
-    }
-
-    .btn-delete:hover {
-      background-color: #c62828;
-    }
-
-    .btn-edit:hover {
-      background-color: #005f94;
+      color: white;
     }
 
     .drag-over {
@@ -166,9 +158,8 @@
     .no-profil {
       font-style: italic;
       color: #555;
-      margin-top: 20px;
-      grid-column: 1 / -1;
       text-align: center;
+      grid-column: 1 / -1;
     }
   </style>
 </head>
@@ -182,9 +173,12 @@
       </div>
 
       <div class="filter-container">
-        <label for="filter">Filtrer par outil IA :</label>
+        <input type="text" id="search" placeholder="Rechercher un nom...">
         <select id="filter">
           <option value="all">Tous les outils</option>
+        </select>
+        <select id="pole-filter">
+          <option value="all">Tous les pôles</option>
         </select>
       </div>
 
@@ -195,6 +189,8 @@
   <script>
     const profilsList = document.getElementById("profils-list");
     const filterSelect = document.getElementById("filter");
+    const poleFilter = document.getElementById("pole-filter");
+    const searchInput = document.getElementById("search");
 
     let profils = [];
 
@@ -210,16 +206,33 @@
       });
     }
 
+    function chargerPolesDisponibles() {
+      const polesSet = new Set();
+      profils.forEach(p => p.pole && polesSet.add(p.pole));
+
+      [...polesSet].sort().forEach(pole => {
+        const opt = document.createElement("option");
+        opt.value = pole;
+        opt.textContent = pole;
+        poleFilter.appendChild(opt);
+      });
+    }
+
     function afficherProfils() {
       const filtre = filterSelect.value;
+      const filtrePole = poleFilter.value;
+      const recherche = searchInput.value.toLowerCase();
+
       profilsList.innerHTML = "";
 
-      const filtresProfils = profils.filter(profil =>
-        filtre === "all" || profil.tools.includes(filtre)
+      const filtresProfils = profils.filter(p =>
+        (filtre === "all" || p.tools.includes(filtre)) &&
+        (filtrePole === "all" || p.pole === filtrePole) &&
+        (p.name.toLowerCase().includes(recherche))
       );
 
       if (filtresProfils.length === 0) {
-        profilsList.innerHTML = "<p class='no-profil'>Aucun profil ne correspond au filtre.</p>";
+        profilsList.innerHTML = "<p class='no-profil'>Aucun profil ne correspond aux filtres.</p>";
         return;
       }
 
@@ -231,8 +244,8 @@
 
         div.innerHTML = `
           <h2>${profil.name}</h2>
-          <div class="pole">${profil.pole || ''}</div>
-          ${profil.photo ? `<img src="${profil.photo}" alt="Photo de ${profil.name}" />` : ""}
+          <div class="pole" style="color:${getBadgeColor(profil.pole)}">${profil.pole || ''}</div>
+          ${profil.photo ? `<img src="${profil.photo}" alt="${profil.name}" />` : ""}
           <div class="competences">${profil.tools.join(", ")}</div>
           <div class="btn-group">
             <button class="btn-edit" onclick="window.location.href='fiche.html?nom=${encodeURIComponent(profil.name)}'">Éditer</button>
@@ -240,28 +253,22 @@
           </div>
         `;
 
-        // Drag logic
-        div.addEventListener("dragstart", (e) => {
-          e.dataTransfer.setData("index", index);
-        });
+        div.addEventListener("dragstart", e => e.dataTransfer.setData("index", index));
 
-        div.addEventListener("dragover", (e) => {
+        div.addEventListener("dragover", e => {
           e.preventDefault();
           e.currentTarget.classList.add("drag-over");
         });
 
-        div.addEventListener("dragleave", (e) => {
-          e.currentTarget.classList.remove("drag-over");
-        });
+        div.addEventListener("dragleave", e => e.currentTarget.classList.remove("drag-over"));
 
-        div.addEventListener("drop", (e) => {
+        div.addEventListener("drop", e => {
           e.preventDefault();
-          const fromIndex = parseInt(e.dataTransfer.getData("index"));
-          const toIndex = parseInt(e.currentTarget.dataset.index);
-
-          if (fromIndex !== toIndex) {
-            const [moved] = profils.splice(fromIndex, 1);
-            profils.splice(toIndex, 0, moved);
+          const from = parseInt(e.dataTransfer.getData("index"));
+          const to = parseInt(e.currentTarget.dataset.index);
+          if (from !== to) {
+            const [moved] = profils.splice(from, 1);
+            profils.splice(to, 0, moved);
             localStorage.setItem("profilsEquipe", JSON.stringify(profils));
             afficherProfils();
           }
@@ -275,6 +282,16 @@
       });
     }
 
+    function getBadgeColor(pole) {
+      return {
+        "CRM": "#ffb703",
+        "Pôle Créa.": "#7209b7",
+        "Communication": "#219ebc",
+        "Partenariats": "#8ecae6",
+        "Marketing digital": "#e76f51"
+      }[pole] || "#aaa";
+    }
+
     function supprimerProfil(index) {
       if (!confirm("Supprimer ce profil ?")) return;
       profils.splice(index, 1);
@@ -282,17 +299,19 @@
       afficherProfils();
     }
 
-    filterSelect.addEventListener("change", afficherProfils);
+    [filterSelect, poleFilter, searchInput].forEach(el => el.addEventListener("change", afficherProfils));
+    searchInput.addEventListener("input", afficherProfils);
 
     fetch("header.html")
-      .then(response => response.text())
-      .then(data => {
-        document.getElementById("header-placeholder").innerHTML = data;
+      .then(r => r.text())
+      .then(header => {
+        document.getElementById("header-placeholder").innerHTML = header;
         requestAnimationFrame(() => {
           document.body.style.opacity = "1";
           document.querySelector("main").style.display = "block";
           profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
           chargerOutilsDisponibles();
+          chargerPolesDisponibles();
           afficherProfils();
         });
       });
