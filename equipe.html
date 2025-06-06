@@ -180,15 +180,23 @@
     filterPole.addEventListener("change", renderProfils);
     searchInput.addEventListener("input", renderProfils);
 
+    function normalizeString(str) {
+      return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    }
+
     function renderProfils() {
-      const selectedPole = filterPole.value.toLowerCase();
-      const searchQuery = searchInput.value.toLowerCase();
+      const selectedPole = normalizeString(filterPole.value);
+      const searchQuery = normalizeString(searchInput.value);
       listContainer.innerHTML = "";
       profils.forEach((p, index) => {
-        const matchPole = !selectedPole || (p.pole || '').toLowerCase() === selectedPole;
+        const poleNormalized = normalizeString(p.pole || '');
+        const nameNormalized = normalizeString(p.name || '');
+        const toolsNormalized = (p.tools || []).map(t => normalizeString(t));
+
+        const matchPole = !selectedPole || poleNormalized === selectedPole;
         const matchSearch = !searchQuery ||
-          (p.name && p.name.toLowerCase().includes(searchQuery)) ||
-          (p.tools && p.tools.some(tool => tool.toLowerCase().includes(searchQuery)));
+          nameNormalized.includes(searchQuery) ||
+          toolsNormalized.some(tool => tool.includes(searchQuery));
 
         if (matchPole && matchSearch) {
           const div = document.createElement("div");
