@@ -6,6 +6,7 @@
   <title>Outils IA - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <script src="notif.js"></script>
+  <script src="tools-full.js"></script> <!-- charge la liste complète -->
   <style>
     body {
       opacity: 0;
@@ -64,38 +65,13 @@
         </select>
         <select id="filtre-expert">
           <option value="">Tous les experts</option>
-          <option value="expert1">expert1</option>
-          <option value="expert2">expert2</option>
         </select>
       </div>
-
       <div class="grid" id="tools-grid"></div>
     </div>
   </main>
 
   <script>
-    // Exemple d'outils à afficher (à remplacer ou compléter par tools-full.js si tu le gardes)
-    const tools = [
-      {
-        nom: "GPT Rédacteur",
-        description: "Un outil de rédaction intelligent",
-        info: "Idéal pour créer des articles, emails ou contenus SEO.",
-        type: "texte",
-        categories: ["redaction", "generation"],
-        expert: "expert1",
-        lien: "#"
-      },
-      {
-        nom: "AI Painter",
-        description: "Crée des images à partir de prompts",
-        info: "Outil de génération d’images IA.",
-        type: "image",
-        categories: ["generation"],
-        expert: "expert2",
-        lien: "#"
-      }
-    ];
-
     function renderToolsWithTooltips(filteredTools) {
       const grid = document.getElementById("tools-grid");
       grid.innerHTML = "";
@@ -132,14 +108,24 @@
           tool.description.toLowerCase().includes(search);
         const matchType = !type || tool.type === type;
         const matchCategorie = !categorie || tool.categories.includes(categorie);
-        const matchExpert = !expert || tool.expert === expert;
+        const matchExpert = !expert || (tool.expert === expert || tool.expert?.includes(expert));
         return matchSearch && matchType && matchCategorie && matchExpert;
       });
 
       renderToolsWithTooltips(filtered);
     }
 
-    // Chargement du header + affichage des outils
+    function populateExpertOptions() {
+      const expertSelect = document.getElementById("filtre-expert");
+      const experts = Array.from(new Set(tools.map(t => t.expert).filter(Boolean)));
+      experts.forEach(exp => {
+        const opt = document.createElement("option");
+        opt.value = exp;
+        opt.textContent = exp;
+        expertSelect.appendChild(opt);
+      });
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       fetch("header.html")
         .then(res => res.text())
@@ -152,13 +138,16 @@
         })
         .finally(() => {
           document.body.style.opacity = "1";
-          renderToolsWithTooltips(tools);
-
-          // Activer les filtres
-          document.getElementById("search").addEventListener("input", applyFilters);
-          document.getElementById("filtre-type").addEventListener("change", applyFilters);
-          document.getElementById("filtre-categorie").addEventListener("change", applyFilters);
-          document.getElementById("filtre-expert").addEventListener("change", applyFilters);
+          if (typeof tools !== "undefined") {
+            populateExpertOptions();
+            renderToolsWithTooltips(tools);
+            document.getElementById("search").addEventListener("input", applyFilters);
+            document.getElementById("filtre-type").addEventListener("change", applyFilters);
+            document.getElementById("filtre-categorie").addEventListener("change", applyFilters);
+            document.getElementById("filtre-expert").addEventListener("change", applyFilters);
+          } else {
+            console.error("tools n'est pas défini. Assure-toi que tools-full.js est bien chargé.");
+          }
 
           if (typeof updateTicketNotif === "function") {
             updateTicketNotif();
