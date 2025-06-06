@@ -37,6 +37,7 @@
       text-decoration: none;
       transition: background-color 0.3s ease;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
     }
 
     .btn-create:hover {
@@ -48,40 +49,59 @@
       margin-right: 8px;
     }
 
+    .filter-container {
+      margin-bottom: 20px;
+    }
+
+    select {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+
+    .profils-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
     .vignette {
       background: white;
-      padding: 20px;
-      margin-top: 20px;
+      padding: 15px;
       border-left: 5px solid #0077b6;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 220px;
+      overflow: hidden;
     }
 
     .vignette h2 {
       color: #0077b6;
-      margin-top: 0;
+      font-size: 1.2rem;
+      margin: 0 0 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .vignette img {
-      max-width: 120px;
-      border-radius: 8px;
-      margin: 10px 0;
-      display: block;
+      max-width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 10px;
     }
 
-    .vignette ul {
-      margin: 10px 0;
-      padding-left: 20px;
-    }
-
-    .vignette ul li {
-      margin-bottom: 6px;
-    }
-
-    .no-profil {
-      margin-top: 30px;
-      font-style: italic;
-      color: #555;
+    .competences {
+      font-size: 0.9rem;
+      color: #333;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
     }
 
     .btn-delete {
@@ -92,11 +112,18 @@
       border-radius: 6px;
       font-size: 0.9rem;
       cursor: pointer;
-      margin-top: 10px;
+      margin-top: auto;
+      align-self: flex-start;
     }
 
     .btn-delete:hover {
       background-color: #c62828;
+    }
+
+    .no-profil {
+      font-style: italic;
+      color: #555;
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -107,35 +134,62 @@
     <div class="container">
       <a href="profil.html" class="btn-create"><span>+</span>Créer un nouveau profil</a>
 
-      <div id="profils-list"></div>
+      <div class="filter-container">
+        <label for="filter">Filtrer par outil IA :</label>
+        <select id="filter">
+          <option value="all">Tous les outils</option>
+        </select>
+      </div>
+
+      <div id="profils-list" class="profils-grid"></div>
     </div>
   </main>
 
   <script>
+    const profilsList = document.getElementById("profils-list");
+    const filterSelect = document.getElementById("filter");
+
+    function chargerOutilsDisponibles(profils) {
+      const outilsSet = new Set();
+      profils.forEach(p => p.tools.forEach(t => outilsSet.add(t)));
+
+      [...outilsSet].sort().forEach(outil => {
+        const opt = document.createElement("option");
+        opt.value = outil;
+        opt.textContent = outil;
+        filterSelect.appendChild(opt);
+      });
+    }
+
     function afficherProfils() {
-      const container = document.getElementById("profils-list");
       const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
+      const filtre = filterSelect.value;
 
-      container.innerHTML = "";
+      profilsList.innerHTML = "";
 
-      if (profils.length === 0) {
-        container.innerHTML = "<p class='no-profil'>Aucun profil enregistré.</p>";
+      const filtresProfils = profils.filter(profil =>
+        filtre === "all" || profil.tools.includes(filtre)
+      );
+
+      if (filtresProfils.length === 0) {
+        profilsList.innerHTML = "<p class='no-profil'>Aucun profil ne correspond au filtre.</p>";
         return;
       }
 
-      profils.forEach((profil, index) => {
+      filtresProfils.forEach((profil, index) => {
         const div = document.createElement("div");
         div.className = "vignette";
 
         div.innerHTML = `
-          <h2>${profil.name}</h2>
-          ${profil.photo ? `<img src="${profil.photo}" alt="Photo de ${profil.name}" />` : ""}
-          <p><strong>Outils maîtrisés :</strong></p>
-          <ul>${profil.tools.map(tool => `<li>${tool}</li>`).join("")}</ul>
+          <div>
+            <h2>${profil.name}</h2>
+            ${profil.photo ? `<img src="${profil.photo}" alt="Photo de ${profil.name}" />` : ""}
+            <div class="competences">${profil.tools.join(", ")}</div>
+          </div>
           <button class="btn-delete" onclick="supprimerProfil(${index})">Supprimer</button>
         `;
 
-        container.appendChild(div);
+        profilsList.appendChild(div);
       });
     }
 
@@ -147,6 +201,8 @@
       afficherProfils();
     }
 
+    filterSelect.addEventListener("change", afficherProfils);
+
     fetch("header.html")
       .then(response => response.text())
       .then(data => {
@@ -154,6 +210,9 @@
         requestAnimationFrame(() => {
           document.body.style.opacity = "1";
           document.querySelector("main").style.display = "block";
+
+          const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
+          chargerOutilsDisponibles(profils);
           afficherProfils();
         });
       });
