@@ -49,24 +49,10 @@
       font-size: 1rem;
       cursor: pointer;
     }
-    .dropzone {
-      padding: 20px;
-      text-align: center;
-      border: 2px dashed #ccc;
-      border-radius: 10px;
-      background: #fafafa;
-      color: #666;
-      cursor: pointer;
-    }
-    .dropzone.dragover {
-      background: #e0f7fa;
-      border-color: #0077b6;
-      color: #0077b6;
-    }
     #image-preview {
       max-width: 100px;
       margin: auto;
-      display: block;
+      display: none;
       border-radius: 8px;
     }
   </style>
@@ -86,8 +72,9 @@
           <option value="Partenariats">Partenariats</option>
           <option value="Marketing digital">Marketing digital</option>
         </select>
-        <div class="dropzone" id="dropzone">Glisser-déposer une image ici ou cliquer</div>
-        <img id="image-preview" style="display:none;" alt="Aperçu image" />
+        <label>Image de profil :</label>
+        <input type="file" id="photo-upload" accept="image/*" />
+        <img id="image-preview" alt="Aperçu image" />
         <label>Outils IA maîtrisés :</label>
         <div id="tools-list"></div>
         <button type="submit" id="submit-btn">Créer</button>
@@ -104,6 +91,8 @@
       "Jules", "Devstral", "Codeium", "Bolt"
     ];
 
+    let uploadedImagePath = "";
+
     const params = new URLSearchParams(window.location.search);
     const editName = decodeURIComponent(params.get("edit") || "");
     const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
@@ -114,9 +103,8 @@
     const toolsDiv = document.getElementById("tools-list");
     const title = document.getElementById("form-title");
     const submitBtn = document.getElementById("submit-btn");
-    const dropzone = document.getElementById("dropzone");
+    const photoInput = document.getElementById("photo-upload");
     const imagePreview = document.getElementById("image-preview");
-    let uploadedPhoto = "";
 
     function mettreAJourBulleDemandes() {
       const notif = document.getElementById("notif-count");
@@ -153,9 +141,9 @@
             nameInput.value = editingProfil.name;
             poleSelect.value = editingProfil.pole || "";
             if (editingProfil.photo) {
-              imagePreview.src = editingProfil.photo;
+              uploadedImagePath = editingProfil.photo;
+              imagePreview.src = uploadedImagePath;
               imagePreview.style.display = "block";
-              uploadedPhoto = editingProfil.photo;
             }
             (editingProfil.tools || []).forEach(t => {
               const cb = [...toolsDiv.querySelectorAll("input")].find(c => c.value === t);
@@ -163,47 +151,34 @@
             });
           }
 
-          dropzone.addEventListener("click", () => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = "image/*";
-            input.onchange = e => handleFileUpload(e.target.files[0]);
-            input.click();
-          });
+          photoInput.addEventListener("change", async e => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-          dropzone.addEventListener("dragover", e => {
-            e.preventDefault();
-            dropzone.classList.add("dragover");
-          });
+            const formData = new FormData();
+            formData.append("image", file);
 
-          dropzone.addEventListener("dragleave", () => {
-            dropzone.classList.remove("dragover");
-          });
+            const res = await fetch("/.netlify/functions/uploadImage", {
+              method: "POST",
+              body: formData
+            });
 
-          dropzone.addEventListener("drop", e => {
-            e.preventDefault();
-            dropzone.classList.remove("dragover");
-            if (e.dataTransfer.files.length) {
-              handleFileUpload(e.dataTransfer.files[0]);
+            if (res.ok) {
+              const result = await res.json();
+              uploadedImagePath = result.imageUrl;
+              imagePreview.src = uploadedImagePath;
+              imagePreview.style.display = "block";
+            } else {
+              alert("Échec de l'upload de l'image");
             }
           });
-
-          function handleFileUpload(file) {
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-              uploadedPhoto = evt.target.result;
-              imagePreview.src = uploadedPhoto;
-              imagePreview.style.display = "block";
-            };
-            reader.readAsDataURL(file);
-          }
 
           document.getElementById("profil-form").addEventListener("submit", function(e) {
             e.preventDefault();
             const updatedProfil = {
               name: nameInput.value.trim(),
               pole: poleSelect.value,
-              photo: uploadedPhoto,
+              photo: uploadedImagePath,
               tools: [...toolsDiv.querySelectorAll("input:checked")].map(c => c.value)
             };
 
