@@ -105,25 +105,6 @@
       "Jules", "Devstral", "Codeium", "Bolt"
     ];
 
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      if (!notif) return;
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-    }
-
-    fetch("header.html")
-      .then(response => response.text())
-      .then(data => {
-        document.getElementById("header-placeholder").innerHTML = data;
-        requestAnimationFrame(() => {
-          document.body.style.opacity = "1";
-          document.querySelector("main").style.display = "block";
-          mettreAJourBulleDemandes();
-        });
-      });
-
     const params = new URLSearchParams(window.location.search);
     const editName = decodeURIComponent(params.get("edit") || "");
     const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
@@ -138,92 +119,112 @@
     const dropzone = document.getElementById("dropzone");
     const imagePreview = document.getElementById("image-preview");
 
-    allTools.forEach(tool => {
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.value = tool;
-      label.appendChild(checkbox);
-      label.append(" " + tool);
-      toolsDiv.appendChild(label);
-      toolsDiv.appendChild(document.createElement("br"));
-    });
+    function mettreAJourBulleDemandes() {
+      const notif = document.getElementById("notif-count");
+      if (!notif) return;
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      notif.textContent = demandes.length;
+      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+    }
 
-    if (editingProfil) {
-      title.textContent = "Modifier le profil";
-      submitBtn.textContent = "Mettre à jour";
-      nameInput.value = editingProfil.name;
-      poleSelect.value = editingProfil.pole || "";
-      photoInput.value = editingProfil.photo || "";
-      if (editingProfil.photo) {
-        imagePreview.src = editingProfil.photo;
-        imagePreview.style.display = "block";
-      }
-      (editingProfil.tools || []).forEach(t => {
-        const cb = [...toolsDiv.querySelectorAll("input")].find(c => c.value === t);
-        if (cb) cb.checked = true;
+    fetch("header.html")
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById("header-placeholder").innerHTML = data;
+
+        requestAnimationFrame(() => {
+          document.body.style.opacity = "1";
+          document.querySelector("main").style.display = "block";
+          mettreAJourBulleDemandes();
+
+          allTools.forEach(tool => {
+            const label = document.createElement("label");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.value = tool;
+            label.appendChild(checkbox);
+            label.append(" " + tool);
+            toolsDiv.appendChild(label);
+            toolsDiv.appendChild(document.createElement("br"));
+          });
+
+          if (editingProfil) {
+            title.textContent = "Modifier le profil";
+            submitBtn.textContent = "Mettre à jour";
+            nameInput.value = editingProfil.name;
+            poleSelect.value = editingProfil.pole || "";
+            photoInput.value = editingProfil.photo || "";
+            if (editingProfil.photo) {
+              imagePreview.src = editingProfil.photo;
+              imagePreview.style.display = "block";
+            }
+            (editingProfil.tools || []).forEach(t => {
+              const cb = [...toolsDiv.querySelectorAll("input")].find(c => c.value === t);
+              if (cb) cb.checked = true;
+            });
+          }
+
+          dropzone.addEventListener("click", () => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+            input.onchange = e => handleFileUpload(e.target.files[0]);
+            input.click();
+          });
+
+          dropzone.addEventListener("dragover", e => {
+            e.preventDefault();
+            dropzone.classList.add("dragover");
+          });
+
+          dropzone.addEventListener("dragleave", () => {
+            dropzone.classList.remove("dragover");
+          });
+
+          dropzone.addEventListener("drop", e => {
+            e.preventDefault();
+            dropzone.classList.remove("dragover");
+            if (e.dataTransfer.files.length) {
+              handleFileUpload(e.dataTransfer.files[0]);
+            }
+          });
+
+          function handleFileUpload(file) {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+              photoInput.value = evt.target.result;
+              imagePreview.src = evt.target.result;
+              imagePreview.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+          }
+
+          document.getElementById("profil-form").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const updatedProfil = {
+              name: nameInput.value.trim(),
+              pole: poleSelect.value,
+              photo: photoInput.value,
+              tools: [...toolsDiv.querySelectorAll("input:checked")].map(c => c.value)
+            };
+
+            if (!updatedProfil.name) {
+              alert("Le nom ne peut pas être vide.");
+              return;
+            }
+
+            const index = profils.findIndex(p => p.name === updatedProfil.name);
+            if (index !== -1) {
+              profils[index] = updatedProfil;
+            } else {
+              profils.push(updatedProfil);
+            }
+
+            localStorage.setItem("profilsEquipe", JSON.stringify(profils));
+            window.location.href = "equipe.html";
+          });
+        });
       });
-    }
-
-    dropzone.addEventListener("click", () => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.onchange = e => handleFileUpload(e.target.files[0]);
-      input.click();
-    });
-
-    dropzone.addEventListener("dragover", e => {
-      e.preventDefault();
-      dropzone.classList.add("dragover");
-    });
-
-    dropzone.addEventListener("dragleave", () => {
-      dropzone.classList.remove("dragover");
-    });
-
-    dropzone.addEventListener("drop", e => {
-      e.preventDefault();
-      dropzone.classList.remove("dragover");
-      if (e.dataTransfer.files.length) {
-        handleFileUpload(e.dataTransfer.files[0]);
-      }
-    });
-
-    function handleFileUpload(file) {
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        photoInput.value = evt.target.result;
-        imagePreview.src = evt.target.result;
-        imagePreview.style.display = "block";
-      };
-      reader.readAsDataURL(file);
-    }
-
-    document.getElementById("profil-form").addEventListener("submit", function(e) {
-      e.preventDefault();
-      const updatedProfil = {
-        name: nameInput.value.trim(),
-        pole: poleSelect.value,
-        photo: photoInput.value,
-        tools: [...toolsDiv.querySelectorAll("input:checked")].map(c => c.value)
-      };
-
-      if (!updatedProfil.name) {
-        alert("Le nom ne peut pas être vide.");
-        return;
-      }
-
-      const index = profils.findIndex(p => p.name === updatedProfil.name);
-      if (index !== -1) {
-        profils[index] = updatedProfil;
-      } else {
-        profils.push(updatedProfil);
-      }
-
-      localStorage.setItem("profilsEquipe", JSON.stringify(profils));
-      window.location.href = "equipe.html";
-    });
   </script>
 </body>
 </html>
