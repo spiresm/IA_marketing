@@ -23,6 +23,12 @@
       padding: 20px;
     }
 
+    .btn-create-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
     .btn-create {
       display: inline-flex;
       align-items: center;
@@ -37,7 +43,6 @@
       text-decoration: none;
       transition: background-color 0.3s ease;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
     }
 
     .btn-create:hover {
@@ -51,6 +56,7 @@
 
     .filter-container {
       margin-bottom: 20px;
+      text-align: center;
     }
 
     select {
@@ -77,6 +83,7 @@
       justify-content: space-between;
       height: 220px;
       overflow: hidden;
+      cursor: move;
     }
 
     .vignette h2 {
@@ -124,6 +131,12 @@
       font-style: italic;
       color: #555;
       margin-top: 20px;
+      grid-column: 1 / -1;
+      text-align: center;
+    }
+
+    .drag-over {
+      outline: 2px dashed #0077b6;
     }
   </style>
 </head>
@@ -132,7 +145,9 @@
 
   <main>
     <div class="container">
-      <a href="profil.html" class="btn-create"><span>+</span>Créer un nouveau profil</a>
+      <div class="btn-create-container">
+        <a href="profil.html" class="btn-create"><span>+</span>Créer un nouveau profil</a>
+      </div>
 
       <div class="filter-container">
         <label for="filter">Filtrer par outil IA :</label>
@@ -149,7 +164,9 @@
     const profilsList = document.getElementById("profils-list");
     const filterSelect = document.getElementById("filter");
 
-    function chargerOutilsDisponibles(profils) {
+    let profils = [];
+
+    function chargerOutilsDisponibles() {
       const outilsSet = new Set();
       profils.forEach(p => p.tools.forEach(t => outilsSet.add(t)));
 
@@ -161,10 +178,15 @@
       });
     }
 
-    function afficherProfils() {
-      const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
-      const filtre = filterSelect.value;
+    function enregistrerOrdre() {
+      const nouvellesFiches = Array.from(document.querySelectorAll('.vignette'));
+      const nomsOrdonnés = nouvellesFiches.map(div => div.dataset.nom);
+      profils.sort((a, b) => nomsOrdonnés.indexOf(a.name) - nomsOrdonnés.indexOf(b.name));
+      localStorage.setItem("profilsEquipe", JSON.stringify(profils));
+    }
 
+    function afficherProfils() {
+      const filtre = filterSelect.value;
       profilsList.innerHTML = "";
 
       const filtresProfils = profils.filter(profil =>
@@ -179,6 +201,8 @@
       filtresProfils.forEach((profil, index) => {
         const div = document.createElement("div");
         div.className = "vignette";
+        div.draggable = true;
+        div.dataset.nom = profil.name;
 
         div.innerHTML = `
           <div>
@@ -189,13 +213,45 @@
           <button class="btn-delete" onclick="supprimerProfil(${index})">Supprimer</button>
         `;
 
+        // Drag events
+        div.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", profil.name);
+          e.currentTarget.classList.add("dragging");
+        });
+
+        div.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.currentTarget.classList.add("drag-over");
+        });
+
+        div.addEventListener("dragleave", (e) => {
+          e.currentTarget.classList.remove("drag-over");
+        });
+
+        div.addEventListener("drop", (e) => {
+          e.preventDefault();
+          const nomSource = e.dataTransfer.getData("text/plain");
+          const indexSource = profils.findIndex(p => p.name === nomSource);
+          const indexCible = profils.findIndex(p => p.name === profil.name);
+
+          if (indexSource >= 0 && indexCible >= 0 && indexSource !== indexCible) {
+            const [item] = profils.splice(indexSource, 1);
+            profils.splice(indexCible, 0, item);
+            localStorage.setItem("profilsEquipe", JSON.stringify(profils));
+            afficherProfils();
+          }
+        });
+
+        div.addEventListener("dragend", (e) => {
+          e.currentTarget.classList.remove("dragging");
+        });
+
         profilsList.appendChild(div);
       });
     }
 
     function supprimerProfil(index) {
       if (!confirm("Supprimer ce profil ?")) return;
-      const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
       profils.splice(index, 1);
       localStorage.setItem("profilsEquipe", JSON.stringify(profils));
       afficherProfils();
@@ -211,8 +267,8 @@
           document.body.style.opacity = "1";
           document.querySelector("main").style.display = "block";
 
-          const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
-          chargerOutilsDisponibles(profils);
+          profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
+          chargerOutilsDisponibles();
           afficherProfils();
         });
       });
