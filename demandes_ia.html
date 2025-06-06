@@ -101,6 +101,12 @@
       display: block;
       line-height: 1.4em;
     }
+    #confirmation {
+      margin-top: 15px;
+      font-weight: bold;
+      color: green;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -154,6 +160,7 @@
           <label for="description">Briefing :</label>
           <textarea name="description" rows="4" required></textarea>
           <button type="submit" id="submitBtn">Envoyer</button>
+          <div id="confirmation">Votre demande a été envoyée avec succès !</div>
         </form>
       </div>
       <div class="recap">
@@ -168,6 +175,7 @@
       </div>
     </div>
   </main>
+
   <script>
     fetch("header.html")
       .then(res => res.text())
@@ -216,7 +224,7 @@
       });
     }
 
-    document.getElementById("demandeIA").addEventListener("submit", function(e) {
+    document.getElementById("demandeIA").addEventListener("submit", async function(e) {
       e.preventDefault();
       const form = e.target;
       const data = {
@@ -229,6 +237,27 @@
         date: form.date.value,
         description: form.description.value
       };
+
+      // Envoi vers le serveur
+      try {
+        const response = await fetch("/sendrequest", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || "Erreur d'envoi");
+
+        document.getElementById("confirmation").style.display = "block";
+      } catch (err) {
+        console.error("Erreur:", err);
+        alert("Erreur lors de l'envoi de l'e-mail : " + err.message);
+      }
+
+      // Enregistrement local
       const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
       demandes.push(data);
       localStorage.setItem("demandesIA", JSON.stringify(demandes));
