@@ -4,31 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Équipe IA</title>
+  <link rel="stylesheet" href="style.css" />
   <style>
     body {
-      font-family: sans-serif;
-      background: #f7f7f7;
+      opacity: 0;
+      transition: opacity 0.3s ease-in;
       margin: 0;
+      font-family: sans-serif;
+    }
+    main {
+      display: none;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
       padding: 20px;
     }
-
-    h1 {
-      text-align: center;
-      color: #0077b6;
-    }
-
-    .filters {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    select, input[type="text"] {
-      padding: 8px;
-      margin: 0 8px;
-      border-radius: 6px;
-    }
-
-    .btn {
+    .btn-creer {
       display: block;
       margin: 0 auto 30px;
       background: #0077b6;
@@ -39,14 +31,12 @@
       font-weight: bold;
       width: fit-content;
     }
-
     .grid {
       display: flex;
       flex-wrap: wrap;
       gap: 20px;
       justify-content: center;
     }
-
     .vignette {
       background: white;
       border-radius: 12px;
@@ -57,11 +47,9 @@
       cursor: grab;
       transition: transform 0.2s;
     }
-
     .vignette:hover {
       transform: translateY(-4px);
     }
-
     .vignette img {
       width: 100%;
       border-radius: 50%;
@@ -71,22 +59,20 @@
       background: linear-gradient(130deg, #f1f1f1 30%, #ddd 50%, #f1f1f1 70%);
       background-size: 400% 400%;
     }
-
     @keyframes shine {
       0% { background-position: 0% 50%; }
       100% { background-position: 100% 50%; }
     }
-
     .vignette h3 {
       margin: 12px 0 6px;
       color: #0077b6;
+      text-align: center;
     }
-
     .vignette .pole {
       font-size: 0.85rem;
       color: #555;
+      text-align: center;
     }
-
     .vignette .edit-btn {
       background: #00a896;
       color: white;
@@ -95,8 +81,10 @@
       border-radius: 6px;
       margin-top: 10px;
       cursor: pointer;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
     }
-
     .tooltip {
       position: absolute;
       background: #ffffff;
@@ -109,92 +97,49 @@
       pointer-events: none;
       width: 300px;
     }
-
     .tooltip h4 {
       margin-top: 0;
       color: #0077b6;
     }
-
     .tooltip ul {
       padding-left: 16px;
     }
   </style>
 </head>
 <body>
-  <h1>Notre Équipe IA</h1>
-
-  <div class="filters">
-    <input type="text" id="search" placeholder="Rechercher un nom..." />
-    <select id="tool-filter">
-      <option value="all">Tous les outils</option>
-    </select>
-    <select id="pole-filter">
-      <option value="all">Tous les pôles</option>
-    </select>
-  </div>
-
-  <a href="profil.html" class="btn">+ Créer un nouveau profil</a>
-
-  <div class="grid" id="profil-list"></div>
+  <div id="header-placeholder"></div>
+  <main>
+    <div class="container">
+      <a href="profil.html" class="btn-creer">+ Créer un nouveau profil</a>
+      <div class="grid" id="profil-list"></div>
+    </div>
+  </main>
 
   <div class="tooltip" id="tooltip"></div>
 
   <script>
     const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
     const listContainer = document.getElementById("profil-list");
-    const search = document.getElementById("search");
-    const toolFilter = document.getElementById("tool-filter");
-    const poleFilter = document.getElementById("pole-filter");
     const tooltip = document.getElementById("tooltip");
-
-    function renderFilters() {
-      const tools = new Set();
-      const poles = new Set();
-      profils.forEach(p => {
-        (p.tools || []).forEach(t => tools.add(t));
-        if (p.pole) poles.add(p.pole);
-      });
-      tools.forEach(t => {
-        const opt = document.createElement("option");
-        opt.value = t;
-        opt.textContent = t;
-        toolFilter.appendChild(opt);
-      });
-      poles.forEach(p => {
-        const opt = document.createElement("option");
-        opt.value = p;
-        opt.textContent = p;
-        poleFilter.appendChild(opt);
-      });
-    }
 
     function renderProfils() {
       listContainer.innerHTML = "";
-      const s = search.value.toLowerCase();
-      const tool = toolFilter.value;
-      const pole = poleFilter.value;
       profils.forEach(p => {
-        if (
-          (tool === "all" || (p.tools || []).includes(tool)) &&
-          (pole === "all" || p.pole === pole) &&
-          (p.name.toLowerCase().includes(s))
-        ) {
-          const div = document.createElement("div");
-          div.className = "vignette";
-          div.innerHTML = `
-            <img src="${p.photo || ''}" alt="${p.name}" />
-            <h3>${p.name}</h3>
-            <div class="pole">${p.pole || ''}</div>
-            <button class="edit-btn" data-name="${p.name}">Éditer</button>
-          `;
-          div.addEventListener("mousemove", e => showTooltip(e, p));
-          div.addEventListener("mouseleave", hideTooltip);
-          div.querySelector(".edit-btn").addEventListener("click", e => {
-            e.stopPropagation();
-            window.location.href = `profil.html?edit=${encodeURIComponent(p.name)}`;
-          });
-          listContainer.appendChild(div);
-        }
+        const div = document.createElement("div");
+        div.className = "vignette";
+        div.innerHTML = `
+          <img src="${p.photo || ''}" alt="${p.name}" />
+          <h3>${p.name}</h3>
+          <div class="pole">${p.pole || ''}</div>
+          <button class="edit-btn" data-name="${p.name}">Éditer</button>
+        `;
+        div.addEventListener("mousemove", e => showTooltip(e, p));
+        div.addEventListener("mouseleave", hideTooltip);
+        div.querySelector(".edit-btn").addEventListener("click", e => {
+          e.stopPropagation();
+          window.location.href = `profil.html?edit=${encodeURIComponent(p.name)}`;
+        });
+        listContainer.appendChild(div);
       });
     }
 
@@ -216,11 +161,16 @@
       tooltip.style.display = "none";
     }
 
-    search.addEventListener("input", renderProfils);
-    toolFilter.addEventListener("change", renderProfils);
-    poleFilter.addEventListener("change", renderProfils);
+    fetch("header.html")
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById("header-placeholder").innerHTML = data;
+        requestAnimationFrame(() => {
+          document.body.style.opacity = "1";
+          document.querySelector("main").style.display = "block";
+        });
+      });
 
-    renderFilters();
     renderProfils();
   </script>
 </body>
