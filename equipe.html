@@ -39,22 +39,28 @@
     }
     .vignette {
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      border-radius: 16px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
       padding: 16px;
-      width: 220px;
+      width: 240px;
       position: relative;
       cursor: grab;
-      transition: transform 0.2s;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .vignette.dragging {
+      opacity: 1;
     }
     .vignette:hover {
-      transform: translateY(-4px);
+      transform: translateY(-6px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
     }
     .vignette img {
-      width: 100%;
+      width: 100px;
+      height: 100px;
       border-radius: 50%;
-      height: 120px;
       object-fit: cover;
+      margin: 0 auto;
+      display: block;
       animation: shine 3s infinite linear;
       background: linear-gradient(130deg, #f1f1f1 30%, #ddd 50%, #f1f1f1 70%);
       background-size: 400% 400%;
@@ -72,18 +78,21 @@
       font-size: 0.85rem;
       color: #555;
       text-align: center;
+      margin-bottom: 10px;
     }
-    .vignette .edit-btn {
+    .vignette .edit-btn, .vignette .delete-btn {
       background: #00a896;
       color: white;
       padding: 6px 12px;
       border: none;
       border-radius: 6px;
-      margin-top: 10px;
+      margin: 4px auto 0;
       cursor: pointer;
       display: block;
-      margin-left: auto;
-      margin-right: auto;
+      width: 80%;
+    }
+    .vignette .delete-btn {
+      background: #d90429;
     }
     .tooltip {
       position: absolute;
@@ -118,7 +127,7 @@
   <div class="tooltip" id="tooltip"></div>
 
   <script>
-    const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
+    let profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
     const listContainer = document.getElementById("profil-list");
     const tooltip = document.getElementById("tooltip");
 
@@ -143,14 +152,17 @@
 
     function renderProfils() {
       listContainer.innerHTML = "";
-      profils.forEach(p => {
+      profils.forEach((p, index) => {
         const div = document.createElement("div");
         div.className = "vignette";
+        div.draggable = true;
+        div.dataset.index = index;
         div.innerHTML = `
           <img src="${p.photo || ''}" alt="${p.name}" />
           <h3>${p.name}</h3>
           <div class="pole">${p.pole || ''}</div>
           <button class="edit-btn" data-name="${p.name}">Éditer</button>
+          <button class="delete-btn" data-name="${p.name}">Supprimer</button>
         `;
         div.addEventListener("mousemove", e => showTooltip(e, p));
         div.addEventListener("mouseleave", hideTooltip);
@@ -158,8 +170,45 @@
           e.stopPropagation();
           window.location.href = `profil.html?edit=${encodeURIComponent(p.name)}`;
         });
+        div.querySelector(".delete-btn").addEventListener("click", e => {
+          e.stopPropagation();
+          if (confirm(`Supprimer le profil de ${p.name} ?`)) {
+            profils = profils.filter(profil => profil.name !== p.name);
+            localStorage.setItem("profilsEquipe", JSON.stringify(profils));
+            renderProfils();
+          }
+        });
+
+        div.addEventListener("dragstart", handleDragStart);
+        div.addEventListener("dragover", handleDragOver);
+        div.addEventListener("drop", handleDrop);
+
         listContainer.appendChild(div);
       });
+    }
+
+    let dragSrcEl = null;
+
+    function handleDragStart(e) {
+      dragSrcEl = this;
+      e.dataTransfer.effectAllowed = "move";
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      if (dragSrcEl !== this) {
+        const from = +dragSrcEl.dataset.index;
+        const to = +this.dataset.index;
+        const moved = profils.splice(from, 1)[0];
+        profils.splice(to, 0, moved);
+        localStorage.setItem("profilsEquipe", JSON.stringify(profils));
+        renderProfils();
+      }
     }
 
     function showTooltip(e, profil) {
