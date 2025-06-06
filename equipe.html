@@ -81,9 +81,9 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      height: 220px;
+      height: 240px;
       overflow: hidden;
-      cursor: move;
+      cursor: grab;
       transition: box-shadow 0.2s;
     }
 
@@ -94,10 +94,16 @@
     .vignette h2 {
       color: #0077b6;
       font-size: 1.2rem;
-      margin: 0 0 10px;
+      margin: 0 0 5px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .vignette .pole {
+      font-size: 0.85rem;
+      color: #777;
+      margin-bottom: 5px;
     }
 
     .vignette img {
@@ -105,7 +111,15 @@
       height: 80px;
       border-radius: 50%;
       object-fit: cover;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      animation: shine 3s infinite linear;
+      background: linear-gradient(130deg, #f1f1f1 30%, #ddd 50%, #f1f1f1 70%);
+      background-size: 400% 400%;
+    }
+
+    @keyframes shine {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 100% 50%; }
     }
 
     .competences {
@@ -116,20 +130,37 @@
       text-overflow: ellipsis;
     }
 
-    .btn-delete {
-      background-color: #e63946;
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: auto;
+    }
+
+    .btn-delete,
+    .btn-edit {
+      background-color: #0077b6;
       color: white;
-      padding: 8px 12px;
+      padding: 6px 12px;
       border: none;
       border-radius: 6px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       cursor: pointer;
-      margin-top: auto;
-      align-self: flex-start;
+    }
+
+    .btn-delete {
+      background-color: #e63946;
     }
 
     .btn-delete:hover {
       background-color: #c62828;
+    }
+
+    .btn-edit:hover {
+      background-color: #005f94;
+    }
+
+    .drag-over {
+      outline: 2px dashed #0077b6;
     }
 
     .no-profil {
@@ -138,16 +169,6 @@
       margin-top: 20px;
       grid-column: 1 / -1;
       text-align: center;
-    }
-
-    .drag-over {
-      outline: 2px dashed #0077b6;
-    }
-
-    .vignette a {
-      text-decoration: none;
-      color: inherit;
-      flex: 1;
     }
   </style>
 </head>
@@ -206,27 +227,22 @@
         const div = document.createElement("div");
         div.className = "vignette";
         div.draggable = true;
-        div.dataset.nom = profil.name;
+        div.dataset.index = index;
 
-        const content = document.createElement("a");
-        content.href = `fiche.html?nom=${encodeURIComponent(profil.name)}`;
-        content.innerHTML = `
+        div.innerHTML = `
           <h2>${profil.name}</h2>
+          <div class="pole">${profil.pole || ''}</div>
           ${profil.photo ? `<img src="${profil.photo}" alt="Photo de ${profil.name}" />` : ""}
           <div class="competences">${profil.tools.join(", ")}</div>
+          <div class="btn-group">
+            <button class="btn-edit" onclick="window.location.href='fiche.html?nom=${encodeURIComponent(profil.name)}'">Éditer</button>
+            <button class="btn-delete" onclick="supprimerProfil(${index})">Supprimer</button>
+          </div>
         `;
 
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className = "btn-delete";
-        deleteBtn.textContent = "Supprimer";
-        deleteBtn.onclick = (e) => {
-          e.preventDefault();
-          supprimerProfil(index);
-        };
-
-        // Drag events
+        // Drag logic
         div.addEventListener("dragstart", (e) => {
-          e.dataTransfer.setData("text/plain", profil.name);
+          e.dataTransfer.setData("index", index);
         });
 
         div.addEventListener("dragover", (e) => {
@@ -240,20 +256,21 @@
 
         div.addEventListener("drop", (e) => {
           e.preventDefault();
-          const nomSource = e.dataTransfer.getData("text/plain");
-          const indexSource = profils.findIndex(p => p.name === nomSource);
-          const indexCible = profils.findIndex(p => p.name === profil.name);
+          const fromIndex = parseInt(e.dataTransfer.getData("index"));
+          const toIndex = parseInt(e.currentTarget.dataset.index);
 
-          if (indexSource >= 0 && indexCible >= 0 && indexSource !== indexCible) {
-            const [item] = profils.splice(indexSource, 1);
-            profils.splice(indexCible, 0, item);
+          if (fromIndex !== toIndex) {
+            const [moved] = profils.splice(fromIndex, 1);
+            profils.splice(toIndex, 0, moved);
             localStorage.setItem("profilsEquipe", JSON.stringify(profils));
             afficherProfils();
           }
         });
 
-        div.appendChild(content);
-        div.appendChild(deleteBtn);
+        div.addEventListener("dragend", () => {
+          document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        });
+
         profilsList.appendChild(div);
       });
     }
@@ -274,7 +291,6 @@
         requestAnimationFrame(() => {
           document.body.style.opacity = "1";
           document.querySelector("main").style.display = "block";
-
           profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
           chargerOutilsDisponibles();
           afficherProfils();
