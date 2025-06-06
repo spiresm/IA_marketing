@@ -98,7 +98,7 @@
   <main>
     <div class="container">
       <h1>Créer un nouveau profil</h1>
-      <form>
+      <form id="profil-form">
         <label for="name">Nom complet</label>
         <input type="text" id="name" name="name" required />
 
@@ -106,9 +106,7 @@
         <input type="file" id="photo" name="photo" accept="image/*" />
 
         <label>Outils IA maîtrisés</label>
-        <div class="tools-grid" id="tools-container">
-          <!-- JavaScript insérera ici les cases à cocher -->
-        </div>
+        <div class="tools-grid" id="tools-container"></div>
 
         <button type="submit">Enregistrer le profil</button>
       </form>
@@ -165,6 +163,35 @@
       div.appendChild(checkbox);
       div.appendChild(label);
       container.appendChild(div);
+    });
+
+    document.getElementById("profil-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value.trim();
+      const fileInput = document.getElementById("photo");
+      const selectedTools = Array.from(document.querySelectorAll('input[name="tools"]:checked')).map(cb => cb.value);
+
+      if (!name) {
+        alert("Veuillez entrer un nom.");
+        return;
+      }
+
+      const saveProfile = (photoBase64 = null) => {
+        const profil = { name, photo: photoBase64, tools: selectedTools };
+        const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
+        profils.push(profil);
+        localStorage.setItem("profilsEquipe", JSON.stringify(profils));
+        window.location.href = "equipe.html";
+      };
+
+      if (fileInput.files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = () => saveProfile(reader.result);
+        reader.readAsDataURL(fileInput.files[0]);
+      } else {
+        saveProfile(); // sans photo
+      }
     });
 
     fetch("header.html")
