@@ -135,7 +135,9 @@
       background: transparent;
       border: none;
       cursor: pointer;
-      font-size: 1.2em;
+      font-size: 1.5em;
+      z-index: 101;
+      padding: 5px;
     }
 
     #success-message {
@@ -177,6 +179,10 @@
             <option>vivacité</option>
             <option>Musiq3</option>
             <option>Auvio</option>
+          </select>
+          <select id="filtre-tri">
+            <option value="recent">Plus récent</option>
+            <option value="ancien">Plus ancien</option>
           </select>
         </div>
         <a href="prompts.html" style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:#0077b6;color:white;border-radius:10px;text-decoration:none;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:background 0.2s;font-size:1em;white-space:nowrap;" onmouseover="this.style.background='#005f8a'" onmouseout="this.style.background='#0077b6'">
@@ -246,8 +252,16 @@
       const outil = document.getElementById('filtre-outil').value;
       const nom = document.getElementById('filtre-nom').value.toLowerCase();
       const chaine = document.getElementById('filtre-chaine').value;
+      const tri = document.getElementById('filtre-tri')?.value || 'recent';
 
-      fichiers.forEach(async fichier => {
+      let fichiersTries = [...fichiers];
+      fichiersTries.sort((a, b) => {
+        const dateA = new Date(a.name.replace('.json', '').split('_').pop());
+        const dateB = new Date(b.name.replace('.json', '').split('_').pop());
+        return tri === 'recent' ? dateB - dateA : dateA - dateB;
+      });
+
+      fichiersTries.forEach(async fichier => {
         const res = await fetch(fichier.download_url);
         if (!res.ok) return;
         const data = await res.json();
@@ -258,6 +272,23 @@
         const div = document.createElement('div');
         div.className = 'carte';
         div.style.borderLeft = `5px solid ${couleursParChaine[data.chaine] || '#0077b6'}`;
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'supprimer-btn';
+        delBtn.innerHTML = '🗑️';
+        delBtn.onclick = async () => {
+          if (!confirm('Confirmer suppression ?')) return;
+          await fetch('/.netlify/functions/deletePrompt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              promptPath: fichier.path,
+              imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
+            })
+          });
+          div.remove();
+        };
+        div.appendChild(delBtn);
 
         const img = document.createElement('img');
         const imgPath = data.image || data.imageUrl || '';
@@ -283,23 +314,6 @@
         };
         texteCol.appendChild(copierBtn);
 
-        const delBtn = document.createElement('button');
-        delBtn.className = 'supprimer-btn';
-        delBtn.innerHTML = '🗑️';
-        delBtn.onclick = async () => {
-          if (!confirm('Confirmer suppression ?')) return;
-          await fetch('/.netlify/functions/deletePrompt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              promptPath: fichier.path,
-              imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
-            })
-          });
-          div.remove();
-        };
-
-        div.appendChild(delBtn);
         div.appendChild(texteCol);
         galerie.appendChild(div);
       });
@@ -308,6 +322,7 @@
     document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
     document.getElementById('filtre-nom').addEventListener('input', () => afficherPrompts(tousLesPrompts));
     document.getElementById('filtre-chaine').addEventListener('change', () => afficherPrompts(tousLesPrompts));
+    document.getElementById('filtre-tri').addEventListener('change', () => afficherPrompts(tousLesPrompts));
 
     window.onload = chargerPrompts;
   </script>
