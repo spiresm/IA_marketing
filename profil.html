@@ -231,10 +231,42 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(updatedProfil),
             })
-              .then((res) => res.json())
-              .then((data) => {
+              .then(async (res) => {
+                const data = await res.json();
                 if (data.success) {
-                  window.location.href = "equipe.html";
+                  // Attendre que Netlify ait déployé
+                  const waitForDeploy = async () => {
+                    let attempts = 0;
+                    const maxAttempts = 10;
+                    const delay = 3000;
+
+                    while (attempts < maxAttempts) {
+                      try {
+                        const res = await fetch("/.netlify/functions/checkDeployStatus");
+                        const status = await res.json();
+
+                        if (status.status === "ready") {
+                          return true;
+                        }
+                      } catch (err) {
+                        console.error("Erreur durant la vérification du déploiement :", err);
+                      }
+
+                      await new Promise(r => setTimeout(r, delay));
+                      attempts++;
+                    }
+
+                    return false;
+                  };
+
+                  const isReady = await waitForDeploy();
+
+                  if (isReady) {
+                    window.location.href = "equipe.html";
+                  } else {
+                    alert("Le déploiement est plus lent que prévu. Rechargez équipe.html manuellement dans quelques instants.");
+                  }
+
                 } else {
                   alert("Erreur : " + (data.error || "Échec inconnu"));
                 }
