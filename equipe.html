@@ -59,6 +59,9 @@
       cursor: grab;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
+    .vignette.dragging {
+      opacity: 1;
+    }
     .vignette:hover {
       transform: translateY(-6px);
       box-shadow: 0 10px 20px rgba(0,0,0,0.15);
@@ -70,6 +73,13 @@
       object-fit: cover;
       margin: 0 auto;
       display: block;
+      animation: shine 3s infinite linear;
+      background: linear-gradient(130deg, #f1f1f1 30%, #ddd 50%, #f1f1f1 70%);
+      background-size: 400% 400%;
+    }
+    @keyframes shine {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 100% 50%; }
     }
     .vignette h3 {
       margin: 12px 0 6px;
@@ -155,12 +165,9 @@
       .then(response => response.text())
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
-        return fetch("profil.json");
+        return fetch("/.netlify/functions/getProfils");
       })
-      .then(res => {
-        if (!res.ok) throw new Error("profil.json introuvable");
-        return res.json();
-      })
+      .then(res => res.json())
       .then(data => {
         profils = data;
         document.body.style.opacity = "1";
@@ -171,9 +178,6 @@
         console.error("Erreur de chargement des profils:", err);
         document.body.innerHTML = '<p style="text-align:center;color:red;padding:2rem">Erreur lors du chargement des profils : ' + err.message + '</p>';
       });
-
-    filterPole.addEventListener("change", renderProfils);
-    searchInput.addEventListener("input", renderProfils);
 
     function normalizeString(str) {
       return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -203,61 +207,52 @@
             <h3>${p.name}</h3>
             <div class="pole">${p.pole || ''}</div>
             <div class="icon-bar">
-              <button class="btn-edit" onclick="location.href='profil.html?edit=${encodeURIComponent(p.name)}'">✏️</button>
-              <button class="btn-delete" onclick="supprimerProfil('${p.id}')">🗑️</button>
+              <button class="btn-edit" title="Éditer">✏️</button>
+              <button class="btn-delete" title="Supprimer">🗑️</button>
             </div>
           `;
           div.addEventListener("mousemove", e => showTooltip(e, p));
           div.addEventListener("mouseleave", hideTooltip);
+
+          div.querySelector(".btn-edit").addEventListener("click", e => {
+            e.stopPropagation();
+            window.location.href = `profil.html?edit=${encodeURIComponent(p.name)}`;
+          });
+
+          div.querySelector(".btn-delete").addEventListener("click", e => {
+            e.stopPropagation();
+            if (confirm(`Supprimer le profil de ${p.name} ?`)) {
+              profils.splice(index, 1);
+              localStorage.setItem("profilsEquipe", JSON.stringify(profils));
+              renderProfils();
+            }
+          });
+
           div.addEventListener("dragstart", handleDragStart);
           div.addEventListener("dragover", handleDragOver);
           div.addEventListener("drop", handleDrop);
+
           listContainer.appendChild(div);
         }
       });
     }
 
-    function supprimerProfil(id) {
-      if (!confirm("Confirmer la suppression ?")) return;
-      fetch("/.netlify/functions/deleteProfil", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          profils = profils.filter(p => p.id !== id);
-          renderProfils();
-        } else {
-          alert("Erreur: " + (data.error || "suppression échouée"));
-        }
-      });
+    function handleDragStart(e) {
+      e.dataTransfer.setData("text/plain", e.target.dataset.index);
     }
 
-    let dragSrcEl = null;
-    function handleDragStart(e) {
-      dragSrcEl = this;
-      e.dataTransfer.effectAllowed = "move";
-    }
     function handleDragOver(e) {
       e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
     }
+
     function handleDrop(e) {
       e.preventDefault();
-      if (dragSrcEl !== this) {
-        const from = +dragSrcEl.dataset.index;
-        const to = +this.dataset.index;
-        const moved = profils.splice(from, 1)[0];
-        profils.splice(to, 0, moved);
-        renderProfils();
-        fetch("/.netlify/functions/updateProfils", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profils })
-        });
-      }
+      const fromIndex = +e.dataTransfer.getData("text/plain");
+      const toIndex = +e.currentTarget.dataset.index;
+      const moved = profils.splice(fromIndex, 1)[0];
+      profils.splice(toIndex, 0, moved);
+      localStorage.setItem("profilsEquipe", JSON.stringify(profils));
+      renderProfils();
     }
 
     function showTooltip(e, profil) {
@@ -277,6 +272,9 @@
     function hideTooltip() {
       tooltip.style.display = "none";
     }
+
+    filterPole.addEventListener("change", renderProfils);
+    searchInput.addEventListener("input", renderProfils);
   </script>
 </body>
 </html>
