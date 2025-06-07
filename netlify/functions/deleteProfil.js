@@ -10,7 +10,8 @@ exports.handler = async function (event) {
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      body: "Méthode non autorisée",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "Méthode non autorisée" }),
     };
   }
 
@@ -20,7 +21,6 @@ exports.handler = async function (event) {
     const { id } = JSON.parse(event.body);
     if (!id) throw new Error("ID de profil manquant.");
 
-    // 1. Charger le fichier existant
     const { data: currentFile } = await octokit.repos.getContent({
       owner: REPO_OWNER,
       repo: REPO_NAME,
@@ -32,12 +32,18 @@ exports.handler = async function (event) {
     const json = JSON.parse(decodedContent);
     const profils = json.profils || [];
 
-    // 2. Supprimer le profil
     const updatedProfils = profils.filter((p) => p.id !== id);
+
+    if (updatedProfils.length === profils.length) {
+      return {
+        statusCode: 404,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Aucun profil trouvé avec cet ID" }),
+      };
+    }
 
     const updatedContent = JSON.stringify({ profils: updatedProfils }, null, 2);
 
-    // 3. Commit avec suppression
     await octokit.repos.createOrUpdateFileContents({
       owner: REPO_OWNER,
       repo: REPO_NAME,
@@ -50,12 +56,14 @@ exports.handler = async function (event) {
 
     return {
       statusCode: 200,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ success: true }),
     };
   } catch (error) {
     console.error("Erreur suppression GitHub:", error);
     return {
       statusCode: 500,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: error.message }),
     };
   }
