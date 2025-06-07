@@ -7,13 +7,11 @@ const TMP_PATH = "/tmp/demandes.json";
 exports.handler = async function () {
   try {
     let data = "[]";
-
     if (fs.existsSync(TMP_PATH)) {
       data = fs.readFileSync(TMP_PATH, "utf-8");
     } else if (fs.existsSync(SOURCE_PATH)) {
       data = fs.readFileSync(SOURCE_PATH, "utf-8");
     }
-
     return {
       statusCode: 200,
       body: data
@@ -21,10 +19,7 @@ exports.handler = async function () {
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        error: "Erreur lecture",
-        details: err.message
-      })
+      body: JSON.stringify({ error: "Erreur lecture", details: err.message })
     };
   }
 };
