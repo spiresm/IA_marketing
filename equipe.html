@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -57,7 +56,6 @@
       padding: 12px;
       width: 180px;
       position: relative;
-      cursor: pointer;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     .vignette:hover {
@@ -152,8 +150,6 @@
       border: none;
       cursor: pointer;
     }
-
-    /* Panel latéral stylisé */
     .side-panel {
       position: fixed;
       top: 0;
@@ -208,7 +204,6 @@
 </head>
 <body>
   <div id="header-placeholder"></div>
-
   <main>
     <div class="container">
       <a href="profil.html" class="btn-creer">+ Créer un nouveau profil</a>
@@ -226,12 +221,10 @@
       <div class="grid" id="profil-list"></div>
     </div>
   </main>
-
   <div id="side-panel" class="side-panel">
     <button class="close-panel">×</button>
     <div id="panel-content"></div>
   </div>
-
   <script>
     let profils = [];
     const listContainer = document.getElementById("profil-list");
@@ -241,23 +234,10 @@
     fetch("header.html")
       .then(response => response.text())
       .then(data => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(data, 'text/html');
-        const headerContent = doc.body;
-
-        document.getElementById("header-placeholder").innerHTML = headerContent.innerHTML;
-
-        // Recharger les scripts inclus dans header.html
-        headerContent.querySelectorAll("script").forEach(script => {
-          const s = document.createElement("script");
-          if (script.src) {
-            s.src = script.src;
-          } else {
-            s.textContent = script.textContent;
-          }
-          document.body.appendChild(s);
-        });
-
+        document.getElementById("header-placeholder").innerHTML = data;
+        if (document.querySelector('.notif-ia')) {
+          document.querySelector('.notif-ia').style.display = 'inline-block';
+        }
         return fetch("/.netlify/functions/getProfils");
       })
       .then(res => res.json())
@@ -268,8 +248,7 @@
         renderProfils();
       })
       .catch(err => {
-        console.error("Erreur de chargement des profils:", err);
-        document.body.innerHTML = '<p style="text-align:center;color:red;padding:2rem">Erreur lors du chargement des profils : ' + err.message + '</p>';
+        document.body.innerHTML = `<p style="text-align:center;color:red;padding:2rem">Erreur : ${err.message}</p>`;
       });
 
     function normalizeString(str) {
@@ -287,9 +266,7 @@
         const toolsNormalized = (p.tools || []).map(t => normalizeString(t));
 
         const matchPole = !selectedPole || poleNormalized === selectedPole;
-        const matchSearch = !searchQuery ||
-          nameNormalized.includes(searchQuery) ||
-          toolsNormalized.some(tool => tool.includes(searchQuery));
+        const matchSearch = !searchQuery || nameNormalized.includes(searchQuery) || toolsNormalized.some(tool => tool.includes(searchQuery));
 
         if (matchPole && matchSearch) {
           const div = document.createElement("div");
@@ -307,66 +284,70 @@
               <button class="btn-delete" title="Supprimer">🗑️</button>
             </div>
             <div class="note-editor">
-              <textarea placeholder="Ajouter une note...">${p.note || ''}</textarea>
+              <textarea>${p.note || ''}</textarea>
               <button class="save-note">Enregistrer</button>
-            </div>
-          `;
+            </div>`;
 
           const noteBadge = div.querySelector(".note-badge");
           const noteEditor = div.querySelector(".note-editor");
           const textarea = noteEditor.querySelector("textarea");
-          const saveBtn = noteEditor.querySelector(".save-note");
 
-          if ((p.note || '').trim()) {
-            noteBadge.style.display = 'inline-block';
-          }
+          if ((p.note || '').trim()) noteBadge.style.display = 'inline-block';
 
-          div.querySelector(".btn-note").addEventListener("click", (e) => {
+          div.querySelector(".btn-note").addEventListener("click", e => {
             e.stopPropagation();
-            document.querySelectorAll(".note-editor.open").forEach(el => {
-              if (el !== noteEditor) el.classList.remove("open");
-            });
+            document.querySelectorAll(".note-editor.open").forEach(el => el.classList.remove("open"));
             noteEditor.classList.toggle("open");
           });
 
-          saveBtn.addEventListener("click", (e) => {
+          div.querySelector(".save-note").addEventListener("click", e => {
             e.stopPropagation();
             const content = textarea.value.trim();
-
             fetch("/.netlify/functions/updateProfil", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ id: p.id, note: content })
-            })
-              .then(res => res.json())
-              .then(data => {
-                if (data.success) {
-                  p.note = content;
-                  noteBadge.style.display = content ? "inline-block" : "none";
-                  noteEditor.classList.remove("open");
-                } else {
-                  alert("Erreur serveur lors de l'enregistrement de la note.");
-                }
-              })
-              .catch(err => {
-                console.error("Erreur réseau :", err);
-                alert("Impossible de sauvegarder la note.");
-              });
+            }).then(res => res.json()).then(data => {
+              if (data.success) {
+                p.note = content;
+                noteBadge.style.display = content ? 'inline-block' : 'none';
+                noteEditor.classList.remove("open");
+              }
+            });
           });
 
-          div.addEventListener("click", () => {
-            const panel = document.getElementById("side-panel");
-            const content = document.getElementById("panel-content");
+          div.querySelector(".btn-edit").addEventListener("click", e => {
+            e.stopPropagation();
+            window.location.href = `profil.html?edit=${encodeURIComponent(p.name)}`;
+          });
 
-            content.innerHTML = `
-              <h2>${p.name}</h2>
-              <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
-              <p><strong>Outils IA :</strong></p>
-              <ul>${(p.tools || []).map(t => `<li>${t}</li>`).join('')}</ul>
-              ${p.note ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}
-            `;
+          div.querySelector(".btn-delete").addEventListener("click", e => {
+            e.stopPropagation();
+            if (confirm(`Supprimer définitivement ${p.name} ?`)) {
+              fetch("/.netlify/functions/deleteProfil", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: p.id })
+              }).then(res => res.json()).then(data => {
+                if (data.success) {
+                  profils.splice(index, 1);
+                  renderProfils();
+                }
+              });
+            }
+          });
 
-            panel.classList.add("show");
+          div.addEventListener("click", e => {
+            if (![...e.target.classList].some(cls => cls.startsWith("btn-"))) {
+              const panel = document.getElementById("side-panel");
+              const content = document.getElementById("panel-content");
+              content.innerHTML = `<h2>${p.name}</h2>
+                <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
+                <p><strong>Outils IA :</strong></p>
+                <ul>${(p.tools || []).map(t => `<li>${t}</li>`).join('')}</ul>
+                ${p.note ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}`;
+              panel.classList.add("show");
+            }
           });
 
           listContainer.appendChild(div);
@@ -378,11 +359,9 @@
       document.getElementById("side-panel").classList.remove("show");
     });
 
-    document.addEventListener("click", (event) => {
+    document.addEventListener("click", event => {
       const panel = document.getElementById("side-panel");
-      const clickedInsidePanel = panel.contains(event.target);
-      const clickedVignette = event.target.closest(".vignette");
-      if (!clickedInsidePanel && !clickedVignette) {
+      if (!panel.contains(event.target) && !event.target.closest(".vignette")) {
         panel.classList.remove("show");
       }
     });
