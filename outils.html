@@ -125,7 +125,7 @@
       padding: 15px;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
       font-size: 0.9em;
-      width: 260px;
+      width: 300px;
       opacity: 0;
       visibility: hidden;
       transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -133,6 +133,7 @@
       pointer-events: none;
       text-align: left;
       line-height: 1.5;
+      white-space: normal;
     }
 
     .card:hover .tooltip {
@@ -141,26 +142,14 @@
     }
 
     .tooltip-section {
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
-    .tooltip-title {
+    .tooltip-label {
       font-weight: bold;
-      font-size: 0.95em;
-      margin-bottom: 4px;
       color: #003366;
-    }
-
-    .tooltip-content {
-      font-size: 0.9em;
-      color: #333;
-    }
-
-    .tooltip-list {
-      padding-left: 18px;
-      margin: 0;
-      font-size: 0.9em;
-      color: #333;
+      display: block;
+      margin-bottom: 2px;
     }
   </style>
 </head>
@@ -196,6 +185,29 @@
   </main>
 
   <script>
+    function formatTooltipText(texte) {
+      const champs = [
+        { label: "Date", regex: /Date\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Contexte", regex: /Contexte\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Cible", regex: /Cible\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Ton", regex: /Ton\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Livrables", regex: /Livrables\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Contraintes", regex: /Contraintes\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Canaux", regex: /Canaux\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+      ];
+
+      let html = `<div class="tooltip-section"><span class="tooltip-label">Résumé :</span> ${texte.split("Date")[0].trim()}</div>`;
+
+      champs.forEach(({ label, regex }) => {
+        const match = texte.match(regex);
+        if (match) {
+          html += `<div class="tooltip-section"><span class="tooltip-label">${label} :</span> ${match[1].trim()}</div>`;
+        }
+      });
+
+      return html;
+    }
+
     function renderToolsWithTooltips(filteredTools) {
       const grid = document.getElementById("tools-grid");
       grid.innerHTML = "";
@@ -209,33 +221,7 @@
           : tool.description + ' (Plus d\'informations prochainement disponibles.)';
 
         card.innerHTML = `
-          <div class="tooltip">
-            <div class="tooltip-section">
-              <div class="tooltip-title">Nom</div>
-              <div class="tooltip-content">${tool.nom}</div>
-            </div>
-            <div class="tooltip-section">
-              <div class="tooltip-title">Description</div>
-              <div class="tooltip-content">${tool.description}</div>
-            </div>
-            <div class="tooltip-section">
-              <div class="tooltip-title">Détails</div>
-              <div class="tooltip-content">${longInfo}</div>
-            </div>
-            <div class="tooltip-section">
-              <div class="tooltip-title">Type</div>
-              <div class="tooltip-content">${tool.type}</div>
-            </div>
-            <div class="tooltip-section">
-              <div class="tooltip-title">Catégories</div>
-              <ul class="tooltip-list">${tool.categories.map(cat => `<li>${cat}</li>`).join("")}</ul>
-            </div>
-            ${tool.expert ? `
-              <div class="tooltip-section">
-                <div class="tooltip-title">Expert</div>
-                <div class="tooltip-content">${tool.expert}</div>
-              </div>` : ""}
-          </div>
+          <div class="tooltip">${formatTooltipText(longInfo)}</div>
           <h2>${tool.nom}</h2>
           <div class="description">${tool.description}</div>
           <div class="meta">${tool.type} • ${tool.categories.join(", ")}</div>
