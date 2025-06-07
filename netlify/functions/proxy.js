@@ -27,7 +27,7 @@ exports.handler = async (event) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Google Script returned error:", response.status, errorText);
+      console.error("Google Script error status:", response.status, errorText);
       return {
         statusCode: response.status,
         body: errorText,
@@ -35,6 +35,7 @@ exports.handler = async (event) => {
     }
 
     const data = await response.text();
+    console.log("Response data:", data);
 
     return {
       statusCode: 200,
