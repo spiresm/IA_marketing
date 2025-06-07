@@ -146,7 +146,6 @@
   <div class="tooltip" id="tooltip"></div>
   <script>
     let profils = [];
-    let dragSrcEl = null;
     const listContainer = document.getElementById("profil-list");
     const tooltip = document.getElementById("tooltip");
     const filterPole = document.getElementById("filterPole");
@@ -156,7 +155,7 @@
       .then(response => response.text())
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
-        return fetch("/profil.json");
+        return fetch("profil.json");
       })
       .then(res => res.json())
       .then(data => {
@@ -164,6 +163,9 @@
         document.body.style.opacity = "1";
         document.querySelector("main").style.display = "block";
         renderProfils();
+      })
+      .catch(err => {
+        console.error("Erreur de chargement des profils:", err);
       });
 
     filterPole.addEventListener("change", renderProfils);
@@ -197,62 +199,47 @@
             <h3>${p.name}</h3>
             <div class="pole">${p.pole || ''}</div>
             <div class="icon-bar">
-              <button class="btn-edit" title="Éditer">✏️</button>
-              <button class="btn-delete" title="Supprimer">🗑️</button>
+              <button class="btn-edit" onclick="location.href='profil.html?edit=${encodeURIComponent(p.name)}'">✏️</button>
+              <button class="btn-delete" onclick="supprimerProfil('${p.id}')">🗑️</button>
             </div>
           `;
           div.addEventListener("mousemove", e => showTooltip(e, p));
           div.addEventListener("mouseleave", hideTooltip);
-
-          div.querySelector(".btn-edit").addEventListener("click", e => {
-            e.stopPropagation();
-            window.location.href = `profil.html?edit=${encodeURIComponent(p.name)}`;
-          });
-
-          div.querySelector(".btn-delete").addEventListener("click", e => {
-            e.stopPropagation();
-            if (confirm(`Supprimer le profil de ${p.name} ?`)) {
-              fetch("/.netlify/functions/deleteProfil", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: p.id })
-              })
-              .then(res => res.json())
-              .then(data => {
-                if (data.success) {
-                  alert("Profil supprimé !");
-                  profils = profils.filter(profil => profil.id !== p.id);
-                  renderProfils();
-                } else {
-                  alert("Erreur : " + (data.error || "Suppression impossible"));
-                }
-              })
-              .catch(err => {
-                console.error(err);
-                alert("Erreur serveur lors de la suppression");
-              });
-            }
-          });
-
           div.addEventListener("dragstart", handleDragStart);
           div.addEventListener("dragover", handleDragOver);
           div.addEventListener("drop", handleDrop);
-
           listContainer.appendChild(div);
         }
       });
     }
 
+    function supprimerProfil(id) {
+      if (!confirm("Confirmer la suppression ?")) return;
+      fetch("/.netlify/functions/deleteProfil", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          profils = profils.filter(p => p.id !== id);
+          renderProfils();
+        } else {
+          alert("Erreur: " + (data.error || "suppression échouée"));
+        }
+      });
+    }
+
+    let dragSrcEl = null;
     function handleDragStart(e) {
       dragSrcEl = this;
       e.dataTransfer.effectAllowed = "move";
     }
-
     function handleDragOver(e) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
     }
-
     function handleDrop(e) {
       e.preventDefault();
       if (dragSrcEl !== this) {
@@ -260,13 +247,12 @@
         const to = +this.dataset.index;
         const moved = profils.splice(from, 1)[0];
         profils.splice(to, 0, moved);
+        renderProfils();
         fetch("/.netlify/functions/updateProfils", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ profils })
-        })
-        .then(() => renderProfils())
-        .catch(err => console.error("Erreur mise à jour ordre:", err));
+        });
       }
     }
 
