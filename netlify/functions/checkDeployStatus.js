@@ -1,5 +1,3 @@
-const fetch = require("node-fetch");
-
 exports.handler = async function (event, context) {
   const SITE_ID = process.env.NETLIFY_SITE_ID;
   const TOKEN = process.env.NETLIFY_API_TOKEN;
@@ -19,12 +17,18 @@ exports.handler = async function (event, context) {
     });
 
     const deploys = await res.json();
-    const latest = deploys.find(d => d.state === "ready");
 
-    if (latest) {
+    const latestReady = deploys.find(d => d.state === "ready");
+
+    if (latestReady) {
       return {
         statusCode: 200,
-        body: JSON.stringify({ status: "ready", deployId: latest.id })
+        body: JSON.stringify({
+          status: "ready",
+          id: latestReady.id,
+          created_at: latestReady.created_at,
+          url: latestReady.deploy_ssl_url
+        })
       };
     }
 
@@ -32,10 +36,14 @@ exports.handler = async function (event, context) {
       statusCode: 202,
       body: JSON.stringify({ status: "not_ready" })
     };
-  } catch (error) {
+
+  } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erreur Netlify API", details: error.message })
+      body: JSON.stringify({
+        error: "Erreur Netlify API",
+        details: err.message
+      })
     };
   }
 };
