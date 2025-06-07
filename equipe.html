@@ -151,37 +151,63 @@
       border: none;
       cursor: pointer;
     }
+
+    /* Panel latéral stylisé */
     .side-panel {
       position: fixed;
       top: 0;
       right: 0;
-      width: 320px;
+      width: 340px;
       height: 100%;
-      background: white;
+      background: #f9f9f9;
       box-shadow: -4px 0 12px rgba(0, 0, 0, 0.2);
-      padding: 20px;
+      padding: 24px 20px;
       overflow-y: auto;
       transition: transform 0.3s ease;
       z-index: 1000;
       transform: translateX(100%);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
     .side-panel.show {
       transform: translateX(0);
     }
     .side-panel .close-panel {
       position: absolute;
-      top: 10px;
-      left: 10px;
+      top: 12px;
+      left: 12px;
       background: transparent;
       font-size: 24px;
       border: none;
       cursor: pointer;
       color: #333;
     }
+    .side-panel h2 {
+      margin-top: 0;
+      color: #0077b6;
+      font-size: 1.4rem;
+    }
+    .side-panel ul {
+      list-style: disc;
+      padding-left: 20px;
+      margin: 0;
+    }
+    .side-panel p {
+      margin: 0 0 10px;
+    }
+    .side-panel .note-content {
+      background: #fffbe6;
+      padding: 10px 12px;
+      border-left: 4px solid #ffcb05;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
   </style>
 </head>
 <body>
   <div id="header-placeholder"></div>
+
   <main>
     <div class="container">
       <a href="profil.html" class="btn-creer">+ Créer un nouveau profil</a>
@@ -214,14 +240,21 @@
     fetch("header.html")
       .then(response => response.text())
       .then(data => {
-        document.getElementById("header-placeholder").innerHTML = data;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data, 'text/html');
+        const headerContent = doc.body;
 
-        // Réexécuter les <script> du header pour activer le badge
-        const scripts = document.querySelectorAll('#header-placeholder script');
-        scripts.forEach(oldScript => {
-          const newScript = document.createElement('script');
-          newScript.textContent = oldScript.textContent;
-          document.body.appendChild(newScript);
+        document.getElementById("header-placeholder").innerHTML = headerContent.innerHTML;
+
+        // Recharger les scripts inclus dans header.html
+        headerContent.querySelectorAll("script").forEach(script => {
+          const s = document.createElement("script");
+          if (script.src) {
+            s.src = script.src;
+          } else {
+            s.textContent = script.textContent;
+          }
+          document.body.appendChild(s);
         });
 
         return fetch("/.netlify/functions/getProfils");
@@ -320,42 +353,6 @@
               });
           });
 
-          document.addEventListener("click", (e) => {
-            if (!div.contains(e.target)) {
-              noteEditor.classList.remove("open");
-            }
-          });
-
-          div.querySelector(".btn-edit").addEventListener("click", e => {
-            e.stopPropagation();
-            window.location.href = `profil.html?edit=${encodeURIComponent(p.name)}`;
-          });
-
-          div.querySelector(".btn-delete").addEventListener("click", e => {
-            e.stopPropagation();
-            if (confirm(`Supprimer définitivement le profil de ${p.name} ?`)) {
-              fetch("/.netlify/functions/deleteProfil", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: p.id })
-              })
-                .then(res => res.json())
-                .then(data => {
-                  if (data.success) {
-                    profils.splice(index, 1);
-                    renderProfils();
-                  } else {
-                    alert("Erreur serveur : " + (data.error || "suppression impossible"));
-                  }
-                })
-                .catch(err => {
-                  console.error("Erreur réseau :", err);
-                  alert("Échec de communication avec le serveur.");
-                });
-            }
-          });
-
-          // ouvrir panneau latéral
           div.addEventListener("click", () => {
             const panel = document.getElementById("side-panel");
             const content = document.getElementById("panel-content");
@@ -365,7 +362,7 @@
               <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
               <p><strong>Outils IA :</strong></p>
               <ul>${(p.tools || []).map(t => `<li>${t}</li>`).join('')}</ul>
-              ${(p.note || '').trim() ? `<p><strong>Note :</strong><br>${p.note}</p>` : ''}
+              ${p.note ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}
             `;
 
             panel.classList.add("show");
@@ -380,7 +377,6 @@
       document.getElementById("side-panel").classList.remove("show");
     });
 
-    // Fermer panneau si clic hors vignette et panneau
     document.addEventListener("click", (event) => {
       const panel = document.getElementById("side-panel");
       const clickedInsidePanel = panel.contains(event.target);
