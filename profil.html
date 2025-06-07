@@ -55,6 +55,13 @@
       display: none;
       border-radius: 8px;
     }
+    #loading-indicator {
+      display: none;
+      text-align: center;
+      margin-top: 10px;
+      color: #0077b6;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -78,6 +85,7 @@
         <label>Outils IA maîtrisés :</label>
         <div id="tools-list"></div>
         <button type="submit" id="submit-btn">Créer</button>
+        <div id="loading-indicator">⏳ Enregistrement en cours...</div>
       </form>
     </div>
   </main>
@@ -100,6 +108,7 @@
     const submitBtn = document.getElementById("submit-btn");
     const photoInput = document.getElementById("photo-upload");
     const imagePreview = document.getElementById("image-preview");
+    const loadingIndicator = document.getElementById("loading-indicator");
 
     const params = new URLSearchParams(window.location.search);
     const editName = decodeURIComponent(params.get("edit") || "");
@@ -134,7 +143,16 @@
                 if (profil) {
                   editingProfil = profil;
                   nameInput.value = profil.name;
+
+                  const existingOption = [...poleSelect.options].find(opt => opt.value === profil.pole);
+                  if (!existingOption && profil.pole) {
+                    const newOpt = document.createElement("option");
+                    newOpt.value = profil.pole;
+                    newOpt.textContent = profil.pole;
+                    poleSelect.appendChild(newOpt);
+                  }
                   poleSelect.value = profil.pole || "";
+
                   uploadedImagePath = profil.photo || "";
                   if (uploadedImagePath) {
                     imagePreview.src = uploadedImagePath;
@@ -173,9 +191,13 @@
 
               if (res.ok) {
                 const result = await res.json();
-                uploadedImagePath = result.url;
-                imagePreview.src = uploadedImagePath;
-                imagePreview.style.display = "block";
+                if (result.url) {
+                  uploadedImagePath = result.url;
+                  imagePreview.src = uploadedImagePath;
+                  imagePreview.style.display = "block";
+                } else {
+                  alert("L'URL d'image est manquante dans la réponse.");
+                }
               } else {
                 alert("Échec de l'upload de l'image");
               }
@@ -185,6 +207,10 @@
 
           document.getElementById("profil-form").addEventListener("submit", function(e) {
             e.preventDefault();
+
+            loadingIndicator.style.display = "block";
+            submitBtn.disabled = true;
+
             const updatedProfil = {
               id: editingProfil?.id || "_" + Math.random().toString(36).substr(2, 9),
               name: nameInput.value.trim(),
@@ -195,6 +221,8 @@
 
             if (!updatedProfil.name) {
               alert("Le nom ne peut pas être vide.");
+              loadingIndicator.style.display = "none";
+              submitBtn.disabled = false;
               return;
             }
 
@@ -214,6 +242,10 @@
               .catch((err) => {
                 console.error(err);
                 alert("Erreur de communication avec le serveur.");
+              })
+              .finally(() => {
+                loadingIndicator.style.display = "none";
+                submitBtn.disabled = false;
               });
           });
         });
