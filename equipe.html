@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Équipe</title>
   <link rel="stylesheet" href="style.css" />
   <style>
@@ -97,19 +97,66 @@
       margin-top: 6px;
     }
     .btn-edit,
-    .btn-delete {
+    .btn-delete,
+    .btn-note {
       background: #f0f0f0;
       border: 1px solid #ccc;
       border-radius: 6px;
-      padding: 2px 4px;
-      font-size: 0.75rem;
+      padding: 4px 6px;
+      font-size: 0.9rem;
       color: #0077b6;
       cursor: pointer;
     }
     .btn-edit:hover,
-    .btn-delete:hover {
+    .btn-delete:hover,
+    .btn-note:hover {
       background: #e0f3fc;
       border-color: #0077b6;
+    }
+    .btn-note {
+      padding: 4px;
+    }
+    .note-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: #ffcb05;
+      color: #000;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: bold;
+      display: none;
+    }
+    .note-editor {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      margin-top: 10px;
+    }
+    .note-editor.open {
+      max-height: 300px;
+      opacity: 1;
+    }
+    .note-editor textarea {
+      width: 100%;
+      min-height: 60px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      padding: 6px;
+      font-size: 0.85rem;
+      resize: vertical;
+    }
+    .note-editor button {
+      margin-top: 6px;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      background: #0077b6;
+      color: white;
+      border: none;
+      cursor: pointer;
     }
     .tooltip {
       position: absolute;
@@ -163,7 +210,6 @@
       .then(response => response.text())
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
-        mettreAJourBulleDemandes();
         return fetch("/.netlify/functions/getProfils");
       })
       .then(res => res.json())
@@ -180,14 +226,6 @@
         document.body.innerHTML = '<p style="text-align:center;color:red;padding:2rem">Erreur lors du chargement des profils : ' + err.message + '</p>';
       });
 
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      if (!notif) return;
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-    }
-
     function normalizeString(str) {
       return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
     }
@@ -196,6 +234,7 @@
       const selectedPole = normalizeString(filterPole.value);
       const searchQuery = normalizeString(searchInput.value);
       listContainer.innerHTML = "";
+
       profils.forEach((p, index) => {
         const poleNormalized = normalizeString(p.pole || '');
         const nameNormalized = normalizeString(p.name || '');
@@ -211,15 +250,71 @@
           div.className = "vignette";
           div.draggable = true;
           div.dataset.index = index;
+
           div.innerHTML = `
+            <span class="note-badge">Note</span>
             <img src="${p.photo || ''}" alt="${p.name}" />
             <h3>${p.name}</h3>
             <div class="pole">${p.pole || ''}</div>
             <div class="icon-bar">
+              <button class="btn-note" title="Note">🗒️</button>
               <button class="btn-edit" title="Éditer">✏️</button>
               <button class="btn-delete" title="Supprimer">🗑️</button>
             </div>
+            <div class="note-editor">
+              <textarea placeholder="Ajouter une note...">${p.note || ''}</textarea>
+              <button class="save-note">Enregistrer</button>
+            </div>
           `;
+
+          const noteBadge = div.querySelector(".note-badge");
+          const noteEditor = div.querySelector(".note-editor");
+          const textarea = noteEditor.querySelector("textarea");
+          const saveBtn = noteEditor.querySelector(".save-note");
+
+          if ((p.note || '').trim()) {
+            noteBadge.style.display = 'inline-block';
+          }
+
+          div.querySelector(".btn-note").addEventListener("click", (e) => {
+            e.stopPropagation();
+            document.querySelectorAll(".note-editor.open").forEach(el => {
+              if (el !== noteEditor) el.classList.remove("open");
+            });
+            noteEditor.classList.toggle("open");
+          });
+
+          saveBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const content = textarea.value.trim();
+
+            fetch("/.netlify/functions/updateProfil", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: p.id, note: content })
+            })
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  p.note = content;
+                  noteBadge.style.display = content ? "inline-block" : "none";
+                  noteEditor.classList.remove("open");
+                } else {
+                  alert("Erreur serveur lors de l'enregistrement de la note.");
+                }
+              })
+              .catch(err => {
+                console.error("Erreur réseau :", err);
+                alert("Impossible de sauvegarder la note.");
+              });
+          });
+
+          document.addEventListener("click", (e) => {
+            if (!div.contains(e.target)) {
+              noteEditor.classList.remove("open");
+            }
+          });
+
           div.addEventListener("mousemove", e => showTooltip(e, p));
           div.addEventListener("mouseleave", hideTooltip);
 
@@ -236,19 +331,19 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id: p.id })
               })
-              .then(res => res.json())
-              .then(data => {
-                if (data.success) {
-                  profils.splice(index, 1);
-                  renderProfils();
-                } else {
-                  alert("Erreur serveur : " + (data.error || "suppression impossible"));
-                }
-              })
-              .catch(err => {
-                console.error("Erreur réseau :", err);
-                alert("Échec de communication avec le serveur.");
-              });
+                .then(res => res.json())
+                .then(data => {
+                  if (data.success) {
+                    profils.splice(index, 1);
+                    renderProfils();
+                  } else {
+                    alert("Erreur serveur : " + (data.error || "suppression impossible"));
+                  }
+                })
+                .catch(err => {
+                  console.error("Erreur réseau :", err);
+                  alert("Échec de communication avec le serveur.");
+                });
             }
           });
 
