@@ -1,17 +1,19 @@
 const fs = require("fs");
 const path = require("path");
 
-const SOURCE_PATH = path.join(__dirname, "../../demandes.json");
 const TMP_PATH = "/tmp/demandes.json";
+const FALLBACK_PATH = path.join(__dirname, "../../demandes.json");
 
 exports.handler = async function () {
   try {
     let data = "[]";
+
     if (fs.existsSync(TMP_PATH)) {
       data = fs.readFileSync(TMP_PATH, "utf-8");
-    } else if (fs.existsSync(SOURCE_PATH)) {
-      data = fs.readFileSync(SOURCE_PATH, "utf-8");
+    } else if (fs.existsSync(FALLBACK_PATH)) {
+      data = fs.readFileSync(FALLBACK_PATH, "utf-8");
     }
+
     return {
       statusCode: 200,
       body: data
