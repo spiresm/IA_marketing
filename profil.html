@@ -92,11 +92,10 @@
     ];
 
     let uploadedImagePath = "";
+    let editingProfil = null;
 
     const params = new URLSearchParams(window.location.search);
     const editName = decodeURIComponent(params.get("edit") || "");
-    const profils = JSON.parse(localStorage.getItem("profilsEquipe") || "[]");
-    let editingProfil = profils.find(p => p.name === editName);
 
     const nameInput = document.getElementById("name");
     const poleSelect = document.getElementById("pole");
@@ -106,14 +105,6 @@
     const photoInput = document.getElementById("photo-upload");
     const imagePreview = document.getElementById("image-preview");
 
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      if (!notif) return;
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-    }
-
     fetch("header.html")
       .then(response => response.text())
       .then(data => {
@@ -122,7 +113,6 @@
         requestAnimationFrame(() => {
           document.body.style.opacity = "1";
           document.querySelector("main").style.display = "block";
-          mettreAJourBulleDemandes();
 
           allTools.forEach(tool => {
             const label = document.createElement("label");
@@ -134,22 +124,6 @@
             toolsDiv.appendChild(label);
             toolsDiv.appendChild(document.createElement("br"));
           });
-
-          if (editingProfil) {
-            title.textContent = "Modifier le profil";
-            submitBtn.textContent = "Mettre à jour";
-            nameInput.value = editingProfil.name;
-            poleSelect.value = editingProfil.pole || "";
-            if (editingProfil.photo) {
-              uploadedImagePath = editingProfil.photo;
-              imagePreview.src = uploadedImagePath;
-              imagePreview.style.display = "block";
-            }
-            (editingProfil.tools || []).forEach(t => {
-              const cb = [...toolsDiv.querySelectorAll("input")].find(c => c.value === t);
-              if (cb) cb.checked = true;
-            });
-          }
 
           photoInput.addEventListener("change", async e => {
             const file = e.target.files[0];
@@ -182,6 +156,7 @@
           document.getElementById("profil-form").addEventListener("submit", function(e) {
             e.preventDefault();
             const updatedProfil = {
+              id: editingProfil?.id || "_" + Math.random().toString(36).substr(2, 9),
               name: nameInput.value.trim(),
               pole: poleSelect.value,
               photo: uploadedImagePath,
@@ -193,15 +168,23 @@
               return;
             }
 
-            const index = profils.findIndex(p => p.name === updatedProfil.name);
-            if (index !== -1) {
-              profils[index] = updatedProfil;
-            } else {
-              profils.push(updatedProfil);
-            }
-
-            localStorage.setItem("profilsEquipe", JSON.stringify(profils));
-            window.location.href = "equipe.html";
+            fetch("/.netlify/functions/updateProfil", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(updatedProfil),
+            })
+              .then((res) => res.json())
+              .then((data) => {
+                if (data.success) {
+                  window.location.href = "equipe.html";
+                } else {
+                  alert("Erreur : " + (data.error || "Échec inconnu"));
+                }
+              })
+              .catch((err) => {
+                console.error(err);
+                alert("Erreur de communication avec le serveur.");
+              });
           });
         });
       });
