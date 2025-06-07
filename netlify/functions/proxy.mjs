@@ -6,7 +6,6 @@ export const handler = async (event) => {
   try {
     const url = new URL(GOOGLE_SCRIPT_URL);
 
-    // Ajout du paramètre d'action si présent
     if (event.queryStringParameters?.action) {
       url.searchParams.append("action", event.queryStringParameters.action);
     }
@@ -39,7 +38,6 @@ export const handler = async (event) => {
     };
   } catch (error) {
     console.error("Erreur proxy.mjs :", error);
-
     return {
       statusCode: 500,
       headers: {
