@@ -48,6 +48,8 @@ export const handler = async (event) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ error: "Erreur interne dans le proxy." }),
+      console.log("BODY REÇU:", body);
+
     };
   }
 };
