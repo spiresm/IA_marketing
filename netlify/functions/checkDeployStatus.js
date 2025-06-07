@@ -1,41 +1,41 @@
-const fetch = require('node-fetch');
+const fetch = require("node-fetch");
 
 exports.handler = async function (event, context) {
-  const NETLIFY_SITE_ID = "votre_site_id"; // remplace par ton ID Netlify
-  const NETLIFY_TOKEN = process.env.NETLIFY_API_TOKEN; // stocke ce token dans les variables d'environnement Netlify
+  const SITE_ID = process.env.NETLIFY_SITE_ID;
+  const TOKEN = process.env.NETLIFY_API_TOKEN;
+
+  if (!SITE_ID || !TOKEN) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "SITE_ID ou TOKEN manquant" })
+    };
+  }
 
   try {
-    const res = await fetch(`https://api.netlify.com/api/v1/sites/${NETLIFY_SITE_ID}/deploys`, {
+    const res = await fetch(`https://api.netlify.com/api/v1/sites/${SITE_ID}/deploys`, {
       headers: {
-        Authorization: `Bearer ${NETLIFY_TOKEN}`
+        Authorization: `Bearer ${TOKEN}`
       }
     });
 
     const deploys = await res.json();
-    const latestDeploy = deploys.find(dep => dep.state === 'ready');
+    const latest = deploys.find(d => d.state === "ready");
 
-    if (!latestDeploy) {
+    if (latest) {
       return {
-        statusCode: 503,
-        body: JSON.stringify({ status: "en_cours" })
+        statusCode: 200,
+        body: JSON.stringify({ status: "ready", deployId: latest.id })
       };
     }
 
     return {
-      statusCode: 200,
-      body: JSON.stringify({
-        status: "prêt",
-        deploy: {
-          id: latestDeploy.id,
-          created_at: latestDeploy.created_at,
-          url: latestDeploy.deploy_ssl_url
-        }
-      })
+      statusCode: 202,
+      body: JSON.stringify({ status: "not_ready" });
     };
-  } catch (err) {
+  } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erreur lors de la récupération du déploiement", details: err.message })
+      body: JSON.stringify({ error: "Erreur Netlify API", details: error.message })
     };
   }
 };
