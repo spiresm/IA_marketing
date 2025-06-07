@@ -141,7 +141,6 @@
       resize: vertical;
     }
     .note-editor button {
-      margin-top: 6px;
       padding: 4px 8px;
       font-size: 0.8rem;
       border-radius: 4px;
@@ -236,23 +235,16 @@
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
 
-        // Recharge les scripts dynamiquement
         const parser = new DOMParser();
         const doc = parser.parseFromString(data, 'text/html');
         doc.querySelectorAll("script").forEach(script => {
           const s = document.createElement("script");
-          if (script.src) {
-            s.src = script.src;
-          } else {
-            s.textContent = script.textContent;
-          }
+          if (script.src) s.src = script.src;
+          else s.textContent = script.textContent;
           document.body.appendChild(s);
         });
 
-        // Met à jour la notification si la fonction est présente
-        if (typeof updateTicketNotif === "function") {
-          updateTicketNotif();
-        }
+        if (typeof updateTicketNotif === "function") updateTicketNotif();
 
         return fetch("/.netlify/functions/getProfils");
       })
@@ -301,7 +293,11 @@
             </div>
             <div class="note-editor">
               <textarea>${p.note || ''}</textarea>
-              <button class="save-note">Enregistrer</button>
+              <div style="display: flex; gap: 6px; margin-top: 6px;">
+                <button class="save-note">Enregistrer</button>
+                <button class="clear-note" style="background:#ccc;">Effacer</button>
+                <button class="close-note" style="background:#999;">Retour</button>
+              </div>
             </div>`;
 
           const noteBadge = div.querySelector(".note-badge");
@@ -330,6 +326,27 @@
                 noteEditor.classList.remove("open");
               }
             });
+          });
+
+          div.querySelector(".clear-note").addEventListener("click", e => {
+            e.stopPropagation();
+            textarea.value = "";
+            fetch("/.netlify/functions/updateProfil", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: p.id, note: "" })
+            }).then(res => res.json()).then(data => {
+              if (data.success) {
+                p.note = "";
+                noteBadge.style.display = 'none';
+                noteEditor.classList.remove("open");
+              }
+            });
+          });
+
+          div.querySelector(".close-note").addEventListener("click", e => {
+            e.stopPropagation();
+            noteEditor.classList.remove("open");
           });
 
           div.querySelector(".btn-edit").addEventListener("click", e => {
