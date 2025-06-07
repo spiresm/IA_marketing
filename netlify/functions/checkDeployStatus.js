@@ -30,7 +30,7 @@ exports.handler = async function (event, context) {
 
     return {
       statusCode: 202,
-      body: JSON.stringify({ status: "not_ready" });
+      body: JSON.stringify({ status: "not_ready" })
     };
   } catch (error) {
     return {
