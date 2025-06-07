@@ -4,7 +4,7 @@ exports.handler = async function (event) {
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
   const REPO_OWNER = "spiresm";
   const REPO_NAME = "IA_marketing";
-  const FILE_PATH = "profil.json";
+  const FILE_PATH = "netlify/functions/profil.json";
   const BRANCH = "main";
 
   if (event.httpMethod !== "POST") {
