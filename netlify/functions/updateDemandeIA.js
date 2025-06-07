@@ -1,45 +1,53 @@
 const fs = require("fs");
 const path = require("path");
 
-const FILE_PATH = path.join(__dirname, "../../data/demandes.json");
+const SOURCE_PATH = path.join(__dirname, "../../demandes.json");
+const TMP_PATH = "/tmp/demandes.json";
 
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Méthode non autorisée" };
+    return {
+      statusCode: 405,
+      body: "Méthode non autorisée"
+    };
   }
 
   try {
     const body = JSON.parse(event.body);
     let demandes = [];
 
-    if (fs.existsSync(FILE_PATH)) {
-      const content = fs.readFileSync(FILE_PATH, "utf-8");
-      demandes = JSON.parse(content);
+    // Lire depuis le fichier original (lecture seule)
+    if (fs.existsSync(TMP_PATH)) {
+      demandes = JSON.parse(fs.readFileSync(TMP_PATH, "utf-8"));
+    } else if (fs.existsSync(SOURCE_PATH)) {
+      demandes = JSON.parse(fs.readFileSync(SOURCE_PATH, "utf-8"));
     }
 
+    // Si body est un tableau (écrasement complet)
     if (Array.isArray(body)) {
-      // Si on envoie un tableau complet (pour suppression ou reset)
       demandes = body;
     } else {
-      const newDemande = body;
-      const index = demandes.findIndex(d => d.id === newDemande.id);
-
+      const index = demandes.findIndex(d => d.id === body.id);
       if (index > -1) {
-        demandes[index] = { ...demandes[index], ...newDemande };
+        demandes[index] = { ...demandes[index], ...body };
       } else {
-        demandes.push(newDemande);
+        demandes.push(body);
       }
     }
 
-    fs.writeFileSync(FILE_PATH, JSON.stringify(demandes, null, 2));
+    fs.writeFileSync(TMP_PATH, JSON.stringify(demandes, null, 2));
+
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, total: demandes.length }),
+      body: JSON.stringify({ success: true, total: demandes.length })
     };
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erreur écriture", details: err.message }),
+      body: JSON.stringify({
+        error: "Erreur d’écriture",
+        details: err.message
+      })
     };
   }
 };
