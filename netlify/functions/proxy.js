@@ -20,7 +20,20 @@ exports.handler = async (event) => {
       fetchOptions.body = event.body;
     }
 
+    console.log("Fetching URL:", url.toString());
+    console.log("Fetch options:", fetchOptions);
+
     const response = await fetch(url.toString(), fetchOptions);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Google Script returned error:", response.status, errorText);
+      return {
+        statusCode: response.status,
+        body: errorText,
+      };
+    }
+
     const data = await response.text();
 
     return {
@@ -33,6 +46,7 @@ exports.handler = async (event) => {
       body: data,
     };
   } catch (error) {
+    console.error("Proxy function error:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: error.message }),
