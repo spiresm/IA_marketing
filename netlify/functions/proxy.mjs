@@ -18,11 +18,16 @@ export const handler = async (event) => {
       fetchOptions.body = event.body;
     }
 
+    console.log("Proxy envoie vers :", url.toString());
+    console.log("Options fetch :", fetchOptions);
+
     const response = await fetch(url.toString(), fetchOptions);
     const contentType = response.headers.get("content-type") || "";
 
     const isJSON = contentType.includes("application/json");
     const body = isJSON ? await response.json() : await response.text();
+
+    console.log("Proxy reçoit :", body);
 
     return {
       statusCode: response.status,
@@ -35,6 +40,7 @@ export const handler = async (event) => {
       body: isJSON ? JSON.stringify(body) : body,
     };
   } catch (error) {
+    console.error("Erreur proxy.mjs :", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: "Erreur proxy.mjs" }),
