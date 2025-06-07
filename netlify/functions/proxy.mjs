@@ -6,7 +6,7 @@ export const handler = async (event) => {
   try {
     const url = new URL(GOOGLE_SCRIPT_URL);
 
-    if (event.queryStringParameters && event.queryStringParameters.action) {
+    if (event.queryStringParameters?.action) {
       url.searchParams.append("action", event.queryStringParameters.action);
     }
 
@@ -20,22 +20,20 @@ export const handler = async (event) => {
       fetchOptions.body = event.body;
     }
 
-    console.log("Fetching URL:", url.toString());
-    console.log("Fetch options:", fetchOptions);
-
     const response = await fetch(url.toString(), fetchOptions);
+    const contentType = response.headers.get("content-type") || "";
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Google Script error status:", response.status, errorText);
       return {
         statusCode: response.status,
-        body: errorText,
+        body: JSON.stringify({ error: errorText }),
       };
     }
 
-    const data = await response.text();
-    console.log("Response data:", data);
+    const isJSON = contentType.includes("application/json");
+    const data = isJSON ? await response.json() : await response.text();
 
     return {
       statusCode: 200,
@@ -43,8 +41,9 @@ export const handler = async (event) => {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
+        "Content-Type": isJSON ? "application/json" : "text/plain"
       },
-      body: data,
+      body: isJSON ? JSON.stringify(data) : data,
     };
   } catch (error) {
     console.error("Proxy function error:", error);
