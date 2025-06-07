@@ -26,6 +26,9 @@ export const handler = async (event) => {
     const isJSON = contentType.includes("application/json");
     const body = isJSON ? await response.json() : await response.text();
 
+    // 🧪 Ajoute ce log pour le voir dans Netlify
+    console.log("Réponse brute Google Script :", body);
+
     return {
       statusCode: response.status,
       headers: {
