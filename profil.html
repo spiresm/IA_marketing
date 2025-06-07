@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Créer ou éditer un profil</title>
   <link rel="stylesheet" href="style.css" />
   <style>
@@ -114,7 +114,6 @@
           document.body.style.opacity = "1";
           document.querySelector("main").style.display = "block";
 
-          // Génère les cases à cocher des outils
           allTools.forEach(tool => {
             const label = document.createElement("label");
             const checkbox = document.createElement("input");
@@ -126,12 +125,12 @@
             toolsDiv.appendChild(document.createElement("br"));
           });
 
-          // Pré-remplissage si édition
           if (editName) {
-            fetch("profil.json")
+            fetch("/.netlify/functions/getProfils")
               .then(res => res.json())
               .then(data => {
-                const profil = (data.profils || []).find(p => p.name === editName);
+                if (!Array.isArray(data)) throw new Error("Données invalides");
+                const profil = data.find(p => p.name === editName);
                 if (profil) {
                   editingProfil = profil;
                   nameInput.value = profil.name;
@@ -141,11 +140,9 @@
                     imagePreview.src = uploadedImagePath;
                     imagePreview.style.display = "block";
                   }
-                  requestAnimationFrame(() => {
-                    const outils = profil.tools || [];
-                    toolsDiv.querySelectorAll("input").forEach(cb => {
-                      if (outils.includes(cb.value)) cb.checked = true;
-                    });
+                  const outils = profil.tools || [];
+                  toolsDiv.querySelectorAll("input").forEach(cb => {
+                    if (outils.includes(cb.value)) cb.checked = true;
                   });
 
                   title.textContent = "Modifier le profil";
@@ -154,7 +151,6 @@
               });
           }
 
-          // Upload d'image
           photoInput.addEventListener("change", async e => {
             const file = e.target.files[0];
             if (!file) return;
@@ -183,7 +179,6 @@
             reader.readAsDataURL(file);
           });
 
-          // Soumission du formulaire
           document.getElementById("profil-form").addEventListener("submit", function(e) {
             e.preventDefault();
             const updatedProfil = {
