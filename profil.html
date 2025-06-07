@@ -209,6 +209,7 @@
             e.preventDefault();
 
             loadingIndicator.style.display = "block";
+            loadingIndicator.textContent = "⏳ Enregistrement du profil...";
             submitBtn.disabled = true;
 
             const updatedProfil = {
@@ -234,11 +235,12 @@
               .then(async (res) => {
                 const data = await res.json();
                 if (data.success) {
-                  // Attendre que Netlify ait déployé
+                  loadingIndicator.textContent = "✅ Profil enregistré. ⏳ Attente du déploiement Netlify...";
+
                   const waitForDeploy = async () => {
                     let attempts = 0;
-                    const maxAttempts = 10;
-                    const delay = 3000;
+                    const maxAttempts = 7;
+                    const delay = 2000;
 
                     while (attempts < maxAttempts) {
                       try {
@@ -252,8 +254,9 @@
                         console.error("Erreur durant la vérification du déploiement :", err);
                       }
 
-                      await new Promise(r => setTimeout(r, delay));
                       attempts++;
+                      loadingIndicator.textContent = `✅ Profil enregistré. ⏳ Vérification ${attempts}/${maxAttempts}...`;
+                      await new Promise(r => setTimeout(r, delay));
                     }
 
                     return false;
@@ -264,7 +267,7 @@
                   if (isReady) {
                     window.location.href = "equipe.html";
                   } else {
-                    alert("Le déploiement est plus lent que prévu. Rechargez équipe.html manuellement dans quelques instants.");
+                    loadingIndicator.textContent = "⚠️ Le site n'est pas encore à jour. Rechargez l'équipe dans quelques instants.";
                   }
 
                 } else {
@@ -276,7 +279,6 @@
                 alert("Erreur de communication avec le serveur.");
               })
               .finally(() => {
-                loadingIndicator.style.display = "none";
                 submitBtn.disabled = false;
               });
           });
