@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const FILE_PATH = path.join(__dirname, '../../data/demandes.json');
+const FILE_PATH = path.join(__dirname, '../data/demandes.json');
 
 exports.handler = async () => {
   try {
