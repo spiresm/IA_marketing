@@ -1,27 +1,20 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
-const TMP_PATH = "/tmp/demandes.json";
-const FALLBACK_PATH = path.join(__dirname, "../../demandes.json");
+const FILE_PATH = path.join(__dirname, '../../demandes.json');
 
-exports.handler = async function () {
+exports.handler = async () => {
   try {
-    let data = "[]";
-
-    if (fs.existsSync(TMP_PATH)) {
-      data = fs.readFileSync(TMP_PATH, "utf-8");
-    } else if (fs.existsSync(FALLBACK_PATH)) {
-      data = fs.readFileSync(FALLBACK_PATH, "utf-8");
-    }
-
+    const content = fs.readFileSync(FILE_PATH, 'utf-8');
+    const data = JSON.parse(content);
     return {
       statusCode: 200,
-      body: data
+      body: JSON.stringify(data.demandes || []),
     };
-  } catch (err) {
+  } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erreur lecture", details: err.message })
+      body: JSON.stringify({ error: 'Erreur lecture fichier', details: error.message }),
     };
   }
 };
