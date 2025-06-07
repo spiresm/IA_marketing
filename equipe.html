@@ -235,9 +235,25 @@
       .then(response => response.text())
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
-        if (document.querySelector('.notif-ia')) {
-          document.querySelector('.notif-ia').style.display = 'inline-block';
+
+        // Recharge les scripts dynamiquement
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data, 'text/html');
+        doc.querySelectorAll("script").forEach(script => {
+          const s = document.createElement("script");
+          if (script.src) {
+            s.src = script.src;
+          } else {
+            s.textContent = script.textContent;
+          }
+          document.body.appendChild(s);
+        });
+
+        // Met à jour la notification si la fonction est présente
+        if (typeof updateTicketNotif === "function") {
+          updateTicketNotif();
         }
+
         return fetch("/.netlify/functions/getProfils");
       })
       .then(res => res.json())
