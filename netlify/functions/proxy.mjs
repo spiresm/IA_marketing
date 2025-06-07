@@ -6,6 +6,7 @@ export const handler = async (event) => {
   try {
     const url = new URL(GOOGLE_SCRIPT_URL);
 
+    // Ajoute le paramètre 'action' s'il existe
     if (event.queryStringParameters?.action) {
       url.searchParams.append("action", event.queryStringParameters.action);
     }
@@ -23,33 +24,22 @@ export const handler = async (event) => {
     const response = await fetch(url.toString(), fetchOptions);
     const contentType = response.headers.get("content-type") || "";
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Google Script error status:", response.status, errorText);
-      return {
-        statusCode: response.status,
-        body: JSON.stringify({ error: errorText }),
-      };
-    }
-
+    // Vérifie si la réponse est bien du JSON
     const isJSON = contentType.includes("application/json");
-    const data = isJSON ? await response.json() : await response.text();
+    const body = isJSON ? await response.json() : await response.text();
 
     return {
-      statusCode: 200,
+      statusCode: response.status,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Content-Type": isJSON ? "application/json" : "text/plain"
       },
-      body: isJSON ? JSON.stringify(data) : data,
+      body: isJSON ? JSON.stringify(body) : body,
     };
   } catch (error) {
-    console.error("Proxy function error:", error);
+    console.error("Erreur dans proxy.mjs :", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
-    };
-  }
-};
+      body:
