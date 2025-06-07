@@ -56,7 +56,7 @@
       padding: 12px;
       width: 180px;
       position: relative;
-      cursor: grab;
+      cursor: pointer;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     .vignette:hover {
@@ -70,13 +70,6 @@
       object-fit: cover;
       margin: 0 auto 8px;
       display: block;
-      animation: shine 3s infinite linear;
-      background: linear-gradient(130deg, #f1f1f1 30%, #ddd 50%, #f1f1f1 70%);
-      background-size: 400% 400%;
-    }
-    @keyframes shine {
-      0% { background-position: 0% 50%; }
-      100% { background-position: 100% 50%; }
     }
     .vignette h3 {
       margin: 8px 0 4px;
@@ -158,24 +151,33 @@
       border: none;
       cursor: pointer;
     }
-    .tooltip {
+    /* panneau latéral */
+    .side-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100%;
+      background: white;
+      box-shadow: -4px 0 12px rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+      z-index: 1000;
+      transform: translateX(100%);
+    }
+    .side-panel.show {
+      transform: translateX(0);
+    }
+    .side-panel .close-panel {
       position: absolute;
-      background: #ffffff;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      padding: 16px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-      display: none;
-      z-index: 10;
-      pointer-events: none;
-      width: 300px;
-    }
-    .tooltip h4 {
-      margin-top: 0;
-      color: #0077b6;
-    }
-    .tooltip ul {
-      padding-left: 16px;
+      top: 10px;
+      left: 10px;
+      background: transparent;
+      font-size: 24px;
+      border: none;
+      cursor: pointer;
+      color: #333;
     }
   </style>
 </head>
@@ -198,11 +200,16 @@
       <div class="grid" id="profil-list"></div>
     </div>
   </main>
-  <div class="tooltip" id="tooltip"></div>
+
+  <!-- panneau latéral -->
+  <div id="side-panel" class="side-panel">
+    <button class="close-panel">×</button>
+    <div id="panel-content"></div>
+  </div>
+
   <script>
     let profils = [];
     const listContainer = document.getElementById("profil-list");
-    const tooltip = document.getElementById("tooltip");
     const filterPole = document.getElementById("filterPole");
     const searchInput = document.getElementById("searchInput");
 
@@ -214,9 +221,7 @@
       })
       .then(res => res.json())
       .then(data => {
-        const profilsArray = Array.isArray(data) ? data : data.profils;
-        if (!Array.isArray(profilsArray)) throw new Error("Les données chargées ne sont pas un tableau valide.");
-        profils = profilsArray;
+        profils = Array.isArray(data) ? data : data.profils;
         document.body.style.opacity = "1";
         document.querySelector("main").style.display = "block";
         renderProfils();
@@ -248,7 +253,6 @@
         if (matchPole && matchSearch) {
           const div = document.createElement("div");
           div.className = "vignette";
-          div.draggable = true;
           div.dataset.index = index;
 
           div.innerHTML = `
@@ -315,9 +319,6 @@
             }
           });
 
-          div.addEventListener("mousemove", e => showTooltip(e, p));
-          div.addEventListener("mouseleave", hideTooltip);
-
           div.querySelector(".btn-edit").addEventListener("click", e => {
             e.stopPropagation();
             window.location.href = `profil.html?edit=${encodeURIComponent(p.name)}`;
@@ -347,49 +348,30 @@
             }
           });
 
-          div.addEventListener("dragstart", handleDragStart);
-          div.addEventListener("dragover", handleDragOver);
-          div.addEventListener("drop", handleDrop);
+          // ouvrir panneau latéral
+          div.addEventListener("click", () => {
+            const panel = document.getElementById("side-panel");
+            const content = document.getElementById("panel-content");
+
+            content.innerHTML = `
+              <h2>${p.name}</h2>
+              <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
+              <p><strong>Outils IA :</strong></p>
+              <ul>${(p.tools || []).map(t => `<li>${t}</li>`).join('')}</ul>
+              ${(p.note || '').trim() ? `<p><strong>Note :</strong><br>${p.note}</p>` : ''}
+            `;
+
+            panel.classList.add("show");
+          });
 
           listContainer.appendChild(div);
         }
       });
     }
 
-    function handleDragStart(e) {
-      e.dataTransfer.setData("text/plain", e.target.dataset.index);
-    }
-
-    function handleDragOver(e) {
-      e.preventDefault();
-    }
-
-    function handleDrop(e) {
-      e.preventDefault();
-      const fromIndex = +e.dataTransfer.getData("text/plain");
-      const toIndex = +e.currentTarget.dataset.index;
-      const moved = profils.splice(fromIndex, 1)[0];
-      profils.splice(toIndex, 0, moved);
-      renderProfils();
-    }
-
-    function showTooltip(e, profil) {
-      tooltip.innerHTML = `
-        <h4>${profil.name}</h4>
-        <div><strong>Pôle :</strong> ${profil.pole || '—'}</div>
-        <div><strong>Outils IA :</strong></div>
-        <ul>
-          ${(profil.tools || []).map(t => `<li>${t}</li>`).join('')}
-        </ul>
-      `;
-      tooltip.style.display = "block";
-      tooltip.style.left = `${e.pageX + 15}px`;
-      tooltip.style.top = `${e.pageY}px`;
-    }
-
-    function hideTooltip() {
-      tooltip.style.display = "none";
-    }
+    document.querySelector(".close-panel").addEventListener("click", () => {
+      document.getElementById("side-panel").classList.remove("show");
+    });
 
     filterPole.addEventListener("change", renderProfils);
     searchInput.addEventListener("input", renderProfils);
