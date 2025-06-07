@@ -6,6 +6,7 @@
   <title>Demande IA - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
+    /* ton CSS inchangé */
     body {
       opacity: 0;
       margin: 0;
@@ -215,7 +216,9 @@
   </div>
 
   <script>
-    // Fonction pour s'assurer que le lien 'Demandes IA' a position: relative
+    const SCRIPT_ID = 'AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8';
+    const BASE_URL = `https://script.google.com/macros/s/${SCRIPT_ID}/exec`;
+
     function ensureNotifParentPosition() {
       const demandeLink = document.querySelector("a.demandes");
       if (demandeLink) {
@@ -226,7 +229,6 @@
       }
     }
 
-    // Chargement du header + initialisation
     fetch("header.html")
       .then(res => res.text())
       .then(data => {
@@ -252,7 +254,7 @@
       const notif = document.getElementById("notif-count");
       if (!notif) return;
       try {
-        const res = await fetch("/.netlify/functions/getDemandesIA");
+        const res = await fetch(`${BASE_URL}?action=getDemandesIA`);
         const demandes = await res.json();
         notif.textContent = demandes.length;
         notif.style.display = demandes.length > 0 ? "inline-block" : "none";
@@ -269,7 +271,7 @@
 
       let demandes = [];
       try {
-        const res = await fetch("/.netlify/functions/getDemandesIA");
+        const res = await fetch(`${BASE_URL}?action=getDemandesIA`);
         demandes = await res.json();
       } catch (err) {
         console.error("Erreur récupération :", err);
@@ -334,29 +336,43 @@ ${d.description}`;
     }
 
     async function supprimerDemande(id) {
-      let demandes = await fetch("/.netlify/functions/getDemandesIA").then(r => r.json());
-      demandes = demandes.filter(d => d.id !== id);
-      await fetch("/.netlify/functions/updateDemandeIA", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(demandes)
-      });
-      afficherDemandes();
-      mettreAJourBulleDemandes();
+      try {
+        // Récupérer toutes les demandes
+        let demandes = await (await fetch(`${BASE_URL}?action=getDemandesIA`)).json();
+        demandes = demandes.filter(d => d.id !== id);
+
+        // Envoyer la mise à jour
+        await fetch(BASE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "updateDemandeIA", demandes })
+        });
+
+        afficherDemandes();
+        mettreAJourBulleDemandes();
+      } catch(e) {
+        console.error("Erreur suppression :", e);
+      }
     }
 
     async function marquerTraite(id) {
-      const demandes = await fetch("/.netlify/functions/getDemandesIA").then(r => r.json());
-      const demande = demandes.find(d => d.id === id);
-      if (!demande) return;
-      demande.traite = true;
-      await fetch("/.netlify/functions/updateDemandeIA", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(demandes)
-      });
-      afficherDemandes();
-      mettreAJourBulleDemandes();
+      try {
+        let demandes = await (await fetch(`${BASE_URL}?action=getDemandesIA`)).json();
+        const demande = demandes.find(d => d.id === id);
+        if (!demande) return;
+        demande.traite = true;
+
+        await fetch(BASE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "updateDemandeIA", demandes })
+        });
+
+        afficherDemandes();
+        mettreAJourBulleDemandes();
+      } catch(e) {
+        console.error("Erreur marquer traité :", e);
+      }
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -384,18 +400,19 @@ ${d.description}`;
           traite: false
         };
 
-        // Envoi à la fonction updateDemandeIA
         try {
-          await fetch("/.netlify/functions/updateDemandeIA", {
+          // Envoi de la nouvelle demande (POST)
+          await fetch(BASE_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(demande)
+            body: JSON.stringify({ action: "updateDemandeIA", demande })
           });
 
-          await fetch("/.netlify/functions/sendRequest", {
+          // Envoi du mail via Google Script (ou autre)
+          await fetch(BASE_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(demande)
+            body: JSON.stringify({ action: "sendRequest", demande })
           });
 
           alert("Demande envoyée avec succès et mail transmis !");
