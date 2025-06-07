@@ -118,7 +118,6 @@
       max-width: 400px;
       position: relative;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-      white-space: pre-wrap;
     }
     .close-modal {
       position: absolute;
@@ -216,7 +215,7 @@
   </div>
 
   <script>
-    // Charger header
+    // Fonction pour s'assurer que le lien 'Demandes IA' a position: relative
     function ensureNotifParentPosition() {
       const demandeLink = document.querySelector("a.demandes");
       if (demandeLink) {
@@ -226,6 +225,8 @@
         }
       }
     }
+
+    // Chargement du header + initialisation
     fetch("header.html")
       .then(res => res.text())
       .then(data => {
@@ -272,7 +273,6 @@
         demandes = await res.json();
       } catch (err) {
         console.error("Erreur récupération :", err);
-        recapList.innerHTML = "<p>Impossible de charger les demandes.</p>";
         return;
       }
 
@@ -301,12 +301,13 @@
             <small style="color:#666;">📅 ${d.date}</small>
           </div>
           <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-            <div>${d.traite ? '✅ Traité' : '⏳ En attente'}</div>
+            <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
             <div>
-              ${d.traite ? '' : `<button class="btn-traite" data-id="${d.id}">✔️</button>`}
-              <button class="btn-supprimer" data-id="${d.id}">🗑️</button>
+              ${d.traite ? '' : `<button title="Marquer comme traité" data-id="${d.id}" class="btn-traite" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">✔️</button>`}
+              <button title="Supprimer" data-id="${d.id}" class="btn-supprimer" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">🗑️</button>
             </div>
-          </div>`;
+          </div>
+        `;
 
         div.querySelector(".btn-supprimer")?.addEventListener("click", async e => {
           e.stopPropagation();
@@ -383,6 +384,7 @@ ${d.description}`;
           traite: false
         };
 
+        // Envoi à la fonction updateDemandeIA
         try {
           await fetch("/.netlify/functions/updateDemandeIA", {
             method: "POST",
