@@ -17,7 +17,14 @@ exports.handler = async function (event) {
   const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
   try {
-    const profilAjoute = JSON.parse(event.body);
+    const bodyData = JSON.parse(event.body);
+
+    if (!bodyData.id) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "ID du profil requis" }),
+      };
+    }
 
     // 1. Récupère le fichier existant
     const { data: currentFile } = await octokit.repos.getContent({
@@ -31,22 +38,29 @@ exports.handler = async function (event) {
     const json = JSON.parse(decodedContent);
 
     const profils = json.profils || [];
+    const index = profils.findIndex((p) => p.id === bodyData.id);
 
-    const index = profils.findIndex((p) => p.id === profilAjoute.id);
-    if (index !== -1) {
-      profils[index] = profilAjoute;
-    } else {
-      profils.push(profilAjoute);
+    if (index === -1) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ error: "Profil introuvable" }),
+      };
     }
+
+    // 2. Met à jour uniquement les champs fournis (ex : note)
+    profils[index] = {
+      ...profils[index],
+      ...bodyData, // fusionne uniquement les champs fournis (note, etc.)
+    };
 
     const updatedContent = JSON.stringify({ profils }, null, 2);
 
-    // 2. Commit le fichier mis à jour
+    // 3. Commit du fichier mis à jour
     await octokit.repos.createOrUpdateFileContents({
       owner: REPO_OWNER,
       repo: REPO_NAME,
       path: FILE_PATH,
-      message: `Mise à jour profil ${profilAjoute.nom || profilAjoute.id}`,
+      message: `Mise à jour du profil ${bodyData.id} (note ou autres champs)`,
       content: Buffer.from(updatedContent).toString("base64"),
       sha: currentFile.sha,
       branch: BRANCH,
