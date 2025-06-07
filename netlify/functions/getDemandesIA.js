@@ -1,31 +1,24 @@
 const fs = require("fs");
 const path = require("path");
 
-const FILE_PATH = path.join(__dirname, "../../demandes.json");
+const FILE_PATH = path.join(__dirname, "../../demandes.json"); // <== racine du projet
 
 exports.handler = async function () {
   try {
     if (!fs.existsSync(FILE_PATH)) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify([])
-      };
+      fs.writeFileSync(FILE_PATH, "[]");
     }
 
-    const content = fs.readFileSync(FILE_PATH, "utf-8");
-    const data = JSON.parse(content);
-
+    const data = fs.readFileSync(FILE_PATH, "utf-8");
+    const demandes = JSON.parse(data);
     return {
       statusCode: 200,
-      body: JSON.stringify(Array.isArray(data) ? data : [])
+      body: JSON.stringify(demandes)
     };
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        error: "Erreur de lecture des demandes",
-        details: err.message
-      })
+      body: JSON.stringify({ error: "Erreur lecture fichier", details: err.message })
     };
   }
 };
