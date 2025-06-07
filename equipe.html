@@ -59,9 +59,6 @@
       cursor: grab;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    .vignette.dragging {
-      opacity: 1;
-    }
     .vignette:hover {
       transform: translateY(-6px);
       box-shadow: 0 10px 20px rgba(0,0,0,0.15);
@@ -223,10 +220,25 @@
 
           div.querySelector(".btn-delete").addEventListener("click", e => {
             e.stopPropagation();
-            if (confirm(`Supprimer le profil de ${p.name} ?`)) {
-              profils.splice(index, 1);
-              localStorage.setItem("profilsEquipe", JSON.stringify(profils));
-              renderProfils();
+            if (confirm(`Supprimer définitivement le profil de ${p.name} ?`)) {
+              fetch("/.netlify/functions/deleteProfil", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: p.id })
+              })
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  profils.splice(index, 1);
+                  renderProfils();
+                } else {
+                  alert("Erreur serveur : " + (data.error || "suppression impossible"));
+                }
+              })
+              .catch(err => {
+                console.error("Erreur réseau :", err);
+                alert("Échec de communication avec le serveur.");
+              });
             }
           });
 
@@ -253,7 +265,6 @@
       const toIndex = +e.currentTarget.dataset.index;
       const moved = profils.splice(fromIndex, 1)[0];
       profils.splice(toIndex, 0, moved);
-      localStorage.setItem("profilsEquipe", JSON.stringify(profils));
       renderProfils();
     }
 
