@@ -18,23 +18,30 @@ exports.handler = async function (event, context) {
 
     const deploys = await res.json();
 
-    const latestReady = deploys.find(d => d.state === "ready");
+    const latestDeploy = deploys[0];
 
-    if (latestReady) {
+    if (!latestDeploy) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ error: "Aucun déploiement trouvé." })
+      };
+    }
+
+    if (latestDeploy.state === "ready") {
       return {
         statusCode: 200,
         body: JSON.stringify({
           status: "ready",
-          id: latestReady.id,
-          created_at: latestReady.created_at,
-          url: latestReady.deploy_ssl_url
+          id: latestDeploy.id,
+          created_at: latestDeploy.created_at,
+          url: latestDeploy.deploy_ssl_url
         })
       };
     }
 
     return {
       statusCode: 202,
-      body: JSON.stringify({ status: "not_ready" })
+      body: JSON.stringify({ status: latestDeploy.state })
     };
 
   } catch (err) {
