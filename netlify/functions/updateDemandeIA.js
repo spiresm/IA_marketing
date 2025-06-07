@@ -11,9 +11,9 @@ exports.handler = async function(event) {
     };
   }
 
-  let newDemande;
+  let input;
   try {
-    newDemande = JSON.parse(event.body);
+    input = JSON.parse(event.body);
   } catch (err) {
     return {
       statusCode: 400,
@@ -21,49 +21,47 @@ exports.handler = async function(event) {
     };
   }
 
-  if (!newDemande.nom || !newDemande.date) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Champs requis manquants" })
-    };
-  }
-
   let demandes = [];
-
   try {
     if (fs.existsSync(FILE_PATH)) {
       const content = fs.readFileSync(FILE_PATH, "utf-8");
       demandes = JSON.parse(content);
-      if (!Array.isArray(demandes)) {
-        demandes = [];
-      }
+      if (!Array.isArray(demandes)) demandes = [];
     }
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erreur de lecture", details: err.message })
+      body: JSON.stringify({ error: "Erreur lecture", details: err.message })
     };
   }
 
-  const id = newDemande.id || "_" + Math.random().toString(36).substr(2, 9);
-  const index = demandes.findIndex(d => d.id === id);
-
-  if (index > -1) {
-    demandes[index] = { ...demandes[index], ...newDemande };
+  // 🔧 Traitement en fonction du type de données reçues
+  if (Array.isArray(input)) {
+    demandes = input; // Remplacer tout (utilisé pour suppression)
+  } else if (typeof input === "object" && input.id) {
+    const index = demandes.findIndex(d => d.id === input.id);
+    if (index !== -1) {
+      demandes[index] = { ...demandes[index], ...input };
+    } else {
+      demandes.push(input);
+    }
   } else {
-    demandes.push({ ...newDemande, id });
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "Format de données invalide" })
+    };
   }
 
   try {
     fs.writeFileSync(FILE_PATH, JSON.stringify(demandes, null, 2), "utf-8");
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, id, updatedAt: Date.now() })
+      body: JSON.stringify({ success: true, total: demandes.length })
     };
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erreur d'écriture", details: err.message })
+      body: JSON.stringify({ error: "Erreur écriture", details: err.message })
     };
   }
 };
