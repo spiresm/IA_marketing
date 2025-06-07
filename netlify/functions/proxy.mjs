@@ -42,4 +42,11 @@ export const handler = async (event) => {
     console.error("Erreur dans proxy.mjs :", error);
     return {
       statusCode: 500,
-      body:
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ error: error.message }),
+    };
+  }
+};
