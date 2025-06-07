@@ -1,5 +1,3 @@
-import fetch from "node-fetch";
-
 export const handler = async (event) => {
   const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8/exec";
 
@@ -26,9 +24,6 @@ export const handler = async (event) => {
     const isJSON = contentType.includes("application/json");
     const body = isJSON ? await response.json() : await response.text();
 
-    // 🧪 Ajoute ce log pour le voir dans Netlify
-    console.log("Réponse brute Google Script :", body);
-
     return {
       statusCode: response.status,
       headers: {
@@ -40,16 +35,9 @@ export const handler = async (event) => {
       body: isJSON ? JSON.stringify(body) : body,
     };
   } catch (error) {
-    console.error("Erreur proxy.mjs :", error);
     return {
       statusCode: 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ error: "Erreur interne dans le proxy." }),
-      console.log("BODY REÇU:", body);
-
+      body: JSON.stringify({ error: "Erreur proxy.mjs" }),
     };
   }
 };
