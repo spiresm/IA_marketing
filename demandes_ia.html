@@ -4,36 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Demande IA - Espace IA</title>
+  <link rel="stylesheet" href="style.css" />
   <style>
+    /* ton CSS inchangé */
     body {
       opacity: 0;
       margin: 0;
       font-family: sans-serif;
       background-color: #f0f2f5;
       transition: opacity 0.3s ease-in;
-    }
-    header {
-      background-color: #0077b6;
-      color: white;
-      padding: 15px 20px;
-      font-size: 1.3em;
-      font-weight: bold;
-      text-align: center;
-    }
-    nav {
-      background-color: #005f8a;
-      padding: 10px 20px;
-      display: flex;
-      gap: 15px;
-      justify-content: center;
-    }
-    nav a {
-      color: white;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    nav a:hover {
-      text-decoration: underline;
     }
     main {
       display: none;
@@ -153,12 +132,8 @@
   </style>
 </head>
 <body>
-  <header>Espace IA</header>
-  <nav>
-    <a href="#">Accueil</a>
-    <a href="#">Formulaires</a>
-    <a href="#">Demandes</a>
-  </nav>
+  <div id="header-placeholder"></div>
+
   <main>
     <div class="flex-wrapper">
       <div class="container">
@@ -210,33 +185,207 @@
           <button type="submit" id="submitBtn">Envoyer</button>
         </form>
       </div>
+
       <div class="recap">
         <h3>Récapitulatif des demandes</h3>
+        <select id="filtreDuree" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
+          <option value="">Filtrer par durée</option>
+          <option value="10 sec">10 sec</option>
+          <option value="20 sec">20 sec</option>
+          <option value="30 sec">30 sec</option>
+          <option value="40 sec">40 sec</option>
+          <option value="50 sec">50 sec</option>
+          <option value="60 sec">60 sec</option>
+        </select>
+        <input type="text" id="filtreNom" placeholder="Filtrer par nom" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;" />
+        <select id="filtreDate" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+          <option value="">Trier par date</option>
+          <option value="asc">Date croissante</option>
+          <option value="desc">Date décroissante</option>
+        </select>
         <div id="recapList"></div>
       </div>
     </div>
   </main>
+
   <div id="modal">
     <div class="modal-content">
       <button class="close-modal" title="Fermer">&times;</button>
       <div class="modal-body" id="modal-body"></div>
     </div>
   </div>
+
   <script>
-    const BASE_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+    // Insère ici ton script ID Google Apps Script
+    const SCRIPT_ID = 'AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8';
+    const BASE_URL = "https://script.google.com/macros/s/AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8/exec";
+
+    function ensureNotifParentPosition() {
+      const demandeLink = document.querySelector("a.demandes");
+      if (demandeLink) {
+        const style = getComputedStyle(demandeLink);
+        if (style.position === "static" || !style.position) {
+          demandeLink.style.position = "relative";
+        }
+      }
+    }
+
+    fetch("header.html")
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById("header-placeholder").innerHTML = data;
+        ensureNotifParentPosition();
+        document.body.style.opacity = "1";
+        document.querySelector("main").style.display = "block";
+        mettreAJourBulleDemandes();
+      });
+
+    const couleursParChaine = {
+      'Classic 21': 'purple',
+      'La Une': 'red',
+      'Tipik': 'green',
+      'La première': 'blue',
+      'La Trois': 'mediumorchid',
+      'Auvio': 'black',
+      'vivacité': 'orange',
+      'Musiq3': 'hotpink'
+    };
+
+    async function mettreAJourBulleDemandes() {
+      const notif = document.getElementById("notif-count");
+      if (!notif) return;
+      try {
+        const res = await fetch(`${BASE_URL}?action=getDemandesIA`);
+        const demandes = await res.json();
+        notif.textContent = demandes.length;
+        notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+      } catch (e) {
+        console.error("Erreur compteur :", e);
+      }
+    }
+
+    async function afficherDemandes() {
+      const recapList = document.getElementById("recapList");
+      const filtreNom = document.getElementById("filtreNom").value.toLowerCase();
+      const filtreDate = document.getElementById("filtreDate").value;
+      const filtreDuree = document.getElementById("filtreDuree").value;
+
+      let demandes = [];
+      try {
+        const res = await fetch(`${BASE_URL}?action=getDemandesIA`);
+        demandes = await res.json();
+      } catch (err) {
+        console.error("Erreur récupération :", err);
+        return;
+      }
+
+      demandes = demandes.filter(d => d.nom.toLowerCase().includes(filtreNom));
+      if (filtreDuree) demandes = demandes.filter(d => d.duree === filtreDuree);
+      if (filtreDate === "asc") demandes.sort((a,b) => new Date(a.date) - new Date(b.date));
+      else if (filtreDate === "desc") demandes.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+      recapList.innerHTML = "";
+
+      demandes.forEach(d => {
+        const couleur = couleursParChaine[d.chaine] || "#0077b6";
+        const div = document.createElement("div");
+        div.className = "ticket";
+        div.style.borderLeftColor = couleur;
+        div.innerHTML = `
+          <div style="display:flex; justify-content: space-between; align-items:center">
+            <span><strong>${d.nom}</strong></span>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:1.1em; font-weight: bold;">${d.type}</span>
+              <span>${d.duree}</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+            <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
+            <small style="color:#666;">📅 ${d.date}</small>
+          </div>
+          <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+            <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
+            <div>
+              ${d.traite ? '' : `<button title="Marquer comme traité" data-id="${d.id}" class="btn-traite" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">✔️</button>`}
+              <button title="Supprimer" data-id="${d.id}" class="btn-supprimer" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">🗑️</button>
+            </div>
+          </div>
+        `;
+
+        div.querySelector(".btn-supprimer")?.addEventListener("click", async e => {
+          e.stopPropagation();
+          await supprimerDemande(d.id);
+        });
+
+        div.querySelector(".btn-traite")?.addEventListener("click", async e => {
+          e.stopPropagation();
+          await marquerTraite(d.id);
+        });
+
+        div.addEventListener("click", () => {
+          const modal = document.getElementById("modal");
+          const modalBody = document.getElementById("modal-body");
+          modalBody.textContent = `${d.nom} - ${d.type} - ${d.duree} - ${d.support} - ${d.chaine}
+Date : ${d.date}
+
+${d.description}`;
+          modal.style.display = "flex";
+        });
+
+        recapList.appendChild(div);
+      });
+    }
+
+    async function supprimerDemande(id) {
+      try {
+        // Récupérer toutes les demandes
+        let demandes = await (await fetch(`${BASE_URL}?action=getDemandesIA`)).json();
+        demandes = demandes.filter(d => d.id !== id);
+
+        // Envoyer la mise à jour
+        await fetch(BASE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "updateDemandeIA", demandes })
+        });
+
+        afficherDemandes();
+        mettreAJourBulleDemandes();
+      } catch(e) {
+        console.error("Erreur suppression :", e);
+      }
+    }
+
+    async function marquerTraite(id) {
+      try {
+        let demandes = await (await fetch(`${BASE_URL}?action=getDemandesIA`)).json();
+        const demande = demandes.find(d => d.id === id);
+        if (!demande) return;
+        demande.traite = true;
+
+        await fetch(BASE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "updateDemandeIA", demandes })
+        });
+
+        afficherDemandes();
+        mettreAJourBulleDemandes();
+      } catch(e) {
+        console.error("Erreur marquer traité :", e);
+      }
+    }
 
     document.addEventListener("DOMContentLoaded", () => {
-      document.body.style.opacity = "1";
-      document.querySelector("main").style.display = "block";
       const dureeSelect = document.getElementById("duree");
-      for (let i = 0; i <= 60; i++) {
+      for (let i=0; i<=60; i++) {
         const opt = document.createElement("option");
         opt.value = `${i} sec`;
         opt.textContent = `${i} sec`;
         dureeSelect.appendChild(opt);
       }
 
-      document.getElementById("demandeIA").addEventListener("submit", async (e) => {
+      document.getElementById("demandeIA").addEventListener("submit", async e => {
         e.preventDefault();
         const data = new FormData(e.target);
         const demande = {
@@ -253,25 +402,48 @@
         };
 
         try {
+          // Envoi de la nouvelle demande (POST)
           await fetch(BASE_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "updateDemandeIA", demande })
           });
 
+          // Envoi du mail via Google Script (ou autre)
           await fetch(BASE_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "sendRequest", demande })
           });
 
-          alert("Demande envoyée avec succès !");
+          alert("Demande envoyée avec succès et mail transmis !");
           e.target.reset();
+          afficherDemandes();
+          mettreAJourBulleDemandes();
         } catch (err) {
           console.error("Erreur d'envoi :", err);
-          alert("Erreur lors de l'envoi. Veuillez réessayer.");
+          alert("Le ticket est créé, mais l'envoi d'e-mail a échoué.");
+          e.target.reset();
+          afficherDemandes();
+          mettreAJourBulleDemandes();
         }
       });
+
+      document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
+      document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
+      document.getElementById("filtreDuree").addEventListener("change", afficherDemandes);
+
+      document.querySelector(".close-modal").addEventListener("click", () => {
+        document.getElementById("modal").style.display = "none";
+      });
+      document.getElementById("modal").addEventListener("click", e => {
+        if (e.target.id === "modal") {
+          e.target.style.display = "none";
+        }
+      });
+
+      afficherDemandes();
+      mettreAJourBulleDemandes();
     });
   </script>
 </body>
