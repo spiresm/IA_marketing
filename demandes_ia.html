@@ -6,7 +6,7 @@
   <title>Demande IA - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* ton CSS inchangé */
+    /* TON CSS ORIGINAL - NON MODIFIÉ */
     body {
       opacity: 0;
       margin: 0;
@@ -216,13 +216,13 @@
   </div>
 
   <script>
-    // --- DÉBUT DES MODIFICATIONS/AJOUTS IMPORTANTS ---
+    // REMARQUE : L'ID du Google Apps Script n'est PLUS nécessaire ici car toutes les requêtes passent par Netlify Functions.
+    // const SCRIPT_ID = 'AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8';
 
-    // MODIFIÉ: BASE_URL points vers la fonction Netlify 'proxy' pour la lecture
-    const BASE_URL_NETLIFY_FUNCTIONS = "/.netlify/functions/"; // Base pour toutes les fonctions Netlify
-    const PROXY_URL = `${BASE_URL_NETLIFY_FUNCTIONS}proxy`; // URL de la fonction proxy existante pour la lecture/modification via Google Apps Script
-    const SEND_REQUEST_URL = `${BASE_URL_NETLIFY_FUNCTIONS}sendrequest`; // URL de la fonction Netlify d'envoi de la demande (email + mise à jour GAS)
-
+    // Définitions des URL pour les fonctions Netlify
+    const BASE_URL_NETLIFY_FUNCTIONS = "/.netlify/functions/";
+    const PROXY_URL = `${BASE_URL_NETLIFY_FUNCTIONS}proxy`; // Pour la lecture/modification via Google Apps Script (GET/POST)
+    const SEND_REQUEST_URL = `${BASE_URL_NETLIFY_FUNCTIONS}sendrequest`; // Pour l'envoi du formulaire (email + update GAS)
 
     function ensureNotifParentPosition() {
       const demandeLink = document.querySelector("a.demandes");
@@ -290,7 +290,7 @@
       if (filtreDate === "asc") demandes.sort((a,b) => new Date(a.date) - new Date(b.date));
       else if (filtreDate === "desc") demandes.sort((a,b) => new Date(b.date) - new Date(a.date));
 
-      recapList.innerHTML = "";
+      recapList.innerHTML = ""; // Ceci est nécessaire avant d'ajouter les éléments
 
       demandes.forEach(d => {
         const couleur = couleursParChaine[d.chaine] || "#0077b6";
@@ -349,7 +349,6 @@ ${d.description}`;
         demandes = demandes.filter(d => d.id !== id);
 
         // Envoyer la mise à jour (via proxy, qui reliera à GAS)
-        // Note: le proxy doit être configuré pour forwarder les POST avec body
         await fetch(PROXY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -371,7 +370,6 @@ ${d.description}`;
         demande.traite = true;
 
         // Envoyer la mise à jour (via proxy, qui reliera à GAS)
-        // Note: le proxy doit être configuré pour forwarder les POST avec body
         await fetch(PROXY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -415,25 +413,34 @@ ${d.description}`;
           const response = await fetch(SEND_REQUEST_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            // L'objet 'demande' contient toutes les données.
-            // La fonction sendrequest se chargera d'envoyer l'e-mail ET de relayer à Google Apps Script.
             body: JSON.stringify(demande)
           });
 
+            // Vérifiez la réponse HTTP avant de tenter de la parser en JSON
+            if (!response.ok) {
+                // Si la réponse n'est pas OK (e.g., 404, 500), elle ne contiendra peut-être pas de JSON valide.
+                // Lisez le texte de la réponse pour obtenir plus d'informations.
+                const errorText = await response.text(); 
+                console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
+                alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 100)}... (voir console pour plus)`);
+                return; // Arrête l'exécution ici
+            }
+
+            // Seulement si la réponse est OK, essayez de la parser en JSON
           const result = await response.json();
 
-          if (response.ok) {
+          if (result.success) { // Vérifie la propriété 'success' de la réponse JSON de Netlify Function
             alert(result.message || "Demande envoyée avec succès et mail transmis !");
             e.target.reset();
             afficherDemandes(); // Rafraîchit le récapitulatif
             mettreAJourBulleDemandes(); // Met à jour le compteur
           } else {
-            console.error("Erreur de la fonction Netlify :", result);
-            alert(`Erreur lors de l'envoi de la demande: ${result.message || response.statusText}`);
+            console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
+            alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
           }
         } catch (err) {
           console.error("Erreur d'envoi du formulaire côté client :", err);
-          alert("Une erreur inattendue est survenue lors de l'envoi du formulaire.");
+          alert("Une erreur inattendue est survenue lors de l'envoi du formulaire. Vérifiez la console.");
         }
       });
 
