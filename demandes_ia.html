@@ -223,16 +223,55 @@
     </div>
   </div>
   <script>
+    const BASE_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+
     document.addEventListener("DOMContentLoaded", () => {
       document.body.style.opacity = "1";
       document.querySelector("main").style.display = "block";
       const dureeSelect = document.getElementById("duree");
-      for (let i=0; i<=60; i++) {
+      for (let i = 0; i <= 60; i++) {
         const opt = document.createElement("option");
         opt.value = `${i} sec`;
         opt.textContent = `${i} sec`;
         dureeSelect.appendChild(opt);
       }
+
+      document.getElementById("demandeIA").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const demande = {
+          id: "_" + Math.random().toString(36).substr(2, 9),
+          nom: data.get("nom"),
+          email: `${data.get("emailPrefix")}@rtbf.be`,
+          type: data.get("type"),
+          support: data.get("support"),
+          duree: data.get("duree"),
+          date: data.get("date"),
+          description: data.get("description"),
+          chaine: data.get("chaine"),
+          traite: false
+        };
+
+        try {
+          await fetch(BASE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "updateDemandeIA", demande })
+          });
+
+          await fetch(BASE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "sendRequest", demande })
+          });
+
+          alert("Demande envoyée avec succès !");
+          e.target.reset();
+        } catch (err) {
+          console.error("Erreur d'envoi :", err);
+          alert("Erreur lors de l'envoi. Veuillez réessayer.");
+        }
+      });
     });
   </script>
 </body>
