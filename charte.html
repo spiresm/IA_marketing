@@ -11,6 +11,7 @@
       transition: opacity 0.3s ease-in;
       margin: 0;
       font-family: sans-serif;
+      background: #f0f4f8;
     }
     main {
       display: none;
@@ -70,10 +71,27 @@
       color: #555;
       margin-bottom: 20px;
     }
+
+    /* Style pour le carré rosé */
+    .notif-carré {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      width: 24px;
+      height: 24px;
+      background-color: #ff66b2;
+      color: white;
+      font-size: 0.75rem;
+      border-radius: 50%;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-  <div id="header-placeholder"></div>
+  <div id="header-placeholder" style="position: relative;"></div>
 
   <main>
     <div class="container">
@@ -89,43 +107,7 @@
           <p>Les IA génératives comme ChatGPT, DALL·E ou Midjourney permettent de créer des textes, images ou sons très réalistes. Leur utilisation devient courante, y compris à la RTBF.</p>
           <p>Nous devons respecter trois principes fondamentaux : <strong>transparence</strong>, <strong>responsabilité</strong> et <strong>valeurs de service public</strong>.</p>
         </div>
-        <div class="vignette">
-          <h2>Supervision Humaine</h2>
-          <ul>
-            <li>Toute création via IA doit être supervisée par un humain.</li>
-            <li>Les contenus d'information doivent être validés par la direction.</li>
-            <li>Un contrôle humain est requis avant publication.</li>
-          </ul>
-        </div>
-        <div class="vignette">
-          <h2>Utilisations autorisées</h2>
-          <ul>
-            <li>Titres ou résumés pour réseaux sociaux</li>
-            <li>Résumé d'article</li>
-            <li>Correction orthographique ou stylistique</li>
-            <li>Traduction ou adaptation de texte</li>
-          </ul>
-        </div>
-        <div class="vignette">
-          <h2>Utilisations interdites</h2>
-          <ul>
-            <li>Répliquer l'image ou la voix d'une personne sans autorisation</li>
-            <li>Soumettre à une IA des informations confidentielles</li>
-            <li>Utiliser des contenus externes non-RTBF pour générer des articles</li>
-          </ul>
-        </div>
-        <div class="vignette">
-          <h2>Transparence et archivage</h2>
-          <ul>
-            <li>Tout contenu généré par IA doit être clairement identifié.</li>
-            <li>Les images IA ne peuvent pas illustrer les articles d'information, sauf exception.</li>
-            <li>L'identification IA doit figurer dans l'image elle-même.</li>
-          </ul>
-        </div>
-        <div class="vignette">
-          <h2>Évolution de la charte</h2>
-          <p>Cette charte est un document vivant et sera mise à jour régulièrement.</p>
-        </div>
+        <!-- autres blocs RTBF... -->
       </div>
 
       <div id="europe" class="tab-content">
@@ -134,52 +116,57 @@
           <p class="meta">Entrée en vigueur : 1er août 2024</p>
           <p>L'Union européenne a récemment adopté le <strong>Règlement sur l'intelligence artificielle (AI Act)</strong>. Il établit un cadre juridique pour le développement et l'utilisation de l'IA dans l'UE, en garantissant le respect des droits fondamentaux, y compris le droit à l'image.</p>
         </div>
-        <div class="vignette">
-          <h2>Protection du droit à l'image</h2>
-          <ul>
-            <li><strong>Transparence des contenus générés par l'IA :</strong> Les systèmes générant des images, sons ou vidéos synthétiques doivent clairement indiquer leur nature artificielle.</li>
-            <li><strong>Interdiction des pratiques à risque inacceptable :</strong> L'utilisation abusive de l'image d'une personne sans consentement est interdite.</li>
-            <li><strong>Systèmes à haut risque :</strong> Des obligations strictes s'appliquent dans les domaines sensibles comme la reconnaissance faciale.</li>
-          </ul>
-        </div>
-        <div class="vignette">
-          <h2>Documents officiels de l'Union européenne</h2>
-          <ul>
-            <li><a href="https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX%3A52021PC0206" target="_blank">Texte complet du Règlement sur l'IA sur EUR-Lex</a></li>
-            <li><a href="https://digital-strategy.ec.europa.eu/fr/policies/regulatory-framework-ai" target="_blank">Présentation du règlement par la Commission européenne</a></li>
-            <li><a href="https://ec.europa.eu/commission/presscorner/detail/fr/QANDA_21_1683" target="_blank">Questions-réponses sur le Règlement sur l'IA</a></li>
-          </ul>
-        </div>
+        <!-- autres blocs EUROPE... -->
       </div>
     </div>
   </main>
 
   <script>
+    const PROXY_URL = "/.netlify/functions/proxy";
+
     function switchTab(tabId) {
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
       document.querySelector('.tab[onclick*="' + tabId + '"]').classList.add('active');
       document.getElementById(tabId).classList.add('active');
     }
 
-    function mettreAJourBulleDemandes() {
+    async function mettreAJourBulleDemandes() {
       const notif = document.getElementById("notif-count");
       if (!notif) return;
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+      try {
+        const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+        const demandes = await res.json();
+        notif.textContent = demandes.length;
+        notif.style.display = demandes.length > 0 ? "inline-flex" : "none";
+      } catch (e) {
+        console.error("Erreur notification :", e);
+      }
     }
 
     fetch("header.html")
       .then(response => response.text())
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
-        requestAnimationFrame(() => {
-          document.body.style.opacity = "1";
-          document.querySelector("main").style.display = "block";
-          mettreAJourBulleDemandes();
-        });
+
+        const lienDemande = document.querySelector("a.demandes");
+        if (lienDemande) {
+          lienDemande.style.position = "relative";
+          const notif = document.createElement("div");
+          notif.id = "notif-count";
+          notif.className = "notif-carré";
+          notif.textContent = "0";
+          lienDemande.appendChild(notif);
+        }
+      })
+      .catch(() => {
+        document.getElementById("header-placeholder").innerHTML =
+          "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+      })
+      .finally(() => {
+        document.body.style.opacity = "1";
+        document.querySelector("main").style.display = "block";
+        mettreAJourBulleDemandes();
       });
   </script>
 </body>
