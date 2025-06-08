@@ -84,7 +84,6 @@
       transform: scale(1.05);
     }
 
-    /* Bloc ChatGPT */
     .chatgpt-box {
       margin-top: 30px;
       width: 100%;
@@ -135,7 +134,6 @@
         Cette plateforme collaborative vous permet de découvrir, partager et capitaliser sur les usages de l’intelligence artificielle au sein de notre organisation. Que vous cherchiez des outils, des prompts, des cas d’usage inspirants ou que vous souhaitiez contribuer avec vos propres astuces, tout est centralisé ici pour accompagner votre montée en compétence et faciliter l’adoption de l’IA au quotidien.
       </p>
 
-      <!-- Quick Start Section -->
       <div class="quick-start">
         <h3>Commencez dès maintenant</h3>
         <div class="quick-buttons">
@@ -145,7 +143,6 @@
         </div>
       </div>
 
-      <!-- Bloc ChatGPT intégré -->
       <div class="chatgpt-box">
         <h3>💬 Discuter avec ChatGPT</h3>
         <textarea id="user-input" rows="4" cols="50" placeholder="Pose ta question ici..."></textarea><br>
@@ -180,13 +177,28 @@
 
     async function envoyer() {
       const userMessage = document.getElementById("user-input").value;
+
       const response = await fetch("/.netlify/functions/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage })
       });
-      const data = await response.json();
-      document.getElementById("reponse").textContent = data.reply;
+
+      const text = await response.text();
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        document.getElementById("reponse").textContent = "❌ Erreur : réponse non JSON\n" + text;
+        return;
+      }
+
+      if (data.error) {
+        document.getElementById("reponse").textContent = `❌ Erreur API : ${data.error}`;
+      } else {
+        document.getElementById("reponse").textContent = data.reply || "✅ Pas de réponse générée.";
+      }
     }
   </script>
 </body>
