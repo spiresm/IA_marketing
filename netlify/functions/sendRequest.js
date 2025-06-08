@@ -65,7 +65,7 @@ exports.handler = async (event) => {
     // --- NOUVELLE PARTIE: ENVOI À GOOGLE APPS SCRIPT (POUR LA FEUILLE DE CALCUL) ---
     // REMPLACEZ 'URL_DE_VOTRE_APPLICATION_WEB_GOOGLE_APPS_SCRIPT_ICI'
     // par l'URL exacte que vous avez obtenue après le déploiement de votre GAS.
-    const googleAppsScriptUrl = "URL_DE_VOTRE_APPLICATION_WEB_GOOGLE_APPS_SCRIPT_ICI"; 
+    const googleAppsScriptUrl = "https://script.google.com/macros/s/AKfycbzbeDuX3Sw31cQRTkR4Ff03UsQMOLyYXwYCxYejQwdcOGE_ltHyaWHMwjbSxhR5phpy/exec"; 
     
     // Assurez-vous que 'data' contient tous les champs que Google Apps Script attend pour l'insertion
     const dataForGas = {
