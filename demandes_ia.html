@@ -6,7 +6,7 @@
   <title>Demande IA - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* TON CSS ORIGINAL - NON MODIFIÉ */
+    /* TON CSS ORIGINAL - NON MODIFIÉ - C'EST EXACTEMENT CE QUE TU M'AS DONNÉ */
     body {
       opacity: 0;
       margin: 0;
@@ -182,7 +182,8 @@
           <input type="date" name="date" required />
           <label for="description">Briefing :</label>
           <textarea name="description" rows="4" required></textarea>
-          <button type="submit" id="submitBtn">Envoyer</button>
+          
+                      <button type="submit" id="submitBtn">Envoyer</button>
         </form>
       </div>
 
@@ -220,9 +221,10 @@
     // const SCRIPT_ID = 'AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8';
 
     // Définitions des URL pour les fonctions Netlify
-    const BASE_URL_NETLIFY_FUNCTIONS = "/.netlify/functions/";
-    const PROXY_URL = `${BASE_URL_NETLIFY_FUNCTIONS}proxy`; // Pour la lecture/modification via Google Apps Script (GET/POST)
-    const SEND_REQUEST_URL = `${BASE_URL_NETLIFY_FUNCTIONS}sendrequest`; // Pour l'envoi du formulaire (email + update GAS)
+    // PROXY_URL gère les GET pour la lecture de la feuille et les POST pour les actions "updateDemandeIA" (suppression/marquage traité)
+    const PROXY_URL = "/.netlify/functions/proxy"; 
+    // SEND_REQUEST_URL est la fonction unique qui gère l'envoi du formulaire (mail + ajout à la feuille)
+    const SEND_REQUEST_URL = "/.netlify/functions/sendrequest"; 
 
     function ensureNotifParentPosition() {
       const demandeLink = document.querySelector("a.demandes");
@@ -259,7 +261,7 @@
       const notif = document.getElementById("notif-count");
       if (!notif) return;
       try {
-        // Utilise le proxy pour la lecture des demandes existantes
+        // Utilise le PROXY pour la lecture des demandes existantes
         const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
         const demandes = await res.json();
         notif.textContent = demandes.length;
@@ -277,7 +279,7 @@
 
       let demandes = [];
       try {
-        // Utilise le proxy pour la lecture des demandes existantes
+        // Utilise le PROXY pour la lecture des demandes existantes
         const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
         demandes = await res.json();
       } catch (err) {
@@ -344,11 +346,11 @@ ${d.description}`;
 
     async function supprimerDemande(id) {
       try {
-        // Récupérer toutes les demandes (via proxy)
+        // Récupérer toutes les demandes (via PROXY)
         let demandes = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
         demandes = demandes.filter(d => d.id !== id);
 
-        // Envoyer la mise à jour (via proxy, qui reliera à GAS)
+        // Envoyer la mise à jour (via PROXY, qui reliera à GAS)
         await fetch(PROXY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -369,7 +371,7 @@ ${d.description}`;
         if (!demande) return;
         demande.traite = true;
 
-        // Envoyer la mise à jour (via proxy, qui reliera à GAS)
+        // Envoyer la mise à jour (via PROXY, qui reliera à GAS)
         await fetch(PROXY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -408,12 +410,22 @@ ${d.description}`;
           traite: false
         };
 
+        // Vous avez commenté le champ d'upload, donc j'assume qu'il n'y a pas d'images à traiter pour l'instant.
+        // Si vous le décommentez, il faudra implémenter la lecture des fichiers ici.
+        // if (document.getElementById('imageUpload')?.files.length > 0) {
+        //     const files = Array.from(document.getElementById('imageUpload').files);
+        //     demande.images = [];
+        //     for (const file of files) {
+        //         demande.images.push(await readFileAsBase64(file));
+        //     }
+        // }
+
         try {
           // C'EST ICI LA MODIFICATION MAJEURE POUR ENVOYER LE FORMULAIRE VIA sendrequest
           const response = await fetch(SEND_REQUEST_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(demande)
+            body: JSON.stringify(demande) // Envoyez l'objet 'demande' tel quel à sendrequest.js
           });
 
             // Vérifiez la réponse HTTP avant de tenter de la parser en JSON
@@ -422,7 +434,7 @@ ${d.description}`;
                 // Lisez le texte de la réponse pour obtenir plus d'informations.
                 const errorText = await response.text(); 
                 console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
-                alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 100)}... (voir console pour plus)`);
+                alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 200)}... (voir console pour plus)`);
                 return; // Arrête l'exécution ici
             }
 
@@ -460,6 +472,18 @@ ${d.description}`;
       afficherDemandes(); // Appelé au chargement initial pour afficher les demandes
       mettreAJourBulleDemandes(); // Appelé au chargement initial pour la bulle
     });
+
+    // Fonction utilitaire pour lire un fichier en Base64 (si vous réactivez l'upload d'images)
+    /*
+    function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+        });
+    }
+    */
   </script>
 </body>
 </html>
