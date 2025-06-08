@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const fetch = require("node-fetch"); // <-- NOUVEAU: Ajoutez cette ligne
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -11,6 +12,7 @@ exports.handler = async (event) => {
   try {
     const data = JSON.parse(event.body);
 
+    // --- PARTIE 1: ENVOI DE L'EMAIL (VIA NODEMAILER) ---
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -27,9 +29,10 @@ exports.handler = async (event) => {
             <tr><td style="padding: 8px; font-weight: bold;">👤 Nom :</td><td style="padding: 8px;">${data.nom}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">📧 Email :</td><td style="padding: 8px;">${data.email}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">🎬 Type :</td><td style="padding: 8px;">${data.type}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">🛰 Support :</td><td style="padding: 8px;">${data.support}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">🛰 Support :</td><td style="padding: 8px;">${data.support || 'Non spécifié'}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">⏱ Durée :</td><td style="padding: 8px;">${data.duree}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">📅 Livraison :</td><td style="padding: 8px;">${data.date}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">📚 Chaîne :</td><td style="padding: 8px;">${data.chaine || 'Non spécifié'}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">📝 Description :</td><td style="padding: 8px;">${data.description}</td></tr>
           </table>
           <br>
@@ -57,13 +60,56 @@ exports.handler = async (event) => {
     };
 
     await transporter.sendMail(mailOptions);
+    console.log("Mail envoyé avec succès via Netlify Function."); // Log pour Netlify
+
+    // --- NOUVELLE PARTIE: ENVOI À GOOGLE APPS SCRIPT (POUR LA FEUILLE DE CALCUL) ---
+    // REMPLACEZ 'URL_DE_VOTRE_APPLICATION_WEB_GOOGLE_APPS_SCRIPT_ICI'
+    // par l'URL exacte que vous avez obtenue après le déploiement de votre GAS.
+    const googleAppsScriptUrl = "URL_DE_VOTRE_APPLICATION_WEB_GOOGLE_APPS_SCRIPT_ICI"; 
+    
+    // Assurez-vous que 'data' contient tous les champs que Google Apps Script attend pour l'insertion
+    const dataForGas = {
+        action: "updateDemandeIA", // C'est l'action qui doit être passée à doPost dans votre GAS
+        demande: {
+            id: data.id || Date.now().toString(), // Générez un ID si absent pour l'insertion/update dans la feuille
+            nom: data.nom,
+            email: data.email,
+            type: data.type,
+            support: data.support,
+            duree: data.duree,
+            date: data.date,
+            chaine: data.chaine,
+            description: data.description,
+            traite: false // Nouvelle demande non traitée par défaut
+        }
+    };
+
+    const gasResponse = await fetch(googleAppsScriptUrl, {
+        method: "POST", // Ceci doit être POST pour déclencher doPost dans GAS
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dataForGas), // Le corps de la requête en JSON
+    });
+
+    const gasResult = await gasResponse.json();
+    console.log("Réponse de Google Apps Script :", gasResult); // Log pour Netlify
+
+    if (!gasResult.success) {
+        console.error("Erreur de Google Apps Script lors de la mise à jour de la feuille :", gasResult.message);
+        // Vous pouvez choisir de retourner une erreur ici ou de laisser le mail passer même si la feuille échoue
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ message: "Demande envoyée (mail OK), mais erreur à la feuille Google. " + gasResult.message }),
+        };
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "Demande envoyée avec succès !" }),
+      body: JSON.stringify({ message: "Demande envoyée avec succès (mail et feuille) !" }),
     };
   } catch (error) {
-    console.error("Erreur d’envoi :", error);
+    console.error("Erreur d’envoi générale dans Netlify Function :", error);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: "Erreur serveur", error: error.message }),
