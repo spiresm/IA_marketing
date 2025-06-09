@@ -272,12 +272,12 @@
         const repoName = 'IA_marketing';
         const branch = 'main';
         const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
-        const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
+        // const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`; // Non utilisé actuellement, peut être supprimé
+
         let tousLesPrompts = [];
 
         async function chargerPrompts() {
             try {
-                // Utiliser l'API GitHub pour lister les fichiers dans le dossier 'prompts'
                 const res = await fetch(`${apiBase}prompts?ref=${branch}`);
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}`);
@@ -303,47 +303,50 @@
             const tri = document.getElementById('filtre-tri')?.value || 'recent';
 
             let fichiersTries = [...fichiers];
-            // Trier les fichiers par timestamp extrait du nom (si le format est prompt-TIMESTAMP.json)
             if (tri === 'recent') {
                 fichiersTries.sort((a, b) => {
                     const timestampA = new Date(a.name.match(/prompt-(\d+)\.json/)?.[1] * 1 || 0);
                     const timestampB = new Date(b.name.match(/prompt-(\d+)\.json/)?.[1] * 1 || 0);
-                    return timestampB - timestampA; // Du plus récent au plus ancien
+                    return timestampB - timestampA;
                 });
             } else if (tri === 'ancien') {
                 fichiersTries.sort((a, b) => {
                     const timestampA = new Date(a.name.match(/prompt-(\d+)\.json/)?.[1] * 1 || 0);
                     const timestampB = new Date(b.name.match(/prompt-(\d+)\.json/)?.[1] * 1 || 0);
-                    return timestampA - timestampB; // Du plus ancien au plus récent
+                    return timestampA - timestampB;
                 });
             }
 
-            // Fonction utilitaire pour extraire le chemin relatif à partir d'une URL GitHub raw/blob
             function extractRepoPath(url) {
                 if (!url) return null;
-                // Ce regex fonctionne pour les URLs de type:
-                // https://raw.githubusercontent.com/owner/repo/branch/path/to/file.ext
-                // ou https://github.com/owner/repo/blob/branch/path/to/file.ext
                 const match = url.match(/github\.com\/[^\/]+\/[^\/]+\/(?:raw|blob)\/[^\/]+\/(.*)/);
                 return match ? match[1] : null;
             }
 
-            // Utilisation de Promise.all pour attendre toutes les fetches des fichiers JSON
             Promise.all(fichiersTries.map(fichier => {
+                // Ajout de console.log pour vérifier le fichier de l'API
+                console.log("DEBUG - Fichier de l'API GitHub:", fichier); 
+                console.log("DEBUG - Fichier.path de l'API GitHub:", fichier.path); 
+
                 return fetch(fichier.download_url)
                     .then(res => res.ok ? res.json() : Promise.reject(`Erreur pour ${fichier.name}: ${res.status}`))
-                    .then(data => ({ data, originalFile: fichier })) // Garder la référence au fichier original
+                    .then(data => ({ data, originalFile: fichier }))
                     .catch(error => {
                         console.error(`Erreur lors du chargement du prompt ${fichier.name}:`, error);
-                        return null; // Retourne null pour ignorer les fichiers en erreur
+                        return null;
                     });
             }))
-            .then(promptsWithMetaData => { // Renommé pour refléter le nouveau contenu
+            .then(promptsWithMetaData => {
                 promptsWithMetaData.forEach(item => {
-                    if (!item) return; // Ignore les prompts qui ont échoué au chargement
-                    const { data, originalFile } = item; // Déstructurez pour obtenir les données et le fichier original
+                    if (!item) return;
+                    const { data, originalFile } = item; 
 
-                    // Appliquer les filtres
+                    // NOUVEAU: Vérifier que originalFile et originalFile.path existent
+                    if (!originalFile || !originalFile.path) {
+                        console.warn("ATTENTION: originalFile ou originalFile.path manquant pour le prompt. Impossible de supprimer.", data.titre, originalFile);
+                        return; // Ignorer cette entrée si le chemin n'est pas fiable pour la suppression
+                    }
+
                     if (outil && data.outil !== outil) return;
                     if (chaine && data.chaine !== chaine) return;
                     if (nom && !((data.auteur || '').toLowerCase().includes(nom) || (data.texte || '').toLowerCase().includes(nom) || (data.titre || '').toLowerCase().includes(nom))) return;
@@ -358,13 +361,18 @@
                     delBtn.onclick = async () => {
                         if (!confirm('Confirmer suppression ?')) return;
                         try {
-                            // C'EST ICI LA CLÉ : Utiliser originalFile.path pour le prompt
                             const promptToDeletePath = originalFile.path;
-                            // Utiliser extractRepoPath pour l'image si imageUrl est une URL complète
                             const imageToDeletePath = extractRepoPath(data.imageUrl);
 
                             console.log("Tentative de suppression - Prompt Path:", promptToDeletePath);
                             console.log("Tentative de suppression - Image Path:", imageToDeletePath);
+
+                            // Si promptToDeletePath est "prompts/undefined", on annule la requête
+                            if (promptToDeletePath === 'prompts/undefined' || !promptToDeletePath) {
+                                console.error("Chemin du prompt invalide. Suppression annulée.", promptToDeletePath);
+                                alert("Erreur : Impossible de déterminer le chemin du prompt. Suppression annulée.");
+                                return;
+                            }
 
                             const deleteResponse = await fetch('/.netlify/functions/deletePrompt', {
                                 method: 'POST',
@@ -380,8 +388,8 @@
                             }
                             alert('Prompt et image supprimés avec succès !');
                             div.remove(); // Supprime l'élément du DOM
-                            // Alternative: Recharger les prompts pour mettre à jour la liste complète après suppression
-                            // chargerPrompts();
+                            // Recharger les prompts pour s'assurer que la liste est à jour après la suppression
+                            chargerPrompts(); 
                         } catch (error) {
                             console.error("Erreur lors de la suppression du prompt:", error);
                             alert(`Échec de la suppression du prompt. Détails: ${error.message}`);
@@ -390,7 +398,6 @@
                     div.appendChild(delBtn);
 
                     const img = document.createElement('img');
-                    // Utiliser l'URL directe pour l'affichage (qui est dans data.imageUrl)
                     img.src = data.imageUrl || '';
                     img.alt = data.titre || 'Image de prompt';
                     div.appendChild(img);
@@ -420,7 +427,6 @@
             .catch(error => console.error("Erreur lors du traitement des prompts:", error));
         }
 
-        // Écouteurs d'événements pour les filtres et le tri
         document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
         document.getElementById('filtre-nom').addEventListener('input', () => afficherPrompts(tousLesPrompts));
         document.getElementById('filtre-chaine').addEventListener('change', () => afficherPrompts(tousLesPrompts));
