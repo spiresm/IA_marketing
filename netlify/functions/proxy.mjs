@@ -10,17 +10,23 @@ export const handler = async (event) => {
 
     let targetUrl = '';
     let fetchMethod = event.httpMethod;
-    let fetchBody = event.body; // Le corps original de la requête entrante
+    let fetchBody = event.body;
     let isLocalFunctionCall = false;
 
     switch (action) {
       case 'getProfils':
-        targetUrl = '/.netlify/functions/getProfils';
+        targetUrl = '/.netlify/functions/getProfils'; // Attention à la casse du 'P' ici !
         isLocalFunctionCall = true;
         break;
 
       case 'getDemandesIA':
         targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
+        break;
+
+      // NOUVEAU: Ajoutez ce case pour 'updateProfil'
+      case 'updateProfil':
+        targetUrl = '/.netlify/functions/updateProfil'; // Assurez-vous que votre fonction s'appelle bien updateProfil.js (ou .mjs)
+        isLocalFunctionCall = true;
         break;
 
       default:
@@ -35,15 +41,13 @@ export const handler = async (event) => {
 
     const fetchOptions = {
       method: fetchMethod,
-      headers: {}, // Initialise les headers à vide
+      headers: {},
     };
 
-    // NOUVELLE LOGIQUE : N'ajoute le Content-Type et le body QUE pour les méthodes POST
     if (fetchMethod === "POST") {
       fetchOptions.headers["Content-Type"] = "application/json";
       fetchOptions.body = fetchBody;
     }
-    // Note: Pour les requêtes GET/HEAD, fetchOptions.body ne sera pas défini, ce qui est correct.
 
     console.log("Proxy.mjs envoie vers :", fullTargetUrl);
     console.log("Options fetch :", fetchOptions);
