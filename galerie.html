@@ -22,7 +22,7 @@
         }
 
         /* Conteneur principal de la galerie (similaire à votre .galerie-box de l'image) */
-        .galerie-container { /* Renommé de .galerie-box en .galerie-container pour éviter la confusion avec le conteneur parent .galerie */
+        .galerie-container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
@@ -61,7 +61,7 @@
         }
 
         /* Styles pour les boutons "Archiver" et "Compresser" */
-        .action-buttons { /* Renommé de .action-links en .action-buttons pour la clarté */
+        .action-buttons {
             width: 100%; /* Prend toute la largeur disponible dans filters-header */
             display: flex;
             justify-content: center;
@@ -103,12 +103,11 @@
             display: flex;
             gap: 20px;
             padding: 15px;
-            /* La bordure gauche dynamique sera ajoutée par JS */
             border-left: 5px solid #0077b6; /* Valeur par défaut */
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             border-radius: 8px;
             background: white;
-            position: relative;
+            position: relative; /* */
             align-items: flex-start;
             flex-direction: row; /* Image et texte côte à côte */
             min-height: 150px; /* Hauteur minimale pour les cartes */
@@ -154,7 +153,6 @@
             font-weight: bold;
             padding: 2px 6px;
             border-radius: 4px;
-            /* La couleur est définie par JS via style='color:...' */
             color: white; /* Ajouté pour le texte sur fond coloré */
         }
 
@@ -187,7 +185,7 @@
         }
 
         .supprimer-btn {
-            position: absolute;
+            position: absolute; /* */
             top: 10px;
             right: 10px;
             background: transparent;
@@ -226,7 +224,7 @@
             #galerie {
                 grid-template-columns: 1fr; /* Une seule colonne sur les très petits écrans */
             }
-            .filters-header, .action-buttons { /* Ajusté pour .action-buttons */
+            .filters-header, .action-buttons {
                 flex-direction: column;
                 align-items: stretch; /* Les éléments prennent toute la largeur */
             }
@@ -236,7 +234,7 @@
             }
         }
     </style>
-    </head>
+</head>
 <body>
     <div id="header-placeholder"></div>
 
@@ -290,7 +288,6 @@
 
     <script>
         // Chemin vers votre fonction Netlify.
-        // En local, Netlify Dev proxy les fonctions. En prod, l'URL complète est nécessaire.
         const apiBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
                                 ? '/.netlify/functions/'
                                 : 'https://ia-marketing.netlify.app/.netlify/functions/';
@@ -347,7 +344,7 @@
             }
 
             promptsAAfficher.forEach(prompt => {
-                if (!prompt || !prompt.path) { // Vérification de base pour s'assurer que le prompt est valide
+                if (!prompt || !prompt.path) {
                     console.warn("Prompt invalide ou incomplet ignoré :", prompt);
                     return;
                 }
@@ -356,12 +353,9 @@
                 carte.className = 'carte';
                 carte.style.borderLeftColor = couleursParChaine[prompt.chaine] || '#0077b6';
 
-                // Générer l'URL de l'image, en supposant le même nom de fichier dans le dossier 'images'
-                // prompt.path est quelque chose comme 'prompts/MON_PROMPT.json'
-                // On extrait 'MON_PROMPT' et on construit l'URL de l'image
                 const promptFileName = prompt.path.split('/').pop().replace('.json', '');
-                const imageUrl = `https://raw.githubusercontent.com/SteevePiresMadeira/IA-Marketing/${branch}/images/${promptFileName}.png`;
-
+                const imageRelativePath = `images/${promptFileName}.png`; // Chemin relatif de l'image dans le dépôt
+                const imageUrl = `https://raw.githubusercontent.com/SteevePiresMadeira/IA-Marketing/${branch}/${imageRelativePath}`;
 
                 carte.innerHTML = `
                     <img src="${imageUrl}" alt="${prompt.outil || 'Image de prompt'}" onerror="this.onerror=null; this.src='https://via.placeholder.com/180x150?text=No_Image';" />
@@ -375,20 +369,22 @@
                         <div class="prompt-texte">${prompt.texte || ''}</div>
                         <button class="copier-btn" data-prompt="${prompt.texte || ''}">Copier le prompt</button>
                     </div>
-                    <button class="supprimer-btn" data-path="${prompt.path}" data-sha="${prompt.sha}" data-image-url="${imageUrl}">❌</button>
+                    <button class="supprimer-btn"
+                            data-path="${prompt.path}"
+                            data-sha="${prompt.sha}"
+                            data-image-path="${imageRelativePath}"
+                            data-image-sha="${prompt.imageSha || ''}" >❌</button>
                 `;
                 galerie.appendChild(carte);
             });
 
-            // Attacher les écouteurs d'événements après que les cartes sont créées
             attacherEvenementsCopier();
             attacherEvenementsSupprimer();
         }
 
-        // Fonction pour attacher les événements de copie
         function attacherEvenementsCopier() {
             document.querySelectorAll('.copier-btn').forEach(button => {
-                button.onclick = () => { // Utilisation de onclick pour une attribution simple
+                button.onclick = () => {
                     const text = button.dataset.prompt;
                     navigator.clipboard.writeText(text).then(() => {
                         button.textContent = '✔ Copié !';
@@ -401,13 +397,13 @@
             });
         }
 
-        // Fonction pour attacher les événements de suppression
         function attacherEvenementsSupprimer() {
             document.querySelectorAll('.supprimer-btn').forEach(delBtn => {
                 delBtn.onclick = async () => {
                     const promptPath = delBtn.dataset.path;
                     const promptSha = delBtn.dataset.sha;
-                    const imageUrl = delBtn.dataset.imageUrl;
+                    const imagePath = delBtn.dataset.imagePath; // Chemin relatif de l'image
+                    const imageSha = delBtn.dataset.imageSha;   // SHA de l'image (si disponible)
 
                     if (!promptPath || !promptSha) {
                         alert("Informations de prompt (chemin ou SHA) manquantes pour la suppression.");
@@ -422,7 +418,8 @@
                                 body: JSON.stringify({
                                     promptPath: promptPath,
                                     promptSha: promptSha,
-                                    imageUrl: imageUrl // Pass the image URL to the Netlify function
+                                    imagePath: imagePath, // Envoyer le chemin relatif de l'image
+                                    imageSha: imageSha    // Envoyer le SHA de l'image si disponible
                                 })
                             });
 
@@ -430,8 +427,7 @@
 
                             if (deleteResponse.ok && result.success) {
                                 alert('✅ Prompt et image associés supprimés avec succès !');
-                                // Recharger les prompts pour mettre à jour la galerie
-                                chargerPrompts();
+                                chargerPromptsDepuisGitHub(); // Recharger les prompts
                             } else {
                                 console.error("Échec de la suppression:", result.error || "Erreur inconnue");
                                 alert(`❌ Échec de la suppression: ${result.error || "Vérifiez la console."}`);
@@ -446,23 +442,19 @@
         }
 
 
-        // Fonction principale pour charger les prompts depuis GitHub
         async function chargerPromptsDepuisGitHub() {
             const galerieDiv = document.getElementById("galerie");
-            galerieDiv.innerHTML = "<p>Chargement des prompts...</p>"; // Message initial
+            galerieDiv.innerHTML = "<p>Chargement des prompts...</p>";
 
             try {
-                // Étape 1: Récupérer la liste des fichiers JSON dans le dossier 'prompts'
                 const filesResponse = await fetch(`${apiBase}prompts?ref=${branch}`);
                 if (!filesResponse.ok) {
                     throw new Error(`Erreur HTTP: ${filesResponse.status}`);
                 }
                 const filesData = await filesResponse.json();
 
-                // Filtrer pour ne garder que les fichiers .json
                 const jsonFiles = filesData.filter(file => file.type === 'file' && file.name.endsWith('.json'));
 
-                // Étape 2: Pour chaque fichier JSON, récupérer son contenu
                 const promises = jsonFiles.map(async fichier => {
                     try {
                         const fileContentResponse = await fetch(fichier.download_url);
@@ -474,14 +466,12 @@
                         return { ...promptData, path: fichier.path, sha: fichier.sha };
                     } catch (fileError) {
                         console.error(`Erreur lors du traitement du fichier ${fichier.name}:`, fileError);
-                        return null; // Retourne null pour les fichiers qui échouent
+                        return null;
                     }
                 });
 
-                // Attendre que tous les fichiers soient chargés
-                tousLesPrompts = (await Promise.all(promises)).filter(p => p !== null); // Filtrer les nulls
+                tousLesPrompts = (await Promise.all(promises)).filter(p => p !== null);
 
-                // Appliquer les filtres et le tri initiaux
                 appliquerFiltresEtTri();
 
             } catch (error) {
@@ -490,14 +480,13 @@
             }
         }
 
-        // Fonction pour appliquer les filtres et le tri et afficher
         function appliquerFiltresEtTri() {
             const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
             const filtreOutil = document.getElementById('filtre-outil').value;
             const filtreChaine = document.getElementById('filtre-chaine').value;
             const filtreTri = document.getElementById('filtre-tri').value;
 
-            let filteredPrompts = [...tousLesPrompts]; // Copie pour ne pas modifier l'original
+            let filteredPrompts = [...tousLesPrompts];
 
             if (filtreOutil) {
                 filteredPrompts = filteredPrompts.filter(prompt => prompt.outil === filtreOutil);
@@ -545,7 +534,6 @@
                     const demandeLink = document.querySelector("a.demandes");
                     if (demandeLink) {
                         const computedStyle = getComputedStyle(demandeLink);
-                        // Assurez-vous que la position n'est pas "static" pour que z-index fonctionne si besoin
                         if (computedStyle.position === "static" || !computedStyle.position) {
                             demandeLink.style.position = "relative";
                         }
@@ -558,7 +546,6 @@
                         }
                     });
 
-                    // Tente de mettre à jour la bulle de notification
                     if (typeof mettreAJourBulleDemandes === "function") {
                         mettreAJourBulleDemandes();
                     } else {
@@ -573,7 +560,6 @@
                 .finally(() => {
                     document.body.style.opacity = "1";
                     document.querySelector("main").style.display = "block";
-                    // Charge les prompts depuis GitHub une fois que le DOM est prêt et visible
                     chargerPromptsDepuisGitHub();
                 });
         });
