@@ -1,6 +1,4 @@
 import { Octokit } from "@octokit/rest";
-// Assurez-vous d'avoir node-fetch pour les appels fetch si Octokit ne l'inclut pas par défaut ou si vous l'utilisez ailleurs.
-// const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
@@ -27,70 +25,71 @@ export async function handler(event) {
             };
         }
 
-        const { promptPath, imagePath } = JSON.parse(event.body);
+        // On déstructure maintenant promptSha et imageSha aussi
+        const { promptPath, promptSha, imagePath, imageSha } = JSON.parse(event.body);
 
         const [owner, repo] = ["spiresm", "IA_marketing"];
 
         console.log("🔍 Suppression demandée pour :");
-        console.log("Prompt chemin :", promptPath);
-        console.log("Image chemin :", imagePath);
+        console.log("Prompt chemin :", promptPath, "SHA:", promptSha);
+        console.log("Image chemin :", imagePath, "SHA:", imageSha);
 
         // Fonction utilitaire pour supprimer un fichier
-        async function deleteFileFromGitHub(filePath, messagePrefix) {
-            if (!filePath) {
-                console.log(`ℹ️ ${messagePrefix} : Chemin vide, skipping.`);
+        // Elle prend maintenant le SHA directement en argument
+        async function deleteFileFromGitHub(filePath, fileSha, messagePrefix) {
+            if (!filePath || !fileSha) {
+                console.log(`ℹ️ ${messagePrefix} : Chemin ou SHA vide, skipping.`);
                 return;
             }
 
             try {
-                // Étape 1: Obtenir les métadonnées du fichier (nécessaire pour le SHA)
-                console.log(`fetching content for ${filePath}`);
-                const { data: fileData } = await octokit.repos.getContent({
-                    owner,
-                    repo,
-                    path: filePath,
-                });
-                console.log(`Content data for ${filePath}:`, fileData);
-
-                // Assurez-vous que fileData est bien un objet de fichier et non un tableau (si le chemin est un dossier)
-                if (Array.isArray(fileData)) {
-                    console.error(`❌ ${messagePrefix}: Le chemin ${filePath} est un dossier, pas un fichier.`);
-                    throw new Error(`Le chemin '${filePath}' correspond à un dossier, pas à un fichier.`);
-                }
-                
-                // Étape 2: Supprimer le fichier en utilisant le SHA
+                // Étape 1: Supprimer le fichier en utilisant le SHA fourni
                 await octokit.repos.deleteFile({
                     owner,
                     repo,
                     path: filePath,
                     message: `${messagePrefix} ${filePath}`,
-                    sha: fileData.sha, // C'est crucial d'utiliser le SHA récupéré
+                    sha: fileSha, // <-- Utilise le SHA passé en argument
                 });
                 console.log(`✅ ${messagePrefix} supprimé : ${filePath}`);
             } catch (err) {
                 const status = err.status || 500;
                 const githubMessage = err.response?.data?.message || err.message;
 
-                if (status === 404 && githubMessage.includes("Not Found")) {
+                if (status === 404 && githubMessage.includes("Not Found") && githubMessage.includes("no file at this path")) {
                     console.warn(`⚠️ ${messagePrefix} déjà absent ou non trouvé : ${filePath}`);
                 } else {
                     console.error(`❌ Erreur lors de la suppression de ${filePath} : ${githubMessage}`, err);
-                    // Renvoyer l'erreur pour qu'elle soit attrapée par le bloc catch principal
                     throw new Error(`Échec de la suppression de ${filePath}: ${githubMessage}`);
                 }
             }
         }
 
         // Supprimer le fichier prompt
-        await deleteFileFromGitHub(promptPath, 'Suppression prompt');
+        await deleteFileFromGitHub(promptPath, promptSha, 'Suppression prompt');
 
-        // Supprimer l'image liée
-        await deleteFileFromGitHub(imagePath, 'Suppression image');
+        // Supprimer l'image liée (si imagePath et imageSha sont fournis)
+        // Note: imageUrl n'est pas le chemin complet pour GitHub, il faut le convertir
+        // Côté client, assurez-vous d'envoyer le CHEMIN RELATIF DE L'IMAGE DANS LE DÉPÔT GitHub.
+        // Par exemple: 'images/MON_PROMPT.png'
+        if (imagePath) { // Assurez-vous que l'imagePath est le chemin relatif dans le repo
+            // Pour l'image, il faut aussi faire un getContent si on a pas le SHA
+            // ou s'assurer que le client envoie bien le SHA de l'image.
+            // Si le client n'envoie que imageUrl, il faut faire un getContent pour l'image aussi.
+            // C'est plus simple de laisser le `deleteFileFromGitHub` faire un `getContent` pour les images
+            // si le client n'envoie pas le SHA de l'image.
+
+            // Solution 1: Le client envoie aussi imageSha
+            await deleteFileFromGitHub(imagePath, imageSha, 'Suppression image');
+
+            // Solution 2: (Si le client n'envoie pas imageSha, on le récupère comme avant)
+            // await deleteFileFromGitHubWithContentFetch(imagePath, 'Suppression image');
+        }
 
 
         return {
             statusCode: 200,
-            headers: { 
+            headers: {
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json"
             },
@@ -102,11 +101,58 @@ export async function handler(event) {
         console.error("❌ Erreur générale dans deletePrompt:", msg);
         return {
             statusCode: 500,
-            headers: { 
+            headers: {
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({ error: `Erreur interne du serveur lors de la suppression: ${msg}` }),
         };
+    }
+}
+
+// Version de la fonction deleteFileFromGitHub qui inclut le getContent pour récupérer le SHA
+// C'est celle que vous aviez, elle est robuste si le SHA n'est pas toujours disponible côté client
+async function deleteFileFromGitHubWithContentFetch(filePath, messagePrefix) {
+    const [owner, repo] = ["spiresm", "IA_marketing"]; // Définir ici aussi pour cette fonction
+
+    if (!filePath) {
+        console.log(`ℹ️ ${messagePrefix} : Chemin vide, skipping.`);
+        return;
+    }
+
+    try {
+        // Étape 1: Obtenir les métadonnées du fichier (nécessaire pour le SHA)
+        console.log(`fetching content for ${filePath}`);
+        const { data: fileData } = await octokit.repos.getContent({
+            owner,
+            repo,
+            path: filePath,
+        });
+        console.log(`Content data for ${filePath}:`, fileData);
+
+        if (Array.isArray(fileData)) {
+            console.error(`❌ ${messagePrefix}: Le chemin ${filePath} est un dossier, pas un fichier.`);
+            throw new Error(`Le chemin '${filePath}' correspond à un dossier, pas à un fichier.`);
+        }
+
+        // Étape 2: Supprimer le fichier en utilisant le SHA
+        await octokit.repos.deleteFile({
+            owner,
+            repo,
+            path: filePath,
+            message: `${messagePrefix} ${filePath}`,
+            sha: fileData.sha, // C'est crucial d'utiliser le SHA récupéré
+        });
+        console.log(`✅ ${messagePrefix} supprimé : ${filePath}`);
+    } catch (err) {
+        const status = err.status || 500;
+        const githubMessage = err.response?.data?.message || err.message;
+
+        if (status === 404 && githubMessage.includes("Not Found") && githubMessage.includes("no file at this path")) {
+            console.warn(`⚠️ ${messagePrefix} déjà absent ou non trouvé : ${filePath}`);
+        } else {
+            console.error(`❌ Erreur lors de la suppression de ${filePath} : ${githubMessage}`, err);
+            throw new Error(`Échec de la suppression de ${filePath}: ${githubMessage}`);
+        }
     }
 }
