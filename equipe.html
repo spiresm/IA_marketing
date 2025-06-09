@@ -261,19 +261,19 @@
             gap: 10px;
             justify-content: center;
             margin-bottom: 10px;
-            min-height: 100px; /* Ajout d'une hauteur minimale pour voir le conteneur */
-            background-color: #e9f5ff; /* Fond pour voir si le conteneur s'affiche */
+            min-height: 100px;
+            background-color: #e9f5ff;
             padding: 5px;
             border-radius: 8px;
         }
         .side-panel .gallery-images-container img {
             width: 100%;
             max-width: 150px;
-            height: 100px; /* Hauteur fixe pour uniformiser les images */
+            height: 100px;
             object-fit: cover;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border: 1px solid #ddd; /* Ajout d'une bordure pour mieux voir les images */
+            border: 1px solid #ddd;
         }
         .side-panel .no-image-placeholder {
             text-align: center;
@@ -319,8 +319,9 @@
     <footer>Mis à jour automatiquement le 2025-06-09</footer>
 
     <script>
-        const PROXY_URL = "/.netlify/functions/proxy"; // Adaptez si nécessaire
-        let profils = []; // Déclare profils globalement pour qu'il soit accessible
+        const PROXY_URL = "/.netlify/functions/proxy";
+        let profils = [];
+        let galleryPrompts = []; // Nouvelle variable globale pour stocker les prompts de la galerie
 
         const listContainer = document.getElementById("profil-list");
         const filterPole = document.getElementById("filterPole");
@@ -330,13 +331,11 @@
         const closePanelBtn = document.querySelector(".close-panel");
 
 
-        // Fonction pour normaliser les chaînes (retirer accents, passer en minuscules)
         function normalizeString(str) {
             if (typeof str !== 'string') return '';
             return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
         }
 
-        // Fonction de rendu des profils (appelée après filtrage)
         function renderProfils() {
             console.log("Équipe: Début du rendu des profils...");
             const selectedPole = normalizeString(filterPole.value);
@@ -477,7 +476,8 @@
                             if (data.success) {
                                 console.log("Équipe: Profil supprimé avec succès:", p.name);
                                 profils = profils.filter(profile => profile.id !== p.id);
-                                renderProfils();
+                                // Re-charger les prompts pour s'assurer que les images sont à jour si le profil est supprimé
+                                initPageData(); // Appel de la fonction globale d'initialisation
                             } else {
                                 console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
                                 alert("Erreur lors de la suppression du profil : " + data.message);
@@ -495,45 +495,54 @@
                         console.log("Équipe: Ouverture du panneau latéral pour", p.name);
                         
                         let gallerySection = '';
-                        // --- DÉBUT DU DÉBOGAGE DES IMAGES DE GALERIE ---
-                        console.log(`DEBUG: Profil "${p.name}" (ID: ${p.id})`);
-                        console.log("DEBUG: p.galleryImages avant traitement:", p.galleryImages);
+                        const profilNameNormalized = normalizeString(p.name || '');
 
-                        if (Array.isArray(p.galleryImages) && p.galleryImages.length > 0) {
-                            const lastTwoImages = p.galleryImages.slice(-2);
-                            console.log("DEBUG: Les 2 dernières images sélectionnées:", lastTwoImages);
+                        // Filtrer les prompts de la galerie par l'auteur (nom du profil)
+                        // Nous nous basons sur `galleryPrompts` qui est déjà chargé.
+                        const imagesByAuthor = galleryPrompts.filter(prompt => {
+                            // Assurez-vous que prompt.auteur existe et est comparable
+                            return normalizeString(prompt.auteur || '') === profilNameNormalized;
+                        }).map(prompt => prompt.imageUrl).filter(Boolean); // Extrait seulement les URLs non vides
+
+                        console.log(`DEBUG: Images de galerie trouvées pour "${p.name}" :`, imagesByAuthor);
+
+                        if (imagesByAuthor.length > 0) {
+                            // Nous allons montrer les 2 dernières images publiées par cet auteur.
+                            const lastTwoImages = imagesByAuthor.slice(-2);
+                            console.log("DEBUG: Les 2 dernières images sélectionnées pour l'affichage:", lastTwoImages);
                             
                             const imagesHtml = lastTwoImages.map(imgSrc => {
-                                console.log("DEBUG: Génération HTML pour l'image:", imgSrc);
-                                // Vérifier si l'URL est valide
                                 if (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) {
-                                    return `<img src="${imgSrc}" alt="Image de galerie" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x100?text=Erreur+image';" title="${imgSrc}">`;
+                                    return `<img src="${imgSrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x100?text=Erreur+image';" title="Image: ${imgSrc}">`;
                                 } else {
-                                    console.warn("DEBUG: URL d'image invalide détectée:", imgSrc);
+                                    console.warn("DEBUG: URL d'image de galerie invalide détectée:", imgSrc);
                                     return `<img src="https://via.placeholder.com/150x100?text=Image+Invalide" alt="Image invalide" title="URL invalide: ${imgSrc}">`;
                                 }
                             }).join('');
 
                             gallerySection = `
                                 <div class="gallery-section">
-                                    <h3>Dernières images de la galerie</h3>
+                                    <h3>Derniers prompts partagés</h3>
                                     <div class="gallery-images-container">
                                         ${imagesHtml}
                                     </div>
-                                    <p class="no-image-placeholder"><a href="galerie.html?profil=${encodeURIComponent(p.id)}">Voir toute la galerie</a></p>
+                                    <p class="no-image-placeholder">
+                                        <a href="galerie.html?auteur=${encodeURIComponent(p.name)}">Voir tous les prompts de ${p.name}</a>
+                                    </p>
                                 </div>
                             `;
                         } else {
-                            console.log("DEBUG: Aucune image de galerie trouvée pour ce profil ou p.galleryImages n'est pas un tableau valide.");
+                            console.log("DEBUG: Aucune image de galerie trouvée pour l'auteur :", p.name);
                             gallerySection = `
                                 <div class="gallery-section">
-                                    <h3>Dernières images de la galerie</h3>
-                                    <p class="no-image-placeholder">Aucune image récente à afficher.</p>
-                                    <p class="no-image-placeholder"><a href="galerie.html?profil=${encodeURIComponent(p.id)}">Ajouter des images à la galerie</a></p>
+                                    <h3>Derniers prompts partagés</h3>
+                                    <p class="no-image-placeholder">Aucun prompt partagé par ${p.name} n'a été trouvé.</p>
+                                    <p class="no-image-placeholder">
+                                        <a href="prompt.html">Partager un prompt maintenant !</a>
+                                    </p>
                                 </div>
                             `;
                         }
-                        // --- FIN DU DÉBOGAGE DES IMAGES DE GALERIE ---
 
                         const toolsList = (Array.isArray(p.tools) ? p.tools : []).map(t => `<li>${t}</li>`).join('');
 
@@ -592,96 +601,93 @@
             }
         }
 
-        document.addEventListener("DOMContentLoaded", () => {
-            console.log("Équipe: DOM entièrement chargé. Début de l'initialisation de equipe.html...");
+        // Nouvelle fonction pour charger tous les prompts de la galerie
+        async function fetchGalleryPrompts() {
+            console.log("Équipe: Tentative de récupération des prompts de la galerie...");
+            try {
+                // Assurez-vous que votre fonction Netlify 'proxy' peut gérer cette action
+                // et qu'elle renvoie un tableau d'objets avec 'auteur' et 'imageUrl'.
+                const res = await fetch(`${PROXY_URL}?action=getGalleryPrompts`);
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Erreur HTTP lors de la récupération des prompts de galerie: ${res.status} - ${errorText}`);
+                }
+                const data = await res.json();
+                // Assurez-vous que 'data' est un tableau, sinon initialisez-le comme un tableau vide
+                galleryPrompts = Array.isArray(data) ? data : [];
+                console.log("Équipe: Prompts de la galerie chargés :", galleryPrompts.length, galleryPrompts);
+            } catch (error) {
+                console.error("Équipe: Erreur lors du chargement des prompts de la galerie :", error);
+                galleryPrompts = []; // S'assurer que c'est un tableau même en cas d'erreur
+            }
+        }
 
-            fetch("header.html")
-                .then(response => {
-                    console.log("Équipe: Réponse de fetch('header.html') reçue.");
-                    if (!response.ok) {
-                        throw new Error(`Erreur HTTP lors du chargement du header pour Équipe: ${response.status}`);
-                    }
-                    return response.text();
-                })
-                .then(data => {
-                    console.log("Équipe: Header HTML récupéré. Injection dans le placeholder.");
-                    const headerPlaceholder = document.getElementById("header-placeholder");
-                    if (headerPlaceholder) {
-                        headerPlaceholder.innerHTML = data;
-                    } else {
-                        console.error("Équipe: L'élément #header-placeholder n'a pas été trouvé.");
-                    }
+        // Fonction d'initialisation principale qui charge toutes les données nécessaires
+        async function initPageData() {
+            try {
+                // 1. Charger le header
+                const headerResponse = await fetch("header.html");
+                if (!headerResponse.ok) {
+                    throw new Error(`Erreur HTTP lors du chargement du header pour Équipe: ${headerResponse.status}`);
+                }
+                const headerHtml = await headerResponse.text();
+                const headerPlaceholder = document.getElementById("header-placeholder");
+                if (headerPlaceholder) {
+                    headerPlaceholder.innerHTML = headerHtml;
+                } else {
+                    console.error("Équipe: L'élément #header-placeholder n'a pas été trouvé.");
+                }
 
-                    return fetch(`${PROXY_URL}?action=getProfils`);
-                })
-                .then(response => {
-                    console.log("Équipe: Réponse de getProfils reçue.");
-                    if (!response.ok) {
-                        throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    profils = Array.isArray(data) ? data : (data.profils || []);
-                    console.log("Équipe: Profils bruts chargés de l'API :", profils.length, profils);
-                    
-                    // --- DÉBUT DE LA SIMULATION DU TABLEAU GALLERYIMAGES (TRÈS IMPORTANT POUR LE DÉBOGAGE SI LE BACKEND NE FOURNIT PAS CES DONNÉES) ---
-                    // **ADAPTEZ LE CHEMIN DE 'div.PNG' ICI SI NÉCESSAIRE**
-                    // Exemple : si 'div.PNG' est dans un dossier 'assets', changez 'div.PNG' en 'assets/div.PNG'
-                    // L'URL de 'div.PNG' est relative au fichier 'equipe.html'.
-                    profils = profils.map(p => {
-                        // Assurez-vous que l'objet p.name existe avant d'appeler .includes
-                        const pNameLower = p.name ? p.name.toLowerCase() : '';
+                // 2. Charger les profils et les prompts de la galerie en parallèle
+                // Utilisation de Promise.all pour charger les deux sets de données en même temps
+                const [profilsResponse] = await Promise.all([
+                    fetch(`${PROXY_URL}?action=getProfils`),
+                    fetchGalleryPrompts() // Cette fonction met à jour `galleryPrompts`
+                ]);
 
-                        if (pNameLower.includes("jean")) {
-                            p.galleryImages = ['div.PNG', 'https://via.placeholder.com/280x150?text=Jean+Image+2'];
-                        } else if (pNameLower.includes("alice")) {
-                            p.galleryImages = ['https://via.placeholder.com/280x150?text=Alice+Image+1', 'https://via.placeholder.com/280x150?text=Alice+Image+2', 'https://via.placeholder.com/280x150?text=Alice+Image+3'];
-                        } else if (pNameLower.includes("dupont")) { // Autre exemple
-                            p.galleryImages = ['https://via.placeholder.com/280x150?text=Dupont+Galerie', 'https://via.placeholder.com/280x150?text=Dupont+2'];
-                        }
-                        // S'assurer que le champ existe même si vide pour tous les profils
-                        if (!p.galleryImages) {
-                             p.galleryImages = [];
-                        }
-                        return p;
-                    });
-                    console.log("Équipe: Profils après simulation de galleryImages :", profils);
-                    // --- FIN DE LA SIMULATION ---
-                    
-                    document.body.style.opacity = "1";
-                    const mainElement = document.querySelector("main");
-                    if (mainElement) {
-                        mainElement.style.display = "block";
-                    } else {
-                        console.error("Équipe: L'élément <main> n'a pas été trouvé.");
-                    }
+                if (!profilsResponse.ok) {
+                    throw new Error(`Erreur HTTP lors de la récupération des profils: ${profilsResponse.status}`);
+                }
+                const profilsData = await profilsResponse.json();
+                profils = Array.isArray(profilsData) ? profilsData : (profilsData.profils || []);
+                console.log("Équipe: Profils chargés :", profils.length, profils);
+                
+                // 3. Afficher la page
+                document.body.style.opacity = "1";
+                const mainElement = document.querySelector("main");
+                if (mainElement) {
+                    mainElement.style.display = "block";
+                } else {
+                    console.error("Équipe: L'élément <main> n'a pas été trouvé.");
+                }
 
-                    mettreAJourBulleDemandes();
-                    
-                    const path = location.pathname.split("/").pop();
-                    const links = document.querySelectorAll("nav a");
-                    links.forEach(link => {
-                        if (link.getAttribute("href") === path) {
-                            link.classList.add("active");
-                        }
-                    });
-
-                    renderProfils();
-                })
-                .catch(error => {
-                    console.error("Équipe: Erreur critique lors de l'initialisation de la page ou chargement des profils :", error);
-                    document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu.</p>";
-                    const mainElement = document.querySelector("main");
-                    if (mainElement) {
-                        mainElement.innerHTML = `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les profils : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
-                        mainElement.style.display = "block";
-                    } else {
-                        document.body.innerHTML += `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les profils : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
+                mettreAJourBulleDemandes();
+                
+                const path = location.pathname.split("/").pop();
+                const links = document.querySelectorAll("nav a");
+                links.forEach(link => {
+                    if (link.getAttribute("href") === path) {
+                        link.classList.add("active");
                     }
-                    document.body.style.opacity = "1";
                 });
-        });
+
+                renderProfils(); // Rendre les profils initiaux avec les données de la galerie disponibles
+            } catch (error) {
+                console.error("Équipe: Erreur critique lors de l'initialisation de la page ou chargement des données :", error);
+                document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu.</p>";
+                const mainElement = document.querySelector("main");
+                if (mainElement) {
+                    mainElement.innerHTML = `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les données : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
+                    mainElement.style.display = "block";
+                } else {
+                    document.body.innerHTML += `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les données : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
+                }
+                document.body.style.opacity = "1";
+            }
+        }
+
+        // Appeler la fonction d'initialisation globale au chargement du DOM
+        document.addEventListener("DOMContentLoaded", initPageData);
     </script>
 </body>
 </html>
