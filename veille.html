@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Veille IA Marketing</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="notif.js"></script>
   <style>
     body {
       opacity: 0;
@@ -94,13 +93,13 @@
           <option value="Création de contenu">Création de contenu</option>
         </select>
       </div>
-      <div id="articles">
-        <!-- Articles injectés ici -->
-      </div>
+      <div id="articles"></div>
     </div>
   </main>
-  <footer>Mis à jour automatiquement le 2025-06-06</footer>
+  <footer>Mis à jour automatiquement le 2025-06-09</footer>
   <script>
+    const PROXY_URL = "/.netlify/functions/proxy";
+
     const articles = [
       {
         titre: "Midjourney lance un outil vidéo",
@@ -171,18 +170,36 @@
       renderArticles(filtres);
     }
 
-    function mettreAJourBulleDemandes() {
+    async function mettreAJourBulleDemandes() {
       const notif = document.getElementById("notif-count");
       if (!notif) return;
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+      try {
+        const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+        const demandes = await res.json();
+        if (demandes.length > 0) {
+          notif.textContent = demandes.length;
+          notif.style.display = "inline-block";
+        } else {
+          notif.textContent = "";
+          notif.style.display = "none";
+        }
+      } catch (e) {
+        console.error("Erreur compteur :", e);
+      }
     }
 
     fetch("header.html")
       .then(res => res.text())
       .then(html => {
         document.getElementById("header-placeholder").innerHTML = html;
+        const notif = document.querySelector("#notif-count");
+        if (notif && notif.textContent.trim() === "0") {
+          notif.style.display = "none";
+        }
+        const lienDemande = document.querySelector("a.demandes");
+        if (lienDemande) {
+          lienDemande.style.position = "relative";
+        }
       })
       .catch(() => {
         document.getElementById("header-placeholder").innerHTML =
@@ -191,8 +208,8 @@
       .finally(() => {
         document.body.style.opacity = "1";
         document.querySelector("main").style.display = "block";
-        mettreAJourBulleDemandes();
         renderArticles(articles);
+        mettreAJourBulleDemandes();
       });
   </script>
 </body>
