@@ -1,3 +1,6 @@
+// tools-full.js
+
+// Définition du tableau 'tools' avec toutes vos données d'outils
 const tools = [
   {
     nom: "ChatGPT",
@@ -234,3 +237,73 @@ const tools = [
     categories: ["code"]
   }
 ];
+
+// Définition des fonctions formatTooltipText, renderToolsWithTooltips, et applyFilters
+function formatTooltipText(texte) {
+    const champs = [
+        { label: "Date", regex: /Date\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Contexte", regex: /Contexte\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Cible", regex: /Cible\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Ton", regex: /Ton\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Livrables", regex: /Livrables\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Contraintes", regex: /Contraintes\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+        { label: "Canaux", regex: /Canaux\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
+    ];
+
+    let html = `<div class="tooltip-section"><span class="tooltip-label">Résumé :</span> ${texte.split("Date")[0].trim()}</div>`;
+
+    champs.forEach(({ label, regex }) => {
+        const match = texte.match(regex);
+        if (match) {
+            html += `<div class="tooltip-section"><span class="tooltip-label">${label} :</span> ${match[1].trim()}</div>`;
+        }
+    });
+
+    return html;
+}
+
+function renderToolsWithTooltips(filteredTools) {
+    const grid = document.getElementById("tools-grid");
+    grid.innerHTML = "";
+
+    if (!filteredTools || filteredTools.length === 0) {
+        grid.innerHTML = "<p style='text-align: center; color: #555;'>Aucun outil trouvé avec ces critères.</p>";
+        return;
+    }
+
+    filteredTools.forEach(tool => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const longInfo = tool.info && tool.info.trim() !== '' && tool.info !== tool.description
+            ? tool.info
+            : tool.description + ' (Plus d\'informations prochainement disponibles.)';
+
+        card.innerHTML = `
+            <div class="tooltip">${formatTooltipText(longInfo)}</div>
+            <h2>${tool.nom}</h2>
+            <div class="description">${tool.description}</div>
+            <div class="meta">${tool.type} • ${tool.categories.join(", ")}</div>
+            <button onclick="window.open('${tool.lien}', '_blank')">Lancer ${tool.nom}</button>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function applyFilters() {
+    const search = document.getElementById("search").value.toLowerCase();
+    const type = document.getElementById("filtre-type").value;
+
+    const filtered = tools.filter(tool => {
+        const matchSearch =
+            tool.nom.toLowerCase().includes(search) ||
+            tool.description.toLowerCase().includes(search) ||
+            (tool.info && tool.info.toLowerCase().includes(search)) ||
+            tool.categories.some(cat => cat.toLowerCase().includes(search));
+        
+        const matchType = !type || tool.type === type;
+        return matchSearch && matchType;
+    });
+
+    renderToolsWithTooltips(filtered);
+}
