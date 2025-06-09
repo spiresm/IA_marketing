@@ -15,7 +15,7 @@ export const handler = async (event) => {
 
     switch (action) {
       case 'getProfils':
-        targetUrl = '/.netlify/functions/getprofils';
+        targetUrl = '/.netlify/functions/getProfils';
         isLocalFunctionCall = true;
         break;
 
