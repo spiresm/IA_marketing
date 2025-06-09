@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -108,7 +107,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             border-radius: 8px;
             background: white;
-            position: relative; /* */
+            position: relative;
             align-items: flex-start;
             flex-direction: row; /* Image et texte côte à côte */
             min-height: 150px; /* Hauteur minimale pour les cartes */
@@ -186,7 +185,7 @@
         }
 
         .supprimer-btn {
-            position: absolute; /* */
+            position: absolute;
             top: 10px;
             right: 10px;
             background: transparent;
@@ -304,7 +303,7 @@
                 return;
             }
             try {
-                const response = await fetch(`${apiBase}getDemandesCount`);
+                const response = await fetch(`${apiBase}getDemandesCount`); // Assurez-vous que cette fonction existe
                 if (!response.ok) {
                     throw new Error(`Erreur HTTP: ${response.status}`);
                 }
@@ -355,215 +354,12 @@
                 carte.style.borderLeftColor = couleursParChaine[prompt.chaine] || '#0077b6';
 
                 const promptFileName = prompt.path.split('/').pop().replace('.json', '');
+                // Assurez-vous que le nom du fichier image est correct
                 const imageRelativePath = `images/${promptFileName}.png`; // Chemin relatif de l'image dans le dépôt
-                const imageUrl = `https://raw.githubusercontent.com/SteevePiresMadeira/IA-Marketing/${branch}/${imageRelativePath}`;
+                // IMPORTANT : Mettez VOTRE nom d'utilisateur GitHub et le nom de VOTRE dépôt ici
+                const imageUrl = `https://raw.githubusercontent.com/spiresm/IA_marketing/<span class="math-inline">\{branch\}/</span>{imageRelativePath}`;
 
                 carte.innerHTML = `
-                    <img src="${imageUrl}" alt="${prompt.outil || 'Image de prompt'}" onerror="this.onerror=null; this.src='https://via.placeholder.com/180x150?text=No_Image';" />
+                    <img src="<span class="math-inline">\{imageUrl\}" alt\="</span>{prompt.outil || 'Image de prompt'}" onerror="this.onerror=null; this.src='https://via.placeholder.com/180x150?text=No_Image';" />
                     <div class="texte-col">
-                        <div class="outil-highlight">${prompt.outil || 'Outil Inconnu'}</div>
-                        <p class="infos">
-                            <strong>${prompt.auteur || 'Inconnu'}</strong> • ${prompt.categorie || 'Catégorie'}
-                            ${prompt.chaine ? ` • <span class="chaine-color" style="background-color:${couleursParChaine[prompt.chaine] || '#0077b6'};">${prompt.chaine}</span>` : ''}
-                            ${prompt.date ? ` • ${new Date(prompt.date).toLocaleDateString('fr-BE')}` : ''}
-                        </p>
-                        <div class="prompt-texte">${prompt.texte || ''}</div>
-                        <button class="copier-btn" data-prompt="${prompt.texte || ''}">Copier le prompt</button>
-                    </div>
-                    <button class="supprimer-btn"
-                            data-path="${prompt.path}"
-                            data-sha="${prompt.sha}"
-                            data-image-path="${imageRelativePath}"
-                            data-image-sha="${prompt.imageSha || ''}" >❌</button>
-                `;
-                galerie.appendChild(carte);
-            });
-
-            attacherEvenementsCopier();
-            attacherEvenementsSupprimer();
-        }
-
-        function attacherEvenementsCopier() {
-            document.querySelectorAll('.copier-btn').forEach(button => {
-                button.onclick = () => {
-                    const text = button.dataset.prompt;
-                    navigator.clipboard.writeText(text).then(() => {
-                        button.textContent = '✔ Copié !';
-                        setTimeout(() => button.textContent = 'Copier le prompt', 1500);
-                    }).catch(err => {
-                        console.error('Erreur lors de la copie:', err);
-                        alert('Échec de la copie du prompt.');
-                    });
-                };
-            });
-        }
-
-        function attacherEvenementsSupprimer() {
-            document.querySelectorAll('.supprimer-btn').forEach(delBtn => {
-                delBtn.onclick = async () => {
-                    const promptPath = delBtn.dataset.path;
-                    const promptSha = delBtn.dataset.sha;
-                    const imagePath = delBtn.dataset.imagePath; // Chemin relatif de l'image
-                    const imageSha = delBtn.dataset.imageSha;   // SHA de l'image (si disponible)
-
-                    if (!promptPath || !promptSha) {
-                        alert("Informations de prompt (chemin ou SHA) manquantes pour la suppression.");
-                        return;
-                    }
-
-                    if (confirm(`Êtes-vous sûr de vouloir supprimer le prompt à l'emplacement ${promptPath} ?`)) {
-                        try {
-                            const deleteResponse = await fetch(`${apiBase}deletePrompt`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    promptPath: promptPath,
-                                    promptSha: promptSha,
-                                    imagePath: imagePath, // Envoyer le chemin relatif de l'image
-                                    imageSha: imageSha    // Envoyer le SHA de l'image si disponible
-                                })
-                            });
-
-                            const result = await deleteResponse.json();
-
-                            if (deleteResponse.ok && result.success) {
-                                alert('✅ Prompt et image associés supprimés avec succès !');
-                                chargerPromptsDepuisGitHub(); // Recharger les prompts
-                            } else {
-                                console.error("Échec de la suppression:", result.error || "Erreur inconnue");
-                                alert(`❌ Échec de la suppression: ${result.error || "Vérifiez la console."}`);
-                            }
-                        } catch (error) {
-                            console.error("Erreur réseau ou inattendue lors de la suppression:", error);
-                            alert("Une erreur inattendue est survenue lors de la suppression. Vérifiez la console.");
-                        }
-                    }
-                };
-            });
-        }
-
-
-        async function chargerPromptsDepuisGitHub() {
-            const galerieDiv = document.getElementById("galerie");
-            galerieDiv.innerHTML = "<p>Chargement des prompts...</p>";
-
-            try {
-                const filesResponse = await fetch(`${apiBase}prompts?ref=${branch}`);
-                if (!filesResponse.ok) {
-                    throw new Error(`Erreur HTTP: ${filesResponse.status}`);
-                }
-                const filesData = await filesResponse.json();
-
-                const jsonFiles = filesData.filter(file => file.type === 'file' && file.name.endsWith('.json'));
-
-                const promises = jsonFiles.map(async fichier => {
-                    try {
-                        const fileContentResponse = await fetch(fichier.download_url);
-                        if (!fileContentResponse.ok) {
-                            throw new Error(`Erreur de téléchargement pour ${fichier.name}: ${fileContentResponse.status}`);
-                        }
-                        const promptData = await fileContentResponse.json();
-                        // Ajouter le path et le SHA pour la suppression future
-                        return { ...promptData, path: fichier.path, sha: fichier.sha };
-                    } catch (fileError) {
-                        console.error(`Erreur lors du traitement du fichier ${fichier.name}:`, fileError);
-                        return null;
-                    }
-                });
-
-                tousLesPrompts = (await Promise.all(promises)).filter(p => p !== null);
-
-                appliquerFiltresEtTri();
-
-            } catch (error) {
-                console.error("Erreur inattendue lors du chargement des prompts depuis GitHub:", error);
-                galerieDiv.innerHTML = "<p style='text-align: center; color: red;'>Une erreur inattendue est survenue lors du chargement des prompts. Veuillez réessayer plus tard.</p>";
-            }
-        }
-
-        function appliquerFiltresEtTri() {
-            const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
-            const filtreOutil = document.getElementById('filtre-outil').value;
-            const filtreChaine = document.getElementById('filtre-chaine').value;
-            const filtreTri = document.getElementById('filtre-tri').value;
-
-            let filteredPrompts = [...tousLesPrompts];
-
-            if (filtreOutil) {
-                filteredPrompts = filteredPrompts.filter(prompt => prompt.outil === filtreOutil);
-            }
-            if (filtreChaine) {
-                filteredPrompts = filteredPrompts.filter(prompt => prompt.chaine === filtreChaine);
-            }
-            if (filtreNom) {
-                filteredPrompts = filteredPrompts.filter(prompt =>
-                    (prompt.texte && prompt.texte.toLowerCase().includes(filtreNom)) ||
-                    (prompt.outil && prompt.outil.toLowerCase().includes(filtreNom)) ||
-                    (prompt.chaine && prompt.chaine.toLowerCase().includes(filtreNom)) ||
-                    (prompt.auteur && prompt.auteur.toLowerCase().includes(filtreNom)) ||
-                    (prompt.categorie && prompt.categorie.toLowerCase().includes(filtreNom))
-                );
-            }
-
-            if (filtreTri === 'recent') {
-                filteredPrompts.sort((a, b) => new Date(b.date) - new Date(a.date));
-            } else if (filtreTri === 'ancien') {
-                filteredPrompts.sort((a, b) => new Date(a.date) - new Date(b.date));
-            }
-
-            afficherPrompts(filteredPrompts);
-        }
-
-        // Écouteurs d'événements pour les filtres et le tri
-        document.getElementById('filtre-outil').addEventListener('change', appliquerFiltresEtTri);
-        document.getElementById('filtre-nom').addEventListener('input', appliquerFiltresEtTri);
-        document.getElementById('filtre-chaine').addEventListener('change', appliquerFiltresEtTri);
-        document.getElementById('filtre-tri').addEventListener('change', appliquerFiltresEtTri);
-
-
-        document.addEventListener("DOMContentLoaded", () => {
-            fetch("header.html")
-                .then(res => {
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-                    return res.text();
-                })
-                .then(data => {
-                    document.getElementById("header-placeholder").innerHTML = data;
-
-                    const demandeLink = document.querySelector("a.demandes");
-                    if (demandeLink) {
-                        const computedStyle = getComputedStyle(demandeLink);
-                        if (computedStyle.position === "static" || !computedStyle.position) {
-                            demandeLink.style.position = "relative";
-                        }
-                    }
-
-                    const links = document.querySelectorAll("nav a");
-                    links.forEach(link => {
-                        if (link.getAttribute("href") === "galerie.html") {
-                            link.classList.add("active");
-                        }
-                    });
-
-                    if (typeof mettreAJourBulleDemandes === "function") {
-                        mettreAJourBulleDemandes();
-                    } else {
-                        console.warn("⚠️ La fonction mettreAJourBulleDemandes est absente. Assurez-vous que header.html contient le script nécessaire.");
-                    }
-                })
-                .catch(error => {
-                    console.error("Erreur lors du chargement de header.html:", error);
-                    document.getElementById("header-placeholder").innerHTML =
-                        "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
-                })
-                .finally(() => {
-                    document.body.style.opacity = "1";
-                    document.querySelector("main").style.display = "block";
-                    chargerPromptsDepuisGitHub();
-                });
-        });
-    </script>
-</body>
-</html>
+                        <div class="outil-highlight"><span class="math-inline">\{prompt\.outil \|\| 'Outil Inconnu'\}</div\>
