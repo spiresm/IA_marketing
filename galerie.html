@@ -1,12 +1,173 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Galerie de Prompts IA</title>
     <link rel="stylesheet" href="style.css" />
     <style>
-        /* ... (TON CSS INCHANGÉ ICI) ... */
+        /* Styles généraux du corps et de la zone principale - AJUSTÉS POUR LE RENDU PROGRESSIF */
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            background: linear-gradient(to right, #eef2f3, #f8fbfc);
+            color: #333;
+            overflow-x: visible;
+            opacity: 0; /* Garder l'opacité à 0 au début */
+            transition: opacity 0.3s ease-in;
+        }
+        main {
+            padding: 10px 20px;
+            display: none; /* Main caché au début */
+        }
+
+        /* Votre CSS pour la galerie et les cartes de prompts */
+        .galerie {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .filters-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+        #filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        #filters input,
+        #filters select {
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+            min-width: 200px;
+            background: #f9fafb;
+        }
+        .carte {
+            display: flex;
+            gap: 20px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 5px solid #0077b6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            background: white;
+            position: relative;
+            align-items: flex-start;
+        }
+        .carte img {
+            max-width: 180px;
+            max-height: 180px;
+            object-fit: cover;
+            border-radius: 6px;
+            transition: transform 0.3s ease;
+            z-index: 1;
+            position: relative;
+        }
+        .carte img:hover {
+            transform: scale(2);
+            z-index: 100;
+        }
+        .texte-col {
+            flex: 1;
+        }
+        .outil-highlight {
+            color: #0077b6;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .infos {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .chaine-color {
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .prompt-texte {
+            max-height: 3.2em;
+            overflow-y: auto;
+            font-size: 1em;
+            line-height: 1.6em;
+            padding-right: 8px;
+            scroll-behavior: smooth;
+            word-break: break-word;
+        }
+        .copier-btn {
+            background-color: #0077b6;
+            color: #fff;
+            font-weight: bold;
+            border: none;
+            padding: 8px 14px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .copier-btn:hover {
+            background-color: #005f8a;
+        }
+        .supprimer-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5em;
+            z-index: 101;
+            padding: 5px;
+            /* Pour s'assurer que les caractères spéciaux s'affichent */
+            font-family: 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Symbol', sans-serif;
+            line-height: 1; /* Aligne mieux la croix */
+            color: #e74c3c; /* Rendre la croix rouge pour la visibilité */
+        }
+        .supprimer-btn:hover {
+            color: #c0392b; /* Rouge plus foncé au survol */
+        }
+
+
+        #success-message {
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: bold;
+            color: green;
+            font-size: 1.1em;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .action-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .action-links a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: #0077b6;
+            color: white;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            transition: background 0.2s;
+            font-size: 1em;
+            white-space: nowrap;
+        }
+        .action-links a:hover {
+            background: #005f8a;
+        }
     </style>
 </head>
 <body>
@@ -100,6 +261,7 @@
 
             try {
                 // DONNÉES SIMULÉES - POUR TESTER SI LES CARTES S'AFFICHENT AVEC DES DONNÉES LOCALES
+                // Celles-ci utilisent des URLs de placeholder, donc elles devraient toujours s'afficher
                 let prompts = [
                     { id: 1, outil: "Midjourney", chaine: "La Une", date: "2024-05-15", texte_prompt: "Un paysage bucolique avec un moulin à vent et des champs de fleurs, style impressionniste.", image_url: "https://via.placeholder.com/180?text=Paysage+1" },
                     { id: 2, outil: "ChatGPT", chaine: "Vivacité", date: "2024-05-10", texte_prompt: "Rédige un script de 30 secondes pour une publicité radio sur un nouveau café durable.", image_url: "https://via.placeholder.com/180?text=Publicite+2" },
@@ -111,12 +273,12 @@
                 // --- SI VOUS UTILISEZ NETLIFY FUNCTIONS POUR LES PROMPTS ---
                 // DÉCOMMENTEZ ET ADAPTEZ CETTE SECTION SI VOUS VOULEZ RÉCUPÉRER DE VRAIS PROMPTS
                 // console.log(`Tentative de récupération des prompts via Netlify Function: ${PROXY_URL}?action=getPrompts`);
-                // const res = await fetch(`${PROXY_URL}?action=getPrompts`);
+                // const res = await fetch(`${PROXY_URL}?action=getPrompts`); // Adaptez l'action pour vos prompts
                 // if (!res.ok) {
                 //     console.error(`Erreur HTTP lors de la récupération des prompts réels: ${res.status}`);
                 //     throw new Error(`Erreur HTTP: ${res.status}`);
                 // }
-                // let prompts = await res.json(); // Remplacez les données simulées par celles de l'API
+                // prompts = await res.json(); // ATTENTION: Changer "let prompts" en "prompts =" si déjà déclaré
                 // console.log("Prompts réels récupérés (si décommenté) :", prompts);
 
 
@@ -166,8 +328,10 @@
                             </div>
                         `;
                         galerieDiv.appendChild(carte);
+                        console.log("Carte ajoutée. HTML de la carte:", carte.innerHTML); // Log le HTML de la carte pour inspection
                     });
 
+                    // Ajoutez les écouteurs d'événements pour les boutons de copie/suppression après l'injection
                     document.querySelectorAll('.copier-btn').forEach(button => {
                         button.addEventListener('click', (event) => {
                             const promptText = event.target.dataset.prompt;
@@ -179,12 +343,24 @@
                         });
                     });
 
+                    // Logique pour les boutons de suppression (nécessite une fonction Netlify pour la suppression réelle)
                     document.querySelectorAll('.supprimer-btn').forEach(button => {
                         button.addEventListener('click', async (event) => {
                             const promptId = event.target.dataset.id;
                             if (confirm(`Voulez-vous vraiment supprimer le prompt ${promptId} ?`)) {
-                                console.log(`Tentative de suppression du prompt avec l'ID: ${promptId}`);
-                                alert(`Fonctionnalité de suppression non implémentée côté serveur pour le prompt ${promptId}.`);
+                                try {
+                                    console.log(`Tentative de suppression du prompt avec l'ID: ${promptId}`);
+                                    // CETTE PARTIE NÉCESSITE UNE FONCTION NETLIFY POUR LA SUPPRESSION DE PROMPTS
+                                    // Exemple: await fetch(`${PROXY_URL}?action=deletePrompt&id=${promptId}`, { method: 'DELETE' });
+                                    // Ou: await fetch(PROXY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deletePrompt', id: promptId }) });
+                                    alert(`Fonctionnalité de suppression non implémentée côté serveur pour le prompt ${promptId}.`);
+                                    
+                                    // Une fois la suppression côté serveur réussie, rafraîchir la galerie
+                                    // chargerPrompts(); 
+                                } catch (error) {
+                                    console.error("Erreur lors de la suppression du prompt:", error);
+                                    alert("Erreur lors de la suppression du prompt.");
+                                }
                             }
                         });
                     });
@@ -195,6 +371,7 @@
             }
         }
 
+        // Fonction auxiliaire pour l'affichage du message de succès
         function afficherMessageSuccesEtRediriger() {
             const successMessageDiv = document.getElementById('success-message');
             if (successMessageDiv) {
@@ -202,6 +379,7 @@
                 successMessageDiv.style.opacity = "1";
                 setTimeout(() => {
                     successMessageDiv.style.opacity = "0";
+                    // Supprime le paramètre success=1 de l'URL pour un rechargement propre
                     const url = new URL(window.location.href);
                     url.searchParams.delete('success');
                     history.replaceState(null, '', url.toString());
@@ -209,16 +387,18 @@
             }
         }
 
+        // Couleurs pour les chaînes (à réutiliser si nécessaire)
         const couleursParChaine = {
-            'Classic 21': '#8e44ad',
-            'La Une': '#e74c3c',
-            'Tipik': '#27ae60',
-            'La première': '#3498db',
-            'La Trois': '#9b59b6',
-            'Auvio': '#2c3e50',
-            'vivacité': '#f39c12',
-            'Musiq3': '#e83e8c'
+            'Classic 21': '#8e44ad', // Violet plus soutenu
+            'La Une': '#e74c3c',    // Rouge plus soutenu
+            'Tipik': '#27ae60',     // Vert plus soutenu
+            'La première': '#3498db', // Bleu plus soutenu
+            'La Trois': '#9b59b6', // Améthyste
+            'Auvio': '#2c3e50',     // Gris foncé
+            'vivacité': '#f39c12',  // Orange plus soutenu
+            'Musiq3': '#e83e8c'     // Rose vif
         };
+
 
         // --- Exécution principale à l'initialisation de la page ---
         document.addEventListener("DOMContentLoaded", () => {
