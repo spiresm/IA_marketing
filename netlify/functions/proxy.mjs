@@ -3,7 +3,6 @@
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 export const handler = async (event) => {
-  // URL des Google Apps Scripts distantes (pour les demandes d'IA, etc.)
   const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbyoDFofm25-QcQdli_bx4Odkl-xDw7501CbadTf3k85dWPx_gTq_oPVuHo7s3Mk7Q/exec';
 
   try {
@@ -11,18 +10,16 @@ export const handler = async (event) => {
 
     let targetUrl = '';
     let fetchMethod = event.httpMethod;
-    let fetchBody = event.body;
-    let isLocalFunctionCall = false; // Indicateur pour appeler une fonction Netlify locale
+    let fetchBody = event.body; // Le corps original de la requête entrante
+    let isLocalFunctionCall = false;
 
     switch (action) {
       case 'getProfils':
-        // Pour les profils, on appelle une AUTRE fonction Netlify locale
-        targetUrl = '/.netlify/functions/getprofils'; // Le chemin vers votre fonction getprofils
+        targetUrl = '/.netlify/functions/getprofils';
         isLocalFunctionCall = true;
         break;
 
       case 'getDemandesIA':
-        // Pour les demandes d'IA, on appelle toujours l'Apps Script distante
         targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
         break;
 
@@ -34,14 +31,19 @@ export const handler = async (event) => {
         };
     }
 
-    // Si c'est un appel à une fonction locale Netlify, on utilise le chemin relatif
     const fullTargetUrl = isLocalFunctionCall ? new URL(targetUrl, `https://${event.headers.host}`).toString() : targetUrl;
 
     const fetchOptions = {
       method: fetchMethod,
-      headers: { "Content-Type": "application/json" },
-      body: fetchBody,
+      headers: {}, // Initialise les headers à vide
     };
+
+    // NOUVELLE LOGIQUE : N'ajoute le Content-Type et le body QUE pour les méthodes POST
+    if (fetchMethod === "POST") {
+      fetchOptions.headers["Content-Type"] = "application/json";
+      fetchOptions.body = fetchBody;
+    }
+    // Note: Pour les requêtes GET/HEAD, fetchOptions.body ne sera pas défini, ce qui est correct.
 
     console.log("Proxy.mjs envoie vers :", fullTargetUrl);
     console.log("Options fetch :", fetchOptions);
