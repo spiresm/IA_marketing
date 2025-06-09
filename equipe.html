@@ -254,14 +254,20 @@
             font-size: 1.2rem;
             margin-bottom: 10px;
         }
-        .side-panel .last-gallery-image {
-            width: 100%; /* S'adapte à la largeur du panneau */
-            max-height: 200px; /* Limite la hauteur */
-            object-fit: cover; /* Couvre l'espace sans déformer */
+        .side-panel .gallery-images-container {
+            display: flex;
+            flex-wrap: wrap; /* Permet aux images de passer à la ligne */
+            gap: 10px; /* Espace entre les images */
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        .side-panel .gallery-images-container img {
+            width: 100%; /* Image prend toute la largeur du conteneur */
+            max-width: 150px; /* Taille maximale pour chaque image */
+            height: auto; /* Maintien du ratio */
+            object-fit: cover;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: block;
-            margin-bottom: 10px;
         }
         .side-panel .no-image-placeholder {
             text-align: center;
@@ -351,297 +357,16 @@
                 const hasNote = (p.note || '').trim() !== '';
 
                 div.innerHTML = `
-                    <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
-                    <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}" alt="${p.name || 'Profil'}" />
-                    <h3>${p.name || 'Nom Inconnu'}</h3>
-                    <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
-                    <div class="icon-bar">
-                        <button class="btn-note" title="Note">🗒️</button>
-                        <button class="btn-edit" title="Éditer">✏️</button>
-                        <button class="btn-delete" title="Supprimer">🗑️</button>
-                    </div>
-                    <div class="note-editor">
-                        <textarea>${p.note || ''}</textarea>
+                    <span class="note-badge" style="<span class="math-inline">\{hasNote ? 'display\: inline\-block;' \: 'display\: none;'\}"\>Note</span\>
+<img src\="</span>{p.photo || 'https://via.placeholder.com/80x80?text=Profil'}" alt="<span class="math-inline">\{p\.name \|\| 'Profil'\}" /\>
+<h3\></span>{p.name || 'Nom Inconnu'}</h3>
+                    <div class="pole"><span class="math-inline">\{p\.pole \|\| 'Pôle Inconnu'\}</div\>
+<div class\="icon\-bar"\>
+<button class\="btn\-note" title\="Note"\>🗒️</button\>
+<button class\="btn\-edit" title\="Éditer"\>✏️</button\>
+<button class\="btn\-delete" title\="Supprimer"\>🗑️</button\>
+</div\>
+<div class\="note\-editor"\>
+<textarea\></span>{p.note || ''}</textarea>
                         <div class="actions">
-                            <button class="save-note">Enregistrer</button>
-                            <button class="clear-note">Effacer</button>
-                            <button class="close-note">Retour</button>
-                        </div>
-                    </div>`;
-
-                // Attacher les écouteurs d'événements à l'intérieur de la boucle
-                const noteBadge = div.querySelector(".note-badge");
-                const noteEditor = div.querySelector(".note-editor");
-                const textarea = noteEditor.querySelector("textarea");
-
-                div.querySelector(".btn-note").addEventListener("click", e => {
-                    e.stopPropagation(); // Empêche l'ouverture du panneau latéral
-                    console.log("Équipe: Clic sur 'Note' pour", p.name);
-                    // Ferme toutes les autres notes ouvertes
-                    document.querySelectorAll(".note-editor.open").forEach(el => {
-                        if (el !== noteEditor) {
-                            el.classList.remove("open");
-                        }
-                    });
-                    noteEditor.classList.toggle("open");
-                });
-
-                div.querySelector(".save-note").addEventListener("click", async e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Enregistrer note' pour", p.name);
-                    const content = textarea.value.trim();
-                    try {
-                        const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: p.id, note: content })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            console.log("Équipe: Note enregistrée avec succès pour", p.name);
-                            p.note = content; // Mettre à jour l'objet local
-                            noteBadge.style.display = content ? 'inline-block' : 'none';
-                            noteEditor.classList.remove("open");
-                        } else {
-                            console.error("Équipe: Erreur lors de l'enregistrement de la note:", data.message);
-                            alert("Erreur lors de l'enregistrement de la note : " + data.message);
-                        }
-                    } catch (error) {
-                        console.error("Équipe: Erreur réseau/serveur lors de l'enregistrement de la note:", error);
-                        alert("Erreur réseau/serveur lors de l'enregistrement de la note.");
-                    }
-                });
-
-                div.querySelector(".clear-note").addEventListener("click", async e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Effacer note' pour", p.name);
-                    textarea.value = "";
-                    try {
-                        const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: p.id, note: "" })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            console.log("Équipe: Note effacée avec succès pour", p.name);
-                            p.note = ""; // Mettre à jour l'objet local
-                            noteBadge.style.display = 'none';
-                            noteEditor.classList.remove("open");
-                        } else {
-                            console.error("Équipe: Erreur lors de l'effacement de la note:", data.message);
-                            alert("Erreur lors de l'effacement de la note : " + data.message);
-                        }
-                    } catch (error) {
-                        console.error("Équipe: Erreur réseau/serveur lors de l'effacement de la note:", error);
-                        alert("Erreur réseau/serveur lors de l'effacement de la note.");
-                    }
-                });
-
-                div.querySelector(".close-note").addEventListener("click", e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Retour note' pour", p.name);
-                    noteEditor.classList.remove("open");
-                });
-
-                div.querySelector(".btn-edit").addEventListener("click", e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Éditer' pour", p.name);
-                    // Passer l'ID au lieu du nom, c'est plus robuste
-                    window.location.href = `profil.html?edit=${encodeURIComponent(p.id)}`;
-                });
-
-                div.querySelector(".btn-delete").addEventListener("click", async e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Supprimer' pour", p.name);
-                    if (confirm(`Supprimer définitivement ${p.name} ?`)) {
-                        try {
-                            const res = await fetch(`${PROXY_URL}?action=deleteProfil`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ id: p.id })
-                            });
-                            const data = await res.json();
-                            if (data.success) {
-                                console.log("Équipe: Profil supprimé avec succès:", p.name);
-                                // Retirer le profil du tableau local et rafraîchir l'affichage
-                                profils = profils.filter(profile => profile.id !== p.id);
-                                renderProfils();
-                            } else {
-                                console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
-                                alert("Erreur lors de la suppression du profil : " + data.message);
-                            }
-                        } catch (error) {
-                            console.error("Équipe: Erreur réseau/serveur lors de la suppression du profil:", error);
-                            alert("Erreur réseau/serveur lors de la suppression du profil.");
-                        }
-                    }
-                });
-
-                // Écouteur pour ouvrir le panneau latéral (détails du profil)
-                div.addEventListener("click", e => {
-                    // N'ouvre le panneau que si le clic n'est pas sur un bouton d'action
-                    if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
-                        console.log("Équipe: Ouverture du panneau latéral pour", p.name);
-                        const panel = document.getElementById("side-panel");
-                        const content = document.getElementById("panel-content");
-                        
-                        // Préparer la section de la dernière image de galerie
-                        let gallerySection = '';
-                        if (p.lastGalleryImage) { // Vérifie si l'URL de l'image existe
-                            gallerySection = `
-                                <div class="gallery-section">
-                                    <h3>Dernière image de la galerie</h3>
-                                    <img src="${p.lastGalleryImage}" alt="Dernière image de la galerie de ${p.name}" class="last-gallery-image">
-                                    <p class="no-image-placeholder"><a href="galerie.html?profil=${p.id}">Voir toute la galerie</a></p>
-                                </div>
-                            `;
-                        } else {
-                            gallerySection = `
-                                <div class="gallery-section">
-                                    <h3>Dernière image de la galerie</h3>
-                                    <p class="no-image-placeholder">Aucune image récente à afficher.</p>
-                                    <p class="no-image-placeholder"><a href="galerie.html?profil=${p.id}">Ajouter des images à la galerie</a></p>
-                                </div>
-                            `;
-                        }
-
-                        content.innerHTML = `
-                            <h2>${p.name || 'Nom Inconnu'}</h2>
-                            <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
-                            <p><strong>Outils IA :</strong></p>
-                            <ul>${(p.tools || []).map(t => `<li>${t}</li>`).join('')}</ul>
-                            ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}
-                            ${gallerySection} `;
-                        panel.classList.add("show");
-                    }
-                });
-
-                listContainer.appendChild(div);
-            });
-            console.log("Équipe: Rendu des profils terminé.");
-        }
-
-        // Fermeture du panneau latéral
-        document.querySelector(".close-panel").addEventListener("click", () => {
-            console.log("Équipe: Fermeture du panneau latéral.");
-            document.getElementById("side-panel").classList.remove("show");
-        });
-
-        // Fermeture du panneau latéral en cliquant en dehors
-        document.addEventListener("click", event => {
-            const panel = document.getElementById("side-panel");
-            // Vérifie si le clic est en dehors du panneau et en dehors des vignettes
-            if (panel.classList.contains("show") && !panel.contains(event.target) && !event.target.closest(".vignette")) {
-                console.log("Équipe: Clic en dehors, fermeture du panneau latéral.");
-                panel.classList.remove("show");
-            }
-        });
-
-        // Attachement des écouteurs de filtre et de recherche
-        filterPole.addEventListener("change", renderProfils);
-        searchInput.addEventListener("input", renderProfils);
-
-        // Fonction pour mettre à jour la bulle de notification (définie ici car elle est utilisée dans le DOMContentLoaded)
-        async function mettreAJourBulleDemandes() {
-            const notif = document.getElementById("notif-count");
-            if (!notif) {
-                console.warn("Équipe: L'élément 'notif-count' n'a pas été trouvé dans le header.");
-                return;
-            }
-            try {
-                console.log("Équipe: Tentative de récupération des demandes pour la bulle...");
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) {
-                    console.error(`Équipe: Erreur HTTP lors de la récupération des demandes: ${res.status}`);
-                    throw new Error(`Erreur HTTP: ${res.status}`);
-                }
-                const demandes = await res.json();
-                console.log("Équipe: Demandes récupérées pour la bulle:", demandes);
-                notif.textContent = demandes.length;
-                notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-            } catch (e) {
-                console.error("Équipe: Erreur mise à jour compteur de demandes :", e);
-                notif.style.display = "none";
-            }
-        }
-
-        // Exécution principale à l'initialisation de la page après chargement du DOM
-        document.addEventListener("DOMContentLoaded", () => {
-            console.log("Équipe: DOM entièrement chargé. Début de l'initialisation de equipe.html...");
-            fetch("header.html")
-                .then(response => {
-                    console.log("Équipe: Réponse de fetch('header.html') reçue.");
-                    if (!response.ok) {
-                        throw new Error(`Erreur HTTP lors du chargement du header pour Équipe: ${response.status}`);
-                    }
-                    return response.text();
-                })
-                .then(data => {
-                    console.log("Équipe: Header HTML récupéré. Injection dans le placeholder.");
-                    document.getElementById("header-placeholder").innerHTML = data;
-
-                    // Charger les profils après que le header soit injecté
-                    return fetch(`${PROXY_URL}?action=getProfils`);
-                })
-                .then(response => {
-                    console.log("Équipe: Réponse de getProfils reçue.");
-                    if (!response.ok) {
-                        throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // Simulez l'ajout de lastGalleryImage pour les profils existants pour le test
-                    // REMPLACEZ CE BLOC DE LOGIQUE PAR CELLE QUI CHARGE VOS VRAIES DERNIÈRES IMAGES DE GALERIE DEPUIS VOTRE SOURCE DE DONNÉES
-                    profils = Array.isArray(data) ? data : (data.profils || []);
-                    profils = profils.map(p => {
-                        // Exemple: Si le profil s'appelle "Jean Dupont", il aura une image spécifique
-                        if (p.name === "Jean Dupont") {
-                            p.lastGalleryImage = 'div.PNG'; // L'image que vous avez fournie
-                        } else if (p.name === "Alice Smith") {
-                            p.lastGalleryImage = 'https://via.placeholder.com/280x150?text=Image+Alice';
-                        } else {
-                            p.lastGalleryImage = null; // Ou une image par défaut si pas de galerie
-                        }
-                        return p;
-                    });
-                    // FIN DE LA SIMULATION - ASSUREZ-VOUS DE REMPLACER CE BLOC AVEC VOTRE LOGIQUE RÉELLE
-                    
-                    console.log("Équipe: Profils chargés :", profils.length);
-
-                    // Maintenant que le DOM est prêt et les données chargées, afficher la page
-                    document.body.style.opacity = "1";
-                    const mainElement = document.querySelector("main");
-                    if (mainElement) {
-                        mainElement.style.display = "block";
-                    }
-
-                    console.log("Équipe: Mise à jour de la bulle de notification.");
-                    mettreAJourBulleDemandes();
-
-                    console.log("Équipe: Gestion des liens actifs du menu.");
-                    const path = location.pathname.split("/").pop();
-                    const links = document.querySelectorAll("nav a");
-                    links.forEach(link => {
-                        if (link.getAttribute("href") === path) {
-                            link.classList.add("active");
-                        }
-                    });
-
-                    renderProfils(); // Rendre les profils initiaux
-                })
-                .catch(error => {
-                    console.error("Équipe: Erreur critique lors de l'initialisation de la page :", error);
-                    document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-                    document.querySelector("main").innerHTML = `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les profils : ${error.message}</p>`;
-                    document.body.style.opacity = "1"; // Afficher la page même en cas d'erreur pour voir le message
-                    const mainElement = document.querySelector("main");
-                    if (mainElement) {
-                        mainElement.style.display = "block";
-                    }
-                });
-        });
-    </script>
-</body>
-</html>
+                            <button class="save-note">Enregistrer</button
