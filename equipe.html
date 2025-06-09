@@ -243,6 +243,33 @@
             font-size: 0.95rem;
             margin-top: 15px;
         }
+        /* Styles spécifiques pour la galerie dans le panneau latéral */
+        .side-panel .gallery-section {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .side-panel .gallery-section h3 {
+            color: #0077b6;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        .side-panel .last-gallery-image {
+            width: 100%; /* S'adapte à la largeur du panneau */
+            max-height: 200px; /* Limite la hauteur */
+            object-fit: cover; /* Couvre l'espace sans déformer */
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: block;
+            margin-bottom: 10px;
+        }
+        .side-panel .no-image-placeholder {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+            font-size: 0.9rem;
+            padding: 10px 0;
+        }
         footer {
             text-align: center;
             margin-top: 4rem;
@@ -324,7 +351,7 @@
                 const hasNote = (p.note || '').trim() !== '';
 
                 div.innerHTML = `
-                    <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
+                    <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;}">Note</span>
                     <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}" alt="${p.name || 'Profil'}" />
                     <h3>${p.name || 'Nom Inconnu'}</h3>
                     <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
@@ -458,12 +485,34 @@
                         console.log("Équipe: Ouverture du panneau latéral pour", p.name);
                         const panel = document.getElementById("side-panel");
                         const content = document.getElementById("panel-content");
+                        
+                        // Préparer la section de la dernière image de galerie
+                        let gallerySection = '';
+                        if (p.lastGalleryImage) { // Vérifie si l'URL de l'image existe
+                            gallerySection = `
+                                <div class="gallery-section">
+                                    <h3>Dernière image de la galerie</h3>
+                                    <img src="${p.lastGalleryImage}" alt="Dernière image de la galerie de ${p.name}" class="last-gallery-image">
+                                    <p class="no-image-placeholder"><a href="galerie.html?profil=${p.id}">Voir toute la galerie</a></p>
+                                </div>
+                            `;
+                        } else {
+                            gallerySection = `
+                                <div class="gallery-section">
+                                    <h3>Dernière image de la galerie</h3>
+                                    <p class="no-image-placeholder">Aucune image récente à afficher.</p>
+                                    <p class="no-image-placeholder"><a href="galerie.html?profil=${p.id}">Ajouter des images à la galerie</a></p>
+                                </div>
+                            `;
+                        }
+
                         content.innerHTML = `
                             <h2>${p.name || 'Nom Inconnu'}</h2>
                             <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
                             <p><strong>Outils IA :</strong></p>
                             <ul>${(p.tools || []).map(t => `<li>${t}</li>`).join('')}</ul>
-                            ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}`;
+                            ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}
+                            ${gallerySection} `;
                         panel.classList.add("show");
                     }
                 });
@@ -493,7 +542,7 @@
         filterPole.addEventListener("change", renderProfils);
         searchInput.addEventListener("input", renderProfils);
 
-        // Fonction pour mettre à jour la bulle de notification
+        // Fonction pour mettre à jour la bulle de notification (définie ici car elle est utilisée dans le DOMContentLoaded)
         async function mettreAJourBulleDemandes() {
             const notif = document.getElementById("notif-count");
             if (!notif) {
@@ -543,7 +592,22 @@
                     return response.json();
                 })
                 .then(data => {
-                    profils = Array.isArray(data) ? data : (data.profils || []); // Assurez-vous que profils est un tableau
+                    // Simulez l'ajout de lastGalleryImage pour les profils existants pour le test
+                    // REMPLACEZ CE BLOC DE LOGIQUE PAR CELLE QUI CHARGE VOS VRAIES DERNIÈRES IMAGES DE GALERIE DEPUIS VOTRE SOURCE DE DONNÉES
+                    profils = Array.isArray(data) ? data : (data.profils || []);
+                    profils = profils.map(p => {
+                        // Exemple: Si le profil s'appelle "Jean Dupont", il aura une image spécifique
+                        if (p.name === "Jean Dupont") {
+                            p.lastGalleryImage = 'div.PNG'; // L'image que vous avez fournie
+                        } else if (p.name === "Alice Smith") {
+                            p.lastGalleryImage = 'https://via.placeholder.com/280x150?text=Image+Alice';
+                        } else {
+                             p.lastGalleryImage = null; // Ou une image par défaut si pas de galerie
+                        }
+                        return p;
+                    });
+                    // FIN DE LA SIMULATION - ASSUREZ-VOUS DE REMPLACER CE BLOC AVEC VOTRE LOGIQUE RÉELLE
+                    
                     console.log("Équipe: Profils chargés :", profils.length);
 
                     // Maintenant que le DOM est prêt et les données chargées, afficher la page
