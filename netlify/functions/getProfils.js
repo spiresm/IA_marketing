@@ -9,7 +9,7 @@ exports.handler = async function (event, context) {
   const REPO_OWNER = "spiresm";
   const REPO_NAME = "IA_marketing";
   // Chemin du fichier JSON dans votre dépôt GitHub (relatif à la racine du dépôt)
-  const FILE_PATH = "profil.json";
+  const FILE_PATH = "netlify/functions/profil.json";
   const BRANCH = "main"; // La branche de votre dépôt
 
   // Vérification du token GitHub
