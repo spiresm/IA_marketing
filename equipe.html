@@ -76,7 +76,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            cursor: pointer; /* Indiquer que la vignette est cliquable */
+            cursor: pointer;
         }
         .vignette:hover {
             transform: translateY(-6px);
@@ -261,14 +261,19 @@
             gap: 10px;
             justify-content: center;
             margin-bottom: 10px;
+            min-height: 100px; /* Ajout d'une hauteur minimale pour voir le conteneur */
+            background-color: #e9f5ff; /* Fond pour voir si le conteneur s'affiche */
+            padding: 5px;
+            border-radius: 8px;
         }
         .side-panel .gallery-images-container img {
-            width: 100%; /* S'adapte à la largeur du conteneur parent */
-            max-width: 150px; /* Taille maximale pour chaque image */
+            width: 100%;
+            max-width: 150px;
             height: 100px; /* Hauteur fixe pour uniformiser les images */
-            object-fit: cover; /* Recadre l'image pour couvrir l'espace */
+            object-fit: cover;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #ddd; /* Ajout d'une bordure pour mieux voir les images */
         }
         .side-panel .no-image-placeholder {
             text-align: center;
@@ -327,7 +332,7 @@
 
         // Fonction pour normaliser les chaînes (retirer accents, passer en minuscules)
         function normalizeString(str) {
-            if (typeof str !== 'string') return ''; // Gérer les non-chaînes (null, undefined, etc.)
+            if (typeof str !== 'string') return '';
             return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
         }
 
@@ -336,12 +341,11 @@
             console.log("Équipe: Début du rendu des profils...");
             const selectedPole = normalizeString(filterPole.value);
             const searchQuery = normalizeString(searchInput.value);
-            listContainer.innerHTML = ""; // Vide le conteneur avant de rendre
+            listContainer.innerHTML = "";
 
             const filteredProfils = profils.filter(p => {
                 const poleNormalized = normalizeString(p.pole || '');
                 const nameNormalized = normalizeString(p.name || '');
-                // S'assurer que p.tools est un tableau avant de le mapper
                 const toolsNormalized = (Array.isArray(p.tools) ? p.tools : []).map(t => normalizeString(t));
 
                 const matchPole = !selectedPole || poleNormalized === selectedPole;
@@ -353,12 +357,11 @@
                 listContainer.innerHTML = '<p style="text-align: center; color: #666; width: 100%;">Aucun profil ne correspond à vos critères.</p>';
             }
 
-            filteredProfils.forEach((p) => { // Plus besoin de 'index' si non utilisé
+            filteredProfils.forEach((p) => {
                 const div = document.createElement("div");
                 div.className = "vignette";
                 div.dataset.id = p.id;
 
-                // Afficher l'icône de note si une note existe
                 const hasNote = (p.note || '').trim() !== '';
 
                 div.innerHTML = `
@@ -380,15 +383,13 @@
                         </div>
                     </div>`;
 
-                // Attacher les écouteurs d'événements à l'intérieur de la boucle
                 const noteBadge = div.querySelector(".note-badge");
                 const noteEditor = div.querySelector(".note-editor");
                 const textarea = noteEditor.querySelector("textarea");
 
                 div.querySelector(".btn-note").addEventListener("click", e => {
-                    e.stopPropagation(); // Empêche l'ouverture du panneau latéral
+                    e.stopPropagation();
                     console.log("Équipe: Clic sur 'Note' pour", p.name);
-                    // Ferme toutes les autres notes ouvertes
                     document.querySelectorAll(".note-editor.open").forEach(el => {
                         if (el !== noteEditor) {
                             el.classList.remove("open");
@@ -410,7 +411,7 @@
                         const data = await res.json();
                         if (data.success) {
                             console.log("Équipe: Note enregistrée avec succès pour", p.name);
-                            p.note = content; // Mettre à jour l'objet local
+                            p.note = content;
                             noteBadge.style.display = content ? 'inline-block' : 'none';
                             noteEditor.classList.remove("open");
                         } else {
@@ -436,7 +437,7 @@
                         const data = await res.json();
                         if (data.success) {
                             console.log("Équipe: Note effacée avec succès pour", p.name);
-                            p.note = ""; // Mettre à jour l'objet local
+                            p.note = "";
                             noteBadge.style.display = 'none';
                             noteEditor.classList.remove("open");
                         } else {
@@ -452,7 +453,6 @@
                 div.querySelector(".close-note").addEventListener("click", e => {
                     e.stopPropagation();
                     console.log("Équipe: Clic sur 'Retour note' pour", p.name);
-                    // Rétablir le contenu original si l'utilisateur a modifié mais n'a pas enregistré
                     textarea.value = p.note || '';
                     noteEditor.classList.remove("open");
                 });
@@ -476,7 +476,6 @@
                             const data = await res.json();
                             if (data.success) {
                                 console.log("Équipe: Profil supprimé avec succès:", p.name);
-                                // Retirer le profil du tableau local et rafraîchir l'affichage
                                 profils = profils.filter(profile => profile.id !== p.id);
                                 renderProfils();
                             } else {
@@ -492,18 +491,28 @@
 
                 // Écouteur pour ouvrir le panneau latéral (détails du profil)
                 div.addEventListener("click", e => {
-                    // N'ouvre le panneau que si le clic n'est pas sur un bouton d'action
                     if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
                         console.log("Équipe: Ouverture du panneau latéral pour", p.name);
                         
                         let gallerySection = '';
-                        // Assurez-vous que p.galleryImages est un tableau
+                        // --- DÉBUT DU DÉBOGAGE DES IMAGES DE GALERIE ---
+                        console.log(`DEBUG: Profil "${p.name}" (ID: ${p.id})`);
+                        console.log("DEBUG: p.galleryImages avant traitement:", p.galleryImages);
+
                         if (Array.isArray(p.galleryImages) && p.galleryImages.length > 0) {
-                            // Prenez les 2 dernières images
                             const lastTwoImages = p.galleryImages.slice(-2);
-                            const imagesHtml = lastTwoImages.map(imgSrc => `
-                                <img src="${imgSrc}" alt="Image de galerie">
-                            `).join('');
+                            console.log("DEBUG: Les 2 dernières images sélectionnées:", lastTwoImages);
+                            
+                            const imagesHtml = lastTwoImages.map(imgSrc => {
+                                console.log("DEBUG: Génération HTML pour l'image:", imgSrc);
+                                // Vérifier si l'URL est valide
+                                if (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) {
+                                    return `<img src="${imgSrc}" alt="Image de galerie" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x100?text=Erreur+image';" title="${imgSrc}">`;
+                                } else {
+                                    console.warn("DEBUG: URL d'image invalide détectée:", imgSrc);
+                                    return `<img src="https://via.placeholder.com/150x100?text=Image+Invalide" alt="Image invalide" title="URL invalide: ${imgSrc}">`;
+                                }
+                            }).join('');
 
                             gallerySection = `
                                 <div class="gallery-section">
@@ -515,6 +524,7 @@
                                 </div>
                             `;
                         } else {
+                            console.log("DEBUG: Aucune image de galerie trouvée pour ce profil ou p.galleryImages n'est pas un tableau valide.");
                             gallerySection = `
                                 <div class="gallery-section">
                                     <h3>Dernières images de la galerie</h3>
@@ -523,8 +533,8 @@
                                 </div>
                             `;
                         }
+                        // --- FIN DU DÉBOGAGE DES IMAGES DE GALERIE ---
 
-                        // S'assurer que p.tools est un tableau avant de le joindre
                         const toolsList = (Array.isArray(p.tools) ? p.tools : []).map(t => `<li>${t}</li>`).join('');
 
                         panelContent.innerHTML = `
@@ -544,27 +554,21 @@
             console.log("Équipe: Rendu des profils terminé.");
         }
 
-        // Fermeture du panneau latéral
         closePanelBtn.addEventListener("click", () => {
             console.log("Équipe: Clic sur le bouton de fermeture du panneau.");
             sidePanel.classList.remove("show");
         });
 
-        // Fermeture du panneau latéral en cliquant en dehors
         document.addEventListener("click", event => {
-            // Vérifie si le clic est en dehors du panneau ET si le panneau est ouvert
-            // ET si le clic n'est pas sur une vignette (pour ne pas ouvrir/fermer immédiatement)
             if (sidePanel.classList.contains("show") && !sidePanel.contains(event.target) && !event.target.closest(".vignette")) {
                 console.log("Équipe: Clic en dehors du panneau, fermeture.");
                 sidePanel.classList.remove("show");
             }
         });
 
-        // Attachement des écouteurs de filtre et de recherche
         filterPole.addEventListener("change", renderProfils);
         searchInput.addEventListener("input", renderProfils);
 
-        // Fonction pour mettre à jour la bulle de notification
         async function mettreAJourBulleDemandes() {
             const notif = document.getElementById("notif-count");
             if (!notif) {
@@ -580,7 +584,7 @@
                 }
                 const demandes = await res.json();
                 console.log("Équipe: Demandes récupérées pour la bulle:", demandes);
-                notif.textContent = Array.isArray(demandes) ? demandes.length : 0; // S'assurer que demandes est un tableau
+                notif.textContent = Array.isArray(demandes) ? demandes.length : 0;
                 notif.style.display = (Array.isArray(demandes) && demandes.length > 0) ? "inline-block" : "none";
             } catch (e) {
                 console.error("Équipe: Erreur mise à jour compteur de demandes :", e);
@@ -588,11 +592,9 @@
             }
         }
 
-        // Exécution principale à l'initialisation de la page après chargement du DOM
         document.addEventListener("DOMContentLoaded", () => {
             console.log("Équipe: DOM entièrement chargé. Début de l'initialisation de equipe.html...");
 
-            // 1. Charger le header
             fetch("header.html")
                 .then(response => {
                     console.log("Équipe: Réponse de fetch('header.html') reçue.");
@@ -610,7 +612,6 @@
                         console.error("Équipe: L'élément #header-placeholder n'a pas été trouvé.");
                     }
 
-                    // 2. Charger les profils après que le header soit injecté
                     return fetch(`${PROXY_URL}?action=getProfils`);
                 })
                 .then(response => {
@@ -621,29 +622,33 @@
                     return response.json();
                 })
                 .then(data => {
-                    // Assurez-vous que 'data' est un tableau ou contient un tableau 'profils'
                     profils = Array.isArray(data) ? data : (data.profils || []);
                     console.log("Équipe: Profils bruts chargés de l'API :", profils.length, profils);
                     
-                    // --- DÉBUT DE LA SIMULATION DU TABLEAU GALLERYIMAGES (À REMPLACER PAR VOTRE VRAIE LOGIQUE DE DONNÉES) ---
-                    // Cette partie simule l'ajout du champ 'galleryImages' si votre backend ne le fournit pas encore.
+                    // --- DÉBUT DE LA SIMULATION DU TABLEAU GALLERYIMAGES (TRÈS IMPORTANT POUR LE DÉBOGAGE SI LE BACKEND NE FOURNIT PAS CES DONNÉES) ---
+                    // **ADAPTEZ LE CHEMIN DE 'div.PNG' ICI SI NÉCESSAIRE**
+                    // Exemple : si 'div.PNG' est dans un dossier 'assets', changez 'div.PNG' en 'assets/div.PNG'
+                    // L'URL de 'div.PNG' est relative au fichier 'equipe.html'.
                     profils = profils.map(p => {
-                        // Assurez-vous que le chemin de 'div.PNG' est correct.
-                        // S'il est dans un dossier 'images/', ce serait 'images/div.PNG'.
-                        // S'il est à la racine, 'div.PNG' est correct.
-                        if (p.name && p.name.includes("Jean")) { // Utilisation de includes pour plus de flexibilité
+                        // Assurez-vous que l'objet p.name existe avant d'appeler .includes
+                        const pNameLower = p.name ? p.name.toLowerCase() : '';
+
+                        if (pNameLower.includes("jean")) {
                             p.galleryImages = ['div.PNG', 'https://via.placeholder.com/280x150?text=Jean+Image+2'];
-                        } else if (p.name && p.name.includes("Alice")) {
+                        } else if (pNameLower.includes("alice")) {
                             p.galleryImages = ['https://via.placeholder.com/280x150?text=Alice+Image+1', 'https://via.placeholder.com/280x150?text=Alice+Image+2', 'https://via.placeholder.com/280x150?text=Alice+Image+3'];
-                        } else {
-                            p.galleryImages = []; // Si pas de galerie, un tableau vide
+                        } else if (pNameLower.includes("dupont")) { // Autre exemple
+                            p.galleryImages = ['https://via.placeholder.com/280x150?text=Dupont+Galerie', 'https://via.placeholder.com/280x150?text=Dupont+2'];
+                        }
+                        // S'assurer que le champ existe même si vide pour tous les profils
+                        if (!p.galleryImages) {
+                             p.galleryImages = [];
                         }
                         return p;
                     });
                     console.log("Équipe: Profils après simulation de galleryImages :", profils);
                     // --- FIN DE LA SIMULATION ---
                     
-                    // 3. Afficher la page et rendre les profils
                     document.body.style.opacity = "1";
                     const mainElement = document.querySelector("main");
                     if (mainElement) {
@@ -652,9 +657,8 @@
                         console.error("Équipe: L'élément <main> n'a pas été trouvé.");
                     }
 
-                    mettreAJourBulleDemandes(); // Mise à jour du compteur de demandes
+                    mettreAJourBulleDemandes();
                     
-                    // Gestion des liens actifs du menu (doit être fait après l'injection du header)
                     const path = location.pathname.split("/").pop();
                     const links = document.querySelectorAll("nav a");
                     links.forEach(link => {
@@ -663,20 +667,19 @@
                         }
                     });
 
-                    renderProfils(); // Rendre les profils initiaux
+                    renderProfils();
                 })
                 .catch(error => {
                     console.error("Équipe: Erreur critique lors de l'initialisation de la page ou chargement des profils :", error);
-                    // Afficher des messages d'erreur visibles à l'utilisateur
                     document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu.</p>";
                     const mainElement = document.querySelector("main");
                     if (mainElement) {
                         mainElement.innerHTML = `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les profils : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
-                        mainElement.style.display = "block"; // Afficher la zone principale même en cas d'erreur
+                        mainElement.style.display = "block";
                     } else {
                         document.body.innerHTML += `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les profils : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
                     }
-                    document.body.style.opacity = "1"; // S'assurer que le body est visible pour voir les messages d'erreur
+                    document.body.style.opacity = "1";
                 });
         });
     </script>
