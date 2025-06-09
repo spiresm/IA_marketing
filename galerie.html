@@ -1,11 +1,9 @@
-
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Espace IA</title>
+  <title>Galerie - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
     body {
@@ -20,7 +18,7 @@
 
     main {
       padding: 10px 20px;
-      display: none;
+      display: none; /* Masqué initialement, rendu visible après chargement */
     }
 
     .galerie {
@@ -203,28 +201,61 @@
   </main>
 
   <script>
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      if (!notif) return;
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-    }
+    // Supprimons la définition locale de mettreAJourBulleDemandes(),
+    // elle est maintenant gérée par header-script.js
+    // function mettreAJourBulleDemandes() { ... }
 
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => {
-        document.getElementById("header-placeholder").innerHTML = data;
-      })
-      .catch(() => {
-        document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-      })
-      .finally(() => {
-        document.body.style.opacity = "1";
-        document.querySelector("main").style.display = "block";
-        mettreAJourBulleDemandes();
-        if (window.location.search.includes('success=1')) afficherMessageSuccesEtRediriger();
-      });
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("header.html")
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.text();
+        })
+        .then(data => {
+          document.getElementById("header-placeholder").innerHTML = data;
+
+          // Assurez-vous que le lien des demandes est positionné relativement pour la bulle
+          const demandeLink = document.querySelector("a.demandes");
+          if (demandeLink) {
+            const computedStyle = getComputedStyle(demandeLink);
+            if (computedStyle.position === "static" || !computedStyle.position) {
+              demandeLink.style.position = "relative";
+            }
+          }
+
+          // Logique pour marquer le lien "Galerie" comme actif dans le menu
+          const path = location.pathname.split("/").pop();
+          const links = document.querySelectorAll("nav a");
+          links.forEach(link => {
+            if (link.getAttribute("href") === "galerie.html") { // Spécifique pour cette page
+                link.classList.add("active");
+            }
+          });
+
+          // Appeler la fonction de mise à jour de la bulle après le chargement du header
+          // Cette fonction est définie dans js/header-script.js et chargée via header.html
+          if (typeof mettreAJourBulleDemandes === "function") {
+            mettreAJourBulleDemandes();
+          } else {
+            console.warn("La fonction mettreAJourBulleDemandes n'est pas définie. Assurez-vous que header-script.js est chargé et contient cette fonction.");
+          }
+        })
+        .catch(error => {
+          console.error("Erreur lors du chargement de header.html:", error);
+          document.getElementById("header-placeholder").innerHTML =
+            "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+        })
+        .finally(() => {
+          document.body.style.opacity = "1";
+          document.querySelector("main").style.display = "block"; // Rendre le main visible
+          if (window.location.search.includes('success=1')) afficherMessageSuccesEtRediriger();
+          
+          // Charger les prompts après que le DOM soit prêt et visible
+          chargerPrompts(); // Déplace l'appel ici
+        });
+    });
 
     function afficherMessageSuccesEtRediriger() {
       const messageEl = document.getElementById('success-message');
@@ -249,10 +280,15 @@
 
     async function chargerPrompts() {
       const res = await fetch(`${apiBase}prompts?ref=${branch}`);
-      if (!res.ok) throw new Error('Erreur GitHub');
+      if (!res.ok) {
+        console.error('Erreur GitHub lors du chargement des prompts:', res.status, res.statusText);
+        // Gérer l'erreur, par exemple afficher un message à l'utilisateur
+        document.getElementById('galerie').innerHTML = "<p style='text-align: center; color: red;'>Erreur lors du chargement des prompts. Veuillez réessayer plus tard.</p>";
+        return;
+      }
       const fichiers = await res.json();
       tousLesPrompts = fichiers.filter(f => f.name.endsWith('.json'));
-      afficherPrompts(tousLesPrompts);
+      afficherPrompts(tousLesPrompts); // Affiche les prompts après chargement
     }
 
     function afficherPrompts(fichiers) {
@@ -266,62 +302,93 @@
       let fichiersTries = [...fichiers];
       if (tri === 'recent') fichiersTries.reverse();
 
-      fichiersTries.forEach(async fichier => {
-        const res = await fetch(fichier.download_url);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (outil && data.outil !== outil) return;
-        if (chaine && data.chaine !== chaine) return;
-        if (nom && !((data.auteur || '').toLowerCase().includes(nom) || (data.texte || '').toLowerCase().includes(nom))) return;
+      // Utilisation de Promise.all pour attendre toutes les fetches des fichiers JSON
+      Promise.all(fichiersTries.map(fichier => 
+        fetch(fichier.download_url)
+          .then(res => res.ok ? res.json() : Promise.reject(`Erreur pour ${fichier.name}: ${res.status}`))
+          .catch(error => {
+            console.error(error);
+            return null; // Retourne null pour ignorer les fichiers en erreur
+          })
+      ))
+      .then(promptsData => {
+        promptsData.forEach(data => {
+          if (!data) return; // Ignore les prompts qui ont échoué au chargement
 
-        const div = document.createElement('div');
-        div.className = 'carte';
-        div.style.borderLeft = `5px solid ${couleursParChaine[data.chaine] || '#0077b6'}`;
+          if (outil && data.outil !== outil) return;
+          if (chaine && data.chaine !== chaine) return;
+          if (nom && !((data.auteur || '').toLowerCase().includes(nom) || (data.texte || '').toLowerCase().includes(nom) || (data.titre || '').toLowerCase().includes(nom))) return; // Ajout de data.titre
 
-        const delBtn = document.createElement('button');
-        delBtn.className = 'supprimer-btn';
-        delBtn.innerHTML = '🗑️';
-        delBtn.onclick = async () => {
-          if (!confirm('Confirmer suppression ?')) return;
-          await fetch('/.netlify/functions/deletePrompt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              promptPath: fichier.path,
-              imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
-            })
-          });
-          div.remove();
-        };
-        div.appendChild(delBtn);
+          const div = document.createElement('div');
+          div.className = 'carte';
+          div.style.borderLeft = `5px solid ${couleursParChaine[data.chaine] || '#0077b6'}`;
 
-        const img = document.createElement('img');
-        const imgPath = data.image || data.imageUrl || '';
-        img.src = imgPath.startsWith('http') ? imgPath : rawBase + imgPath;
-        img.alt = 'Image';
-        div.appendChild(img);
+          // Assurez-vous d'avoir l'ID SHA du fichier pour la suppression
+          const fichierCorrespondant = fichiers.find(f => f.name === data.filename); // Assurez-vous que votre JSON contient le nom du fichier original
+          if (!fichierCorrespondant) {
+              console.warn(`Impossible de trouver le SHA pour le fichier: ${data.filename}. La suppression pourrait échouer.`);
+          }
 
-        const texteCol = document.createElement('div');
-        texteCol.className = 'texte-col';
-        texteCol.innerHTML = `
-          <div class="outil-highlight">${data.outil || 'Outil'}</div>
-          <p class="infos"><strong>${data.auteur || 'Inconnu'}</strong> • ${data.categorie || 'Catégorie'} ${data.chaine ? ` • <span class='chaine-color' style='color:${couleursParChaine[data.chaine] || '#0077b6'}'>${data.chaine}</span>` : ''}</p>
-          <div class="prompt-texte">${data.texte || ''}</div>
-        `;
+          const delBtn = document.createElement('button');
+          delBtn.className = 'supprimer-btn';
+          delBtn.innerHTML = '🗑️';
+          delBtn.onclick = async () => {
+            if (!confirm('Confirmer suppression ?')) return;
+            try {
+              const deleteResponse = await fetch('/.netlify/functions/deletePrompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  promptPath: fichierCorrespondant ? fichierCorrespondant.path : `prompts/${data.filename}`, // Utilisez le path du fichier si trouvé, sinon construisez-le
+                  imagePath: data.imageUrl && data.imageUrl.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : '',
+                  // L'ID SHA est crucial pour GitHub API v3 pour la suppression
+                  sha: fichierCorrespondant ? fichierCorrespondant.sha : '' 
+                })
+              });
+              if (!deleteResponse.ok) {
+                const errorText = await deleteResponse.text();
+                throw new Error(`Erreur de suppression: ${deleteResponse.status} - ${errorText}`);
+              }
+              div.remove();
+              // Optionnel: Recharger les prompts après suppression réussie
+              // chargerPrompts();
+            } catch (error) {
+              console.error("Erreur lors de la suppression du prompt:", error);
+              alert("Échec de la suppression du prompt. Vérifiez la console pour plus de détails.");
+            }
+          };
+          div.appendChild(delBtn);
 
-        const copierBtn = document.createElement('button');
-        copierBtn.className = 'copier-btn';
-        copierBtn.textContent = 'Copier';
-        copierBtn.onclick = () => {
-          navigator.clipboard.writeText(data.texte || '');
-          copierBtn.textContent = '✔ Copié !';
-          setTimeout(() => copierBtn.textContent = 'Copier', 1500);
-        };
-        texteCol.appendChild(copierBtn);
+          const img = document.createElement('img');
+          const imgPath = data.image || data.imageUrl || '';
+          // Assurez-vous que data.image ou data.imageUrl est une URL complète ou le chemin relatif correct
+          img.src = imgPath.startsWith('http') ? imgPath : rawBase + imgPath;
+          img.alt = data.titre || 'Image de prompt'; // Utiliser le titre pour l'alt-text
+          div.appendChild(img);
 
-        div.appendChild(texteCol);
-        galerie.appendChild(div);
-      });
+          const texteCol = document.createElement('div');
+          texteCol.className = 'texte-col';
+          texteCol.innerHTML = `
+            <div class="outil-highlight">${data.outil || 'Outil'}</div>
+            <p class="infos"><strong>${data.auteur || 'Inconnu'}</strong> • ${data.categorie || 'Catégorie'} ${data.chaine ? ` • <span class='chaine-color' style='color:${couleursParChaine[data.chaine] || '#0077b6'}'>${data.chaine}</span>` : ''}</p>
+            <div class="prompt-texte">${data.texte || ''}</div>
+          `;
+
+          const copierBtn = document.createElement('button');
+          copierBtn.className = 'copier-btn';
+          copierBtn.textContent = 'Copier';
+          copierBtn.onclick = () => {
+            navigator.clipboard.writeText(data.texte || '');
+            copierBtn.textContent = '✔ Copié !';
+            setTimeout(() => copierBtn.textContent = 'Copier', 1500);
+          };
+          texteCol.appendChild(copierBtn);
+
+          div.appendChild(texteCol);
+          galerie.appendChild(div);
+        });
+      })
+      .catch(error => console.error("Erreur lors du traitement des prompts:", error));
     }
 
     document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
@@ -329,7 +396,8 @@
     document.getElementById('filtre-chaine').addEventListener('change', () => afficherPrompts(tousLesPrompts));
     document.getElementById('filtre-tri').addEventListener('change', () => afficherPrompts(tousLesPrompts));
 
-    window.onload = chargerPrompts;
+    // L'appel initial de chargerPrompts est maintenant dans le .finally du chargement du header
+    // window.onload = chargerPrompts; // suppression
   </script>
 </body>
 </html>
