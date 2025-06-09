@@ -3,80 +3,86 @@
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 export const handler = async (event) => {
-  const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbyoDFofm25-QcQdli_bx4Odkl-xDw7501CbadTf3k85dWPx_gTq_oPVuHo7s3Mk7Q/exec';
+  const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbyoDFofm25-QcQdli_bx4Odkl-xDw7501CbadTf3k85dWPx_gTq_oPVuHo7s3Mk7Q/exec';
 
-  try {
-    const action = event.queryStringParameters?.action;
+  try {
+    const action = event.queryStringParameters?.action;
 
-    let targetUrl = '';
-    let fetchMethod = event.httpMethod;
-    let fetchBody = event.body;
-    let isLocalFunctionCall = false;
+    let targetUrl = '';
+    let fetchMethod = event.httpMethod;
+    let fetchBody = event.body;
+    let isLocalFunctionCall = false;
 
-    switch (action) {
-      case 'getProfils':
-        targetUrl = '/.netlify/functions/getProfils'; // Attention à la casse du 'P' ici !
-        isLocalFunctionCall = true;
-        break;
+    switch (action) {
+      case 'getProfils':
+        targetUrl = '/.netlify/functions/getProfils'; 
+        isLocalFunctionCall = true;
+        break;
 
-      case 'getDemandesIA':
-        targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
-        break;
+      case 'getDemandesIA':
+        targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
+        break;
 
-      // NOUVEAU: Ajoutez ce case pour 'updateProfil'
-      case 'updateProfil':
-        targetUrl = '/.netlify/functions/updateProfil'; // Assurez-vous que votre fonction s'appelle bien updateProfil.js (ou .mjs)
-        isLocalFunctionCall = true;
-        break;
+      case 'updateProfil':
+        targetUrl = '/.netlify/functions/updateProfil'; 
+        isLocalFunctionCall = true;
+        break;
 
-      default:
-        console.warn(`Proxy.mjs: Action non reconnue: ${action}`);
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ message: "Action non reconnue." }),
-        };
-    }
+        // DÉBUT DU BLOC AJOUTÉ POUR getGalleryPrompts
+        case 'getGalleryPrompts':
+            targetUrl = '/.netlify/functions/getGalleryPrompts'; // Nom de la fonction Netlify dédiée aux prompts
+            isLocalFunctionCall = true;
+            break;
+        // FIN DU BLOC AJOUTÉ
 
-    const fullTargetUrl = isLocalFunctionCall ? new URL(targetUrl, `https://${event.headers.host}`).toString() : targetUrl;
+      default:
+        console.warn(`Proxy.mjs: Action non reconnue: ${action}`);
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ message: "Action non reconnue." }),
+        };
+    }
 
-    const fetchOptions = {
-      method: fetchMethod,
-      headers: {},
-    };
+    const fullTargetUrl = isLocalFunctionCall ? new URL(targetUrl, `https://${event.headers.host}`).toString() : targetUrl;
 
-    if (fetchMethod === "POST") {
-      fetchOptions.headers["Content-Type"] = "application/json";
-      fetchOptions.body = fetchBody;
-    }
+    const fetchOptions = {
+      method: fetchMethod,
+      headers: {},
+    };
 
-    console.log("Proxy.mjs envoie vers :", fullTargetUrl);
-    console.log("Options fetch :", fetchOptions);
+    if (fetchMethod === "POST") {
+      fetchOptions.headers["Content-Type"] = "application/json";
+      fetchOptions.body = fetchBody;
+    }
 
-    const response = await fetch(fullTargetUrl, fetchOptions);
+    console.log("Proxy.mjs envoie vers :", fullTargetUrl);
+    console.log("Options fetch :", fetchOptions);
 
-    const contentType = response.headers.get("content-type") || "";
-    const isJSON = contentType.includes("application/json");
-    const body = isJSON ? await response.json() : await response.text();
+    const response = await fetch(fullTargetUrl, fetchOptions);
 
-    console.log("Proxy.mjs reçoit :", body);
+    const contentType = response.headers.get("content-type") || "";
+    const isJSON = contentType.includes("application/json");
+    const body = isJSON ? await response.json() : await response.text();
 
-    return {
-      statusCode: response.status,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": isJSON ? "application/json" : "text/plain",
-      },
-      body: isJSON ? JSON.stringify(body) : body,
-    };
+    console.log("Proxy.mjs reçoit :", body);
 
-  } catch (error) {
-    console.error("Erreur dans proxy.mjs :", error);
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: `Erreur interne du proxy : ${error.message}` }),
-    };
-  }
+    return {
+      statusCode: response.status,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Content-Type": isJSON ? "application/json" : "text/plain",
+      },
+      body: isJSON ? JSON.stringify(body) : body,
+    };
+
+  } catch (error) {
+    console.error("Erreur dans proxy.mjs :", error);
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: `Erreur interne du proxy : ${error.message}` }),
+    };
+  }
 };
