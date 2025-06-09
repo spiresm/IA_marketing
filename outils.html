@@ -20,6 +20,7 @@
 
         main {
             padding: 30px 15px;
+            display: none; /* Masqué initialement, rendu visible après chargement */
         }
 
         .container {
@@ -176,76 +177,9 @@
     </main>
 
     <script>
-        // Ces fonctions sont spécifiques à outils.html, donc on les garde ici ou dans tools-full.js
-        function formatTooltipText(texte) {
-            const champs = [
-                { label: "Date", regex: /Date\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-                { label: "Contexte", regex: /Contexte\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-                { label: "Cible", regex: /Cible\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-                { label: "Ton", regex: /Ton\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-                { label: "Livrables", regex: /Livrables\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-                { label: "Contraintes", regex: /Contraintes\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-                { label: "Canaux", regex: /Canaux\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-            ];
-
-            let html = `<div class="tooltip-section"><span class="tooltip-label">Résumé :</span> ${texte.split("Date")[0].trim()}</div>`;
-
-            champs.forEach(({ label, regex }) => {
-                const match = texte.match(regex);
-                if (match) {
-                    html += `<div class="tooltip-section"><span class="tooltip-label">${label} :</span> ${match[1].trim()}</div>`;
-                }
-            });
-
-            return html;
-        }
-
-        function renderToolsWithTooltips(filteredTools) {
-            const grid = document.getElementById("tools-grid");
-            grid.innerHTML = "";
-
-            if (!filteredTools || filteredTools.length === 0) {
-                grid.innerHTML = "<p style='text-align: center; color: #555;'>Aucun outil trouvé avec ces critères.</p>";
-                return;
-            }
-
-            filteredTools.forEach(tool => {
-                const card = document.createElement("div");
-                card.className = "card";
-
-                const longInfo = tool.info && tool.info.trim() !== '' && tool.info !== tool.description
-                    ? tool.info
-                    : tool.description + ' (Plus d\'informations prochainement disponibles.)';
-
-                card.innerHTML = `
-                    <div class="tooltip">${formatTooltipText(longInfo)}</div>
-                    <h2>${tool.nom}</h2>
-                    <div class="description">${tool.description}</div>
-                    <div class="meta">${tool.type} • ${tool.categories.join(", ")}</div>
-                    <button onclick="window.open('${tool.lien}', '_blank')">Lancer ${tool.nom}</button>
-                `;
-
-                grid.appendChild(card);
-            });
-        }
-
-        function applyFilters() {
-            const search = document.getElementById("search").value.toLowerCase();
-            const type = document.getElementById("filtre-type").value;
-
-            const filtered = tools.filter(tool => {
-                const matchSearch =
-                    tool.nom.toLowerCase().includes(search) ||
-                    tool.description.toLowerCase().includes(search) ||
-                    (tool.info && tool.info.toLowerCase().includes(search)) || // Inclure la recherche dans 'info'
-                    tool.categories.some(cat => cat.toLowerCase().includes(search)); // Inclure la recherche dans les catégories
-                
-                const matchType = !type || tool.type === type;
-                return matchSearch && matchType;
-            });
-
-            renderToolsWithTooltips(filtered);
-        }
+        // Ce script gérera le chargement du header et l'initialisation de la page outils.
+        // Toutes les fonctions spécifiques aux outils (formatTooltipText, renderToolsWithTooltips, applyFilters)
+        // DOIVENT être dans tools-full.js
 
         document.addEventListener("DOMContentLoaded", () => {
             fetch("header.html")
@@ -260,22 +194,23 @@
 
                     // Assurez-vous que le lien des demandes est positionné relativement pour la bulle
                     const demandeLink = document.querySelector("a.demandes");
-                    if (demandeLink && (getComputedStyle(demandeLink).position === "static" || !getComputedStyle(demandeLink).position)) {
-                        demandeLink.style.position = "relative";
+                    if (demandeLink) { // Ajoutez cette vérification pour éviter une erreur si le lien n'est pas trouvé
+                        const computedStyle = getComputedStyle(demandeLink);
+                        if (computedStyle.position === "static" || !computedStyle.position) {
+                            demandeLink.style.position = "relative";
+                        }
                     }
 
                     // Logique pour marquer le lien "Outils IA" comme actif dans le menu
-                    const path = location.pathname.split("/").pop();
                     const links = document.querySelectorAll("nav a");
                     links.forEach(link => {
-                        if (link.getAttribute("href") === "outils.html") { // Spécifique pour cette page
+                        if (link.getAttribute("href") === "outils.html") {
                             link.classList.add("active");
                         }
                     });
 
                     // Appeler la fonction de mise à jour de la bulle après le chargement du header
-                    // La fonction `mettreAJourBulleDemandes()` doit être définie dans header-script.js
-                    // (ou un script similaire chargé par le header)
+                    // Cette fonction est définie dans js/header-script.js et chargée via header.html
                     if (typeof mettreAJourBulleDemandes === "function") {
                         mettreAJourBulleDemandes();
                     } else {
@@ -288,14 +223,18 @@
                         "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 })
                 .finally(() => {
-                    document.body.style.opacity = "1"; // S'assurer que le corps de la page devient visible
+                    document.body.style.opacity = "1";
+                    document.querySelector("main").style.display = "block"; // Rendre le main visible
+
                     // Initialiser les filtres et le rendu des outils APRÈS que le DOM soit complètement chargé
-                    if (typeof tools !== "undefined") {
-                        applyFilters(); // Utilise applyFilters pour le rendu initial
+                    // ET APRÈS que tools-full.js soit chargé et que 'tools' soit disponible.
+                    // Assurez-vous que 'tools' est une variable globale définie dans tools-full.js
+                    if (typeof applyFilters === "function" && typeof tools !== "undefined") {
+                        applyFilters(); // Appel initial pour afficher tous les outils
                         document.getElementById("search").addEventListener("input", applyFilters);
                         document.getElementById("filtre-type").addEventListener("change", applyFilters);
                     } else {
-                        console.error("tools n'est pas défini. Assurez-vous que tools-full.js est chargé correctement.");
+                        console.error("Les fonctions d'outils (applyFilters) ou la variable 'tools' ne sont pas définies. Vérifiez tools-full.js.");
                     }
                 });
         });
