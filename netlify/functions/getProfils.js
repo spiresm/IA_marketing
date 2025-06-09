@@ -1,53 +1,33 @@
-// netlify/functions/getprofils.js - VERSION RESTAURÉE
-
-const { Octokit } = require("@octokit/rest");
+// netlify/functions/getProfils.js - VERSION ULTRA-SIMPLIFIÉE POUR DÉBOGAGE PROFOND
 
 exports.handler = async function (event, context) {
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  const REPO_OWNER = "spiresm";
-  const REPO_NAME = "IA_marketing";
-  const FILE_PATH = "profil.json"; // Assurez-vous que c'est bien à la racine du dépôt GitHub
-  const BRANCH = "main";
-
-  if (!GITHUB_TOKEN) {
-    console.error("GITHUB_TOKEN n'est pas défini dans les variables d'environnement Netlify.");
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Configuration serveur manquante (GITHUB_TOKEN)." }),
-    };
-  }
-
-  const octokit = new Octokit({ auth: GITHUB_TOKEN });
+  console.log("DEBUG: La fonction getProfils.js a DEMARRÉ.");
 
   try {
-    const { data: fileData } = await octokit.repos.getContent({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
-      path: FILE_PATH,
-      ref: BRANCH,
-    });
-
-    const decoded = Buffer.from(fileData.content, "base64").toString("utf8");
-    const json = JSON.parse(decoded);
-
+    const testData = {
+      message: "DEBUG: La fonction getProfils a réussi à s'exécuter.",
+      timestamp: new Date().toISOString(),
+      receivedMethod: event.httpMethod,
+      receivedPath: event.path
+    };
+    console.log("DEBUG: Préparation de la réponse 200.");
     return {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
-      body: JSON.stringify(json),
+      body: JSON.stringify(testData),
     };
   } catch (err) {
-    console.error("Erreur lors de la lecture du fichier profils depuis GitHub:", err.message);
+    // Ce bloc devrait être atteint si une erreur survient DANS le try
+    console.error("DEBUG: Erreur imprévue dans la fonction getProfils:", err.message);
     return {
-      statusCode: err.status || 500,
+      statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        error: "Erreur lors de la récupération des profils depuis GitHub.",
+        error: "DEBUG: Erreur interne de la fonction simple de test.",
         details: err.message,
-        github_status: err.status,
       }),
     };
   }
