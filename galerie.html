@@ -19,23 +19,14 @@
             padding: 10px 20px;
             display: none;
         }
-        /* Styles pour la bulle de notification */
-        .notif-carré {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            width: 24px;
-            height: 24px;
-            background-color: #ff66b2;
-            color: white;
-            font-size: 0.75rem;
-            border-radius: 50%;
-            /* Utilisation de flexbox pour centrer le contenu */
-            display: none; /* Cache par défaut, sera affiché par le JS */
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
+        /* Votre CSS pour .notif-carré est celui qui est dans header.html maintenant,
+           pas besoin de le répéter ici si header.html est chargé dynamiquement.
+           Assurez-vous juste que les styles de base du header (et donc la bulle)
+           sont chargés avant le JavaScript qui les manipule.
+           Les styles de .notif-carré qui étaient ici ont été déplacés dans header.html
+           pour assurer qu'ils sont bien disponibles quand le header est injecté. */
+
+        /* Styles spécifiques à votre page galerie.html */
         .galerie {
             max-width: 1200px;
             margin: 0 auto;
@@ -218,36 +209,32 @@
         </div>
     </main>
     <script>
-        const PROXY_URL = "/.netlify/functions/proxy";
+        const PROXY_URL = "/.netlify/functions/proxy"; // Assurez-vous que c'est le bon chemin pour votre fonction Netlify
 
+        // Cette fonction gère la mise à jour de la bulle de notification
         async function updateTicketNotif() {
-            let notif = document.getElementById("notif-count");
-            const lienDemande = document.querySelector("a.demandes");
+            const notifElement = document.getElementById("notif-count");
 
-            // Si le lien pour les demandes n'existe pas, on ne peut pas attacher la notification
-            if (!lienDemande) {
-                console.warn("L'élément 'a.demandes' n'a pas été trouvé dans le header. Impossible d'afficher la notification.");
-                return;
-            }
-
-            // Si la bulle de notification n'existe pas encore, on la crée et l'ajoute
-            if (!notif) {
-                notif = document.createElement("div");
-                notif.id = "notif-count";
-                notif.className = "notif-carré";
-                lienDemande.appendChild(notif);
+            if (!notifElement) {
+                console.warn("L'élément 'notif-count' n'a pas été trouvé dans le header.");
+                return; // Ne peut pas mettre à jour si l'élément n'existe pas
             }
 
             try {
+                // Effectue l'appel à votre fonction Netlify
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                if (!res.ok) {
+                    throw new Error(`Erreur HTTP: ${res.status}`);
+                }
                 const demandes = await res.json();
-                notif.textContent = demandes.length;
-                // Affiche la bulle si le nombre de demandes est supérieur à 0, sinon la cache
-                // Utilisez 'flex' pour centrer le contenu comme défini dans le CSS
-                notif.style.display = demandes.length > 0 ? "flex" : "none";
+                const count = demandes.length;
+
+                notifElement.textContent = count;
+                // Affiche la bulle si le compteur est > 0, sinon la cache
+                notifElement.style.display = count > 0 ? "inline-block" : "none";
             } catch (e) {
                 console.error("Erreur lors de la récupération des demandes pour le compteur de notifications :", e);
-                notif.style.display = "none"; // Cache la bulle en cas d'erreur
+                notifElement.style.display = "none"; // Cache la bulle en cas d'erreur
             }
         }
 
@@ -255,14 +242,30 @@
         fetch("header.html")
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status}`);
+                    throw new new Error(`Erreur HTTP: ${response.status}`);
                 }
                 return response.text();
             })
             .then(data => {
                 document.getElementById("header-placeholder").innerHTML = data;
-                // Une fois que le contenu du header est chargé et dans le DOM, on peut mettre à jour la notification
+
+                // Une fois que le header est chargé, on peut appeler updateTicketNotif
+                // pour mettre à jour la bulle.
                 updateTicketNotif();
+
+                // Logique pour les liens actifs (qui devrait être dans le script principal)
+                const path = location.pathname.split("/").pop();
+                const links = document.querySelectorAll("nav a");
+                links.forEach(link => {
+                    // Assurez-vous que 'galerie.html' est comparé correctement,
+                    // 'path' sera 'galerie.html' pour cette page.
+                    if (link.getAttribute("href") === path) {
+                        link.classList.add("active");
+                    }
+                });
+
+                // Si vous avez d'autres fonctions spécifiques à la page principale qui dépendent du header,
+                // appelez-les ici après l'injection du header.
             })
             .catch(error => {
                 console.error("Erreur de chargement du header:", error);
@@ -272,7 +275,8 @@
                 // Ces actions devraient toujours se produire, que le header soit chargé ou non
                 document.body.style.opacity = "1";
                 document.querySelector("main").style.display = "block";
-                // Assurez-vous que chargerPrompts et afficherMessageSuccesEtRediriger sont définies ailleurs ou supprimez-les si non utilisées
+
+                // Assurez-vous que ces fonctions sont définies ailleurs ou supprimez-les si non utilisées
                 if (typeof chargerPrompts === 'function') {
                     chargerPrompts();
                 }
@@ -280,6 +284,10 @@
                     afficherMessageSuccesEtRediriger();
                 }
             });
+
+        // Si des actions sur cette page peuvent modifier le nombre de demandes IA
+        // (ex: un formulaire d'envoi), vous devrez appeler `updateTicketNotif()`
+        // après la réussite de ces actions pour rafraîchir le compteur.
     </script>
 </body>
 </html>
