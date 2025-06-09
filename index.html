@@ -129,7 +129,7 @@
     <div class="tile">
       <h2>Bienvenue sur l’espace IA Marketing</h2>
       <p>
-        Cette plateforme collaborative vous permet de découvrir, partager et capitaliser sur les usages de l’intelligence artificielle au sein de notre organisation. Que vous cherchiez des outils, des prompts, des cas d’usage inspirants ou que vous souhaitez contribuer avec vos propres astuces, tout est centralisé ici pour accompagner votre montée en compétence et faciliter l’adoption de l’IA au quotidien.
+        Cette plateforme collaborative vous permet de découvrir, partager et capitaliser sur les usages de l’intelligence artificielle au sein de notre organisation. Que vous cherchiez des outils, des prompts, des cas d’usage inspirants ou que vous souhaitiez contribuer avec vos propres astuces, tout est centralisé ici pour accompagner votre montée en compétence et faciliter l’adoption de l’IA au quotidien.
       </p>
 
       <div class="chatgpt-wrapper">
@@ -144,67 +144,50 @@
   </div>
 
   <script>
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      // Ajout de logs pour le débogage
-      console.log("Recherche de #notif-count sur index.html :", notif);
-      if (!notif) {
-        console.warn("L'élément #notif-count n'a pas été trouvé sur index.html. La bulle de notification ne peut pas être mise à jour.");
-        return;
-      }
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-      console.log(`Bulle de notification mise à jour sur index.html : ${demandes.length} demandes.`);
-    }
+    // La fonction mettreAJourBulleDemandes n'est plus nécessaire ici si elle est gérée par header.html
+    // ou un script externe inclus par header.html.
 
-    // On utilise DOMContentLoaded pour s'assurer que le DOM est prêt
     document.addEventListener("DOMContentLoaded", () => {
-        console.log("DOM entièrement chargé pour index.html. Début de l'initialisation...");
-        fetch("header.html")
-            .then(res => {
-                console.log("Réponse de fetch('header.html') reçue.");
-                if (!res.ok) {
-                    throw new Error(`Erreur HTTP lors du chargement du header: ${res.status}`);
-                }
-                return res.text();
-            })
-            .then(data => {
-                document.getElementById("header-placeholder").innerHTML = data;
-                console.log("Header HTML injecté. Mise à jour de la bulle de notification.");
-                mettreAJourBulleDemandes(); // Appeler APRÈS que le header soit injecté
-                
-                // Gestion des liens actifs du menu (copié de galerie.html, bonne pratique)
-                const path = location.pathname.split("/").pop();
-                const links = document.querySelectorAll("nav a");
-                links.forEach(link => {
-                    // Si l'index est la page d'accueil (vide ou index.html)
-                    if (path === "" || path === "index.html") {
-                        if (link.getAttribute("href") === "index.html") {
-                            link.classList.add("active");
-                        }
-                    } else if (link.getAttribute("href") === path) {
-                        link.classList.add("active");
-                    }
-                });
+      fetch("header.html")
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.text();
+        })
+        .then(data => {
+          document.getElementById("header-placeholder").innerHTML = data;
 
-                document.body.style.opacity = "1"; // Rendre la page visible
-            })
-            .catch(error => {
-                console.error("Erreur critique lors du chargement du header sur index.html:", error);
-                document.getElementById("header-placeholder").innerHTML =
-                    "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-                document.body.style.opacity = "1"; // S'assurer que le body est visible même en cas d'erreur
-                mettreAJourBulleDemandes(); // Tenter de la mettre à jour même si le header n'a pas chargé correctement
-            });
+          // Une fois le header chargé, nous pouvons rendre le body visible.
+          document.body.style.opacity = "1";
+
+          // Logique pour marquer le lien actif dans le menu (si désiré)
+          const path = location.pathname.split("/").pop();
+          const links = document.querySelectorAll("nav a");
+          links.forEach(link => {
+            // Si la page est l'index.html (peut être vide ou index.html dans l'URL)
+            if (path === "" || path === "index.html") {
+              if (link.getAttribute("href") === "index.html") {
+                link.classList.add("active");
+              }
+            } else if (link.getAttribute("href") === path) {
+              link.classList.add("active");
+            }
+          });
+        })
+        .catch(error => {
+          console.error("Erreur lors du chargement de header.html:", error);
+          document.getElementById("header-placeholder").innerHTML =
+            "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>"; // Changer la couleur pour plus de visibilité
+          document.body.style.opacity = "1"; // S'assurer que le corps de la page devient visible même en cas d'erreur
+        });
     });
-
 
     async function envoyer() {
       const userMessage = document.getElementById("user-input").value;
-      document.getElementById("reponse").textContent = "Chargement..."; // Afficher un message de chargement
+      document.getElementById("reponse").textContent = "Chargement..."; // Afficher un message de chargement
 
-      const response = await fetch("/.netlify/functions/chat-clean", { // Assurez-vous que cette fonction existe et est déployée
+      const response = await fetch("/.netlify/functions/chat-clean", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage })
@@ -226,7 +209,6 @@
         console.error("Erreur renvoyée par l'API chat-clean:", data.error);
       } else {
         document.getElementById("reponse").textContent = data.reply || "✅ Pas de réponse générée.";
-        console.log("Réponse de chat-clean reçue:", data.reply);
       }
     }
   </script>
