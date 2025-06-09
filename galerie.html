@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galerie - Espace IA</title>
+    <style>
+        /* Styles Généraux */
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            background: linear-gradient(to right, #eef2f3, #f8fbfc);
+            color: #333;
+            overflow-x: hidden; /* Empêche le défilement horizontal non désiré */
+            opacity: 0; /* Masqué initialement pour éviter le "flash" de contenu non stylisé */
+            transition: opacity 0.3s ease-in;
+        }
+
+        main {
+            padding: 10px 20px;
+            display: none; /* Masqué initialement, rendu visible après chargement du header */
+        }
+
+        /* Conteneur principal de la galerie (similaire à votre .galerie-box de l'image) */
+        .galerie-container { /* Renommé de .galerie-box en .galerie-container pour éviter la confusion avec le conteneur parent .galerie */
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex; /* Utilisation de flexbox pour organiser les sections */
+            flex-direction: column; /* Les sections s'empilent verticalement */
+            gap: 20px; /* Espace entre les sections (filtres, boutons, cartes) */
+        }
+
+        /* Section des filtres et boutons */
+        .filters-header {
+            display: flex;
+            flex-wrap: wrap; /* Permet aux éléments de passer à la ligne */
+            gap: 20px; /* Espace entre les éléments de filtre */
+            justify-content: center; /* Centrer les filtres sur la ligne */
+            align-items: center;
+        }
+
+        #filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center; /* Centrer les filtres dans leur propre conteneur */
+            flex: 1; /* Permet aux filtres de prendre l'espace disponible */
+            min-width: 0; /* Fix pour flexbox avec min-width */
+        }
+
+        #filters input,
+        #filters select {
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+            min-width: 180px; /* Ajusté pour mieux coller à l'image */
+            background: #f9fafb;
+            flex-grow: 1; /* Permet aux inputs/selects de grandir */
+        }
+
+        /* Styles pour les boutons "Archiver" et "Compresser" */
+        .action-buttons { /* Renommé de .action-links en .action-buttons pour la clarté */
+            width: 100%; /* Prend toute la largeur disponible dans filters-header */
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px; /* Espace au-dessus des boutons */
+            flex-wrap: wrap; /* Permet aux boutons de passer à la ligne sur petits écrans */
+        }
+
+        .action-buttons a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: #0077b6;
+            color: white;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            transition: background 0.2s;
+            font-size: 1em;
+            white-space: nowrap; /* Empêche le texte de se casser sur plusieurs lignes */
+        }
+
+        .action-buttons a:hover {
+            background: #005f8a;
+        }
+
+        /* Conteneur de la grille des cartes */
+        #galerie {
+            display: grid; /* C'est ici que la magie opère pour la grille */
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); /* Crée des colonnes responsives */
+            gap: 20px; /* Espace entre les cartes */
+            padding-top: 20px; /* Espace entre les filtres/boutons et le début des cartes */
+        }
+
+        /* Styles de chaque carte */
+        .carte {
+            display: flex;
+            gap: 20px;
+            padding: 15px;
+            /* La bordure gauche dynamique sera ajoutée par JS */
+            border-left: 5px solid #0077b6; /* Valeur par défaut */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            background: white;
+            position: relative;
+            align-items: flex-start;
+            flex-direction: row; /* Image et texte côte à côte */
+            min-height: 150px; /* Hauteur minimale pour les cartes */
+            overflow: hidden; /* Cache le contenu qui dépasse si besoin */
+        }
+
+        .carte img {
+            max-width: 150px; /* Taille légèrement réduite pour un meilleur ajustement */
+            max-height: 150px;
+            object-fit: cover;
+            border-radius: 6px;
+            transition: transform 0.3s ease;
+            z-index: 1;
+            position: relative;
+            flex-shrink: 0; /* Empêche l'image de rétrécir */
+        }
+
+        .carte img:hover {
+            transform: scale(2); /* Zoom de l'image au survol */
+            z-index: 100; /* Assure que l'image zoomée est au-dessus des autres */
+        }
+
+        .texte-col {
+            flex: 1; /* Prend l'espace restant */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* Pour pousser le bouton "Copier" vers le bas */
+        }
+
+        .outil-highlight {
+            color: #0077b6;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .infos {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .chaine-color {
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            /* La couleur est définie par JS via style='color:...' */
+            color: white; /* Ajouté pour le texte sur fond coloré */
+        }
+
+        .prompt-texte {
+            max-height: 3.2em; /* 2 lignes de 1.6em */
+            overflow-y: auto; /* Ajoute une scrollbar si le texte dépasse */
+            font-size: 1em;
+            line-height: 1.6em;
+            padding-right: 8px; /* Espace pour la scrollbar si présente */
+            scroll-behavior: smooth;
+            word-break: break-word; /* Permet aux longs mots de se casser */
+            margin-bottom: 10px; /* Espace entre le texte et le bouton */
+        }
+
+        .copier-btn {
+            background-color: #0077b6;
+            color: #fff;
+            font-weight: bold;
+            border: none;
+            padding: 8px 14px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border-radius: 6px;
+            align-self: flex-start; /* Aligne le bouton à gauche */
+            transition: background-color 0.2s;
+        }
+
+        .copier-btn:hover {
+            background-color: #005f8a;
+        }
+
+        .supprimer-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5em;
+            z-index: 101; /* Au-dessus de tout */
+            padding: 5px;
+            color: #888; /* Couleur par défaut */
+            transition: color 0.2s;
+        }
+
+        .supprimer-btn:hover {
+            color: #dc3545; /* Couleur au survol pour indiquer l'action de suppression */
+        }
+
+        #success-message {
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: bold;
+            color: green;
+            font-size: 1.1em;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Media Queries pour le responsive */
+        @media (max-width: 768px) {
+            .carte {
+                flex-direction: column; /* Empile l'image et le texte verticalement sur petits écrans */
+                align-items: center; /* Centrer l'image et le texte */
+            }
+            .carte img {
+                margin-bottom: 10px; /* Espace entre l'image et le texte */
+            }
+            #galerie {
+                grid-template-columns: 1fr; /* Une seule colonne sur les très petits écrans */
+            }
+            .filters-header, .action-buttons { /* Ajusté pour .action-buttons */
+                flex-direction: column;
+                align-items: stretch; /* Les éléments prennent toute la largeur */
+            }
+            #filters input, #filters select {
+                min-width: unset; /* Retire le min-width pour qu'ils s'étirent */
+                width: 100%;
+            }
+        }
+    </style>
+    </head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <div class="galerie-container"> <div id="success-message"></div>
+
+            <div class="filters-header">
+                <div id="filters">
+                    <input type="text" id="filtre-nom" placeholder="mots clés" />
+                    <select id="filtre-outil">
+                        <option value="">Tous les outils</option>
+                        <option>Midjourney</option>
+                        <option>DALL·E</option>
+                        <option>Stable Diffusion</option>
+                        <option>Adobe Firefly</option>
+                        <option>Runway</option>
+                        <option>ChatGPT</option>
+                    </select>
+                    <select id="filtre-chaine">
+                        <option value="">Toutes les chaînes</option>
+                        <option>La Une</option>
+                        <option>Tipik</option>
+                        <option>La Trois</option>
+                        <option>La première</option>
+                        <option>Classic 21</option>
+                        <option>vivacité</option>
+                        <option>Musiq3</option>
+                        <option>Auvio</option>
+                    </select>
+                    <select id="filtre-tri">
+                        <option value="recent">Plus récent</option>
+                        <option value="ancien">Plus ancien</option>
+                    </select>
+                </div>
+                <div class="action-buttons"> <a href="prompts.html">
+                        <span style="font-size:1.2em;">➕</span> Archiver un prompt
+                    </a>
+                    <a href="compresseur.html">
+                        ✂️ Compresser une image
+                    </a>
+                </div>
+            </div>
+
+            <div id="galerie">
+                <p>Chargement des prompts...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const PROXY_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                                ? '/.netlify/functions'
+                                : 'https://ia-marketing.netlify.app/.netlify/functions'; // Assurez-vous que cette URL correspond à votre déploiement Netlify
+
+        // Fonction pour mettre à jour la bulle de notification (gardée pour compatibilité)
+        async function mettreAJourBulleDemandes() {
+            const notifBubble = document.getElementById('notif-count');
+            if (!notifBubble) {
+                console.warn("Bulle de notification 'notif-count' non trouvée.");
+                return;
+            }
+            try {
+                const response = await fetch(`${PROXY_URL}/getDemandesCount`);
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                const data = await response.json();
+                const count = data.count || 0;
+
+                if (count > 0) {
+                    notifBubble.textContent = count;
+                    notifBubble.style.display = 'inline-block';
+                } else {
+                    notifBubble.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour de la bulle des demandes:", error);
+                notifBubble.style.display = 'none';
+            }
+        }
+
+        const couleursParChaine = {
+            'Classic 21': 'purple', 'La Une': 'red', 'Tipik': 'green',
+            'La première': 'blue', 'La Trois': 'mediumorchid',
+            'Auvio': 'black', 'vivacité': 'orange', 'Musiq3': 'hotpink'
+        };
+
+        // Fonction pour charger et afficher les prompts (maintenant avec des données statiques)
+        async function chargerPrompts() {
+            const galerieDiv = document.getElementById("galerie");
+            galerieDiv.innerHTML = "<p>Chargement des prompts...</p>"; // Message initial
+
+            // Données de prompts statiques pour cette version
+            const prompts = [
+                { id: 1, outil: "Midjourney", chaine: "La Une", date: "2024-05-15", texte: "Un paysage bucolique avec un moulin à vent et un ciel nuageux, style impressionniste.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_MJ_1" },
+                { id: 2, outil: "ChatGPT", chaine: "Vivacité", date: "2024-05-10", texte: "Rédiger un script court et humoristique pour une publicité radio de 30 secondes sur un nouveau service de livraison de repas.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_ChatGPT_2" },
+                { id: 3, outil: "DALL·E", chaine: "Tipik", date: "2024-05-20", texte: "Une scène futuriste dans une ville cyberpunk, avec des néons brillants et des véhicules volants.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_DALL-E_3" },
+                { id: 4, outil: "Stable Diffusion", chaine: "La première", date: "2024-05-01", texte: "Un portrait d'un vieux sage barbu, éclairage dramatique, style Rembrandt.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_SD_4" },
+                { id: 5, outil: "Adobe Firefly", chaine: "Musiq3", date: "2024-05-25", texte: "Créer une image abstraite avec des formes géométriques fluides et des couleurs pastel pour une pochette d'album de musique classique.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_Firefly_5" },
+                { id: 6, outil: "Runway", chaine: "Auvio", date: "2024-05-05", texte: "Générer une courte séquence vidéo (5 secondes) d'un robot dansant le moonwalk sur une scène éclairée.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_Runway_6" },
+                { id: 7, outil: "Midjourney", chaine: "La Trois", date: "2024-05-18", texte: "Illustration de conte de fées : une forêt enchantée avec des arbres qui brillent et des créatures fantastiques.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_MJ_7" },
+                { id: 8, outil: "ChatGPT", chaine: "Classic 21", date: "2024-05-12", texte: "Écrire une chronique radio nostalgique sur l'impact de la musique rock des années 70 sur la jeunesse de l'époque.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_ChatGPT_8" }
+            ];
+
+            // Les filtres seront appliqués sur ces prompts statiques
+            const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
+            const filtreOutil = document.getElementById('filtre-outil').value;
+            const filtreChaine = document.getElementById('filtre-chaine').value;
+            const filtreTri = document.getElementById('filtre-tri').value;
+
+            let filteredPrompts = [...prompts];
+
+            if (filtreOutil) {
+                filteredPrompts = filteredPrompts.filter(prompt => prompt.outil === filtreOutil);
+            }
+            if (filtreChaine) {
+                filteredPrompts = filteredPrompts.filter(prompt => prompt.chaine === filtreChaine);
+            }
+            if (filtreNom) {
+                filteredPrompts = filteredPrompts.filter(prompt =>
+                    (prompt.texte && prompt.texte.toLowerCase().includes(filtreNom))
+                );
+            }
+
+            if (filtreTri === 'recent') {
+                filteredPrompts.sort((a, b) => new Date(b.date) - new Date(a.date));
+            } else if (filtreTri === 'ancien') {
+                filteredPrompts.sort((a, b) => new Date(a.date) - new Date(b.date));
+            }
+
+
+            galerieDiv.innerHTML = ""; // Nettoie avant d'ajouter les cartes
+
+            if (filteredPrompts.length === 0) {
+                galerieDiv.innerHTML = "<p style='text-align: center; color: #666;'>Aucun prompt ne correspond à vos critères de recherche.</p>";
+                return;
+            }
+
+            filteredPrompts.forEach(prompt => {
+                const carte = document.createElement("div");
+                carte.className = "carte";
+                carte.style.borderLeftColor = couleursParChaine[prompt.chaine] || '#0077b6'; // Utilise la couleur de chaîne
+
+                carte.innerHTML = `
+                    <img src="${prompt.imageUrl || 'https://via.placeholder.com/180x150?text=No_Image'}" alt="${prompt.outil || 'Image de prompt'}" />
+                    <div class="texte-col">
+                        <div class="outil-highlight">${prompt.outil || 'Outil Inconnu'}</div>
+                        <p class="infos">
+                            ${prompt.chaine ? `Chaîne: <span class="chaine-color" style="background-color:${couleursParChaine[prompt.chaine] || '#0077b6'};">${prompt.chaine}</span>` : ''}
+                            ${prompt.date ? ` | Date: ${new Date(prompt.date).toLocaleDateString('fr-BE')}` : ''}
+                        </p>
+                        <div class="prompt-texte">${prompt.texte || ''}</div>
+                        <button class="copier-btn" data-prompt="${prompt.texte || ''}">Copier le prompt</button>
+                    </div>
+                    <button class="supprimer-btn" data-id="${prompt.id}" data-image="${prompt.imageUrl || ''}">❌</button>
+                `;
+                galerieDiv.appendChild(carte);
+            });
+
+            // Attachement des écouteurs d'événements après que les cartes sont créées
+            document.querySelectorAll('.copier-btn').forEach(button => {
+                button.addEventListener('click', e => {
+                    const text = e.target.dataset.prompt;
+                    navigator.clipboard.writeText(text).then(() => {
+                        e.target.textContent = '✔ Copié !';
+                        setTimeout(() => e.target.textContent = 'Copier le prompt', 1500);
+                    });
+                });
+            });
+
+            document.querySelectorAll('.supprimer-btn').forEach(button => {
+                button.addEventListener('click', async e => {
+                    const promptId = e.target.dataset.id;
+                    const imageUrl = e.target.dataset.image; // Récupérer l'URL de l'image pour la suppression
+                    if (!promptId) {
+                        alert("ID de prompt manquant");
+                        return;
+                    }
+
+                    // Pour cette version statique, la suppression est juste visuelle
+                    if (confirm(`Confirmer la suppression du prompt ${promptId} ?`)) {
+                        // Ici, vous devrez ajouter la logique réelle pour supprimer le prompt du tableau 'prompts'
+                        // et rafraîchir l'affichage, ou recharger les prompts depuis une source persistante.
+                        // Pour l'instant, on se contente de supprimer la carte du DOM.
+
+                        // Logique de suppression via Netlify Function (pour un vrai backend)
+                        // Assurez-vous que votre fonction deletePrompt peut gérer cette structure de chemin.
+                        const promptPath = `prompts/${promptId}.json`; // Exemple de chemin si vos prompts étaient des fichiers JSON
+                        const imagePath = imageUrl ? imageUrl.replace(/^(https?:\/\/[^\/]+\/)/, '') : ''; // Essaye de retirer le domaine pour le chemin relatif si besoin
+
+                        try {
+                            const res = await fetch(`${PROXY_URL}/deletePrompt`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ promptPath, imagePath })
+                            });
+                            const result = await res.json();
+                            if (res.ok && result.success) {
+                                alert('✅ Prompt supprimé avec succès.');
+                                // Recharger la galerie pour mettre à jour la liste des prompts affichés (après suppression réussie du backend)
+                                chargerPrompts();
+                            } else {
+                                alert(`❌ Erreur : ${result.error || 'Suppression échouée.'}`);
+                                console.error("Erreur de suppression:", result);
+                            }
+                        } catch (err) {
+                            alert('Erreur réseau lors de la suppression.');
+                            console.error("Erreur de suppression du prompt:", err);
+                        }
+                    }
+                });
+            });
+        }
+
+        // Écouteurs d'événements pour les filtres et le tri
+        document.getElementById('filtre-outil').addEventListener('change', chargerPrompts);
+        document.getElementById('filtre-nom').addEventListener('input', chargerPrompts);
+        document.getElementById('filtre-chaine').addEventListener('change', chargerPrompts);
+        document.getElementById('filtre-tri').addEventListener('change', chargerPrompts);
+
+
+        document.addEventListener("DOMContentLoaded", () => {
+            fetch("header.html")
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.text();
+                })
+                .then(data => {
+                    document.getElementById("header-placeholder").innerHTML = data;
+
+                    const demandeLink = document.querySelector("a.demandes");
+                    if (demandeLink) {
+                        const computedStyle = getComputedStyle(demandeLink);
+                        if (computedStyle.position === "static" || !computedStyle.position) {
+                            demandeLink.style.position = "relative";
+                        }
+                    }
+
+                    const links = document.querySelectorAll("nav a");
+                    links.forEach(link => {
+                        if (link.getAttribute("href") === "galerie.html") {
+                            link.classList.add("active");
+                        }
+                    });
+
+                    if (typeof mettreAJourBulleDemandes === "function") {
+                        mettreAJourBulleDemandes();
+                    } else {
+                        console.warn("⚠️ La fonction mettreAJourBulleDemandes est absente.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement de header.html:", error);
+                    document.getElementById("header-placeholder").innerHTML =
+                        "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                })
+                .finally(() => {
+                    document.body.style.opacity = "1";
+                    document.querySelector("main").style.display = "block";
+                    chargerPrompts(); // Charge les prompts une fois que le DOM est prêt et visible
+                });
+        });
+    </script>
+</body>
+</html>
