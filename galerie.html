@@ -20,9 +20,9 @@
       display: none;
     }
     .notif-carré {
-      position: absolute;
-      top: -10px;
-      right: -10px;
+      position: fixed;
+      top: 10px;
+      right: 10px;
       width: 25px;
       height: 25px;
       background-color: #ff66b2;
@@ -33,6 +33,7 @@
       justify-content: center;
       align-items: center;
       text-align: center;
+      z-index: 2000;
     }
     .galerie {
       max-width: 1200px;
@@ -41,9 +42,8 @@
     }
     .filters-header {
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
-      flex-wrap: wrap;
       gap: 20px;
       margin-bottom: 10px;
     }
@@ -148,6 +148,31 @@
       opacity: 0;
       transition: opacity 0.5s ease;
     }
+    .action-links {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .action-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: #0077b6;
+      color: white;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      transition: background 0.2s;
+      font-size: 1em;
+      white-space: nowrap;
+    }
+    .action-links a:hover {
+      background: #005f8a;
+    }
   </style>
 </head>
 <body>
@@ -184,50 +209,15 @@
             <option value="ancien">Plus ancien</option>
           </select>
         </div>
-        <div style="width: 100%; display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
-          <a href="prompts.html" style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:#0077b6;color:white;border-radius:10px;text-decoration:none;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:background 0.2s;font-size:1em;white-space:nowrap;" onmouseover="this.style.background='#005f8a'" onmouseout="this.style.background='#0077b6'">
-            <span style="font-size:1.2em;">➕</span> Archiver un prompt
-          </a>
-          <a href="compresseur.html" style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:#0077b6;color:white;border-radius:10px;text-decoration:none;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:background 0.2s;font-size:1em;white-space:nowrap;" onmouseover="this.style.background='#005f8a'" onmouseout="this.style.background='#0077b6'">
-            ✂️ Compresser une image
-          </a>
+        <div class="action-links">
+          <a href="prompts.html">➕ Archiver un prompt</a>
+          <a href="compresseur.html">✂️ Compresser une image</a>
         </div>
       </div>
       <div id="galerie"></div>
     </div>
   </main>
   <script>
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      if (!notif) return;
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-flex" : "none";
-    }
-
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => {
-        document.getElementById("header-placeholder").innerHTML = data;
-      })
-      .catch(() => {
-        document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-      })
-      .finally(() => {
-        document.body.style.opacity = "1";
-        document.querySelector("main").style.display = "block";
-        mettreAJourBulleDemandes();
-        if (window.location.search.includes('success=1')) afficherMessageSuccesEtRediriger();
-      });
-
-    function afficherMessageSuccesEtRediriger() {
-      const messageEl = document.getElementById('success-message');
-      messageEl.textContent = '✅ Prompt partagé avec succès vers la galerie !';
-      messageEl.style.opacity = '1';
-      setTimeout(() => messageEl.style.opacity = '0', 2000);
-      setTimeout(() => window.location.href = window.location.pathname, 2500);
-    }
-
     const couleursParChaine = {
       'Classic 21': 'purple', 'La Une': 'red', 'Tipik': 'green',
       'La première': 'blue', 'La Trois': 'mediumorchid',
@@ -256,10 +246,8 @@
       const nom = document.getElementById('filtre-nom').value.toLowerCase();
       const chaine = document.getElementById('filtre-chaine').value;
       const tri = document.getElementById('filtre-tri')?.value || 'recent';
-
       let fichiersTries = [...fichiers];
       if (tri === 'recent') fichiersTries.reverse();
-
       fichiersTries.forEach(async fichier => {
         const res = await fetch(fichier.download_url);
         if (!res.ok) return;
@@ -267,11 +255,9 @@
         if (outil && data.outil !== outil) return;
         if (chaine && data.chaine !== chaine) return;
         if (nom && !((data.auteur || '').toLowerCase().includes(nom) || (data.texte || '').toLowerCase().includes(nom))) return;
-
         const div = document.createElement('div');
         div.className = 'carte';
         div.style.borderLeft = `5px solid ${couleursParChaine[data.chaine] || '#0077b6'}`;
-
         const delBtn = document.createElement('button');
         delBtn.className = 'supprimer-btn';
         delBtn.innerHTML = '🗑️';
@@ -288,13 +274,11 @@
           div.remove();
         };
         div.appendChild(delBtn);
-
         const img = document.createElement('img');
         const imgPath = data.image || data.imageUrl || '';
         img.src = imgPath.startsWith('http') ? imgPath : rawBase + imgPath;
         img.alt = 'Image';
         div.appendChild(img);
-
         const texteCol = document.createElement('div');
         texteCol.className = 'texte-col';
         texteCol.innerHTML = `
@@ -302,7 +286,6 @@
           <p class="infos"><strong>${data.auteur || 'Inconnu'}</strong> • ${data.categorie || 'Catégorie'} ${data.chaine ? ` • <span class='chaine-color' style='color:${couleursParChaine[data.chaine] || '#0077b6'}'>${data.chaine}</span>` : ''}</p>
           <div class="prompt-texte">${data.texte || ''}</div>
         `;
-
         const copierBtn = document.createElement('button');
         copierBtn.className = 'copier-btn';
         copierBtn.textContent = 'Copier';
@@ -312,10 +295,25 @@
           setTimeout(() => copierBtn.textContent = 'Copier', 1500);
         };
         texteCol.appendChild(copierBtn);
-
         div.appendChild(texteCol);
         galerie.appendChild(div);
       });
+    }
+
+    function mettreAJourBulleDemandes() {
+      const notif = document.getElementById("notif-count");
+      if (!notif) return;
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      notif.textContent = demandes.length;
+      notif.style.display = demandes.length > 0 ? "inline-flex" : "none";
+    }
+
+    function afficherMessageSuccesEtRediriger() {
+      const messageEl = document.getElementById('success-message');
+      messageEl.textContent = '✅ Prompt partagé avec succès vers la galerie !';
+      messageEl.style.opacity = '1';
+      setTimeout(() => messageEl.style.opacity = '0', 2000);
+      setTimeout(() => window.location.href = window.location.pathname, 2500);
     }
 
     document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
@@ -323,7 +321,21 @@
     document.getElementById('filtre-chaine').addEventListener('change', () => afficherPrompts(tousLesPrompts));
     document.getElementById('filtre-tri').addEventListener('change', () => afficherPrompts(tousLesPrompts));
 
-    window.onload = chargerPrompts;
+    fetch("header.html")
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById("header-placeholder").innerHTML = data;
+      })
+      .catch(() => {
+        document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
+      })
+      .finally(() => {
+        document.body.style.opacity = "1";
+        document.querySelector("main").style.display = "block";
+        mettreAJourBulleDemandes();
+        chargerPrompts();
+        if (window.location.search.includes('success=1')) afficherMessageSuccesEtRediriger();
+      });
   </script>
 </body>
 </html>
