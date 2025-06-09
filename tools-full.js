@@ -1,326 +1,323 @@
-// tools-full.js
-
-// Définition du tableau 'tools' avec toutes vos données d'outils
-const tools = [
-    {
-        nom: "ChatGPT",
-        description: "Assistant conversationnel basé sur GPT-4.",
-        info: "ChatGPT est utilisé pour simuler des conversations humaines, répondre à des questions, rédiger des textes et automatiser des tâches grâce à la puissance du modèle GPT-4 d'OpenAI.",
-        lien: "https://chat.openai.com",
-        type: "texte",
-        categories: ["redaction", "resume"],
-        teams: ["CRM", "Com. Externe & Influenceurs"],
-        rtbf: true
-    },
-    {
-        nom: "Claude",
-        description: "Assistant IA développé par Anthropic.",
-        info: "Claude se distingue par une approche axée sur la sécurité et l'alignement éthique des modèles IA, idéal pour les entreprises sensibles à la responsabilité numérique.",
-        lien: "https://claude.ai",
-        type: "texte",
-        categories: ["redaction", "resume"],
-        teams: ["CRM"],
-        rtbf: false
-    },
-    {
-        nom: "Midjourney",
-        description: "Générateur d’images créatives via Discord.",
-        info: "Midjourney permet aux utilisateurs de générer des images artistiques à partir de descriptions textuelles, souvent utilisées pour des projets visuels ou créatifs.",
-        lien: "https://midjourney.com",
-        type: "image",
-        categories: ["generation"],
-        teams: ["Com. Externe & Influenceurs"]
-    },
-    {
-        nom: "DALL·E",
-        description: "Générateur d’images à partir de texte par OpenAI.",
-        info: "DALL·E est idéal pour créer des visuels réalistes ou artistiques à partir de descriptions détaillées, utilisé dans la publicité ou la scénarisation.",
-        lien: "https://openai.com/dall-e",
-        type: "image",
-        categories: ["generation"],
-        teams: ["Com. Externe & Influenceurs"]
-    },
-    {
-        nom: "Stable Diffusion",
-        description: "Modèle open source de génération d'images.",
-        info: "Stable Diffusion permet aux utilisateurs de créer localement des images avec un haut niveau de personnalisation, utile pour les développeurs et créatifs.",
-        lien: "https://stability.ai",
-        type: "image",
-        categories: ["generation"],
-        teams: ["Marketing Digital"]
-    },
-    {
-        nom: "Firefly",
-        description: "Suite d'outils IA d'Adobe pour les créateurs.",
-        info: "Firefly intègre la génération d’images, de texte stylisé et d’animations directement dans les outils Adobe, favorisant la productivity créative.",
-        lien: "https://firefly.adobe.com",
-        type: "image",
-        categories: ["generation"],
-        teams: ["Pôle créa."]
-    },
-    {
-        nom: "Runway ML",
-        description: "Outils de création vidéo IA.",
-        info: "Runway ML propose des fonctionnalités avancées pour l’édition vidéo, la génération de contenus animés et le compositing via l’IA, très prisé dans les domaines du cinéma et du marketing.",
-        lien: "https://runwayml.com",
-        type: "video",
-        categories: ["generation", "montage"],
-        teams: ["Marketing Digital"]
-    },
-    {
-        nom: "Perplexity",
-        description: "Moteur de recherche conversationnel IA.",
-        info: "Perplexity combine recherche web et intelligence conversationnelle pour fournir des réponses précises et documentées, utile pour les professionnels de la veille.",
-        lien: "https://perplexity.ai",
-        type: "texte",
-        categories: ["resume"],
-        teams: ["CRM"]
-    },
-    {
-        nom: "Notion AI",
-        description: "Fonctionnalités IA intégrées à Notion.",
-        info: "Notion AI permet de générer du contenu structuré, faire des résumés automatiques, et améliorer l’organisation des connaissances au sein des notes collaboratives.",
-        lien: "https://www.notion.so/product/ai",
-        type: "texte",
-        categories: ["redaction"]
-    },
-    {
-        nom: "Gemini",
-        description: "Assistant multimodal Google.",
-        info: "Gemini combine texte, image, audio et vidéo dans un même environnement d’interaction, facilitant les tâches complexes pour les utilisateurs professionnels.",
-        lien: "https://gemini.google.com",
-        type: "texte",
-        categories: ["redaction", "resume"]
-    },
-    {
-        nom: "Copilot",
-        description: "Outils IA de GitHub ou Microsoft selon contexte.",
-        info: "Copilot assiste les développeurs en générant automatiquement des lignes de code ou en proposant des complétions intelligentes dans les éditeurs comme VSCode.",
-        lien: "https://copilot.microsoft.com",
-        type: "texte",
-        categories: ["code"]
-    },
-    {
-        nom: "Bard",
-        description: "Assistant IA de Google (prédécesseur de Gemini).",
-        info: "Bard était conçu pour interagir de façon conversationnelle en s'appuyant sur les données du web, souvent utilisé comme outil de recherche augmentée.",
-        lien: "https://bard.google.com",
-        type: "texte",
-        categories: ["redaction"]
-    },
-    {
-        nom: "Pika",
-        description: "Générateur vidéo IA créatif.",
-        info: "Pika permet de créer des animations et clips stylisés à partir d’entrées textuelles ou visuelles. Idéal pour les créateurs de contenu courts.",
-        lien: "https://pika.art",
-        type: "video",
-        categories: ["generation"]
-    },
-    {
-        nom: "Sora",
-        description: "Générateur vidéo IA par OpenAI.",
-        info: "Sora est un projet ambitieux pour générer des vidéos photoréalistes à partir de prompts textuels complexes, destiné à la production audiovisuelle avancée.",
-        lien: "https://openai.com/sora",
-        type: "video",
-        categories: ["generation"]
-    },
-    {
-        nom: "Luma AI",
-        description: "Création IA d'environnements 3D.",
-        info: "Luma AI permet de transformer des photos ou vidéos en objets ou scènes 3D, utile pour les jeux, la réalité augmentée et la visualisation produit.",
-        lien: "https://lumalabs.ai",
-        type: "video",
-        categories: ["generation"]
-    },
-    {
-        nom: "Kling AI",
-        description: "Vidéo réaliste à partir de texte.",
-        info: "Kling AI génère des vidéos très réalistes de personnages ou scènes, en mettant l'accent sur le mouvement et le rendu fidèle.",
-        lien: "https://kling.ai",
-        type: "video",
-        categories: ["generation"]
-    },
-    {
-        nom: "Genny by Lovo",
-        description: "Générateur de voix IA réaliste.",
-        info: "Genny permet de créer des voix humaines naturelles à partir de texte, utilisées pour les vidéos, podcasts ou jeux vidéo.",
-        lien: "https://lovo.ai",
-        type: "audio",
-        categories: ["voice"]
-    },
-    {
-        nom: "ElevenLabs",
-        description: "Synthèse vocale IA avancée.",
-        info: "ElevenLabs offre des outils de synthèse vocale de haute qualité avec personnalisation de ton, langue, et émotion.",
-        lien: "https://elevenlabs.io",
-        type: "audio",
-        categories: ["voice"]
-    },
-    {
-        nom: "Murf",
-        description: "Voix off IA.",
-        info: "Murf propose des voix off professionnelles IA adaptées à l’e-learning, aux vidéos explicatives ou au marketing.",
-        lien: "https://murf.ai",
-        type: "audio",
-        categories: ["voice"]
-    },
-    {
-        nom: "Voicemaker",
-        description: "Voix IA personnalisables.",
-        info: "Voicemaker permet de générer des voix uniques en ajustant rythme, ton, langue et effet sonore.",
-        lien: "https://voicemaker.in",
-        type: "audio",
-        categories: ["voice"]
-    },
-    {
-        nom: "Suno.ai",
-        description: "Création musicale IA.",
-        info: "Suno permet de composer automatiquement des chansons avec paroles et musique, à partir de prompts simples.",
-        lien: "https://suno.ai",
-        type: "audio",
-        categories: ["music"]
-    },
-    {
-        nom: "MusicFX",
-        description: "Générateur IA de loops musicaux.",
-        info: "MusicFX, développé par Google, crée des boucles musicales originales et variées avec des algorithmes IA accessibles en ligne.",
-        lien: "https://googlecreativelab.github.io/musicfx/",
-        type: "audio",
-        categories: ["music"]
-    },
-    {
-        nom: "Boomy",
-        description: "Crée des morceaux avec IA.",
-        info: "Boomy génère des chansons entières que les utilisateurs peuvent personnaliser et publier, avec droits d’auteur simplifiés.",
-        lien: "https://boomy.com",
-        type: "audio",
-        categories: ["music"]
-    },
-    {
-        nom: "Riffusion",
-        description: "Musique générée par spectrogrammes.",
-        info: "Riffusion exploite des images de spectres audio pour créer de la musique originale de façon innovante et visuelle.",
-        lien: "https://riffusion.com",
-        type: "audio",
-        categories: ["music"]
-    },
-    {
-        nom: "Jules",
-        description: "Aide au code IA pour les étudiants.",
-        info: "Jules est un assistant d’apprentissage IA français conçu pour soutenir les élèves dans la compréhension du code et des algorithmes.",
-        lien: "https://jules.education.gouv.fr",
-        type: "texte",
-        categories: ["code"]
-    },
-    {
-        nom: "Devstral",
-        description: "Génération IA de code.",
-        info: "Devstral permet de créer des scripts ou blocs de code complets à partir d’objectifs décrits en langage naturel.",
-        lien: "https://devstral.com",
-        type: "texte",
-        categories: ["code"]
-    },
-    {
-        nom: "Codeium",
-        description: "Complétion de code open source.",
-        info: "Codeium fournit une autocomplétion IA pour de nombreux langages de programmation, avec intégration dans des IDE populaires.",
-        lien: "https://codeium.com",
-        type: "texte",
-        categories: ["code"]
-    },
-    {
-        nom: "Bolt",
-        description: "Générateur de code instantané.",
-        info: "Bolt aide à créer des projets web rapidement via une interface IA sans code ou avec code personnalisé.",
-        lien: "https://boltai.io",
-        type: "texte",
-        categories: ["code"]
-    }
-];
-
-// Définition des fonctions formatTooltipText, renderToolsWithTooltips, et applyFilters
-function formatTooltipText(texte) {
-    const champs = [
-        { label: "Date", regex: /Date\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Contexte", regex: /Contexte\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Cible", regex: /Cible\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Ton", regex: /Ton\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Livrables", regex: /Livrables\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Contraintes", regex: /Contraintes\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Canaux", regex: /Canaux\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-    ];
-
-    // Utilisation de la propriété 'info' pour le résumé initial
-    // Si 'info' n'est pas une phrase complète, considérez simplement la première partie
-    let summaryText = texte.split("Date")[0].trim();
-    if (summaryText === '') { // Fallback au cas où 'info' est très court ou manquant avant 'Date'
-        summaryText = "Informations non structurées disponibles.";
-    }
-
-    let html = `<div class="tooltip-section"><span class="tooltip-label">Résumé :</span> ${summaryText}</div>`;
-
-    champs.forEach(({ label, regex }) => {
-        const match = texte.match(regex);
-        if (match && match[1].trim() !== '') { // Assurez-vous qu'il y a du contenu après le label
-            html += `<div class="tooltip-section"><span class="tooltip-label">${label} :</span> ${match[1].trim()}</div>`;
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Outils IA - Espace IA</title>
+    <link rel="stylesheet" href="style.css" />
+    
+    <script src="tools-full.js"></script> 
+    
+    <style>
+        /* Vos styles CSS spécifiques à outils.html restent ici */
+        body {
+            opacity: 0;
+            transition: opacity 0.3s ease-in;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f7fa;
+            font-size: 0.95em;
         }
-    });
 
-    return html;
-}
-
-function renderToolsWithTooltips(filteredTools) {
-    const grid = document.getElementById("tools-grid");
-    grid.innerHTML = "";
-
-    if (!filteredTools || filteredTools.length === 0) {
-        grid.innerHTML = "<p style='text-align: center; color: #555;'>Aucun outil trouvé avec ces critères.</p>";
-        return;
-    }
-
-    filteredTools.forEach(tool => {
-        const card = document.createElement("div");
-        card.className = "card";
-
-        // ******************************************************
-        // MODIFICATION CLÉ ICI : AJOUT DE LA CLASSE DE TYPE
-        if (tool.type) {
-            card.classList.add(`type-${tool.type}`);
+        main {
+            padding: 30px 15px;
+            display: none; /* Masqué initialement, rendu visible après chargement */
         }
-        // ******************************************************
 
-        const longInfo = tool.info && tool.info.trim() !== '' && tool.info !== tool.description
-            ? tool.info
-            : tool.description + ' (Plus d\'informations prochainement disponibles.)';
+        .container {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+            border-radius: 18px;
+            background-color: #ffffff;
+        }
 
-        // Maintenant que la classe est ajoutée à 'card',
-        // le innerHTML peut être utilisé pour le contenu
-        card.innerHTML = `
-            <div class="tooltip">${formatTooltipText(longInfo)}</div>
-            <h2>${tool.nom}</h2>
-            <div class="description">${tool.description}</div>
-            <div class="meta">${tool.type} • ${tool.categories.join(", ")}</div>
-            <button onclick="window.open('${tool.lien}', '_blank')">Lancer ${tool.nom}</button>
-        `;
-        grid.appendChild(card);
-    });
-}
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+        }
 
-function applyFilters() {
-    const search = document.getElementById("search").value.toLowerCase();
-    const type = document.getElementById("filtre-type").value; // Pas besoin de .toLowerCase() ici car les values des options correspondent
+        .filters input,
+        .filters select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #bbb;
+            background: #ffffff;
+            min-width: 180px;
+            font-size: 0.95em;
+        }
 
-    const filtered = tools.filter(tool => {
-        const matchSearch =
-            tool.nom.toLowerCase().includes(search) ||
-            tool.description.toLowerCase().includes(search) ||
-            (tool.info && tool.info.toLowerCase().includes(search)) ||
-            tool.categories.some(cat => cat.toLowerCase().includes(search));
-            
-        // Pour le type, on compare directement la valeur de l'outil avec la valeur du filtre
-        const matchType = !type || tool.type === type; 
-        return matchSearch && matchType;
-    });
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    renderToolsWithTooltips(filtered);
-}
+        .card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: #ffffff;
+            border: 1px solid #e1e7ec; /* Bordure par défaut */
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease; /* Ajout de border-color pour la transition */
+            position: relative;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 5px 16px rgba(0,0,0,0.07);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+            margin-bottom: 10px;
+            color: #003366; /* Couleur de titre par défaut */
+        }
+
+        .card .description {
+            font-size: 0.95em;
+            line-height: 1.5;
+            margin: 16px 0;
+            color: #444;
+        }
+
+        .card .meta {
+            font-size: 0.8em;
+            color: #666; /* Couleur méta par défaut */
+            margin-bottom: 6px;
+        }
+
+        .card button {
+            margin-top: auto;
+            align-self: flex-end;
+            padding: 8px 16px;
+            background-color: #0077b6; /* Couleur de bouton par default */
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.3s ease;
+        }
+
+        .card button:hover {
+            background-color: #005f8a; /* Hover de bouton par default */
+        }
+
+        .tooltip {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -60%);
+            background: #ffffff;
+            color: #222;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+            font-size: 0.85em;
+            width: 260px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            z-index: 1000;
+            pointer-events: none;
+            text-align: left;
+            line-height: 1.5;
+            white-space: normal;
+        }
+
+        .card:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .tooltip-section {
+            margin-bottom: 6px;
+        }
+
+        .tooltip-label {
+            font-weight: bold;
+            color: #003366;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        /* --- Styles spécifiques aux types de cartes --- */
+
+        /* Type: Texte */
+        .card.type-texte {
+            border-color: #4CAF50; /* Vert */
+        }
+        .card.type-texte h2,
+        .card.type-texte .meta {
+            color: #4CAF50;
+        }
+        .card.type-texte button {
+            background-color: #4CAF50;
+        }
+        .card.type-texte button:hover {
+            background-color: #45a049;
+        }
+
+        /* Type: Image */
+        .card.type-image {
+            border-color: #2196F3; /* Bleu */
+        }
+        .card.type-image h2,
+        .card.type-image .meta {
+            color: #2196F3;
+        }
+        .card.type-image button {
+            background-color: #2196F3;
+        }
+        .card.type-image button:hover {
+            background-color: #1976D2;
+        }
+
+        /* Type: Video */
+        .card.type-video {
+            border-color: #FF9800; /* Orange */
+        }
+        .card.type-video h2,
+        .card.type-video .meta {
+            color: #FF9800;
+        }
+        .card.type-video button {
+            background-color: #FF9800;
+        }
+        .card.type-video button:hover {
+            background-color: #F57C00;
+        }
+
+        /* Type: Audio */
+        .card.type-audio {
+            border-color: #9C27B0; /* Violet */
+        }
+        .card.type-audio h2,
+        .card.type-audio .meta {
+            color: #9C27B0;
+        }
+        .card.type-audio button {
+            background-color: #9C27B0;
+        }
+        .card.type-audio button:hover {
+            background-color: #7B1FA2;
+        }
+
+        /* Fallback pour les types non définis ou si la classe n'est pas ajoutée */
+        .card:not([class*="type-"]) {
+            border-color: #e1e7ec; /* Couleur par défaut si aucun type n'est spécifié */
+        }
+        .card:not([class*="type-"]) h2 {
+            color: #003366; /* Couleur par défaut pour le titre */
+        }
+        .card:not([class*="type-"]) .meta {
+            color: #666; /* Couleur par défaut pour le méta */
+        }
+        .card:not([class*="type-"]) button {
+            background-color: #0077b6; /* Couleur par défaut pour le bouton */
+        }
+        .card:not([class*="type-"]) button:hover {
+            background-color: #005f8a; /* Couleur par défaut pour le hover du bouton */
+        }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <div class="container">
+            <div class="filters">
+                <input type="search" id="search" placeholder="Rechercher un outil..." />
+                <select id="filtre-type">
+                    <option value="">Tous les types</option>
+                    <option value="texte">texte</option>
+                    <option value="image">image</option>
+                    <option value="video">video</option>
+                    <option value="audio">audio</option>
+                </select>
+            </div>
+            <div class="grid" id="tools-grid"></div>
+        </div>
+    </main>
+
+    <script>
+        // CE SCRIPT EST LE SEUL BLOC <script> DANS outils.html.
+        // Il ne contient PAS les définitions de functions formatTooltipText, renderToolsWithTooltips, applyFilters, ni le tableau 'tools'.
+        // Il utilise simplement les fonctions définies dans tools-full.js.
+
+        document.addEventListener("DOMContentLoaded", () => {
+            fetch("header.html")
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.text();
+                })
+                .then(data => {
+                    document.getElementById("header-placeholder").innerHTML = data;
+
+                    // Assurez-vous que le lien des demandes est positionné relativement pour la bulle
+                    const demandeLink = document.querySelector("a.demandes");
+                    if (demandeLink) { // Vérification pour éviter une erreur si le lien n'est pas trouvé
+                        const computedStyle = getComputedStyle(demandeLink);
+                        if (computedStyle.position === "static" || !computedStyle.position) {
+                            demandeLink.style.position = "relative";
+                        }
+                    }
+
+                    // Logique pour marquer le lien "Outils IA" comme actif dans le menu
+                    const links = document.querySelectorAll("nav a");
+                    links.forEach(link => {
+                        if (link.getAttribute("href") === "outils.html") {
+                            link.classList.add("active");
+                        }
+                    });
+
+                    // Appeler la fonction de mise à jour de la bulle après le chargement du header
+                    // Cette fonction est définie dans js/header-script.js (qui est chargé par header.html)
+                    if (typeof mettreAJourBulleDemandes === "function") {
+                        mettreAJourBulleDemandes();
+                    } else {
+                        console.warn("La fonction mettreAJourBulleDemandes n'est pas définie. Assurez-vous que header-script.js est chargé et contient cette fonction.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement de header.html:", error);
+                    document.getElementById("header-placeholder").innerHTML =
+                        "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                })
+                .finally(() => {
+                    document.body.style.opacity = "1";
+                    document.querySelector("main").style.display = "block"; // Rendre le main visible
+
+                    // Ces appels sont faits ici car tools-full.js (contenant 'tools' et 'applyFilters')
+                    // a été chargé dans le <head> avant ce script.
+                    if (typeof applyFilters === "function" && typeof tools !== "undefined") {
+                        applyFilters(); // Appel initial pour afficher tous les outils
+                        document.getElementById("search").addEventListener("input", applyFilters);
+                        document.getElementById("filtre-type").addEventListener("change", applyFilters);
+                    } else {
+                        console.error("Les fonctions d'outils (applyFilters) ou la variable 'tools' ne sont pas définies. Vérifiez tools-full.js.");
+                    }
+                });
+        });
+    </script>
+</body>
+</html>
