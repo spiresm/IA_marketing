@@ -19,6 +19,21 @@
       padding: 10px 20px;
       display: none;
     }
+    .notif-carré {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      width: 24px;
+      height: 24px;
+      background-color: #ff66b2;
+      color: white;
+      font-size: 0.75rem;
+      border-radius: 50%;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
     .galerie {
       max-width: 1200px;
       margin: 0 auto;
@@ -216,105 +231,18 @@
       }
     }
 
-    const couleursParChaine = {
-      'Classic 21': 'purple', 'La Une': 'red', 'Tipik': 'green',
-      'La première': 'blue', 'La Trois': 'mediumorchid',
-      'Auvio': 'black', 'vivacité': 'orange', 'Musiq3': 'hotpink'
-    };
-
-    const repoOwner = 'spiresm';
-    const repoName = 'IA_marketing';
-    const branch = 'main';
-    const apiBase = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
-    const rawBase = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/`;
-    let tousLesPrompts = [];
-
-    async function chargerPrompts() {
-      const res = await fetch(`${apiBase}prompts?ref=${branch}`);
-      if (!res.ok) throw new Error('Erreur GitHub');
-      const fichiers = await res.json();
-      tousLesPrompts = fichiers.filter(f => f.name.endsWith('.json'));
-      afficherPrompts(tousLesPrompts);
-    }
-
-    function afficherPrompts(fichiers) {
-      const galerie = document.getElementById('galerie');
-      galerie.innerHTML = '';
-      const outil = document.getElementById('filtre-outil').value;
-      const nom = document.getElementById('filtre-nom').value.toLowerCase();
-      const chaine = document.getElementById('filtre-chaine').value;
-      const tri = document.getElementById('filtre-tri')?.value || 'recent';
-      let fichiersTries = [...fichiers];
-      if (tri === 'recent') fichiersTries.reverse();
-      fichiersTries.forEach(async fichier => {
-        const res = await fetch(fichier.download_url);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (outil && data.outil !== outil) return;
-        if (chaine && data.chaine !== chaine) return;
-        if (nom && !((data.auteur || '').toLowerCase().includes(nom) || (data.texte || '').toLowerCase().includes(nom))) return;
-        const div = document.createElement('div');
-        div.className = 'carte';
-        div.style.borderLeft = `5px solid ${couleursParChaine[data.chaine] || '#0077b6'}`;
-        const delBtn = document.createElement('button');
-        delBtn.className = 'supprimer-btn';
-        delBtn.innerHTML = '🗑️';
-        delBtn.onclick = async () => {
-          if (!confirm('Confirmer suppression ?')) return;
-          await fetch('/.netlify/functions/deletePrompt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              promptPath: fichier.path,
-              imagePath: data.imageUrl?.includes('images/') ? `images/${data.imageUrl.split('/').pop()}` : ''
-            })
-          });
-          div.remove();
-        };
-        div.appendChild(delBtn);
-        const img = document.createElement('img');
-        const imgPath = data.image || data.imageUrl || '';
-        img.src = imgPath.startsWith('http') ? imgPath : rawBase + imgPath;
-        img.alt = 'Image';
-        div.appendChild(img);
-        const texteCol = document.createElement('div');
-        texteCol.className = 'texte-col';
-        texteCol.innerHTML = `
-          <div class="outil-highlight">${data.outil || 'Outil'}</div>
-          <p class="infos"><strong>${data.auteur || 'Inconnu'}</strong> • ${data.categorie || 'Catégorie'} ${data.chaine ? ` • <span class='chaine-color' style='color:${couleursParChaine[data.chaine] || '#0077b6'}'>${data.chaine}</span>` : ''}</p>
-          <div class="prompt-texte">${data.texte || ''}</div>
-        `;
-        const copierBtn = document.createElement('button');
-        copierBtn.className = 'copier-btn';
-        copierBtn.textContent = 'Copier';
-        copierBtn.onclick = () => {
-          navigator.clipboard.writeText(data.texte || '');
-          copierBtn.textContent = '✔ Copié !';
-          setTimeout(() => copierBtn.textContent = 'Copier', 1500);
-        };
-        texteCol.appendChild(copierBtn);
-        div.appendChild(texteCol);
-        galerie.appendChild(div);
-      });
-    }
-
-    function afficherMessageSuccesEtRediriger() {
-      const messageEl = document.getElementById('success-message');
-      messageEl.textContent = '✅ Prompt partagé avec succès vers la galerie !';
-      messageEl.style.opacity = '1';
-      setTimeout(() => messageEl.style.opacity = '0', 2000);
-      setTimeout(() => window.location.href = window.location.pathname, 2500);
-    }
-
-    document.getElementById('filtre-outil').addEventListener('change', () => afficherPrompts(tousLesPrompts));
-    document.getElementById('filtre-nom').addEventListener('input', () => afficherPrompts(tousLesPrompts));
-    document.getElementById('filtre-chaine').addEventListener('change', () => afficherPrompts(tousLesPrompts));
-    document.getElementById('filtre-tri').addEventListener('change', () => afficherPrompts(tousLesPrompts));
-
     fetch("header.html")
       .then(res => res.text())
       .then(data => {
         document.getElementById("header-placeholder").innerHTML = data;
+        const lienDemande = document.querySelector("a.demandes");
+        if (lienDemande && !document.getElementById("notif-count")) {
+          const notif = document.createElement("div");
+          notif.id = "notif-count";
+          notif.className = "notif-carré";
+          notif.textContent = "0";
+          lienDemande.appendChild(notif);
+        }
         requestAnimationFrame(updateTicketNotif);
       })
       .catch(() => {
