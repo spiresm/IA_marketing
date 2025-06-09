@@ -241,7 +241,8 @@
     <div id="header-placeholder"></div>
 
     <main>
-        <div class="galerie-container"> <div id="success-message"></div>
+        <div class="galerie-container">
+            <div id="success-message"></div>
 
             <div class="filters-header">
                 <div id="filters">
@@ -271,7 +272,8 @@
                         <option value="ancien">Plus ancien</option>
                     </select>
                 </div>
-                <div class="action-buttons"> <a href="prompts.html">
+                <div class="action-buttons">
+                    <a href="prompts.html">
                         <span style="font-size:1.2em;">➕</span> Archiver un prompt
                     </a>
                     <a href="compresseur.html">
@@ -287,9 +289,14 @@
     </main>
 
     <script>
-        const PROXY_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                                ? '/.netlify/functions'
-                                : 'https://ia-marketing.netlify.app/.netlify/functions'; // Assurez-vous que cette URL correspond à votre déploiement Netlify
+        // Chemin vers votre fonction Netlify.
+        // En local, Netlify Dev proxy les fonctions. En prod, l'URL complète est nécessaire.
+        const apiBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                                ? '/.netlify/functions/'
+                                : 'https://ia-marketing.netlify.app/.netlify/functions/';
+        const branch = 'main'; // Ou la branche que vous utilisez
+
+        let tousLesPrompts = []; // Variable pour stocker tous les prompts chargés
 
         // Fonction pour mettre à jour la bulle de notification (gardée pour compatibilité)
         async function mettreAJourBulleDemandes() {
@@ -299,7 +306,7 @@
                 return;
             }
             try {
-                const response = await fetch(`${PROXY_URL}/getDemandesCount`);
+                const response = await fetch(`${apiBase}getDemandesCount`);
                 if (!response.ok) {
                     throw new Error(`Erreur HTTP: ${response.status}`);
                 }
@@ -319,35 +326,178 @@
         }
 
         const couleursParChaine = {
-            'Classic 21': 'purple', 'La Une': 'red', 'Tipik': 'green',
-            'La première': 'blue', 'La Trois': 'mediumorchid',
-            'Auvio': 'black', 'vivacité': 'orange', 'Musiq3': 'hotpink'
+            'Classic 21': '#800080', // Purple
+            'La Une': '#FF0000',     // Red
+            'Tipik': '#008000',      // Green
+            'La première': '#0000FF',// Blue
+            'La Trois': '#EE82EE',   // Violet (Orchid)
+            'Auvio': '#000000',      // Black
+            'vivacité': '#FFA500',   // Orange
+            'Musiq3': '#FF69B4'      // HotPink
         };
 
-        // Fonction pour charger et afficher les prompts (maintenant avec des données statiques)
-        async function chargerPrompts() {
+        // Fonction pour afficher les prompts (utilisée après filtrage/tri)
+        function afficherPrompts(promptsAAfficher) {
+            const galerie = document.getElementById('galerie');
+            galerie.innerHTML = ''; // Nettoie la galerie avant d'ajouter les prompts
+
+            if (promptsAAfficher.length === 0) {
+                galerie.innerHTML = "<p style='text-align: center; color: #666;'>Aucun prompt ne correspond à vos critères de recherche.</p>";
+                return;
+            }
+
+            promptsAAfficher.forEach(prompt => {
+                if (!prompt || !prompt.path) { // Vérification de base pour s'assurer que le prompt est valide
+                    console.warn("Prompt invalide ou incomplet ignoré :", prompt);
+                    return;
+                }
+
+                const carte = document.createElement('div');
+                carte.className = 'carte';
+                carte.style.borderLeftColor = couleursParChaine[prompt.chaine] || '#0077b6';
+
+                // Générer l'URL de l'image, en supposant le même nom de fichier dans le dossier 'images'
+                // prompt.path est quelque chose comme 'prompts/MON_PROMPT.json'
+                // On extrait 'MON_PROMPT' et on construit l'URL de l'image
+                const promptFileName = prompt.path.split('/').pop().replace('.json', '');
+                const imageUrl = `https://raw.githubusercontent.com/SteevePiresMadeira/IA-Marketing/${branch}/images/${promptFileName}.png`;
+
+
+                carte.innerHTML = `
+                    <img src="${imageUrl}" alt="${prompt.outil || 'Image de prompt'}" onerror="this.onerror=null; this.src='https://via.placeholder.com/180x150?text=No_Image';" />
+                    <div class="texte-col">
+                        <div class="outil-highlight">${prompt.outil || 'Outil Inconnu'}</div>
+                        <p class="infos">
+                            <strong>${prompt.auteur || 'Inconnu'}</strong> • ${prompt.categorie || 'Catégorie'}
+                            ${prompt.chaine ? ` • <span class="chaine-color" style="background-color:${couleursParChaine[prompt.chaine] || '#0077b6'};">${prompt.chaine}</span>` : ''}
+                            ${prompt.date ? ` • ${new Date(prompt.date).toLocaleDateString('fr-BE')}` : ''}
+                        </p>
+                        <div class="prompt-texte">${prompt.texte || ''}</div>
+                        <button class="copier-btn" data-prompt="${prompt.texte || ''}">Copier le prompt</button>
+                    </div>
+                    <button class="supprimer-btn" data-path="${prompt.path}" data-sha="${prompt.sha}" data-image-url="${imageUrl}">❌</button>
+                `;
+                galerie.appendChild(carte);
+            });
+
+            // Attacher les écouteurs d'événements après que les cartes sont créées
+            attacherEvenementsCopier();
+            attacherEvenementsSupprimer();
+        }
+
+        // Fonction pour attacher les événements de copie
+        function attacherEvenementsCopier() {
+            document.querySelectorAll('.copier-btn').forEach(button => {
+                button.onclick = () => { // Utilisation de onclick pour une attribution simple
+                    const text = button.dataset.prompt;
+                    navigator.clipboard.writeText(text).then(() => {
+                        button.textContent = '✔ Copié !';
+                        setTimeout(() => button.textContent = 'Copier le prompt', 1500);
+                    }).catch(err => {
+                        console.error('Erreur lors de la copie:', err);
+                        alert('Échec de la copie du prompt.');
+                    });
+                };
+            });
+        }
+
+        // Fonction pour attacher les événements de suppression
+        function attacherEvenementsSupprimer() {
+            document.querySelectorAll('.supprimer-btn').forEach(delBtn => {
+                delBtn.onclick = async () => {
+                    const promptPath = delBtn.dataset.path;
+                    const promptSha = delBtn.dataset.sha;
+                    const imageUrl = delBtn.dataset.imageUrl;
+
+                    if (!promptPath || !promptSha) {
+                        alert("Informations de prompt (chemin ou SHA) manquantes pour la suppression.");
+                        return;
+                    }
+
+                    if (confirm(`Êtes-vous sûr de vouloir supprimer le prompt à l'emplacement ${promptPath} ?`)) {
+                        try {
+                            const deleteResponse = await fetch(`${apiBase}deletePrompt`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    promptPath: promptPath,
+                                    promptSha: promptSha,
+                                    imageUrl: imageUrl // Pass the image URL to the Netlify function
+                                })
+                            });
+
+                            const result = await deleteResponse.json();
+
+                            if (deleteResponse.ok && result.success) {
+                                alert('✅ Prompt et image associés supprimés avec succès !');
+                                // Recharger les prompts pour mettre à jour la galerie
+                                chargerPrompts();
+                            } else {
+                                console.error("Échec de la suppression:", result.error || "Erreur inconnue");
+                                alert(`❌ Échec de la suppression: ${result.error || "Vérifiez la console."}`);
+                            }
+                        } catch (error) {
+                            console.error("Erreur réseau ou inattendue lors de la suppression:", error);
+                            alert("Une erreur inattendue est survenue lors de la suppression. Vérifiez la console.");
+                        }
+                    }
+                };
+            });
+        }
+
+
+        // Fonction principale pour charger les prompts depuis GitHub
+        async function chargerPromptsDepuisGitHub() {
             const galerieDiv = document.getElementById("galerie");
             galerieDiv.innerHTML = "<p>Chargement des prompts...</p>"; // Message initial
 
-            // Données de prompts statiques pour cette version
-            const prompts = [
-                { id: 1, outil: "Midjourney", chaine: "La Une", date: "2024-05-15", texte: "Un paysage bucolique avec un moulin à vent et un ciel nuageux, style impressionniste.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_MJ_1" },
-                { id: 2, outil: "ChatGPT", chaine: "Vivacité", date: "2024-05-10", texte: "Rédiger un script court et humoristique pour une publicité radio de 30 secondes sur un nouveau service de livraison de repas.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_ChatGPT_2" },
-                { id: 3, outil: "DALL·E", chaine: "Tipik", date: "2024-05-20", texte: "Une scène futuriste dans une ville cyberpunk, avec des néons brillants et des véhicules volants.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_DALL-E_3" },
-                { id: 4, outil: "Stable Diffusion", chaine: "La première", date: "2024-05-01", texte: "Un portrait d'un vieux sage barbu, éclairage dramatique, style Rembrandt.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_SD_4" },
-                { id: 5, outil: "Adobe Firefly", chaine: "Musiq3", date: "2024-05-25", texte: "Créer une image abstraite avec des formes géométriques fluides et des couleurs pastel pour une pochette d'album de musique classique.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_Firefly_5" },
-                { id: 6, outil: "Runway", chaine: "Auvio", date: "2024-05-05", texte: "Générer une courte séquence vidéo (5 secondes) d'un robot dansant le moonwalk sur une scène éclairée.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_Runway_6" },
-                { id: 7, outil: "Midjourney", chaine: "La Trois", date: "2024-05-18", texte: "Illustration de conte de fées : une forêt enchantée avec des arbres qui brillent et des créatures fantastiques.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_MJ_7" },
-                { id: 8, outil: "ChatGPT", chaine: "Classic 21", date: "2024-05-12", texte: "Écrire une chronique radio nostalgique sur l'impact de la musique rock des années 70 sur la jeunesse de l'époque.", imageUrl: "https://via.placeholder.com/180x150?text=Prompt_ChatGPT_8" }
-            ];
+            try {
+                // Étape 1: Récupérer la liste des fichiers JSON dans le dossier 'prompts'
+                const filesResponse = await fetch(`${apiBase}prompts?ref=${branch}`);
+                if (!filesResponse.ok) {
+                    throw new Error(`Erreur HTTP: ${filesResponse.status}`);
+                }
+                const filesData = await filesResponse.json();
 
-            // Les filtres seront appliqués sur ces prompts statiques
+                // Filtrer pour ne garder que les fichiers .json
+                const jsonFiles = filesData.filter(file => file.type === 'file' && file.name.endsWith('.json'));
+
+                // Étape 2: Pour chaque fichier JSON, récupérer son contenu
+                const promises = jsonFiles.map(async fichier => {
+                    try {
+                        const fileContentResponse = await fetch(fichier.download_url);
+                        if (!fileContentResponse.ok) {
+                            throw new Error(`Erreur de téléchargement pour ${fichier.name}: ${fileContentResponse.status}`);
+                        }
+                        const promptData = await fileContentResponse.json();
+                        // Ajouter le path et le SHA pour la suppression future
+                        return { ...promptData, path: fichier.path, sha: fichier.sha };
+                    } catch (fileError) {
+                        console.error(`Erreur lors du traitement du fichier ${fichier.name}:`, fileError);
+                        return null; // Retourne null pour les fichiers qui échouent
+                    }
+                });
+
+                // Attendre que tous les fichiers soient chargés
+                tousLesPrompts = (await Promise.all(promises)).filter(p => p !== null); // Filtrer les nulls
+
+                // Appliquer les filtres et le tri initiaux
+                appliquerFiltresEtTri();
+
+            } catch (error) {
+                console.error("Erreur inattendue lors du chargement des prompts depuis GitHub:", error);
+                galerieDiv.innerHTML = "<p style='text-align: center; color: red;'>Une erreur inattendue est survenue lors du chargement des prompts. Veuillez réessayer plus tard.</p>";
+            }
+        }
+
+        // Fonction pour appliquer les filtres et le tri et afficher
+        function appliquerFiltresEtTri() {
             const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
             const filtreOutil = document.getElementById('filtre-outil').value;
             const filtreChaine = document.getElementById('filtre-chaine').value;
             const filtreTri = document.getElementById('filtre-tri').value;
 
-            let filteredPrompts = [...prompts];
+            let filteredPrompts = [...tousLesPrompts]; // Copie pour ne pas modifier l'original
 
             if (filtreOutil) {
                 filteredPrompts = filteredPrompts.filter(prompt => prompt.outil === filtreOutil);
@@ -357,7 +507,11 @@
             }
             if (filtreNom) {
                 filteredPrompts = filteredPrompts.filter(prompt =>
-                    (prompt.texte && prompt.texte.toLowerCase().includes(filtreNom))
+                    (prompt.texte && prompt.texte.toLowerCase().includes(filtreNom)) ||
+                    (prompt.outil && prompt.outil.toLowerCase().includes(filtreNom)) ||
+                    (prompt.chaine && prompt.chaine.toLowerCase().includes(filtreNom)) ||
+                    (prompt.auteur && prompt.auteur.toLowerCase().includes(filtreNom)) ||
+                    (prompt.categorie && prompt.categorie.toLowerCase().includes(filtreNom))
                 );
             }
 
@@ -367,95 +521,14 @@
                 filteredPrompts.sort((a, b) => new Date(a.date) - new Date(b.date));
             }
 
-
-            galerieDiv.innerHTML = ""; // Nettoie avant d'ajouter les cartes
-
-            if (filteredPrompts.length === 0) {
-                galerieDiv.innerHTML = "<p style='text-align: center; color: #666;'>Aucun prompt ne correspond à vos critères de recherche.</p>";
-                return;
-            }
-
-            filteredPrompts.forEach(prompt => {
-                const carte = document.createElement("div");
-                carte.className = "carte";
-                carte.style.borderLeftColor = couleursParChaine[prompt.chaine] || '#0077b6'; // Utilise la couleur de chaîne
-
-                carte.innerHTML = `
-                    <img src="${prompt.imageUrl || 'https://via.placeholder.com/180x150?text=No_Image'}" alt="${prompt.outil || 'Image de prompt'}" />
-                    <div class="texte-col">
-                        <div class="outil-highlight">${prompt.outil || 'Outil Inconnu'}</div>
-                        <p class="infos">
-                            ${prompt.chaine ? `Chaîne: <span class="chaine-color" style="background-color:${couleursParChaine[prompt.chaine] || '#0077b6'};">${prompt.chaine}</span>` : ''}
-                            ${prompt.date ? ` | Date: ${new Date(prompt.date).toLocaleDateString('fr-BE')}` : ''}
-                        </p>
-                        <div class="prompt-texte">${prompt.texte || ''}</div>
-                        <button class="copier-btn" data-prompt="${prompt.texte || ''}">Copier le prompt</button>
-                    </div>
-                    <button class="supprimer-btn" data-id="${prompt.id}" data-image="${prompt.imageUrl || ''}">❌</button>
-                `;
-                galerieDiv.appendChild(carte);
-            });
-
-            // Attachement des écouteurs d'événements après que les cartes sont créées
-            document.querySelectorAll('.copier-btn').forEach(button => {
-                button.addEventListener('click', e => {
-                    const text = e.target.dataset.prompt;
-                    navigator.clipboard.writeText(text).then(() => {
-                        e.target.textContent = '✔ Copié !';
-                        setTimeout(() => e.target.textContent = 'Copier le prompt', 1500);
-                    });
-                });
-            });
-
-            document.querySelectorAll('.supprimer-btn').forEach(button => {
-                button.addEventListener('click', async e => {
-                    const promptId = e.target.dataset.id;
-                    const imageUrl = e.target.dataset.image; // Récupérer l'URL de l'image pour la suppression
-                    if (!promptId) {
-                        alert("ID de prompt manquant");
-                        return;
-                    }
-
-                    // Pour cette version statique, la suppression est juste visuelle
-                    if (confirm(`Confirmer la suppression du prompt ${promptId} ?`)) {
-                        // Ici, vous devrez ajouter la logique réelle pour supprimer le prompt du tableau 'prompts'
-                        // et rafraîchir l'affichage, ou recharger les prompts depuis une source persistante.
-                        // Pour l'instant, on se contente de supprimer la carte du DOM.
-
-                        // Logique de suppression via Netlify Function (pour un vrai backend)
-                        // Assurez-vous que votre fonction deletePrompt peut gérer cette structure de chemin.
-                        const promptPath = `prompts/${promptId}.json`; // Exemple de chemin si vos prompts étaient des fichiers JSON
-                        const imagePath = imageUrl ? imageUrl.replace(/^(https?:\/\/[^\/]+\/)/, '') : ''; // Essaye de retirer le domaine pour le chemin relatif si besoin
-
-                        try {
-                            const res = await fetch(`${PROXY_URL}/deletePrompt`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ promptPath, imagePath })
-                            });
-                            const result = await res.json();
-                            if (res.ok && result.success) {
-                                alert('✅ Prompt supprimé avec succès.');
-                                // Recharger la galerie pour mettre à jour la liste des prompts affichés (après suppression réussie du backend)
-                                chargerPrompts();
-                            } else {
-                                alert(`❌ Erreur : ${result.error || 'Suppression échouée.'}`);
-                                console.error("Erreur de suppression:", result);
-                            }
-                        } catch (err) {
-                            alert('Erreur réseau lors de la suppression.');
-                            console.error("Erreur de suppression du prompt:", err);
-                        }
-                    }
-                });
-            });
+            afficherPrompts(filteredPrompts);
         }
 
         // Écouteurs d'événements pour les filtres et le tri
-        document.getElementById('filtre-outil').addEventListener('change', chargerPrompts);
-        document.getElementById('filtre-nom').addEventListener('input', chargerPrompts);
-        document.getElementById('filtre-chaine').addEventListener('change', chargerPrompts);
-        document.getElementById('filtre-tri').addEventListener('change', chargerPrompts);
+        document.getElementById('filtre-outil').addEventListener('change', appliquerFiltresEtTri);
+        document.getElementById('filtre-nom').addEventListener('input', appliquerFiltresEtTri);
+        document.getElementById('filtre-chaine').addEventListener('change', appliquerFiltresEtTri);
+        document.getElementById('filtre-tri').addEventListener('change', appliquerFiltresEtTri);
 
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -472,6 +545,7 @@
                     const demandeLink = document.querySelector("a.demandes");
                     if (demandeLink) {
                         const computedStyle = getComputedStyle(demandeLink);
+                        // Assurez-vous que la position n'est pas "static" pour que z-index fonctionne si besoin
                         if (computedStyle.position === "static" || !computedStyle.position) {
                             demandeLink.style.position = "relative";
                         }
@@ -484,10 +558,11 @@
                         }
                     });
 
+                    // Tente de mettre à jour la bulle de notification
                     if (typeof mettreAJourBulleDemandes === "function") {
                         mettreAJourBulleDemandes();
                     } else {
-                        console.warn("⚠️ La fonction mettreAJourBulleDemandes est absente.");
+                        console.warn("⚠️ La fonction mettreAJourBulleDemandes est absente. Assurez-vous que header.html contient le script nécessaire.");
                     }
                 })
                 .catch(error => {
@@ -498,7 +573,8 @@
                 .finally(() => {
                     document.body.style.opacity = "1";
                     document.querySelector("main").style.display = "block";
-                    chargerPrompts(); // Charge les prompts une fois que le DOM est prêt et visible
+                    // Charge les prompts depuis GitHub une fois que le DOM est prêt et visible
+                    chargerPromptsDepuisGitHub();
                 });
         });
     </script>
