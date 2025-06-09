@@ -471,11 +471,28 @@
                     document.querySelectorAll('.supprimer-btn').forEach(button => {
                         button.addEventListener('click', async (event) => {
                             const promptId = event.target.dataset.id;
+                            const promptPath = `prompts/${promptId}.json`; // Assuming a path structure
+                            const imagePath = `images/${promptId}.png`; // Assuming a path structure for images
                             if (confirm(`Voulez-vous vraiment supprimer le prompt ${promptId} ?`)) {
                                 console.log(`Tentative de suppression du prompt avec l'ID: ${promptId}`);
-                                // La logique de suppression côté serveur n'est pas implémentée ici
-                                // Vous devrez implémenter une Netlify Function pour cela.
-                                alert(`Fonctionnalité de suppression non implémentée côté serveur pour le prompt ${promptId}.`);
+                                try {
+                                    // Make sure your Netlify function 'deletePrompt' is correctly deployed
+                                    const res = await fetch('/.netlify/functions/deletePrompt', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ promptPath, imagePath })
+                                    });
+                                    const result = await res.json();
+                                    if (res.ok && result.success) {
+                                        alert('✅ Prompt supprimé avec succès.');
+                                        chargerPrompts(); // Reload prompts after successful deletion
+                                    } else {
+                                        alert(`❌ Erreur : ${result.error || 'Suppression échouée.'}`);
+                                    }
+                                } catch (err) {
+                                    alert('Erreur réseau lors de la suppression.');
+                                    console.error(err);
+                                }
                             }
                         });
                     });
