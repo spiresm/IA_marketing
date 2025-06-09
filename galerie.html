@@ -379,25 +379,27 @@
                 const fichiers = await res.json();
                 const jsonFiles = fichiers.filter(f => f.name.endsWith('.json'));
 
-                // Récupérer le contenu de chaque fichier JSON
                 const promises = jsonFiles.map(fichier =>
                     fetch(fichier.download_url)
                         .then(res => res.ok ? res.json() : Promise.reject(`Erreur pour ${fichier.name}: ${res.status}`))
                         .then(data => {
-                            // Ajouter l'ID SHA et le chemin complet du fichier à l'objet prompt
-                            data.filename = fichier.name; // Ajouter le nom du fichier pour référence
-                            data.sha = fichier.sha; // Ajouter le SHA pour la suppression
-                            data.path = fichier.path; // Ajouter le path pour la suppression
+                            // C'est ici que nous attachons les infos du fichier à l'objet prompt
+                            data.filename = fichier.name;
+                            data.sha = fichier.sha;
+                            data.path = fichier.path;
                             return data;
                         })
                         .catch(error => {
-                            console.error(error);
+                            console.error(`Erreur de chargement du prompt ${fichier.name}:`, error);
                             return null; // Retourne null pour ignorer les fichiers en erreur
                         })
                 );
 
-                tousLesPrompts = (await Promise.all(promises)).filter(p => p !== null); // Filtrer les nulls
-                afficherPrompts(tousLesPrompts); // Affiche les prompts après chargement
+                tousLesPrompts = (await Promise.all(promises)).filter(p => p !== null);
+                // Ajoutez ce console.log pour VÉRIFIER que les prompts ont bien les propriétés sha, path, filename
+                console.log("Prompts chargés et enrichis:", tousLesPrompts); 
+
+                afficherPrompts(tousLesPrompts);
             } catch (error) {
                 console.error("Erreur inattendue lors du chargement des prompts:", error);
                 document.getElementById('galerie').innerHTML = "<p style='text-align: center; color: red;'>Une erreur inattendue est survenue lors du chargement des prompts.</p>";
@@ -432,17 +434,13 @@
 
             // Appliquer le tri
             if (filtreTri === 'recent') {
-                // Triez par date de création ou par un autre champ temporel si disponible
-                // Ici, on va simuler un tri inversé si aucune date n'est disponible dans les données
-                filteredPrompts.sort((a, b) => {
-                    // Si vous avez une date dans vos données (ex: a.date, b.date), utilisez-la
-                    // Sinon, un simple reverse suffit si l'ordre initial du fetch est chronologique
-                    return 0; // Pas de tri particulier si pas de date, juste l'ordre de base
-                }).reverse(); // Inverse l'ordre pour les plus récents en premier
+                // Triez par date de création si disponible, sinon l'ordre par défaut de GitHub (qui est souvent la date de dernière modification)
+                // Assumons que GitHub renvoie les fichiers du plus ancien au plus récent par défaut ou qu'il n'y a pas de champ date précis dans vos JSON
+                filteredPrompts.reverse(); // Simplement inverser pour "plus récent" si l'ordre original est "plus ancien"
             } else if (filtreTri === 'ancien') {
-                filteredPrompts.sort((a, b) => {
-                    return 0; // Pas de tri particulier si pas de date, juste l'ordre de base
-                });
+                // Pas besoin de trier si l'ordre par défaut de GitHub est "plus ancien" ou si on le laisse tel quel
+                // Si le tri 'recent' a fait un reverse, pour 'ancien', on doit s'assurer que c'est l'ordre "naturel"
+                // ou un tri explicite si un champ date existe. Pour l'instant, on ne fait rien pour "ancien".
             }
 
             if (filteredPrompts.length === 0) {
@@ -464,7 +462,7 @@
                     try {
                         // Assurez-vous que prompt.path et prompt.sha sont bien définis ici
                         if (!prompt.path || !prompt.sha) {
-                            alert("Impossible de supprimer le prompt: informations manquantes (path ou SHA).");
+                            alert("Impossible de supprimer le prompt: informations de fichier manquantes (path ou SHA).");
                             console.error("Informations de suppression manquantes pour le prompt:", prompt);
                             return;
                         }
@@ -473,9 +471,10 @@
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                promptPath: prompt.path, // Ex: 'prompts/mon-prompt.json'
-                                imagePath: prompt.image || prompt.imageUrl ? (prompt.image || prompt.imageUrl).replace(rawBase, '') : '', // Chemin de l'image si elle existe, sans rawBase
-                                sha: prompt.sha
+                                promptPath: prompt.path, // Utilise directement prompt.path (ex: 'prompts/mon-prompt.json')
+                                // L'image path doit être relative au repo root pour la Netlify Function
+                                imagePath: prompt.image || prompt.imageUrl ? (prompt.image || prompt.imageUrl).replace(rawBase, '') : '',
+                                sha: prompt.sha // Utilise directement prompt.sha
                             })
                         });
 
@@ -484,9 +483,12 @@
                             throw new Error(`Erreur de suppression: ${deleteResponse.status} - ${errorText}`);
                         }
                         div.remove(); // Supprime la carte de l'affichage
-                        // Optionnel: Mettre à jour `tousLesPrompts` pour le filtrage sans recharger
+
+                        // Mise à jour de tousLesPrompts pour le filtrage sans recharger la page
                         tousLesPrompts = tousLesPrompts.filter(p => p.sha !== prompt.sha);
-                        if (filteredPrompts.length === 1 && !galerie.hasChildNodes()) { // Si c'était la dernière carte visible
+                        
+                        // Si la dernière carte visible a été supprimée, affiche un message
+                        if (filteredPrompts.length === 1 && !galerie.hasChildNodes()) {
                              galerie.innerHTML = "<p style='text-align: center; color: #666;'>Aucun prompt ne correspond à vos critères de recherche.</p>";
                         }
                     } catch (error) {
