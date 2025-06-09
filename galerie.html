@@ -6,27 +6,22 @@
     <title>Espace IA</title>
     <link rel="stylesheet" href="style.css" />
     <style>
+        /* Styles généraux du corps et de la zone principale */
         body {
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
             background: linear-gradient(to right, #eef2f3, #f8fbfc);
             color: #333;
             overflow-x: visible;
-            opacity: 0;
+            opacity: 0; /* Rendu invisible au début */
             transition: opacity 0.3s ease-in;
         }
         main {
             padding: 10px 20px;
-            display: none;
+            display: none; /* Rendu invisible au début */
         }
-        /* Votre CSS pour .notif-carré est celui qui est dans header.html maintenant,
-           pas besoin de le répéter ici si header.html est chargé dynamiquement.
-           Assurez-vous juste que les styles de base du header (et donc la bulle)
-           sont chargés avant le JavaScript qui les manipule.
-           Les styles de .notif-carré qui étaient ici ont été déplacés dans header.html
-           pour assurer qu'ils sont bien disponibles quand le header est injecté. */
 
-        /* Styles spécifiques à votre page galerie.html */
+        /* Styles de la galerie et des filtres */
         .galerie {
             max-width: 1200px;
             margin: 0 auto;
@@ -54,6 +49,8 @@
             min-width: 200px;
             background: #f9fafb;
         }
+
+        /* Styles d'une carte de prompt individuelle */
         .carte {
             display: flex;
             gap: 20px;
@@ -208,20 +205,20 @@
             <div id="galerie"></div>
         </div>
     </main>
+
     <script>
         const PROXY_URL = "/.netlify/functions/proxy"; // Assurez-vous que c'est le bon chemin pour votre fonction Netlify
 
-        // Cette fonction gère la mise à jour de la bulle de notification
+        // --- Fonctions de notification ---
         async function updateTicketNotif() {
             const notifElement = document.getElementById("notif-count");
 
             if (!notifElement) {
                 console.warn("L'élément 'notif-count' n'a pas été trouvé dans le header.");
-                return; // Ne peut pas mettre à jour si l'élément n'existe pas
+                return;
             }
 
             try {
-                // Effectue l'appel à votre fonction Netlify
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 if (!res.ok) {
                     throw new Error(`Erreur HTTP: ${res.status}`);
@@ -230,64 +227,177 @@
                 const count = demandes.length;
 
                 notifElement.textContent = count;
-                // Affiche la bulle si le compteur est > 0, sinon la cache
                 notifElement.style.display = count > 0 ? "inline-block" : "none";
             } catch (e) {
                 console.error("Erreur lors de la récupération des demandes pour le compteur de notifications :", e);
-                notifElement.style.display = "none"; // Cache la bulle en cas d'erreur
+                notifElement.style.display = "none";
             }
         }
 
-        // Chargement du header.html
-        fetch("header.html")
-            .then(response => {
-                if (!response.ok) {
-                    throw new new Error(`Erreur HTTP: ${response.status}`);
+        // --- Fonctions pour la galerie de prompts ---
+        async function chargerPrompts() {
+            const galerieDiv = document.getElementById("galerie");
+
+            if (!galerieDiv) {
+                console.error("L'élément #galerie est introuvable. Impossible d'afficher les prompts.");
+                return;
+            }
+
+            galerieDiv.innerHTML = '<p>Chargement des prompts...</p>'; // Message de chargement
+
+            try {
+                // REMPLACER CELA AVEC L'APPEL À VOTRE FONCTION NETLIFY POUR LES PROMPTS
+                // Exemple avec des données simulées (pour tester si la galerie s'affiche) :
+                const prompts = [
+                    {
+                        id: 1,
+                        outil: "Midjourney",
+                        chaine: "La Une",
+                        date: "2024-05-15",
+                        texte_prompt: "Un paysage bucolique avec un moulin à vent et des champs de fleurs, style impressionniste.",
+                        image_url: "https://via.placeholder.com/180?text=Prompt+1" // Remplacez par de vraies images
+                    },
+                    {
+                        id: 2,
+                        outil: "ChatGPT",
+                        chaine: "Vivacité",
+                        date: "2024-05-10",
+                        texte_prompt: "Rédige un script de 30 secondes pour une publicité radio sur un nouveau café durable.",
+                        image_url: "https://via.placeholder.com/180?text=Prompt+2"
+                    },
+                    {
+                        id: 3,
+                        outil: "DALL·E",
+                        chaine: "Tipik",
+                        date: "2024-05-20",
+                        texte_prompt: "Photo réaliste d'un astronaute jouant de la guitare sur la lune, avec la Terre en arrière-plan.",
+                        image_url: "https://via.placeholder.com/180?text=Prompt+3"
+                    }
+                ];
+
+                // SI VOUS UTILISEZ NETLIFY FUNCTIONS POUR LES PROMPTS, DÉCOMMENTEZ ET ADAPTEZ CECI :
+                // const res = await fetch(`${PROXY_URL}?action=getPrompts`); // Adaptez l'action pour les prompts
+                // if (!res.ok) {
+                //     throw new Error(`Erreur HTTP lors de la récupération des prompts: ${res.status}`);
+                // }
+                // const prompts = await res.json();
+
+
+                if (prompts.length === 0) {
+                    galerieDiv.innerHTML = "<p>Aucun prompt à afficher pour le moment.</p>";
+                } else {
+                    galerieDiv.innerHTML = ''; // Vide l'ancienne galerie
+                    prompts.forEach(prompt => {
+                        const carte = document.createElement("div");
+                        carte.className = "carte";
+                        carte.innerHTML = `
+                            <img src="${prompt.image_url || 'https://via.placeholder.com/180?text=Image'}" alt="${prompt.outil || 'Image'}">
+                            <div class="texte-col">
+                                <h3 class="outil-highlight">${prompt.outil || 'Outil Inconnu'}</h3>
+                                <p class="infos">Chaîne: <span class="chaine-color">${prompt.chaine || 'Inconnue'}</span> | Date: ${new Date(prompt.date).toLocaleDateString('fr-BE')}</p>
+                                <p class="prompt-texte">${prompt.texte_prompt || 'Aucun texte de prompt'}</p>
+                                <button class="copier-btn" data-prompt="${prompt.texte_prompt || ''}">Copier le prompt</button>
+                                <button class="supprimer-btn" data-id="${prompt.id || 'undefined'}">❌</button>
+                            </div>
+                        `;
+                        galerieDiv.appendChild(carte);
+                    });
+
+                    // Ajoutez les écouteurs d'événements pour les boutons de copie/suppression après l'injection
+                    document.querySelectorAll('.copier-btn').forEach(button => {
+                        button.addEventListener('click', (event) => {
+                            const promptText = event.target.dataset.prompt;
+                            navigator.clipboard.writeText(promptText).then(() => {
+                                alert('Prompt copié !'); // Ou un message de succès plus élégant
+                            }).catch(err => {
+                                console.error('Erreur de copie:', err);
+                            });
+                        });
+                    });
+
+                    // Logique pour les boutons de suppression (vous devrez l'implémenter côté serveur)
+                    document.querySelectorAll('.supprimer-btn').forEach(button => {
+                        button.addEventListener('click', (event) => {
+                            const promptId = event.target.dataset.id;
+                            if (confirm(`Voulez-vous vraiment supprimer le prompt ${promptId} ?`)) {
+                                // ICI : Appeler votre Netlify Function pour supprimer le prompt
+                                // Exemple: fetch(`${PROXY_URL}?action=deletePrompt&id=${promptId}`, { method: 'DELETE' })
+                                // .then(response => { if(response.ok) { chargerPrompts(); } })
+                                console.log(`Suppression du prompt avec l'ID: ${promptId}`);
+                                // Pour un test rapide, vous pouvez recharger les prompts après la "suppression"
+                                // chargerPrompts();
+                            }
+                        });
+                    });
                 }
-                return response.text();
-            })
-            .then(data => {
-                document.getElementById("header-placeholder").innerHTML = data;
+            } catch (error) {
+                console.error("Erreur lors du chargement des prompts :", error);
+                galerieDiv.innerHTML = "<p>Erreur lors du chargement des prompts. Veuillez réessayer plus tard.</p>";
+            }
+        }
 
-                // Une fois que le header est chargé, on peut appeler updateTicketNotif
-                // pour mettre à jour la bulle.
-                updateTicketNotif();
+        // --- Fonctions auxiliaires ---
+        function afficherMessageSuccesEtRediriger() {
+            const successMessageDiv = document.getElementById('success-message');
+            if (successMessageDiv) {
+                successMessageDiv.textContent = "Opération réussie !";
+                successMessageDiv.style.opacity = "1";
+                setTimeout(() => {
+                    successMessageDiv.style.opacity = "0";
+                    // Supprime le paramètre success=1 de l'URL pour un rechargement propre
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('success');
+                    history.replaceState(null, '', url.toString());
+                }, 3000);
+            }
+        }
 
-                // Logique pour les liens actifs (qui devrait être dans le script principal)
-                const path = location.pathname.split("/").pop();
-                const links = document.querySelectorAll("nav a");
-                links.forEach(link => {
-                    // Assurez-vous que 'galerie.html' est comparé correctement,
-                    // 'path' sera 'galerie.html' pour cette page.
-                    if (link.getAttribute("href") === path) {
-                        link.classList.add("active");
+        // --- Exécution principale ---
+        document.addEventListener("DOMContentLoaded", () => {
+            // Chargement du header.html
+            fetch("header.html")
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    document.getElementById("header-placeholder").innerHTML = data;
+
+                    // 1. Mettre à jour la bulle de notification après le chargement du header
+                    updateTicketNotif();
+
+                    // 2. Gérer les liens actifs du menu
+                    const path = location.pathname.split("/").pop();
+                    const links = document.querySelectorAll("nav a");
+                    links.forEach(link => {
+                        if (link.getAttribute("href") === path) {
+                            link.classList.add("active");
+                        }
+                    });
+
+                    // 3. Charger la galerie de prompts
+                    chargerPrompts(); // Appel ici !
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement du header ou initialisation de la page:", error);
+                    document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
+                })
+                .finally(() => {
+                    // Rendre le corps et la section principale visibles une fois que tout est chargé
+                    document.body.style.opacity = "1";
+                    const mainElement = document.querySelector("main");
+                    if (mainElement) {
+                        mainElement.style.display = "block";
+                    }
+                    
+                    // Gérer le message de succès si le paramètre est présent
+                    if (window.location.search.includes('success=1')) {
+                        afficherMessageSuccesEtRediriger();
                     }
                 });
-
-                // Si vous avez d'autres fonctions spécifiques à la page principale qui dépendent du header,
-                // appelez-les ici après l'injection du header.
-            })
-            .catch(error => {
-                console.error("Erreur de chargement du header:", error);
-                document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-            })
-            .finally(() => {
-                // Ces actions devraient toujours se produire, que le header soit chargé ou non
-                document.body.style.opacity = "1";
-                document.querySelector("main").style.display = "block";
-
-                // Assurez-vous que ces fonctions sont définies ailleurs ou supprimez-les si non utilisées
-                if (typeof chargerPrompts === 'function') {
-                    chargerPrompts();
-                }
-                if (window.location.search.includes('success=1') && typeof afficherMessageSuccesEtRediriger === 'function') {
-                    afficherMessageSuccesEtRediriger();
-                }
-            });
-
-        // Si des actions sur cette page peuvent modifier le nombre de demandes IA
-        // (ex: un formulaire d'envoi), vous devrez appeler `updateTicketNotif()`
-        // après la réussite de ces actions pour rafraîchir le compteur.
+        });
     </script>
 </body>
 </html>
