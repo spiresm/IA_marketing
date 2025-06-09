@@ -1,14 +1,16 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+// Supprimez l'importation de fileURLToPath car nous n'utiliserons plus __filename et __dirname de cette manière.
+// import { fileURLToPath } from 'url'; 
 
-// Pour résoudre le chemin du fichier dans les modules ES
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Solution plus robuste pour le chemin du fichier de données dans Netlify Functions
+// `process.cwd()` pointe généralement vers le répertoire racine de votre fonction déployée (`/var/task/`).
+// Si votre dossier 'data' est à la racine de votre dépôt Git,
+// il sera accessible directement sous `/var/task/data/` sur Netlify.
+const PROMPTS_DB_PATH = path.join(process.cwd(), 'data', 'prompts.json');
 
-// Assurez-vous que ce chemin est correct par rapport à la racine de votre projet Netlify
-// Si votre dossier 'data' est à la racine, alors 'data/prompts.json' est correct.
-const PROMPTS_DB_PATH = path.resolve(__dirname, '../../data/prompts.json'); 
+// Option de débogage : décommentez pour voir le chemin exact dans les logs Netlify
+// console.log(`getGalleryPrompts.mjs: PROMPTS_DB_PATH résolu à : ${PROMPTS_DB_PATH}`);
 
 export const handler = async (event) => {
     if (event.httpMethod !== 'GET') {
@@ -26,10 +28,13 @@ export const handler = async (event) => {
             prompts = JSON.parse(content);
         } catch (error) {
             if (error.code === 'ENOENT') {
+                // Le fichier n'existe pas encore, c'est normal au premier lancement ou si pas de prompts.
                 console.warn(`getGalleryPrompts.mjs: Fichier de prompts non trouvé à ${PROMPTS_DB_PATH}. Retourne un tableau vide.`);
-                prompts = []; // Le fichier n'existe pas encore, retourne un tableau vide
+                prompts = []; 
             } else {
-                throw error; // Autre erreur de lecture de fichier, la propager
+                // Pour toute autre erreur de lecture (ex: fichier corrompu, permissions), on la log et la propage.
+                console.error(`getGalleryPrompts.mjs: Erreur inattendue lors de la lecture du fichier prompts.json: ${error.message}`, error);
+                throw error; 
             }
         }
         
@@ -50,6 +55,7 @@ export const handler = async (event) => {
             body: JSON.stringify(filteredPrompts),
         };
     } catch (error) {
+        // Cette erreur attrape les erreurs inattendues ou celles propagées du bloc try/catch interne.
         console.error('getGalleryPrompts.mjs: Erreur lors de la récupération des prompts de galerie :', error);
         return {
             statusCode: 500,
