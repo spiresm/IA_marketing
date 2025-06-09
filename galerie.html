@@ -282,13 +282,42 @@
             </div>
 
             <div id="galerie">
-                </div>
+            </div>
         </div>
     </main>
 
     <script>
-        // PROXY_URL sera défini dans header-script.js après le chargement du header
-        // car il est potentiellement utilisé par mettreAJourBulleDemandes
+        // --- DÉBUT : Ajout de la logique de la bulle de notification et PROXY_URL ---
+        const PROXY_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                        ? '/.netlify/functions'
+                        : 'https://ia-marketing.netlify.app/.netlify/functions'; // Adaptez 'ia-marketing.netlify.app' à l'URL de votre site Netlify
+
+        async function mettreAJourBulleDemandes() {
+            const notifBubble = document.getElementById('notif-count');
+            if (!notifBubble) {
+                console.warn("Bulle de notification 'notif-count' non trouvée.");
+                return;
+            }
+            try {
+                const response = await fetch(`${PROXY_URL}/getDemandesCount`); // Assurez-vous d'avoir une fonction getDemandesCount
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                const data = await response.json();
+                const count = data.count || 0;
+
+                if (count > 0) {
+                    notifBubble.textContent = count;
+                    notifBubble.style.display = 'inline-block';
+                } else {
+                    notifBubble.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour de la bulle des demandes:", error);
+                notifBubble.style.display = 'none';
+            }
+        }
+        // --- FIN : Ajout de la logique de la bulle de notification et PROXY_URL ---
 
         document.addEventListener("DOMContentLoaded", () => {
             // Charge le header.html
@@ -320,11 +349,11 @@
                     });
 
                     // Appeler la fonction de mise à jour de la bulle après le chargement du header
-                    // Cette fonction est définie dans js/header-script.js et chargée via header.html
+                    // Cette fonction est maintenant définie dans ce fichier galerie.html
                     if (typeof mettreAJourBulleDemandes === "function") {
                         mettreAJourBulleDemandes();
                     } else {
-                        console.warn("La fonction mettreAJourBulleDemandes n'est pas définie. Assurez-vous que header-script.js est chargé et contient cette fonction.");
+                        console.warn("La fonction mettreAJourBulleDemandes n'est pas définie. Cela ne devrait plus arriver si la correction a été appliquée.");
                     }
                 })
                 .catch(error => {
@@ -397,7 +426,7 @@
 
                 tousLesPrompts = (await Promise.all(promises)).filter(p => p !== null);
                 // CE LOG EST TRÈS IMPORTANT POUR LE DÉBOGAGE !
-                console.log("Prompts chargés et enrichis:", tousLesPrompts); 
+                console.log("Prompts chargés et enrichis:", tousLesPrompts);
 
                 afficherPrompts(tousLesPrompts);
             } catch (error) {
@@ -409,7 +438,7 @@
         function afficherPrompts(promptsAffiche) {
             const galerie = document.getElementById('galerie');
             galerie.innerHTML = ''; // Nettoie la galerie avant de le remplir
-            
+
             const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
             const filtreOutil = document.getElementById('filtre-outil').value;
             const filtreChaine = document.getElementById('filtre-chaine').value;
@@ -425,9 +454,9 @@
                 filteredPrompts = filteredPrompts.filter(prompt => prompt.chaine === filtreChaine);
             }
             if (filtreNom) {
-                filteredPrompts = filteredPrompts.filter(prompt => 
-                    (prompt.auteur && prompt.auteur.toLowerCase().includes(filtreNom)) || 
-                    (prompt.texte && prompt.texte.toLowerCase().includes(filtreNom)) || 
+                filteredPrompts = filteredPrompts.filter(prompt =>
+                    (prompt.auteur && prompt.auteur.toLowerCase().includes(filtreNom)) ||
+                    (prompt.texte && prompt.texte.toLowerCase().includes(filtreNom)) ||
                     (prompt.titre && prompt.titre.toLowerCase().includes(filtreNom))
                 );
             }
@@ -474,7 +503,7 @@
                             body: JSON.stringify({
                                 promptPath: prompt.path, // Utilise directement prompt.path (ex: 'prompts/mon-prompt.json')
                                 // L'image path doit être relative au repo root pour la Netlify Function
-                                imagePath: prompt.image || prompt.imageUrl ? (prompt.image || prompt.imageUrl).replace(rawBase, '') : '',
+                                imagePath: (prompt.image || prompt.imageUrl) ? (prompt.image || prompt.imageUrl).replace(rawBase, '') : '', // <-- CORRECTION ICI
                                 sha: prompt.sha // Utilise directement prompt.sha
                             })
                         });
@@ -487,7 +516,7 @@
 
                         // Mise à jour de tousLesPrompts pour le filtrage sans recharger la page
                         tousLesPrompts = tousLesPrompts.filter(p => p.sha !== prompt.sha);
-                        
+
                         // Si la dernière carte visible a été supprimée, affiche un message
                         if (filteredPrompts.length === 1 && !galerie.hasChildNodes()) {
                              galerie.innerHTML = "<p style='text-align: center; color: #666;'>Aucun prompt ne correspond à vos critères de recherche.</p>";
@@ -513,7 +542,7 @@
                 texteCol.innerHTML = `
                     <div class="outil-highlight">${prompt.outil || 'Outil Inconnu'}</div>
                     <p class="infos">
-                        <strong>${prompt.auteur || 'Inconnu'}</strong> • ${prompt.categorie || 'Catégorie'} 
+                        <strong>${prompt.auteur || 'Inconnu'}</strong> • ${prompt.categorie || 'Catégorie'}
                         ${prompt.chaine ? ` • <span class='chaine-color' style='color:${couleursParChaine[prompt.chaine] || '#0077b6'}'>${prompt.chaine}</span>` : ''}
                     </p>
                     <div class="prompt-texte">${prompt.texte || ''}</div>
