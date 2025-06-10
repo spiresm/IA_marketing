@@ -8,18 +8,18 @@
     <style>
         /* Styles pour les transitions de visibilité */
         body {
-            opacity: 0; /* Masqué initialement */
+            opacity: 0;
             transition: opacity 0.5s ease-in;
         }
         body.show {
-            opacity: 1; /* Rendu visible via JS */
+            opacity: 1;
         }
         main {
-            opacity: 0; /* Masqué initialement */
+            opacity: 0; /* <-- Votre CSS original pour main */
             transition: opacity 0.5s ease-in;
         }
         main.show {
-            opacity: 1; /* Rendu visible via JS */
+            opacity: 1;
         }
 
         /* Styles pour la disposition générale */
@@ -89,9 +89,10 @@
         #galerie {
             /* Permet aux cartes d'occuper la largeur disponible */
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            display: grid; /* Assurez-vous que c'est bien 'grid' pour que la grille fonctionne */
+            display: grid;
             gap: 25px;
             padding: 20px 0;
+            /* La bordure rouge de débogage est supprimée ici */
         }
 
         .carte {
@@ -274,18 +275,28 @@
             const bodyElement = document.body;
             const galerieDiv = document.getElementById('galerie');
 
-            // --- IMPORTANT : Suppression des styles directs qui entraient en conflit ---
-            // Le contrôle de la visibilité sera géré par l'ajout des classes 'show'
-            // après le chargement du header, permettant aux transitions CSS de fonctionner.
-            // Si vous avez un 'display: none;' sur main dans style.css, assurez-vous de le retirer.
-            // Ou, si vous voulez que main soit caché avant le JS, utilisez 'opacity: 0;' comme fait ici.
+            // 1. Forcer la visibilité de 'main' et 'galerie' au chargement du DOM - C'était VOTRE solution originale
+            // Celle-ci mettait des styles inline. Si ça marchait, c'est que quelque chose d'autre rendait
+            // le body visible, ou que le body était visible par défaut et seul le main était caché.
+            if (mainElement && galerieDiv) {
+                mainElement.style.display = 'block';
+                mainElement.style.opacity = '1';
+                mainElement.style.visibility = 'visible';
+
+                galerieDiv.style.display = 'grid'; // Utilisez 'grid' car #galerie est un grid
+                galerieDiv.style.opacity = '1';
+                galerieDiv.style.visibility = 'visible';
+
+                console.log('✅ main et galerie forcés visibles par JS direct (version précédente)');
+            } else {
+                console.warn('⚠️ main ou galerie introuvables lors du chargement du DOM (version précédente)');
+            }
 
             // 2. Charger le header
             fetch("header.html")
                 .then(res => res.ok ? res.text() : Promise.reject(res))
                 .then(data => {
                     headerPlaceholder.innerHTML = data;
-                    // Active le lien de navigation correspondant
                     document.querySelectorAll("nav a").forEach(link => {
                         if (link.getAttribute("href") === "galerie.html") {
                             link.classList.add("active");
@@ -297,14 +308,14 @@
                     headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 })
                 .finally(() => {
-                    // 3. Afficher le corps et le main APRES le chargement du header
-                    // C'est ici que les éléments deviennent visibles grâce aux classes 'show'
-                    console.log("Header chargé. Ajout des classes 'show' au body et main.");
+                    // 3. Afficher le corps et le main après le chargement du header (via classes)
+                    // Si cela n'a pas fonctionné auparavant, c'est probablement car les styles inline
+                    // du point 1 étaient plus spécifiques ou d'autres CSS interfèraient.
+                    console.log("Header chargé, application des classes show au body et main.");
                     bodyElement.classList.add("show");
-                    mainElement.classList.add("show");
+                    mainElement.classList.add("show"); // Re-appliquer au cas où
                     
                     // 4. Charger et afficher les prompts (contenu dynamique)
-                    // Cette fonction est appelée une fois que la page est visible
                     chargerEtAfficherPrompts();
                 });
 
