@@ -3,10 +3,10 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 
 const pages = [
-  { url: 'https://iamarketing.netlify.app/.html', nom: 'Accueil' },
+  { url: 'https://iamarketing.netlify.app/index.html', nom: 'Accueil' },
   { url: 'https://iamarketing.netlify.app/chatbot.html', nom: 'Chatbot' },
   { url: 'https://iamarketing.netlify.app/outils.html', nom: 'Outils' },
-  { url: 'https://iamarketing.netlify.app/cas-usages', nom: 'Cas d’usages' },
+  { url: 'https://iamarketing.netlify.app/cas-usages', nom: 'Cas d’usage' },
   { url: 'https://iamarketing.netlify.app/equipe', nom: 'Équipe' },
   { url: 'https://iamarketing.netlify.app/galerie', nom: 'Galerie' },
   { url: 'https://iamarketing.netlify.app/charte', nom: 'Charte' },
