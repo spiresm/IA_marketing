@@ -3,6 +3,7 @@ console.log("✅ Le script démarre");
 const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs');
+const path = require('path'); // ➕ ajouté pour afficher le chemin complet du fichier
 
 const pages = [
   { url: 'https://iamarketing.netlify.app/index.html', nom: 'Accueil' },
@@ -47,7 +48,9 @@ async function construireBase() {
     });
   }
 
-  fs.writeFileSync('connaissances.json', JSON.stringify(base, null, 2), 'utf-8');
+  const cheminFichier = path.resolve(__dirname, 'connaissances.json');
+  console.log(`📁 Écriture dans : ${cheminFichier}`);
+  fs.writeFileSync(cheminFichier, JSON.stringify(base, null, 2), 'utf-8');
   console.log('✅ Fichier connaissances.json mis à jour avec toutes les pages.');
 }
 
