@@ -1,7 +1,12 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
-const fs = require('fs').promises;
-const path = require('path');
+import axios from 'axios';
+import cheerio from 'cheerio';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Résout __dirname pour les modules ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const pages = [
   { url: 'https://iamarketing.netlify.app/index.html', nom: 'Accueil' },
@@ -20,7 +25,7 @@ async function extraireContenu(url) {
     let texteExtrait = '';
 
     if (url.includes('faq.html')) {
-      let contenuFaq = [];
+      const contenuFaq = [];
       $('div.faq-page').each((_, pageElement) => {
         $(pageElement).find('details.card').each((__, element) => {
           const question = $(element).find('summary').text().replace(/\s+/g, ' ').trim();
@@ -35,7 +40,7 @@ async function extraireContenu(url) {
       texteExtrait = $('main, article, .container').text().replace(/\s+/g, ' ').trim();
     }
 
-    return texteExtrait.slice(0, 8000); // Limite de sécurité
+    return texteExtrait.slice(0, 8000); // Sécurité taille
   } catch (e) {
     console.error(`❌ Erreur lors de l'extraction de ${url} :`, e.message);
     return '';
@@ -68,28 +73,29 @@ async function construireBase() {
   console.log(`📊 Taille de la base de données collectée : ${base.length} pages.`);
 
   if (base.length === 0) {
-    console.error("❌ La base de données 'base' est vide. Le fichier connaissances.json ne sera pas mis à jour.");
+    console.error("❌ La base est vide. Le fichier ne sera pas mis à jour.");
     return;
   }
 
   const jsonString = JSON.stringify(base, null, 2);
-  console.log(`📏 Taille des données JSON à écrire : ${jsonString.length} caractères.`);
-  console.log(`📝 Début de l'écriture du fichier : ${connaissancesFilePath}`);
+  console.log(`📏 Taille des données JSON : ${jsonString.length} caractères.`);
+  console.log(`📝 Écriture du fichier : ${connaissancesFilePath}`);
 
   try {
     await fs.unlink(connaissancesFilePath).catch(e => {
       if (e.code !== 'ENOENT') {
-        console.warn(`⚠️ Impossible de supprimer l'ancien fichier :`, e.message);
+        console.warn(`⚠️ Erreur suppression fichier existant :`, e.message);
       } else {
-        console.log(`🗑️ Ancien fichier non trouvé (OK, il sera créé).`);
+        console.log(`🗑️ Aucun ancien fichier (OK).`);
       }
     });
 
     await fs.writeFile(connaissancesFilePath, jsonString, 'utf-8');
-    console.log(`✅ Fichier connaissances.json mis à jour avec succès à : ${connaissancesFilePath}`);
+    console.log(`✅ Fichier connaissances.json mis à jour avec succès.`);
   } catch (error) {
-    console.error(`❌ Erreur CRITIQUE lors de l'écriture du fichier :`, error);
+    console.error(`❌ Erreur lors de l'écriture du fichier :`, error);
   }
 }
 
-construireBase();
+// ✅ Exécution directe
+await construireBase();
