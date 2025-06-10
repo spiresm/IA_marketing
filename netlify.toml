@@ -1,18 +1,23 @@
-[build]
-  publish = "." # Le répertoire qui contient votre index.html (généralement la racine du projet pour les SPAs simples)
-  functions = "netlify/functions" # Confirme que vos fonctions sont dans ce dossier
+# netlify.toml
 
-  # *** AJOUT CRUCIAL : Spécifie la version de Node.js pour le build et les fonctions ***
+[build]
+  publish = "." # Le répertoire qui contient votre index.html et compresseur.html
+  functions = "netlify/functions" # Le dossier où Netlify trouvera vos fonctions
+
+  # Spécifie la version de Node.js pour le build et les fonctions
   [build.environment]
-    NODE_VERSION = "18" # Utilisez "18" ou "20" (versions LTS)
+    NODE_VERSION = "18" # Utilisez une version LTS stable comme "18" ou "20"
 
 [functions]
   node_bundler = "esbuild" # Recommandé pour des performances optimales et un build plus rapide
-  # Ne PAS mettre node_version = "18" ici directement sous [functions], car c'est ce qui a causé l'erreur.
 
+# Configuration spécifique pour la fonction compressImage
+# multiparty N'EST PLUS NÉCESSAIRE ICI
+[functions.compressImage]
+  external_node_modules = ["sharp"] # Seulement sharp maintenant !
 
-# Configuration spécifique pour chaque fonction si elles ont des dépendances externes
-# Si vous n'avez pas ces fonctions ou ces dépendances, vous pouvez les commenter ou les supprimer.
+# --- Vos autres configurations de fonctions existantes ---
+# Conservez ces sections si vos autres fonctions les utilisent
 [functions.proxy]
   external_node_modules = ["node-fetch"]
 
@@ -23,18 +28,15 @@
   external_node_modules = ["@octokit/rest", "node-fetch"]
 
 [functions.sendRequest]
-  external_node_modules = ["nodemailer", "multiparty"]
+  external_node_modules = ["nodemailer", "multiparty"] # Laissez multiparty ici seulement si 'sendRequest' en a besoin
+# --- Fin de vos autres configurations de fonctions ---
 
-# Ajoutez ici d'autres configurations si vous avez d'autres fonctions nécessitant des modules externes
-# [functions.maFonctionX]
-#   external_node_modules = ["axios"]
-
-
-# --- AJOUT IMPORTANT POUR CORS ---
+# --- Configuration CORS (très important !) ---
+# Cela autorise les requêtes de votre frontend vers vos fonctions.
 [[headers]]
   for = "/.netlify/functions/*" # Cette règle s'applique à toutes les requêtes vers les fonctions Netlify
   [headers.values]
-    Access-Control-Allow-Origin = "*" # Autorise les requêtes de n'importe quelle origine
-    Access-Control-Allow-Methods = "GET, POST, OPTIONS" # Les méthodes HTTP autorisées (ajoutez PUT, DELETE si nécessaire)
-    Access-Control-Allow-Headers = "Content-Type, Authorization" # Les en-têtes que les requêtes peuvent contenir
-    Access-Control-Max-Age = "86400" # Indique aux navigateurs de cacher ces informations CORS pendant 24 heures
+    Access-Control-Allow-Origin = "*" # Autorise les requêtes de n'importe quelle origine (à adapter en production)
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS" # Les méthodes HTTP autorisées
+    Access-Control-Allow-Headers = "Content-Type, Authorization" # Les en-têtes autorisés
+    Access-Control-Max-Age = "86400" # Cache les infos CORS pendant 24 heures
