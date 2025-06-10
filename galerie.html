@@ -8,18 +8,18 @@
     <style>
         /* Styles pour les transitions de visibilité */
         body {
-            opacity: 0;
+            opacity: 0; /* Masqué initialement */
             transition: opacity 0.5s ease-in;
         }
         body.show {
-            opacity: 1;
+            opacity: 1; /* Rendu visible via JS */
         }
         main {
-            opacity: 0;
+            opacity: 0; /* Masqué initialement */
             transition: opacity 0.5s ease-in;
         }
         main.show {
-            opacity: 1;
+            opacity: 1; /* Rendu visible via JS */
         }
 
         /* Styles pour la disposition générale */
@@ -88,11 +88,10 @@
         /* Styles pour la galerie de prompts */
         #galerie {
             /* Permet aux cartes d'occuper la largeur disponible */
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            display: grid; /* Assurez-vous que c'est bien 'grid' pour que la grille fonctionne */
             gap: 25px;
             padding: 20px 0;
-            /* La bordure rouge de débogage est supprimée ici */
         }
 
         .carte {
@@ -273,29 +272,20 @@
             const headerPlaceholder = document.getElementById("header-placeholder");
             const mainElement = document.querySelector("main");
             const bodyElement = document.body;
-            const galerieDiv = document.getElementById('galerie'); 
+            const galerieDiv = document.getElementById('galerie');
 
-            // 1. Forcer la visibilité de 'main' et 'galerie' au chargement du DOM
-            // La bordure rouge et le minHeight sont supprimés
-            if (mainElement && galerieDiv) {
-                mainElement.style.display = 'block';
-                mainElement.style.opacity = '1';
-                mainElement.style.visibility = 'visible';
-
-                galerieDiv.style.display = 'grid'; // Utilisez 'grid' car #galerie est un grid
-                galerieDiv.style.opacity = '1';
-                galerieDiv.style.visibility = 'visible';
-
-                console.log('✅ main et galerie forcés visibles');
-            } else {
-                console.warn('⚠️ main ou galerie introuvables lors du chargement du DOM');
-            }
+            // --- IMPORTANT : Suppression des styles directs qui entraient en conflit ---
+            // Le contrôle de la visibilité sera géré par l'ajout des classes 'show'
+            // après le chargement du header, permettant aux transitions CSS de fonctionner.
+            // Si vous avez un 'display: none;' sur main dans style.css, assurez-vous de le retirer.
+            // Ou, si vous voulez que main soit caché avant le JS, utilisez 'opacity: 0;' comme fait ici.
 
             // 2. Charger le header
             fetch("header.html")
                 .then(res => res.ok ? res.text() : Promise.reject(res))
                 .then(data => {
                     headerPlaceholder.innerHTML = data;
+                    // Active le lien de navigation correspondant
                     document.querySelectorAll("nav a").forEach(link => {
                         if (link.getAttribute("href") === "galerie.html") {
                             link.classList.add("active");
@@ -307,10 +297,14 @@
                     headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 })
                 .finally(() => {
-                    // 3. Afficher le corps et le main après le chargement du header
+                    // 3. Afficher le corps et le main APRES le chargement du header
+                    // C'est ici que les éléments deviennent visibles grâce aux classes 'show'
+                    console.log("Header chargé. Ajout des classes 'show' au body et main.");
                     bodyElement.classList.add("show");
                     mainElement.classList.add("show");
+                    
                     // 4. Charger et afficher les prompts (contenu dynamique)
+                    // Cette fonction est appelée une fois que la page est visible
                     chargerEtAfficherPrompts();
                 });
 
@@ -366,7 +360,6 @@
             prompts.forEach(prompt => {
                 const carte = document.createElement('div');
                 carte.className = 'carte';
-                // Assurez-vous que prompt.id existe et est unique. Sinon, utilisez une alternative robuste.
                 carte.dataset.promptId = prompt.id || (prompt.texte ? btoa(prompt.texte).substring(0,10) : `no-id-${Math.random().toString(36).substring(2, 9)}`);
 
                 const img = document.createElement('img');
