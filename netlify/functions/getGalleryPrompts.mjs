@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'; // Assurez-vous d'avoir node-fetch pour les requêtes HTTP
+import fetch from 'node-fetch';
 
 export const handler = async (event) => {
     // Vérifier la méthode HTTP pour s'assurer que c'est un GET
@@ -12,10 +12,9 @@ export const handler = async (event) => {
 
     try {
         const token = process.env.GITHUB_TOKEN; // Le même token que pour pushPrompt
-        // Assurez-vous que ces valeurs correspondent EXACTEMENT à la casse sur GitHub
         const repoOwner = "spiresm";
         const repoName = "IA_marketing";
-        const promptsFolderPath = "prompts"; 
+        const promptsFolderPath = "prompts";
 
         if (!token) {
             console.error("❌ GITHUB_TOKEN manquant pour getGalleryPrompts. Veuillez le configurer dans les variables d'environnement Netlify.");
@@ -33,25 +32,22 @@ export const handler = async (event) => {
         const res = await fetch(githubApiUrl, {
             method: "GET",
             headers: {
-                // Le token est nécessaire pour les dépôts privés ou pour un taux de requêtes plus élevé sur les dépôts publics
-                Authorization: `Bearer ${token}`, 
-                "Accept": "application/vnd.github.v3+json", // Demande l'API v3 JSON
-                "User-Agent": "Netlify-Function-getGalleryPrompts" // GitHub préfère un User-Agent
+                Authorization: `Bearer ${token}`,
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "Netlify-Function-getGalleryPrompts"
             },
         });
 
-        // Gérer les réponses non-OK de GitHub
         if (!res.ok) {
-            const errorText = await res.text(); // Lire le texte complet de l'erreur pour un meilleur diagnostic
+            const errorText = await res.text();
             let errorMessage = `Erreur GitHub lors de la liste des fichiers: ${res.status}`;
             try {
                 const errorJson = JSON.parse(errorText);
-                errorMessage = errorJson.message || errorMessage; // Utiliser le message de GitHub si disponible
+                errorMessage = errorJson.message || errorMessage;
             } catch (jsonParseError) {
-                // Si la réponse n'est pas un JSON valide, utiliser le texte brut
-                errorMessage += ` - ${errorText.substring(0, 200)}... (non-JSON)`; // Limiter la taille du log
+                errorMessage += ` - ${errorText.substring(0, 200)}... (non-JSON)`;
             }
-            
+
             console.error(`❌ getGalleryPrompts: ${errorMessage}`);
             return {
                 statusCode: res.status,
@@ -61,7 +57,7 @@ export const handler = async (event) => {
         }
 
         const files = await res.json();
-        // Vérifier que 'files' est un tableau avant de filtrer
+
         if (!Array.isArray(files)) {
             console.error("❌ getGalleryPrompts: La réponse de GitHub n'est pas un tableau. Chemin incorrect ou API modifiée ?");
             return {
@@ -71,20 +67,25 @@ export const handler = async (event) => {
             };
         }
 
-        // Filtrer pour ne garder que les fichiers .json de type 'file'
         const jsonFiles = files.filter(file => file.type === 'file' && file.name.endsWith('.json'));
 
         console.log(`📂 getGalleryPrompts: ${jsonFiles.length} fichiers JSON potentiels trouvés dans ${promptsFolderPath}.`);
 
         const allPrompts = [];
 
-        // Télécharger le contenu de chaque fichier JSON
         for (const file of jsonFiles) {
             try {
-                const fileContentRes = await fetch(file.download_url); // Utiliser l'URL de téléchargement directe
+                const fileContentRes = await fetch(file.download_url);
                 if (fileContentRes.ok) {
                     const promptContent = await fileContentRes.json();
-                    allPrompts.push(promptContent);
+                    const promptId = file.name.replace('.json', ''); // L'ID est le nom du fichier sans l'extension
+                    allPrompts.push({
+                        id: promptId,
+                        fileName: file.name, // Le nom complet du fichier (ex: "mon-prompt.json")
+                        sha: file.sha,       // Le SHA du blob du fichier, nécessaire pour la suppression
+                        path: file.path,     // Le chemin complet du fichier dans le dépôt (ex: "prompts/mon-prompt.json")
+                        ...promptContent     // Les autres propriétés du prompt (auteur, texte, etc.)
+                    });
                 } else {
                     const errorDetails = await fileContentRes.text();
                     console.warn(`⚠️ getGalleryPrompts: Impossible de télécharger le contenu de ${file.name}. Statut: ${fileContentRes.status}. Détails: ${errorDetails.substring(0, 100)}`);
@@ -94,9 +95,7 @@ export const handler = async (event) => {
             }
         }
 
-        // Le filtrage pour auteur et imageUrl est déjà bon
         const filteredPrompts = allPrompts.filter(p => p && typeof p === 'object' && p.auteur && p.imageUrl);
-
 
         console.log(`✅ getGalleryPrompts: ${filteredPrompts.length} prompts de galerie récupérés après filtrage.`);
 
@@ -104,7 +103,7 @@ export const handler = async (event) => {
             statusCode: 200,
             headers: {
                 'Content-Type': 'application/json',
-                "Access-Control-Allow-Origin": "*", // Essentiel pour CORS
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
@@ -112,13 +111,12 @@ export const handler = async (event) => {
         };
 
     } catch (error) {
-        // Capture toute autre erreur inattendue
         console.error('❌ getGalleryPrompts: Erreur générale lors de la récupération des prompts de galerie :', error);
         return {
             statusCode: 500,
             headers: {
                 'Content-Type': 'application/json',
-                "Access-Control-Allow-Origin": "*" // Toujours pour CORS, même en cas d'erreur
+                "Access-Control-Allow-Origin": "*"
             },
             body: JSON.stringify({ success: false, message: `Erreur interne du serveur lors de la récupération des prompts: ${error.message}` }),
         };
