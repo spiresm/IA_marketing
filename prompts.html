@@ -9,7 +9,7 @@
         body {
             opacity: 0;
             transition: opacity 0.5s ease;
-            margin: 0; /* Assure que le body n'a pas de marge par défaut */
+            margin: 0;
         }
 
         body.show {
@@ -63,7 +63,7 @@
             border-radius: 8px;
             font-size: 1em;
             background: #f9fafb;
-            box-sizing: border-box; /* S'assure que padding n'augmente pas la largeur */
+            box-sizing: border-box;
         }
 
         #drop-zone {
@@ -84,11 +84,11 @@
         #image-preview {
             display: block;
             max-width: 80%;
-            max-height: 200px; /* Ajout d'une hauteur max pour l'aperçu */
-            object-fit: contain; /* Assure que l'image est contenue sans être coupée */
+            max-height: 200px;
+            object-fit: contain;
             margin: 15px auto;
             border-radius: 10px;
-            border: 1px solid #eee; /* Petite bordure pour l'aperçu */
+            border: 1px solid #eee;
         }
 
         button {
@@ -155,263 +155,258 @@
                 document.getElementById("header-placeholder").innerHTML = html;
                 document.body.classList.add("show");
                 document.querySelector("main").classList.add("show");
+
+                // Une fois le header chargé et le main visible, charger Vue et monter l'application
+                const vueScript = document.createElement('script');
+                vueScript.src = "https://unpkg.com/vue@3/dist/vue.global.prod.js";
+                vueScript.onload = () => {
+                    const { ref, createApp, onMounted } = Vue;
+
+                    const PROXY_URL = "/.netlify/functions/proxy"; // L'URL de votre fonction Netlify
+
+                    const PromptForm = {
+                        template: `
+                            <div class="container">
+                                <a href="galerie.html" class="retour-lien">← Retour</a>
+                                <h2 style="text-align:center; color:#0077b6;">Partager un prompt</h2>
+                                <form @submit.prevent="submitForm">
+                                    <label for="auteur">Votre nom</label>
+                                    <select id="auteur" v-model="auteur" required>
+                                        <option value="" disabled>Sélectionnez un nom</option>
+                                        <option v-for="profilNom in profilsAuteurs" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
+                                    </select>
+                                    <p v-if="profilsAuteurs.length === 0 && !isLoadingProfils" style="color: #888; font-size: 0.9em; margin-top: 5px;">
+                                        Aucun profil trouvé. Assurez-vous d'avoir créé des profils dans la section "Équipe".
+                                    </p>
+                                    <p v-if="isLoadingProfils" style="color: #0077b6; font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
+
+
+                                    <label for="outil">Outil IA utilisé</label>
+                                    <select id="outil" v-model="outil">
+                                        <option>Midjourney</option>
+                                        <option>DALL·E</option>
+                                        <option>Stable Diffusion</option>
+                                        <option>Adobe Firefly</option>
+                                        <option>Runway</option>
+                                        <option>ChatGPT</option>
+                                    </select>
+
+                                    <label for="chaine">Chaîne</label>
+                                    <select id="chaine" v-model="chaine">
+                                        <option>La Une</option>
+                                        <option>Tipik</option>
+                                        <option>La Trois</option>
+                                        <option>La Première</option>
+                                        <option>Classic 21</option>
+                                        <option>Vivacité</option>
+                                        <option>Musiq3</option>
+                                        <option>Auvio</option>
+                                    </select>
+
+                                    <label for="texte">Prompt</label>
+                                    <textarea id="texte" v-model="texte" rows="4" required></textarea>
+
+                                    <label>Image</label>
+                                    <div id="drop-zone"
+                                            @click="triggerFile"
+                                            @dragover.prevent="onDragOver"
+                                            @dragleave="onDragLeave"
+                                            @drop.prevent="onDrop">
+                                        Déposez ou cliquez
+                                    </div>
+                                    <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
+                                    <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
+
+                                    <div v-if="isLoading" class="loader"></div>
+                                    <button v-else type="submit" :disabled="!auteur">Partager</button>
+                                </form>
+
+                                <div class="confirmation" v-if="confirmationVisible">
+                                    <p>✅ Prompt partagé avec succès vers la <strong>galerie</strong> !</p>
+                                    <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
+                                    <p style="white-space: pre-wrap;">{{ confirmationTexte }}</p>
+                                    <p style="margin-top: 15px; color: #0077b6;">Redirection vers la galerie dans 5 secondes...</p>
+                                </div>
+                            </div>
+                        `,
+                        setup() {
+                            const auteur = ref('');
+                            const outil = ref('Midjourney');
+                            const chaine = ref('La Une');
+                            const texte = ref('');
+                            const fileInput = ref(null);
+                            const imagePreviewUrl = ref('');
+                            const confirmationVisible = ref(false);
+                            const confirmationImageUrl = ref('');
+                            const confirmationTexte = ref('');
+                            const isLoading = ref(false);
+                            const profilsAuteurs = ref([]);
+                            const isLoadingProfils = ref(true);
+
+                            async function fetchProfils() {
+                                isLoadingProfils.value = true;
+                                try {
+                                    const response = await fetch(`${PROXY_URL}?action=getProfils`);
+                                    if (!response.ok) {
+                                        throw new Error(`Erreur HTTP: ${response.status}`);
+                                    }
+                                    const data = await response.json();
+                                    const profilsList = Array.isArray(data) ? data : (data.profils || []);
+                                    
+                                    const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
+                                    profilsAuteurs.value = names;
+
+                                    if (names.length === 1) {
+                                        auteur.value = names[0];
+                                    } else {
+                                        auteur.value = '';
+                                    }
+                                    console.log("Noms de profils chargés:", profilsAuteurs.value);
+
+                                } catch (error) {
+                                    console.error("Erreur lors du chargement des profils:", error);
+                                    alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
+                                } finally {
+                                    isLoadingProfils.value = false;
+                                }
+                            }
+
+                            onMounted(fetchProfils); // Appelle fetchProfils une fois le composant monté
+
+                            function triggerFile() {
+                                fileInput.value?.click();
+                            }
+
+                            function onDragOver(e) {
+                                e.currentTarget.classList.add('dragover');
+                            }
+
+                            function onDragLeave(e) {
+                                e.currentTarget.classList.remove('dragover');
+                            }
+
+                            function onDrop(e) {
+                                e.currentTarget.classList.remove('dragover');
+                                const files = e.dataTransfer.files;
+                                if (files.length) {
+                                    fileInput.value.files = files;
+                                    handleFile(files[0]);
+                                }
+                            }
+
+                            function onFileChange(e) {
+                                const file = e.target.files[0];
+                                if (file) handleFile(file);
+                            }
+
+                            function handleFile(file) {
+                                const reader = new FileReader();
+                                reader.onload = () => { imagePreviewUrl.value = reader.result; };
+                                reader.onerror = (error) => reject(error);
+                                reader.readAsDataURL(file);
+                            }
+
+                            function getBase64(file) {
+                                return new Promise((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                                    reader.onerror = (error) => reject(error);
+                                    reader.readAsDataURL(file);
+                                });
+                            }
+
+                            async function submitForm() {
+                                if (!auteur.value) {
+                                    alert("Veuillez sélectionner un auteur.");
+                                    return;
+                                }
+                                if (!texte.value.trim()) {
+                                    alert("Veuillez entrer le texte du prompt.");
+                                    return;
+                                }
+
+                                confirmationVisible.value = false;
+                                isLoading.value = true;
+
+                                let imageUrl = '';
+                                const file = fileInput.value?.files?.[0];
+
+                                try {
+                                    if (file) {
+                                        const base64 = await getBase64(file);
+                                        const payload = { fileBase64: base64, fileName: file.name };
+                                        const resp = await fetch('/.netlify/functions/uploadImage', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify(payload)
+                                        });
+                                        if (!resp.ok) {
+                                            const errorText = await resp.text();
+                                            throw new Error(`Upload failed: ${resp.status} - ${errorText}`);
+                                        }
+                                        const data = await resp.json();
+                                        imageUrl = data.url;
+                                        console.log("Image uploadée avec succès:", imageUrl);
+                                    }
+
+                                    const promptResp = await fetch('/.netlify/functions/pushPrompt', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            auteur: auteur.value,
+                                            outil: outil.value,
+                                            chaine: chaine.value,
+                                            texte: texte.value,
+                                            imageUrl
+                                        })
+                                    });
+
+                                    if (!promptResp.ok) {
+                                        const errorText = await promptResp.text();
+                                        throw new Error(`Prompt failed: ${promptResp.status} - ${errorText}`);
+                                    }
+
+                                    confirmationImageUrl.value = imageUrl;
+                                    confirmationTexte.value = texte.value;
+                                    confirmationVisible.value = true;
+
+                                    setTimeout(() => {
+                                        window.location.href = "/galerie.html";
+                                    }, 5000);
+
+                                    auteur.value = '';
+                                    outil.value = 'Midjourney';
+                                    chaine.value = 'La Une';
+                                    texte.value = '';
+                                    imagePreviewUrl.value = '';
+                                    if (fileInput.value) {
+                                        fileInput.value.value = null;
+                                    }
+                                    fetchProfils();
+
+                                } catch (err) {
+                                    console.error('Erreur lors de l\'envoi du prompt:', err);
+                                    alert(`Échec de l'envoi du prompt: ${err.message || err}. Vérifiez la console.`);
+                                } finally {
+                                    isLoading.value = false;
+                                }
+                            }
+
+                            return {
+                                auteur, outil, chaine, texte, fileInput,
+                                imagePreviewUrl, confirmationVisible,
+                                confirmationImageUrl, confirmationTexte,
+                                isLoading, profilsAuteurs, isLoadingProfils,
+                                triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
+                            };
+                        }
+                    };
+
+                    createApp(PromptForm).mount('#app');
+                };
+                document.body.appendChild(vueScript); // Ajoutez le script Vue au body
             })
             .catch(error => console.error("Erreur lors du chargement du header:", error));
-    </script>
-
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script>
-        const { ref, createApp, onMounted } = Vue; // Importez onMounted
-
-        const PROXY_URL = "/.netlify/functions/proxy"; // L'URL de votre fonction Netlify
-
-        const PromptForm = {
-            template: `
-                <div class="container">
-                    <a href="galerie.html" class="retour-lien">← Retour</a>
-                    <h2 style="text-align:center; color:#0077b6;">Partager un prompt</h2>
-                    <form @submit.prevent="submitForm">
-                        <label for="auteur">Votre nom</label>
-                        <select id="auteur" v-model="auteur" required>
-                            <option value="" disabled>Sélectionnez un nom</option>
-                            <option v-for="profilNom in profilsAuteurs" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
-                        </select>
-                        <p v-if="profilsAuteurs.length === 0 && !isLoadingProfils" style="color: #888; font-size: 0.9em; margin-top: 5px;">
-                            Aucun profil trouvé. Assurez-vous d'avoir créé des profils dans la section "Équipe".
-                        </p>
-                        <p v-if="isLoadingProfils" style="color: #0077b6; font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
-
-
-                        <label for="outil">Outil IA utilisé</label>
-                        <select id="outil" v-model="outil">
-                            <option>Midjourney</option>
-                            <option>DALL·E</option>
-                            <option>Stable Diffusion</option>
-                            <option>Adobe Firefly</option>
-                            <option>Runway</option>
-                            <option>ChatGPT</option>
-                        </select>
-
-                        <label for="chaine">Chaîne</label>
-                        <select id="chaine" v-model="chaine">
-                            <option>La Une</option>
-                            <option>Tipik</option>
-                            <option>La Trois</option>
-                            <option>La Première</option>
-                            <option>Classic 21</option>
-                            <option>Vivacité</option>
-                            <option>Musiq3</option>
-                            <option>Auvio</option>
-                        </select>
-
-                        <label for="texte">Prompt</label>
-                        <textarea id="texte" v-model="texte" rows="4" required></textarea>
-
-                        <label>Image</label>
-                        <div id="drop-zone"
-                             @click="triggerFile"
-                             @dragover.prevent="onDragOver"
-                             @dragleave="onDragLeave"
-                             @drop.prevent="onDrop">
-                            Déposez ou cliquez
-                        </div>
-                        <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
-                        <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
-
-                        <div v-if="isLoading" class="loader"></div>
-                        <button v-else type="submit" :disabled="!auteur">Partager</button>
-                    </form>
-
-                    <div class="confirmation" v-if="confirmationVisible">
-                        <p>✅ Prompt partagé avec succès vers la <strong>galerie</strong> !</p>
-                        <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
-                        <p style="white-space: pre-wrap;">{{ confirmationTexte }}</p>
-                        <p style="margin-top: 15px; color: #0077b6;">Redirection vers la galerie dans 5 secondes...</p>
-                    </div>
-                </div>
-            `,
-            setup() {
-                const auteur = ref(''); // Initialisé à vide, l'utilisateur devra choisir
-                const outil = ref('Midjourney');
-                const chaine = ref('La Une');
-                const texte = ref('');
-                const fileInput = ref(null);
-                const imagePreviewUrl = ref('');
-                const confirmationVisible = ref(false);
-                const confirmationImageUrl = ref('');
-                const confirmationTexte = ref('');
-                const isLoading = ref(false);
-                const profilsAuteurs = ref([]); // Nouveau ref pour stocker les noms des profils
-                const isLoadingProfils = ref(true); // Indicateur de chargement pour les profils
-
-                // Fonction pour récupérer les noms des profils
-                async function fetchProfils() {
-                    isLoadingProfils.value = true;
-                    try {
-                        const response = await fetch(`${PROXY_URL}?action=getProfils`);
-                        if (!response.ok) {
-                            throw new Error(`Erreur HTTP: ${response.status}`);
-                        }
-                        const data = await response.json();
-                        // Assurez-vous que data est un tableau ou contient un tableau 'profils'
-                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
-                        
-                        // Extrait les noms uniques et les trie
-                        const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
-                        profilsAuteurs.value = names;
-
-                        // Si un seul profil existe, le présélectionner
-                        if (names.length === 1) {
-                            auteur.value = names[0];
-                        } else {
-                            auteur.value = ''; // Réinitialise l'auteur si plusieurs ou aucun
-                        }
-                        console.log("Noms de profils chargés:", profilsAuteurs.value);
-
-                    } catch (error) {
-                        console.error("Erreur lors du chargement des profils:", error);
-                        // Afficher un message d'erreur à l'utilisateur si nécessaire
-                        alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
-                    } finally {
-                        isLoadingProfils.value = false;
-                    }
-                }
-
-                // Appel de fetchProfils au moment où le composant est monté
-                onMounted(fetchProfils);
-
-                function triggerFile() {
-                    fileInput.value?.click();
-                }
-
-                function onDragOver(e) {
-                    e.currentTarget.classList.add('dragover');
-                }
-
-                function onDragLeave(e) {
-                    e.currentTarget.classList.remove('dragover');
-                }
-
-                function onDrop(e) {
-                    e.currentTarget.classList.remove('dragover');
-                    const files = e.dataTransfer.files;
-                    if (files.length) {
-                        fileInput.value.files = files;
-                        handleFile(files[0]);
-                    }
-                }
-
-                function onFileChange(e) {
-                    const file = e.target.files[0];
-                    if (file) handleFile(file);
-                }
-
-                function handleFile(file) {
-                    const reader = new FileReader();
-                    reader.onload = () => { imagePreviewUrl.value = reader.result; };
-                    reader.readAsDataURL(file);
-                }
-
-                function getBase64(file) {
-                    return new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result.split(',')[1]);
-                        reader.onerror = (error) => reject(error); // Gérer les erreurs de FileReader
-                        reader.readAsDataURL(file);
-                    });
-                }
-
-                async function submitForm() {
-                    // Validation simple au cas où
-                    if (!auteur.value) {
-                        alert("Veuillez sélectionner un auteur.");
-                        return;
-                    }
-                    if (!texte.value.trim()) {
-                        alert("Veuillez entrer le texte du prompt.");
-                        return;
-                    }
-
-                    confirmationVisible.value = false;
-                    isLoading.value = true;
-
-                    let imageUrl = '';
-                    const file = fileInput.value?.files?.[0];
-
-                    try {
-                        if (file) {
-                            const base64 = await getBase64(file);
-                            const payload = { fileBase64: base64, fileName: file.name };
-                            const resp = await fetch('/.netlify/functions/uploadImage', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
-                            });
-                            if (!resp.ok) {
-                                const errorText = await resp.text();
-                                throw new Error(`Upload failed: ${resp.status} - ${errorText}`);
-                            }
-                            const data = await resp.json();
-                            imageUrl = data.url;
-                            console.log("Image uploadée avec succès:", imageUrl);
-                        }
-
-                        const promptResp = await fetch('/.netlify/functions/pushPrompt', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                auteur: auteur.value,
-                                outil: outil.value,
-                                chaine: chaine.value,
-                                texte: texte.value,
-                                imageUrl // Utilisez l'URL de l'image si elle a été uploadée
-                            })
-                        });
-
-                        if (!promptResp.ok) {
-                            const errorText = await promptResp.text();
-                            throw new Error(`Prompt failed: ${promptResp.status} - ${errorText}`);
-                        }
-
-                        confirmationImageUrl.value = imageUrl;
-                        confirmationTexte.value = texte.value;
-                        confirmationVisible.value = true;
-
-                        setTimeout(() => {
-                            window.location.href = "/galerie.html";
-                        }, 5000); // 5 secondes pour laisser le temps de lire le message
-
-                        // Réinitialiser le formulaire après succès
-                        auteur.value = ''; // Sera réinitialisé par la relecture des profils
-                        outil.value = 'Midjourney';
-                        chaine.value = 'La Une';
-                        texte.value = '';
-                        imagePreviewUrl.value = '';
-                        if (fileInput.value) {
-                             fileInput.value.value = null; // Réinitialise l'input file
-                        }
-                        // Recharger les profils pour s'assurer que la liste est à jour (utile si un profil vient d'être créé)
-                        fetchProfils();
-
-                    } catch (err) {
-                        console.error('Erreur lors de l\'envoi du prompt:', err);
-                        alert(`Échec de l'envoi du prompt: ${err.message || err}. Vérifiez la console.`);
-                    } finally {
-                        isLoading.value = false;
-                    }
-                }
-
-                return {
-                    auteur, outil, chaine, texte, fileInput,
-                    imagePreviewUrl, confirmationVisible,
-                    confirmationImageUrl, confirmationTexte,
-                    isLoading, profilsAuteurs, isLoadingProfils, // Exposer les nouveaux états
-                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
-                };
-            }
-        };
-
-        createApp(PromptForm).mount('#app');
     </script>
 </body>
 </html>
