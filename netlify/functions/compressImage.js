@@ -1,26 +1,45 @@
 // netlify/functions/compressImage.js
 
-const sharp = require('sharp'); // Cette ligne ne doit être présente qu'UNE SEULE fois
+const sharp = require('sharp'); // This line should be declared ONLY ONCE
 
 exports.handler = async (event, context) => {
-    // Vérifie que la requête est bien une méthode POST
+    // --- TEMPORARY DEBUG LOGS (REMOVE AFTER SUCCESSFUL DEPLOYMENT) ---
+    console.log('--- FUNCTION INVOKED ---');
+    console.log('Event httpMethod:', event.httpMethod);
+    console.log('Event isBase64Encoded:', event.isBase64Encoded);
+    console.log('Event headers Content-Type:', event.headers['content-type'] || event.headers['Content-Type']);
+    console.log('Event body (first 100 chars):', event.body ? event.body.substring(0, 100) : 'Body is empty');
+    // --- END TEMPORARY DEBUG LOGS ---
+
+    // Ensure the request is a POST method
     if (event.httpMethod !== 'POST') {
         return {
-            statusCode: 405, // Méthode non autorisée
+            statusCode: 405, // Method Not Allowed
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: 'Method Not Allowed. Only POST requests are accepted.' }),
         };
     }
 
+    let requestBody;
     try {
-        // Netlify parse automatiquement le corps de la requête JSON si le Content-Type est 'application/json'.
-        // Donc, event.body est déjà une chaîne JSON que nous pouvons parser directement.
-        const requestBody = JSON.parse(event.body);
+        // Defensive parsing for event.body
+        // Try to decode from Base64 first, then parse as JSON
+        // This handles cases where Netlify might Base64 encode JSON bodies
+        try {
+            const decodedBody = Buffer.from(event.body, 'base64').toString('utf8');
+            requestBody = JSON.parse(decodedBody);
+            console.log('Body parsed as Base64 then JSON'); // For debugging
+        } catch (base64DecodeError) {
+            // If Base64 decoding or JSON parsing of decoded string fails,
+            // try to parse the body directly as JSON (assuming it's not Base64 encoded)
+            requestBody = JSON.parse(event.body);
+            console.log('Body parsed directly as JSON'); // For debugging
+        }
 
         const base64Image = requestBody.image;
         const quality = requestBody.quality;
 
-        // Validation des données reçues
+        // Validation of received data
         if (!base64Image || typeof base64Image !== 'string' || !base64Image.startsWith('data:image')) {
             return {
                 statusCode: 400,
@@ -36,7 +55,7 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Extrait les données Base64 pures de l'URL de données (enlève le préfixe "data:image/jpeg;base64,")
+        // Extract pure Base64 data from the data URL (remove "data:image/jpeg;base64," prefix)
         const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
         if (!matches || matches.length !== 3) {
             return {
@@ -45,25 +64,25 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify({ message: 'Invalid Base64 data URL format. Could not extract image data.' }),
             };
         }
-        const base64Data = matches[2]; // Les données Base64 de l'image
+        const base64Data = matches[2]; // Pure Base64 data of the image
 
-        // Convertit la chaîne Base64 pure en un Buffer binaire, format attendu par Sharp
+        // Convert pure Base64 string to a binary Buffer, which Sharp expects
         const imageBuffer = Buffer.from(base64Data, 'base64');
 
         let compressedBuffer;
-        const outputMimeType = 'image/jpeg'; // Définit le format de sortie comme JPEG pour la compression avec perte
+        const outputMimeType = 'image/jpeg'; // Force output format to JPEG for lossy compression
 
         try {
-            // Utilise Sharp pour compresser l'image
+            // Use Sharp for image compression
             compressedBuffer = await sharp(imageBuffer)
                 .jpeg({
-                    quality: quality,      // Applique la qualité spécifiée (1-100)
-                    progressive: true,     // Active le chargement progressif
-                    chromaSubsampling: '4:4:4' // Préserve mieux les couleurs, peut être '4:2:0' pour plus de compression
+                    quality: quality,
+                    progressive: true,
+                    chromaSubsampling: '4:4:4'
                 })
-                .toBuffer(); // Convertit l'image compressée en Buffer
+                .toBuffer(); // Convert compressed image to Buffer
         } catch (sharpError) {
-            // Gère les erreurs spécifiques à la compression avec Sharp (ex: format non supporté)
+            // Handle Sharp-specific compression errors (e.g., unsupported format)
             console.error('Sharp compression failed:', sharpError);
             return {
                 statusCode: 500,
@@ -72,23 +91,23 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Retourne la réponse au client
-        // Le corps binaire de l'image compressée doit être encodé en Base64 pour Netlify Functions.
+        // Return the response to the client
+        // The binary body of the compressed image must be Base64 encoded for Netlify Functions.
         return {
-            statusCode: 200, // Succès
+            statusCode: 200, // Success
             headers: {
-                'Content-Type': outputMimeType, // Type MIME de l'image retournée (ici image/jpeg)
-                'Content-Length': compressedBuffer.length, // Taille du fichier compressé
-                'Access-Control-Allow-Origin': '*', // Permet les requêtes de n'importe quelle origine (pour le développement)
+                'Content-Type': outputMimeType, // MIME type of the returned image (e.g., image/jpeg)
+                'Content-Length': compressedBuffer.length, // Size of the compressed file
+                'Access-Control-Allow-Origin': '*', // For CORS: allow requests from any origin (for development)
                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type',
             },
-            body: compressedBuffer.toString('base64'), // Le contenu de l'image compressée encodé en Base64
-            isBase64Encoded: true, // Indique à Netlify que le corps de la réponse est encodé en Base64
+            body: compressedBuffer.toString('base64'), // Compressed image content Base64 encoded
+            isBase64Encoded: true, // Crucial: indicates to Netlify that the response body is Base64 encoded
         };
 
     } catch (error) {
-        // Capture toute autre erreur inattendue dans la fonction
+        // Catch any other unexpected errors in the function (e.g., initial JSON parsing failure)
         console.error('General error in Netlify Function:', error);
         return {
             statusCode: 500,
