@@ -3,6 +3,7 @@
 const sharp = require('sharp');
 const multiparty = require('multiparty');
 const fs = require('fs');
+const { Readable } = require('stream'); // Importe la classe Readable
 
 exports.handler = async (event, context) => {
     if (event.httpMethod !== 'POST') {
@@ -13,26 +14,30 @@ exports.handler = async (event, context) => {
         };
     }
 
-    // --- DEBUT DE LA MODIFICATION IMPORTANTE ---
-
-    // 1. Convertir le corps de l'événement en un objet Stream pour multiparty
-    //    multiparty s'attend à un ReadableStream. On va simuler cela.
-    const { Readable } = require('stream'); // Importe la classe Readable de Node.js
-
     return new Promise((resolve) => {
         const form = new multiparty.Form();
 
         // Créer un Readable Stream à partir du corps de l'événement Netlify
-        // Netlify Functions passe le corps des requêtes multipart/form-data déjà encodé en Base64
         const requestStream = new Readable();
         requestStream.push(Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8'));
         requestStream.push(null); // Indique la fin du stream
 
-        // Passage du stream et des headers à multiparty.parse
-        // On simule un objet 'req' (requête HTTP) minimal que multiparty attend.
-        form.parse(requestStream, { headers: event.headers }, async (err, fields, files) => {
-            // --- FIN DE LA MODIFICATION IMPORTANTE ---
+        // CRUCIAL : Simuler un objet 'req' (requête HTTP) avec les en-têtes que multiparty attend.
+        // multiparty a besoin de req.headers['content-type'] et req.headers['content-length']
+        const fakeReq = {
+            headers: event.headers, // Utilise les en-têtes réels de l'événement Netlify
+            // On s'assure que Content-Length est bien là, même si Netlify le gère différemment
+            // Netlify ne met pas Content-Length dans event.headers pour les requêtes POST
+            // mais multiparty peut le déduire du stream si le Content-Type est correct.
+            // On pourrait tenter d'ajouter event.body.length ici, mais ce n'est pas fiable avec Base64.
+            // La solution est de s'assurer que multiparty traite le stream correctement.
+            // La méthode .parse(stream, headers, cb) de multiparty est la bonne.
+        };
 
+
+        // La bonne façon d'appeler form.parse avec un stream et des headers dans multiparty.
+        // Il faut lui passer le stream, puis un objet qui contient les en-têtes.
+        form.parse(requestStream, { headers: event.headers }, async (err, fields, files) => {
             if (err) {
                 console.error('Error parsing form data:', err);
                 return resolve({
