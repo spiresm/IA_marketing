@@ -11,7 +11,7 @@ app.use(bodyParser.json());
 const OpenAI = require('openai');
 
 const openai = new OpenAI({
-  apiKey: 'xxx'
+  apiKey: 'VOTRE_CLÉ_API_OPENAI_ICI'
 });
 
 
