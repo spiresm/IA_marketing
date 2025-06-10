@@ -188,7 +188,6 @@
         const apiBase = window.location.origin + '/.netlify/functions/';
 
         // Écouteur pour le bouton de compression
-        // J'ai ajouté 'event' ici et event.preventDefault() est important si le bouton est dans un <form>
         compressBtn.addEventListener('click', async (event) => {
             // Empêche la soumission par défaut du formulaire si le bouton est de type "submit"
             // Bien que nous utilisions type="button", c'est une bonne pratique de sécurité.
@@ -220,8 +219,8 @@
                             'Content-Type': 'application/json', // TRÈS IMPORTANT : nous envoyons du JSON
                         },
                         body: JSON.stringify({ // Stringifier l'objet JSON pour l'envoi
-                            image: base64Image, // L'image en Base64
-                            quality: parseInt(quality, 10) // La qualité, convertie en nombre
+                            image: base64Image,
+                            quality: parseInt(quality, 10)
                         }),
                     });
 
@@ -231,25 +230,16 @@
                         throw new Error(`Erreur du serveur: ${response.status} - ${errorBody}`);
                     }
 
-                    // Lire la réponse comme une chaîne Base64 (l'image compressée)
-                    const base64CompressedImage = await response.text();
+                    // --- DÉBUT DE LA CORRECTION CLÉ POUR L'ERREUR 'InvalidCharacterError' ---
+                    // Le serveur renvoie isBase64Encoded: true et Content-Type: image/jpeg.
+                    // Fetch peut directement lire cela comme un Blob.
+                    const blob = await response.blob();
 
-                    // Validation de la réponse
-                    if (!base64CompressedImage || base64CompressedImage.length === 0) {
+                    // Validation simple du blob
+                    if (!blob || blob.size === 0) {
                         throw new Error('Réponse vide ou invalide de la fonction Netlify.');
                     }
-
-                    // Décoder la chaîne Base64 en un tableau d'octets
-                    const byteCharacters = atob(base64CompressedImage);
-                    const byteNumbers = new Array(byteCharacters.length);
-                    for (let i = 0; i < byteCharacters.length; i++) {
-                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                    }
-                    const byteArray = new Uint8Array(byteNumbers);
-
-                    // Créer un Blob à partir du tableau d'octets
-                    // Le type MIME doit correspondre au 'Content-Type' renvoyé par votre fonction Netlify (image/jpeg)
-                    const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                    // --- FIN DE LA CORRECTION ---
 
                     // Calcul des tailles et de la réduction
                     const compressedSizeKB = (blob.size / 1024).toFixed(2);
@@ -264,7 +254,6 @@
                     // Afficher les éléments cachés et configurer le bouton de téléchargement
                     compressedImageContainer.style.display = 'block';
                     downloadBtn.href = URL.createObjectURL(blob);
-                    // Suggère un nom de fichier pour le téléchargement
                     downloadBtn.download = `compressed_${selectedFile.name.replace(/\.[^/.]+$/, "")}.jpeg`;
                     downloadBtn.style.display = 'inline-block';
                     showMessage('Image compressée avec succès ! Vous pouvez maintenant la télécharger.', 'success');
@@ -291,7 +280,6 @@
         // Initialiser la valeur au chargement
         qualityValueSpan.textContent = qualityRange.value;
 
-        // ... (Votre code JavaScript existant pour d'autres fonctions, si applicable) ...
     </script>
 </body>
 </html>
