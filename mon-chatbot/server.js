@@ -42,12 +42,16 @@ app.post('/api/chat', async (req, res) => {
     .join("\n\n");
 
   const systemPrompt = baseConnaissances.length > 0
-    ? `Tu es un assistant IA pour le site d'équipe marketing. Voici des extraits utiles à connaître pour répondre :\n\n${contexte}`
-    : "Tu es un assistant IA pour un site d'équipe marketing. Réponds aux questions aussi clairement que possible.";
+    ? `Tu es un assistant IA pour un site d'équipe marketing. Utilise les informations suivantes issues du site pour répondre précisément aux questions des utilisateurs.\n\n${contexte}`
+    : "Tu es un assistant IA pour un site d'équipe marketing.";
+
+  // 🧪 Log temporaire pour vérifier le prompt envoyé
+  console.log("\n🧠 Prompt système envoyé à OpenAI (extrait):\n", systemPrompt.slice(0, 1000), "\n");
 
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
+      temperature: 0.7,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
