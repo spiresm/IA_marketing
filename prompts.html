@@ -7,9 +7,10 @@
     <link rel="stylesheet" href="style.css" />
     <style>
         /* Styles pour les transitions de visibilité du body et main */
+        /* Ces styles s'appliquent en priorité si définis ici */
         body {
             opacity: 0;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.5s ease-in; /* 'ease-in' pour une apparition douce */
         }
 
         body.show {
@@ -18,18 +19,15 @@
 
         main {
             opacity: 0; /* Gardez ceci pour la transition d'apparition de main */
-            transition: opacity 0.5s ease;
+            transition: opacity 0.5s ease-in; /* 'ease-in' pour une apparition douce */
+            padding: 40px 20px; /* Appliqué ici, car il est spécifique à main */
         }
 
         main.show {
             opacity: 1;
         }
 
-        /* Vos autres styles CSS spécifiques à cette page */
-        main {
-            padding: 40px 20px;
-        }
-
+        /* Vos autres styles CSS spécifiques à cette page (déplacés dans .container pour clarté) */
         .container {
             max-width: 600px;
             margin: 0 auto;
@@ -37,7 +35,7 @@
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
             padding: 30px;
-            position: relative; /* Nécessaire si vous utilisez des éléments positionnés à l'intérieur */
+            position: relative;
         }
 
         .retour-lien {
@@ -57,17 +55,18 @@
             font-weight: 600;
             display: block;
             margin-top: 15px;
+            margin-bottom: 5px; /* Ajouté pour un meilleur espacement */
         }
 
         input, select, textarea {
             width: 100%;
             padding: 10px;
-            margin-top: 5px;
+            /* margin-top: 5px; -- Supprimé car le label a un margin-bottom */
             border: 1px solid #ccc;
             border-radius: 8px;
             font-size: 1em;
             background: #f9fafb;
-            box-sizing: border-box; /* Assure que le padding ne fait pas déborder l'élément */
+            box-sizing: border-box;
         }
 
         #drop-zone {
@@ -88,8 +87,10 @@
         #image-preview {
             display: block;
             max-width: 80%;
+            height: auto; /* Important pour garder les proportions */
             margin: 15px auto;
             border-radius: 10px;
+            border: 1px solid #eee; /* Petite bordure pour les aperçus */
         }
 
         button {
@@ -102,7 +103,8 @@
             margin-top: 25px;
             font-size: 1em;
             cursor: pointer;
-            box-sizing: border-box; /* Assure que le padding ne fait pas déborder l'élément */
+            box-sizing: border-box;
+            transition: background 0.2s;
         }
 
         button:hover {
@@ -116,12 +118,16 @@
             border: 1px solid #b7eb8f;
             border-radius: 10px;
             text-align: center;
+            color: #28a745; /* Couleur pour le texte de succès */
+            font-weight: bold; /* Texte plus visible */
         }
 
         .confirmation img {
             max-width: 80%;
+            height: auto; /* Important pour garder les proportions */
             margin-top: 15px;
             border-radius: 10px;
+            border: 1px solid #b7eb8f; /* Bordure pour l'image de confirmation */
         }
 
         .loader {
@@ -138,48 +144,76 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Message d'erreur / succès au niveau du formulaire */
+        .form-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .form-message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #badbcc;
+        }
+
+        .form-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
 
     <div id="header-placeholder"></div>
     <main>
-        <div id="app"></div> </main>
+        <div id="app"></div>
+    </main>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
     <script>
-        // S'assurer que le DOM est entièrement chargé avant d'exécuter les scripts
+        const apiBase = window.location.origin + '/.netlify/functions/'; // Assurez-vous que c'est correct
+
         document.addEventListener("DOMContentLoaded", () => {
+            console.log("DOMContentLoaded déclenché pour prompts.html");
+
             const headerPlaceholder = document.getElementById("header-placeholder");
             const mainElement = document.querySelector("main");
             const bodyElement = document.body;
 
-            // Déstructure les fonctions de Vue 3 (ref, createApp)
-            const { ref, createApp } = Vue;
+            // Déstructure les fonctions de Vue 3 (ref, createApp, nextTick)
+            const { ref, createApp, nextTick } = Vue;
 
             // Définition du composant Vue
             const PromptForm = {
                 template: `
                     <div class="container">
-                        <a href="galerie.html" class="retour-lien">← Retour</a>
+                        <a href="galerie.html" class="retour-lien">← Retour à la galerie</a>
                         <h2 style="text-align:center; color:#0077b6;">Partager un prompt</h2>
                         <form @submit.prevent="submitForm">
-                            <label for="auteur">Votre nom</label>
-                            <input id="auteur" v-model="auteur" required />
+                            <label for="auteur">Votre nom (facultatif)</label>
+                            <input id="auteur" v-model="auteur" placeholder="Anonyme" />
 
                             <label for="outil">Outil IA utilisé</label>
-                            <select id="outil" v-model="outil">
+                            <select id="outil" v-model="outil" required>
+                                <option value="">-- Sélectionnez un outil --</option>
                                 <option>Midjourney</option>
                                 <option>DALL·E</option>
                                 <option>Stable Diffusion</option>
                                 <option>Adobe Firefly</option>
                                 <option>Runway</option>
                                 <option>ChatGPT</option>
+                                <option>Autre</option>
                             </select>
 
-                            <label for="chaine">Chaîne</label>
-                            <select id="chaine" v-model="chaine">
+                            <label for="chaine">Chaîne / Média d'origine</label>
+                            <select id="chaine" v-model="chaine" required>
+                                <option value="">-- Sélectionnez une chaîne --</option>
                                 <option>La Une</option>
                                 <option>Tipik</option>
                                 <option>La Trois</option>
@@ -188,45 +222,56 @@
                                 <option>Vivacité</option>
                                 <option>Musiq3</option>
                                 <option>Auvio</option>
+                                <option>Autre</option>
                             </select>
 
-                            <label for="texte">Prompt</label>
-                            <textarea id="texte" v-model="texte" rows="4" required></textarea>
+                            <label for="texte">Texte du prompt</label>
+                            <textarea id="texte" v-model="texte" rows="6" required placeholder="Ex: Un paysage futuriste avec des néons et des éléments de la nature, style art nouveau"></textarea>
 
-                            <label>Image</label>
+                            <label>Image (facultatif)</label>
                             <div id="drop-zone"
-                                    @click="triggerFile"
-                                    @dragover.prevent="onDragOver"
-                                    @dragleave="onDragLeave"
-                                    @drop.prevent="onDrop">
-                                Déposez ou cliquez
+                                 @click="triggerFile"
+                                 @dragover.prevent="onDragOver"
+                                 @dragleave="onDragLeave"
+                                 @drop.prevent="onDrop">
+                                <p>Déposez une image ici ou cliquez pour la sélectionner.</p>
+                                <p v-if="selectedFileName">Fichier sélectionné : {{ selectedFileName }}</p>
                             </div>
                             <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
-                            <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
+                            <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" alt="Aperçu de l'image" />
+                            <p v-if="imagePreviewUrl" style="text-align: center; margin-top: 5px;">
+                                <button type="button" @click="clearImage" style="width: auto; padding: 5px 10px; margin-top: 0; background: #dc3545;">Supprimer l'image</button>
+                            </p>
 
+
+                            <div v-if="formMessage" :class="['form-message', messageType]">{{ formMessage }}</div>
                             <div v-if="isLoading" class="loader"></div>
-                            <button v-else type="submit">Partager</button>
+                            <button v-else type="submit" :disabled="isLoading">Partager le prompt</button>
                         </form>
 
                         <div class="confirmation" v-if="confirmationVisible">
                             <p>✅ Prompt partagé avec succès vers la <strong>galerie</strong> !</p>
-                            <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
+                            <img v-if="confirmationImageUrl" :src="confirmationImageUrl" alt="Image du prompt partagé" />
                             <p style="white-space: pre-wrap;">{{ confirmationTexte }}</p>
-                            <p style="margin-top: 15px; color: #0077b6;">Redirection vers la galerie dans 5 secondes...</p>
+                            <p style="margin-top: 15px; color: #0077b6;">Redirection vers la galerie dans {{ countdown }} secondes...</p>
                         </div>
                     </div>
                 `,
                 setup() {
                     const auteur = ref('');
-                    const outil = ref('Midjourney');
-                    const chaine = ref('La Une');
+                    const outil = ref(''); // Valeur vide par défaut pour forcer la sélection
+                    const chaine = ref(''); // Valeur vide par défaut pour forcer la sélection
                     const texte = ref('');
                     const fileInput = ref(null);
                     const imagePreviewUrl = ref('');
+                    const selectedFileName = ref(''); // Pour afficher le nom du fichier
                     const confirmationVisible = ref(false);
                     const confirmationImageUrl = ref('');
                     const confirmationTexte = ref('');
                     const isLoading = ref(false);
+                    const formMessage = ref(''); // Pour les messages de validation/erreur
+                    const messageType = ref(''); // 'success' ou 'error'
+                    const countdown = ref(3); // Compte à rebours pour la redirection
 
                     function triggerFile() { fileInput.value?.click(); }
                     function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
@@ -235,7 +280,7 @@
                         e.currentTarget.classList.remove('dragover');
                         const files = e.dataTransfer.files;
                         if (files.length) {
-                            fileInput.value.files = files;
+                            fileInput.value.files = files; // Assign files to native input
                             handleFile(files[0]);
                         }
                     }
@@ -244,40 +289,74 @@
                         if (file) handleFile(file);
                     }
                     function handleFile(file) {
+                        if (!file.type.startsWith('image/')) {
+                            formMessage.value = 'Veuillez sélectionner un fichier image valide.';
+                            messageType.value = 'error';
+                            clearImage();
+                            return;
+                        }
+                        selectedFileName.value = file.name;
                         const reader = new FileReader();
                         reader.onload = () => { imagePreviewUrl.value = reader.result; };
                         reader.readAsDataURL(file);
+                        formMessage.value = ''; // Clear message on new file selection
                     }
+                    function clearImage() {
+                        imagePreviewUrl.value = '';
+                        selectedFileName.value = '';
+                        if (fileInput.value) fileInput.value.value = null; // Clear native file input
+                    }
+
                     function getBase64(file) {
                         return new Promise((resolve, reject) => {
                             const reader = new FileReader();
                             reader.onload = () => resolve(reader.result.split(',')[1]);
-                            reader.onerror = () => reject();
+                            reader.onerror = error => reject(error);
                             reader.readAsDataURL(file);
                         });
                     }
+
                     async function submitForm() {
+                        formMessage.value = ''; // Clear previous messages
+                        messageType.value = '';
                         confirmationVisible.value = false;
                         isLoading.value = true;
 
-                        let imageUrl = '';
+                        // Basic client-side validation
+                        if (!auteur.value.trim()) auteur.value = 'Anonyme'; // Default if empty
+                        if (!outil.value || !chaine.value || !texte.value.trim()) {
+                            formMessage.value = 'Veuillez remplir tous les champs obligatoires (Outil, Chaîne, Prompt).';
+                            messageType.value = 'error';
+                            isLoading.value = false;
+                            return;
+                        }
+
+                        let finalImageUrl = '';
                         const file = fileInput.value?.files?.[0];
 
                         try {
                             if (file) {
+                                // 1. Upload de l'image
                                 const base64 = await getBase64(file);
                                 const payload = { fileBase64: base64, fileName: file.name };
-                                const resp = await fetch('/.netlify/functions/uploadImage', {
+                                console.log("Envoi de l'image à Netlify Function...");
+                                const resp = await fetch(`${apiBase}uploadImage`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify(payload)
                                 });
-                                if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+                                if (!resp.ok) {
+                                    const errorData = await resp.json();
+                                    throw new Error(`Échec de l'upload de l'image: ${resp.status} - ${errorData.message || 'Erreur inconnue'}`);
+                                }
                                 const data = await resp.json();
-                                imageUrl = data.url;
+                                finalImageUrl = data.url;
+                                console.log("Image uploadée, URL:", finalImageUrl);
                             }
 
-                            const promptResp = await fetch('/.netlify/functions/pushPrompt', {
+                            // 2. Soumission du prompt
+                            console.log("Envoi du prompt à Netlify Function...");
+                            const promptResp = await fetch(`${apiBase}pushPrompt`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -285,30 +364,45 @@
                                     outil: outil.value,
                                     chaine: chaine.value,
                                     texte: texte.value,
-                                    imageUrl
+                                    imageUrl: finalImageUrl,
+                                    date: new Date().toISOString() // Ajout de la date ici
                                 })
                             });
 
-                            if (!promptResp.ok) throw new Error(`Prompt failed: ${promptResp.status}`);
+                            if (!promptResp.ok) {
+                                const errorData = await promptResp.json();
+                                throw new Error(`Échec de l'archivage du prompt: ${promptResp.status} - ${errorData.message || 'Erreur inconnue'}`);
+                            }
 
-                            confirmationImageUrl.value = imageUrl;
+                            console.log("Prompt archivé avec succès.");
+                            confirmationImageUrl.value = finalImageUrl;
                             confirmationTexte.value = texte.value;
                             confirmationVisible.value = true;
+                            formMessage.value = 'Prompt partagé avec succès !';
+                            messageType.value = 'success';
 
-                            setTimeout(() => {
-                                window.location.href = "/galerie.html";
-                            }, 3000);
+                            // Démarrer le compte à rebours
+                            let count = 3;
+                            countdown.value = count;
+                            const interval = setInterval(() => {
+                                count--;
+                                countdown.value = count;
+                                if (count <= 0) {
+                                    clearInterval(interval);
+                                    window.location.href = "/galerie.html?success=1"; // Rediriger vers la galerie avec un flag de succès
+                                }
+                            }, 1000);
 
-                            // Réinitialiser les champs du formulaire
+                            // Réinitialiser le formulaire
                             auteur.value = '';
-                            outil.value = 'Midjourney';
-                            chaine.value = 'La Une';
+                            outil.value = ''; // Remettre à la valeur par défaut du select
+                            chaine.value = ''; // Remettre à la valeur par défaut du select
                             texte.value = '';
-                            imagePreviewUrl.value = '';
-                            if (fileInput.value) fileInput.value.value = null; // Effacer le champ de fichier
+                            clearImage(); // Utiliser la fonction pour nettoyer l'image
                         } catch (err) {
-                            alert('Échec envoi prompt');
-                            console.error("Erreur lors de l'envoi du formulaire:", err); // Ajoutez ceci pour le débogage
+                            console.error("Erreur lors de l'envoi du formulaire:", err);
+                            formMessage.value = `Échec du partage: ${err.message || 'Vérifiez la console.'}`;
+                            messageType.value = 'error';
                         } finally {
                             isLoading.value = false;
                         }
@@ -316,29 +410,52 @@
 
                     return {
                         auteur, outil, chaine, texte, fileInput,
-                        imagePreviewUrl, confirmationVisible,
-                        confirmationImageUrl, confirmationTexte,
-                        isLoading,
-                        triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
+                        imagePreviewUrl, selectedFileName,
+                        confirmationVisible, confirmationImageUrl, confirmationTexte,
+                        isLoading, formMessage, messageType, countdown,
+                        triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
+                        handleFile, clearImage, submitForm
                     };
                 }
             };
 
-            // Montez l'application Vue.js sur l'élément #app
-            createApp(PromptForm).mount('#app');
-
-            // Chargez le header et rendez le body/main visible
-            // Cette partie s'exécute APRÈS que Vue ait monté le formulaire
+            // Chargez le header d'abord
             fetch("header.html")
-                .then(r => r.text())
-                .then(html => {
-                    headerPlaceholder.innerHTML = html;
-                    bodyElement.classList.add("show");
-                    mainElement.classList.add("show");
+                .then(res => {
+                    console.log("Header fetch response:", res.status);
+                    if (!res.ok) {
+                        return Promise.reject(res);
+                    }
+                    return res.text();
+                })
+                .then(data => {
+                    headerPlaceholder.innerHTML = data;
+                    console.log("Header chargé dans le placeholder.");
+                    // Activez le lien de navigation correspondant
+                    document.querySelectorAll("nav a").forEach(link => {
+                        if (link.getAttribute("href") === "prompts.html") {
+                            link.classList.add("active");
+                            console.log("Lien 'Archiver un prompt' activé.");
+                        }
+                    });
                 })
                 .catch(error => {
-                    console.error("Erreur lors du chargement de header.html:", error);
+                    console.error("Erreur de chargement du menu (header.html):", error);
                     headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                })
+                .finally(() => {
+                    // Montez l'application Vue.js SEULEMENT après le chargement du header
+                    // Ceci garantit que #app est dans le DOM et visible (opacity gérée par mainElement.classList.add('show'))
+                    createApp(PromptForm).mount('#app');
+                    console.log("Application Vue montée sur #app.");
+
+                    // Rendre le body et le main visibles après le chargement du header ET le montage de Vue
+                    // Utilisez nextTick pour vous assurer que Vue a fini ses mises à jour initiales
+                    nextTick(() => {
+                        bodyElement.classList.add("show");
+                        mainElement.classList.add("show");
+                        console.log("Classes 'show' ajoutées à body et main après le montage de Vue.");
+                    });
                 });
         });
     </script>
