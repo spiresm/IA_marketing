@@ -6,6 +6,7 @@
   <title>Galerie - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
+    /* Styles pour les transitions de visibilité */
     body {
       opacity: 0;
       transition: opacity 0.5s ease-in;
@@ -20,6 +21,8 @@
     main.show {
       opacity: 1;
     }
+
+    /* Styles pour la disposition générale */
     #header-placeholder {
       width: 100%;
     }
@@ -33,6 +36,7 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
     }
 
+    /* Styles pour les filtres */
     .filters-header {
       display: flex;
       justify-content: space-between;
@@ -60,6 +64,7 @@
       min-width: 120px;
     }
 
+    /* Styles pour les boutons d'action */
     .action-buttons {
       display: flex;
       gap: 10px;
@@ -80,6 +85,7 @@
       background: #005f8a;
     }
 
+    /* Styles pour la galerie de prompts */
     #galerie {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -195,6 +201,7 @@
       background: rgba(255, 0, 0, 0.9);
     }
 
+    /* Message de succès */
     #success-message {
       background-color: #d4edda;
       color: #155724;
@@ -257,20 +264,42 @@
 
   <script>
     const apiBase = window.location.origin + '/.netlify/functions/';
-    const branch = 'main';
-    let tousLesPrompts = []; // Stocke tous les prompts récupérés
+    const branch = 'main'; // Si nécessaire pour d'autres fonctions Netlify
+    let tousLesPrompts = []; // Stocke tous les prompts récupérés pour le filtrage
 
     document.addEventListener("DOMContentLoaded", () => {
       const headerPlaceholder = document.getElementById("header-placeholder");
       const mainElement = document.querySelector("main");
       const bodyElement = document.body;
+      const galerieDiv = document.getElementById('galerie'); // Déplacé ici pour être accessible
 
-      // Fonction pour charger le header
+      // 1. Forcer la visibilité de 'main' et 'galerie' au chargement du DOM
+      // Ceci est votre code qui fonctionnait dans la console.
+      // Il est important qu'il soit DANS le DOMContentLoaded pour s'assurer
+      // que les éléments HTML sont bien disponibles.
+      if (mainElement && galerieDiv) {
+          mainElement.style.display = 'block';
+          mainElement.style.opacity = '1';
+          mainElement.style.visibility = 'visible';
+
+          galerieDiv.style.display = 'grid'; // Utilisez 'grid' car #galerie est un grid
+          galerieDiv.style.minHeight = '300px';
+          galerieDiv.style.opacity = '1';
+          galerieDiv.style.visibility = 'visible';
+          // La bordure rouge est utile pour le débogage, vous pouvez la supprimer
+          // une fois que tout est visible et que vous êtes satisfait.
+          galerieDiv.style.border = '2px dashed red';
+
+          console.log('✅ main et galerie forcés visibles');
+      } else {
+          console.warn('⚠️ main ou galerie introuvables lors du chargement du DOM');
+      }
+
+      // 2. Charger le header
       fetch("header.html")
         .then(res => res.ok ? res.text() : Promise.reject(res))
         .then(data => {
           headerPlaceholder.innerHTML = data;
-
           document.querySelectorAll("nav a").forEach(link => {
             if (link.getAttribute("href") === "galerie.html") {
               link.classList.add("active");
@@ -282,47 +311,45 @@
           headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
         })
         .finally(() => {
-          // Toujours exécuter l'affichage, même si le menu a échoué
+          // 3. Afficher le corps et le main après le chargement du header
           bodyElement.classList.add("show");
           mainElement.classList.add("show");
+          // 4. Charger et afficher les prompts (contenu dynamique)
           chargerEtAfficherPrompts();
         });
 
-      // Gérer l'affichage du message de succès si un prompt vient d'être partagé
+      // 5. Gérer le message de succès si un prompt vient d'être partagé
       if (window.location.search.includes('success=1')) {
         const msg = document.getElementById('success-message');
         msg.textContent = '✅ Prompt partagé avec succès vers la galerie !';
         msg.style.opacity = '1';
         setTimeout(() => msg.style.opacity = '0', 2000);
-        // Supprime le paramètre de succès de l'URL après l'affichage du message
         setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
       }
     });
 
-    // --- Nouvelle fonction pour charger et afficher les prompts ---
+    // --- Fonctions de chargement et d'affichage des prompts ---
     async function chargerEtAfficherPrompts() {
       const galerieDiv = document.getElementById('galerie');
-      galerieDiv.innerHTML = '<p>Chargement des prompts...</p>'; // Message de chargement
+      galerieDiv.innerHTML = '<p>Chargement des prompts...</p>'; // Message de chargement initial
 
       try {
-        // Appel de votre fonction Netlify getGalleryPrompts
         const response = await fetch(`${apiBase}getGalleryPrompts`);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
         }
-        
+
         const prompts = await response.json();
-        tousLesPrompts = prompts; // Stocke les prompts pour le filtrage
-        
+        tousLesPrompts = prompts; // Stocke tous les prompts pour le filtrage
         console.log("Prompts récupérés :", prompts);
 
         if (prompts.length === 0) {
           galerieDiv.innerHTML = '<p>Aucun prompt trouvé pour le moment.</p>';
         } else {
           afficherPrompts(prompts); // Affiche tous les prompts au départ
-          setupFiltres(); // Met en place les listeners des filtres après le chargement initial
+          setupFiltres(); // Met en place les listeners des filtres
         }
 
       } catch (error) {
@@ -331,7 +358,6 @@
       }
     }
 
-    // Fonction pour afficher les prompts dans la galerie
     function afficherPrompts(prompts) {
       const galerieDiv = document.getElementById('galerie');
       galerieDiv.innerHTML = ''; // Vide la galerie avant d'ajouter les prompts
@@ -344,15 +370,13 @@
       prompts.forEach(prompt => {
         const carte = document.createElement('div');
         carte.className = 'carte';
-        // Ajout d'un dataset pour l'ID du prompt si besoin pour suppression
-        // Utilise Date.now() ou un hash si prompt.id ou prompt.fileName n'est pas garanti
         carte.dataset.promptId = prompt.id || (prompt.texte ? btoa(prompt.texte).substring(0,10) : `no-id-${Math.random().toString(36).substring(2, 9)}`);
 
         const img = document.createElement('img');
         img.src = prompt.imageUrl || `https://via.placeholder.com/180x150?text=No_Image`;
         img.alt = prompt.titre || 'Prompt Image';
-        img.onerror = function() { // Gère les erreurs de chargement d'image
-          this.onerror = null; // Empêche la boucle infinie
+        img.onerror = function() {
+          this.onerror = null;
           this.src = `https://via.placeholder.com/180x150?text=Image_Non_Dispo`;
         };
         carte.appendChild(img);
@@ -376,7 +400,6 @@
 
         const promptTexte = document.createElement('p');
         promptTexte.className = 'prompt-texte';
-        // CORRECTION MAJEURE: Utilise prompt.texte au lieu de prompt.prompt
         promptTexte.textContent = prompt.texte || 'Aucun texte de prompt.';
         texteCol.appendChild(promptTexte);
 
@@ -384,7 +407,6 @@
         copierBtn.className = 'copier-btn';
         copierBtn.textContent = 'Copier le prompt';
         copierBtn.onclick = () => {
-          // CORRECTION: Copie prompt.texte au lieu de prompt.prompt
           navigator.clipboard.writeText(prompt.texte || '').then(() => {
             alert('Prompt copié !');
           }).catch(err => {
@@ -393,16 +415,14 @@
         };
         texteCol.appendChild(copierBtn);
 
-        // Bouton de suppression (si vous voulez gérer la suppression depuis la galerie)
         const supprimerBtn = document.createElement('button');
         supprimerBtn.className = 'supprimer-btn';
-        supprimerBtn.innerHTML = '&times;'; // Symbole "x"
+        supprimerBtn.innerHTML = '&times;';
         supprimerBtn.title = "Supprimer ce prompt";
         supprimerBtn.onclick = async (e) => {
-          e.stopPropagation(); // Empêche de déclencher d'autres événements sur la carte
+          e.stopPropagation();
           if (confirm('Êtes-vous sûr de vouloir supprimer ce prompt ?')) {
             try {
-              // Utilisez l'ID généré si l'original n'est pas présent
               const promptToDeleteId = prompt.id || (prompt.texte ? btoa(prompt.texte).substring(0,10) : null);
               if (!promptToDeleteId) {
                   alert("Impossible de supprimer : ID de prompt introuvable.");
@@ -413,7 +433,7 @@
               });
               if (deleteResponse.ok) {
                 alert('Prompt supprimé avec succès !');
-                chargerEtAfficherPrompts(); // Recharge la galerie après suppression
+                chargerEtAfficherPrompts();
               } else {
                 const errorData = await deleteResponse.json();
                 alert(`Échec de la suppression: ${errorData.message}`);
@@ -426,13 +446,11 @@
         };
         carte.appendChild(supprimerBtn);
 
-
         carte.appendChild(texteCol);
         galerieDiv.appendChild(carte);
       });
     }
 
-    // Fonction pour attribuer une couleur à chaque chaîne (personnalisez si besoin)
     function getChaineColor(chaine) {
       switch (chaine) {
         case 'La Une': return '#FF5733';
@@ -443,10 +461,9 @@
         case 'vivacité': return '#A133FF';
         case 'Musiq3': return '#33A1FF';
         case 'Auvio': return '#FFBD33';
-        default: return '#6c757d'; // Couleur par défaut
+        default: return '#6c757d';
       }
     }
-
 
     // --- Fonctions de filtrage et de tri ---
     function filtrerEtTrierPrompts() {
@@ -455,12 +472,11 @@
       const filtreChaine = document.getElementById('filtre-chaine').value;
       const filtreTri = document.getElementById('filtre-tri').value;
 
-      let promptsFiltres = [...tousLesPrompts]; // Commence avec tous les prompts
+      let promptsFiltres = [...tousLesPrompts];
 
       if (filtreNom) {
         promptsFiltres = promptsFiltres.filter(prompt =>
           (prompt.titre && prompt.titre.toLowerCase().includes(filtreNom)) ||
-          // CORRECTION: Recherche aussi dans prompt.texte pour le filtre par nom
           (prompt.texte && prompt.texte.toLowerCase().includes(filtreNom))
         );
       }
@@ -471,30 +487,26 @@
         promptsFiltres = promptsFiltres.filter(prompt => prompt.chaine === filtreChaine);
       }
 
-      // Tri
       promptsFiltres.sort((a, b) => {
-        // Gérer le cas où la date n'est pas présente pour éviter "Invalid Date"
-        const dateA = a.date ? new Date(a.date) : new Date(0); // Utilise une date de référence si non présente
-        const dateB = b.date ? new Date(b.date) : new Date(0); // Utilise une date de référence si non présente
+        const dateA = a.date ? new Date(a.date) : new Date(0);
+        const dateB = b.date ? new Date(b.date) : new Date(0);
 
         if (filtreTri === 'recent') {
-          return dateB - dateA; // Du plus récent au plus ancien
-        } else { // 'ancien'
-          return dateA - dateB; // Du plus ancien au plus récent
+          return dateB - dateA;
+        } else {
+          return dateA - dateB;
         }
       });
 
       afficherPrompts(promptsFiltres);
     }
 
-    // Met en place les event listeners pour les filtres
     function setupFiltres() {
         document.getElementById('filtre-nom').addEventListener('input', filtrerEtTrierPrompts);
         document.getElementById('filtre-outil').addEventListener('change', filtrerEtTrierPrompts);
         document.getElementById('filtre-chaine').addEventListener('change', filtrerEtTrierPrompts);
         document.getElementById('filtre-tri').addEventListener('change', filtrerEtTrierPrompts);
     }
-
   </script>
 </body>
 </html>
