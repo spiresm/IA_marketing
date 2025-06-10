@@ -1,5 +1,4 @@
-console.log("✅ Le script démarre");
-
+console.log("✅ Le script démarre...");
 
 const axios = require('axios');
 const cheerio = require('cheerio');
@@ -21,10 +20,10 @@ async function extraireContenu(url) {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
     const texte = $('body').text().replace(/\s+/g, ' ').trim();
-    return texte.slice(0, 4000); // coupe à 4000 caractères max
+    return texte.length ? texte.slice(0, 4000) : '[⚠️ Aucun texte détecté]';
   } catch (e) {
-    console.error(`❌ Erreur ${url} :`, e.message);
-    return '';
+    console.error(`❌ Erreur lors du chargement de ${url} :`, e.message);
+    return '[❌ Erreur de récupération]';
   }
 }
 
@@ -32,17 +31,21 @@ async function construireBase() {
   const base = [];
 
   for (const page of pages) {
-    console.log(`🔎 Scraping : ${page.nom}`);
+    console.log(`🔎 Scraping : ${page.nom} (${page.url})`);
     const contenu = await extraireContenu(page.url);
+
     base.push({
       titre: page.nom,
       url: page.url,
       contenu
     });
+
+    // Optionnel : petite pause pour éviter d'enchaîner trop vite
+    await new Promise(resolve => setTimeout(resolve, 300));
   }
 
   fs.writeFileSync('connaissances.json', JSON.stringify(base, null, 2), 'utf-8');
-  console.log('✅ connaissances.json généré !');
+  console.log('✅ Fichier "connaissances.json" généré avec', base.length, 'pages.');
 }
 
 construireBase();
