@@ -36,12 +36,14 @@ const openai = new OpenAI({
 app.post('/api/chat', async (req, res) => {
   const userMessage = req.body.message;
 
-  // 🧩 Crée le prompt de contexte à partir des pages
-  const contexte = baseConnaissances.map(p => `📄 ${p.titre} (${p.url}) : ${p.contenu}`).join("\n\n");
+  // 🔍 Construit un contexte synthétique à partir des pages connues
+  const contexte = baseConnaissances
+    .map(p => `📄 ${p.titre} (${p.url}) : ${p.contenu.slice(0, 500)}`)
+    .join("\n\n");
 
   const systemPrompt = baseConnaissances.length > 0
-    ? `Tu es un assistant pour un site d'équipe marketing. Voici des informations à connaître sur le site :\n\n${contexte}`
-    : "Tu es un assistant IA pour un site d'équipe marketing.";
+    ? `Tu es un assistant IA pour le site d'équipe marketing. Voici des extraits utiles à connaître pour répondre :\n\n${contexte}`
+    : "Tu es un assistant IA pour un site d'équipe marketing. Réponds aux questions aussi clairement que possible.";
 
   try {
     const completion = await openai.chat.completions.create({
