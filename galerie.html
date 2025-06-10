@@ -119,61 +119,70 @@
             display: flex;
             align-items: center;
             padding: 10px;
-            position: relative; /* Pour positionner l'image zoomée et le bouton supprimer */
-            transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
+            position: relative; /* Indispensable pour que l'image absolue s'y réfère */
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
             box-sizing: border-box;
             width: 100%;
             z-index: 1; /* Z-index de base pour une carte non survolée */
-            min-height: 100px;
+            min-height: 100px; /* Conserve une hauteur minimale pour la structure */
         }
 
         .carte:hover {
             transform: translateY(-3px);
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
-            z-index: 100; /* Très haut pour que la carte survolée et son image soient au-dessus */
+            z-index: 100; /* La carte survolée passe au-dessus des autres */
         }
 
         /* Image initiale dans la carte (vignette) */
         .carte-image {
-            width: 90px; /* Largeur de l'image de base */
-            height: 90px; /* Hauteur de l'image de base */
-            object-fit: cover; /* Recadre l'image pour qu'elle couvre la zone */
+            position: absolute; /* MODIF: Rend l'image absolue pour qu'elle ne crée pas de "trou" */
+            left: 10px; /* Positionnement par rapport au padding de la carte */
+            top: 50%; /* Centre verticalement */
+            transform: translateY(-50%); /* Ajuste le centrage vertical */
+            width: 90px;
+            height: 90px;
+            object-fit: cover;
             display: block;
-            flex-shrink: 0;
-            margin-right: 15px;
-            border-radius: 5px; /* Légers bords arrondis si souhaité */
+            border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            transition: all 0.3s ease; /* Transition pour zoom et position */
-            /* Z-index par défaut pour l'image quand elle n'est pas zoomée */
-            z-index: 2; /* au-dessus de la carte, mais sous le texte si besoin */
+            transition: all 0.3s ease;
+            z-index: 2; /* S'assure que l'image est au-dessus du fond de la carte */
         }
 
         /* Effet d'agrandissement de l'image au survol de la carte */
         .carte:hover .carte-image {
-            position: absolute; /* Détache l'image du flux normal */
-            top: -10px; /* Positionnement au-dessus de la carte */
-            left: -10px; /* Positionnement à gauche de la carte */
-            width: 200px; /* Taille de l'image agrandie */
-            height: 200px; /* Taille de l'image agrandie */
-            border: 2px solid #0077b6; /* Bordure pour le survol */
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-            z-index: 101; /* Doit être au-dessus de la carte et de ses autres contenus */
-            border-radius: 5px; /* Assurez-vous qu'elle reste rectangulaire */
+            top: 50%; /* Conserve le centrage vertical */
+            left: 50%; /* MODIF: Décale vers le centre pour l'agrandissement */
+            transform: translate(-50%, -50%) scale(2); /* MODIF: Agrandit et recentre */
+            width: 90px; /* Largeur de base. Le scale gère l'agrandissement */
+            height: 90px; /* Hauteur de base. Le scale gère l'agrandissement */
+            border: 2px solid #0077b6;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* Ombre plus prononcée */
+            z-index: 101; /* Très haut pour être au-dessus de tout */
+            border-radius: 5px; /* Assure qu'elle reste rectangulaire */
+        }
+        /* Cache le texte du prompt au survol de l'image pour un effet plus propre */
+        .carte:hover .prompt-text-display {
+             visibility: hidden; /* ou opacity: 0; */
+             transition: visibility 0s 0.3s, opacity 0.3s; /* Délai pour l'opacité */
+        }
+        /* Cache les boutons au survol pour éviter qu'ils ne soient recouverts */
+        .carte:hover .card-actions {
+             visibility: hidden;
+             transition: visibility 0s 0.3s;
         }
 
-        /* Pour que le texte ne se décale pas quand l'image "sort" */
+        /* Pour que le texte ne se décale pas */
         .infos-wrapper {
             display: flex;
             flex-direction: column;
             flex-grow: 1;
             min-width: 0;
-            /* La marge gauche est maintenant fixe pour laisser de l'espace à la vignette */
-            margin-left: 90px + 15px; /* Largeur image + marge droite */
+            margin-left: 115px; /* MODIF: Laisse de l'espace pour l'image absolue (90px + 10px padding + 15px marge droite virtuelle) */
             position: relative; /* Pour maintenir le contexte si besoin */
             z-index: 2; /* Assure que le texte reste au-dessus de l'image si elle se superpose */
         }
 
-        /* Les infos sont placées dans le même infos-wrapper */
         .primary-info-row {
             display: flex;
             justify-content: space-between;
@@ -260,7 +269,6 @@
             cursor: pointer;
             transition: color 0.2s;
             padding: 0;
-            /* margin-left: 10px;  Supprimé pour qu'il soit à côté si flex-start */
         }
 
         .supprimer-btn:hover {
@@ -409,13 +417,12 @@
                 const promptId = prompt.id || `temp-id-${Math.random().toString(36).substring(2, 9)}`;
                 carte.dataset.promptId = promptId;
 
-                // Appliquer la couleur de bordure de la chaîne dynamique
                 carte.style.borderLeftColor = getChaineColor(prompt.chaine);
 
                 // Image (maintenant rectangulaire et positionnée pour le zoom)
                 const img = document.createElement('img');
-                img.className = 'carte-image'; /* Nouvelle classe pour l'image */
-                img.src = prompt.imageUrl || `https://via.placeholder.com/90x90?text=Image`; // Rectangulaire
+                img.className = 'carte-image';
+                img.src = prompt.imageUrl || `https://via.placeholder.com/90x90?text=Image`;
                 img.alt = prompt.titre || 'Prompt Image';
                 img.onerror = function() {
                     this.onerror = null;
@@ -423,11 +430,9 @@
                 };
                 carte.appendChild(img);
 
-                // Conteneur pour toutes les infos textuelles
                 const infosWrapper = document.createElement('div');
                 infosWrapper.className = 'infos-wrapper';
 
-                // Ligne des infos primaires (Auteur, Outil IA)
                 const primaryInfoRow = document.createElement('div');
                 primaryInfoRow.className = 'primary-info-row';
                 primaryInfoRow.innerHTML = `
@@ -436,7 +441,6 @@
                 `;
                 infosWrapper.appendChild(primaryInfoRow);
 
-                // Ligne des infos secondaires (Chaîne, Date)
                 const secondaryInfoRow = document.createElement('div');
                 secondaryInfoRow.className = 'secondary-info-row';
                 secondaryInfoRow.innerHTML = `
@@ -445,13 +449,11 @@
                 `;
                 infosWrapper.appendChild(secondaryInfoRow);
 
-                // Texte du prompt (avec défilement si trop long)
                 const promptTextDisplay = document.createElement('p');
                 promptTextDisplay.className = 'prompt-text-display';
                 promptTextDisplay.textContent = prompt.texte || 'Aucun texte de prompt fourni.';
                 infosWrapper.appendChild(promptTextDisplay);
 
-                // Boutons d'action (Copier et Supprimer)
                 const cardActions = document.createElement('div');
                 cardActions.className = 'card-actions';
 
@@ -469,7 +471,7 @@
 
                 const supprimerBtn = document.createElement('button');
                 supprimerBtn.className = 'supprimer-btn';
-                supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Icône poubelle
+                supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
                 supprimerBtn.title = "Supprimer ce prompt";
                 supprimerBtn.onclick = async (e) => {
                     e.stopPropagation();
