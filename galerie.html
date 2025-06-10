@@ -6,7 +6,12 @@
     <title>Galerie - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
     <style>
-        /* Styles pour les transitions de visibilité */
+        /*
+        ATTENTION: Ces styles devraient idéalement être dans votre fichier style.css
+        pour une meilleure gestion et éviter les doublons.
+        Je les laisse ici temporairement pour la démonstration si style.css n'a pas été mis à jour,
+        mais la meilleure pratique est de les déplacer.
+        */
         body {
             opacity: 0;
             transition: opacity 0.5s ease-in;
@@ -15,14 +20,13 @@
             opacity: 1;
         }
         main {
-            opacity: 0; /* <-- Votre CSS original pour main */
+            opacity: 0;
             transition: opacity 0.5s ease-in;
         }
         main.show {
             opacity: 1;
         }
 
-        /* Styles pour la disposition générale */
         #header-placeholder {
             width: 100%;
         }
@@ -36,7 +40,6 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
         }
 
-        /* Styles pour les filtres */
         .filters-header {
             display: flex;
             justify-content: space-between;
@@ -64,7 +67,6 @@
             min-width: 120px;
         }
 
-        /* Styles pour les boutons d'action */
         .action-buttons {
             display: flex;
             gap: 10px;
@@ -85,14 +87,11 @@
             background: #005f8a;
         }
 
-        /* Styles pour la galerie de prompts */
         #galerie {
-            /* Permet aux cartes d'occuper la largeur disponible */
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             display: grid;
             gap: 25px;
             padding: 20px 0;
-            /* La bordure rouge de débogage est supprimée ici */
         }
 
         .carte {
@@ -113,7 +112,7 @@
 
         .carte img {
             width: 100%;
-            height: 150px; /* Rendu moins haute pour les images */
+            height: 150px;
             object-fit: cover;
             display: block;
             border-bottom: 1px solid #eee;
@@ -158,7 +157,7 @@
             font-size: 0.9em;
             color: #444;
             margin-bottom: 15px;
-            max-height: 80px; /* Ajusté pour une hauteur légèrement plus petite */
+            max-height: 80px;
             overflow-y: auto;
             white-space: pre-wrap;
             word-break: break-word;
@@ -203,7 +202,6 @@
             background: rgba(255, 0, 0, 0.9);
         }
 
-        /* Message de succès */
         #success-message {
             background-color: #d4edda;
             color: #155724;
@@ -226,7 +224,10 @@
 
             <div class="filters-header">
                 <div id="filters">
-                    <input type="text" id="filtre-nom" placeholder="mots clés" />
+                    <select id="filtre-auteur">
+                        <option value="">Tous les auteurs</option>
+                        </select>
+
                     <select id="filtre-outil">
                         <option value="">Tous les outils</option>
                         <option>Midjourney</option>
@@ -266,33 +267,18 @@
 
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
-        const branch = 'main'; // Si nécessaire pour d'autres fonctions Netlify
         let tousLesPrompts = []; // Stocke tous les prompts récupérés pour le filtrage
 
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
             const mainElement = document.querySelector("main");
             const bodyElement = document.body;
-            const galerieDiv = document.getElementById('galerie');
+            // const galerieDiv = document.getElementById('galerie'); // Non nécessaire ici, car déjà défini dans chargerEtAfficherPrompts
 
-            // 1. Forcer la visibilité de 'main' et 'galerie' au chargement du DOM - C'était VOTRE solution originale
-            // Celle-ci mettait des styles inline. Si ça marchait, c'est que quelque chose d'autre rendait
-            // le body visible, ou que le body était visible par défaut et seul le main était caché.
-            if (mainElement && galerieDiv) {
-                mainElement.style.display = 'block';
-                mainElement.style.opacity = '1';
-                mainElement.style.visibility = 'visible';
+            // Suppression du code JS qui forçait les styles inline.
+            // On se repose sur les classes 'show' et le CSS externe maintenant.
 
-                galerieDiv.style.display = 'grid'; // Utilisez 'grid' car #galerie est un grid
-                galerieDiv.style.opacity = '1';
-                galerieDiv.style.visibility = 'visible';
-
-                console.log('✅ main et galerie forcés visibles par JS direct (version précédente)');
-            } else {
-                console.warn('⚠️ main ou galerie introuvables lors du chargement du DOM (version précédente)');
-            }
-
-            // 2. Charger le header
+            // 1. Charger le header
             fetch("header.html")
                 .then(res => res.ok ? res.text() : Promise.reject(res))
                 .then(data => {
@@ -308,18 +294,16 @@
                     headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 })
                 .finally(() => {
-                    // 3. Afficher le corps et le main après le chargement du header (via classes)
-                    // Si cela n'a pas fonctionné auparavant, c'est probablement car les styles inline
-                    // du point 1 étaient plus spécifiques ou d'autres CSS interfèraient.
+                    // 2. Afficher le corps et le main après le chargement du header (via classes)
                     console.log("Header chargé, application des classes show au body et main.");
                     bodyElement.classList.add("show");
-                    mainElement.classList.add("show"); // Re-appliquer au cas où
+                    mainElement.classList.add("show");
                     
-                    // 4. Charger et afficher les prompts (contenu dynamique)
+                    // 3. Charger et afficher les prompts (contenu dynamique)
                     chargerEtAfficherPrompts();
                 });
 
-            // 5. Gérer le message de succès si un prompt vient d'être partagé
+            // 4. Gérer le message de succès si un prompt vient d'être partagé
             if (window.location.search.includes('success=1')) {
                 const msg = document.getElementById('success-message');
                 msg.textContent = '✅ Prompt partagé avec succès vers la galerie !';
@@ -349,6 +333,7 @@
                 if (prompts.length === 0) {
                     galerieDiv.innerHTML = '<p>Aucun prompt trouvé pour le moment.</p>';
                 } else {
+                    peuplerFiltreAuteur(); // NOUVEL APPEL : Peuple le filtre des auteurs AVANT d'afficher les prompts
                     afficherPrompts(prompts); // Affiche tous les prompts au départ
                     setupFiltres(); // Met en place les listeners des filtres
                 }
@@ -357,6 +342,34 @@
                 console.error("Erreur lors du chargement des prompts de la galerie:", error);
                 galerieDiv.innerHTML = `<p style="color:red;">Erreur lors du chargement des prompts : ${error.message}</p>`;
             }
+        }
+
+        // NOUVELLE FONCTION : Peuple le filtre des auteurs
+        function peuplerFiltreAuteur() {
+            const filtreAuteurSelect = document.getElementById('filtre-auteur');
+            if (!filtreAuteurSelect) {
+                console.warn("L'élément 'filtre-auteur' est introuvable. Impossible de peupler le filtre des auteurs.");
+                return;
+            }
+
+            // Efface les options existantes sauf "Tous les auteurs"
+            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
+
+            const auteursUniques = new Set();
+            tousLesPrompts.forEach(prompt => {
+                // Assurez-vous que prompt.auteur existe, n'est pas vide et n'est pas "Anonyme"
+                if (prompt.auteur && prompt.auteur.trim() !== '' && prompt.auteur.trim().toLowerCase() !== 'anonyme') {
+                    auteursUniques.add(prompt.auteur.trim());
+                }
+            });
+
+            // Convertit le Set en Array, le trie et ajoute les options au select
+            Array.from(auteursUniques).sort((a, b) => a.localeCompare(b)).forEach(auteur => { // Ajout de localeCompare pour un tri alphabétique correct
+                const option = document.createElement('option');
+                option.value = auteur;
+                option.textContent = auteur;
+                filtreAuteurSelect.appendChild(option);
+            });
         }
 
         function afficherPrompts(prompts) {
@@ -469,20 +482,21 @@
 
         // --- Fonctions de filtrage et de tri ---
         function filtrerEtTrierPrompts() {
-            const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
+            // CHANGÉ : Utilisation de 'filtre-auteur' au lieu de 'filtre-nom'
+            const filtreAuteur = document.getElementById('filtre-auteur').value;
             const filtreOutil = document.getElementById('filtre-outil').value;
             const filtreChaine = document.getElementById('filtre-chaine').value;
             const filtreTri = document.getElementById('filtre-tri').value;
 
             let promptsFiltres = [...tousLesPrompts]; // Copie de tous les prompts
 
-            if (filtreNom) {
-                promptsFiltres = promptsFiltres.filter(prompt =>
-                    (prompt.titre && prompt.titre.toLowerCase().includes(filtreNom)) ||
-                    (prompt.texte && prompt.texte.toLowerCase().includes(filtreNom)) ||
-                    (prompt.auteur && prompt.auteur.toLowerCase().includes(filtreNom))
-                );
+            // CHANGÉ : Logique de filtrage pour l'auteur
+            if (filtreAuteur) { // Si un auteur spécifique est sélectionné (pas "Tous les auteurs")
+                promptsFiltres = promptsFiltres.filter(prompt => prompt.auteur === filtreAuteur);
             }
+            // Si vous voulez une recherche par mots-clés EN PLUS du filtre par auteur,
+            // il faudra ajouter un autre champ input séparé pour cela.
+
             if (filtreOutil) {
                 promptsFiltres = promptsFiltres.filter(prompt => prompt.outil === filtreOutil);
             }
@@ -505,7 +519,8 @@
         }
 
         function setupFiltres() {
-            document.getElementById('filtre-nom').addEventListener('input', filtrerEtTrierPrompts);
+            // CHANGÉ : Listener pour 'filtre-auteur' au lieu de l'ancien 'filtre-nom'
+            document.getElementById('filtre-auteur').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-outil').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-chaine').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-tri').addEventListener('change', filtrerEtTrierPrompts);
