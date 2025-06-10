@@ -8,10 +8,12 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const configuration = new Configuration({
-  apiKey: 'VOTRE_CLÉ_API_OPENAI_ICI'
+const OpenAI = require('openai');
+
+const openai = new OpenAI({
+  apiKey: 'xxx'
 });
-const openai = new OpenAIApi(configuration);
+
 
 app.use(express.static(__dirname));
 
