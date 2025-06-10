@@ -1,16 +1,29 @@
+// netlify/functions/chat-clean.js
 const { OpenAI } = require("openai");
+const fs = require("fs");
+const path = require("path");
 
-const openai = new OpenAI();
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-exports.handler = async function(event) {
-  const { message } = JSON.parse(event.body || "{}");
+exports.handler = async (event) => {
+  const { message } = JSON.parse(event.body);
 
-  if (!message) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Message manquant" }),
-    };
+  // 🔎 Lecture du fichier de connaissances
+  const filePath = path.join(__dirname, "../../connaissances.json");
+  let connaissances = [];
+  try {
+    const rawData = fs.readFileSync(filePath, "utf-8");
+    connaissances = JSON.parse(rawData);
+  } catch (err) {
+    console.error("Erreur chargement du fichier JSON", err);
   }
+
+  // 🧠 Création du prompt système avec les connaissances
+  const contexte = connaissances.map(
+    (item) => `• ${item.titre} : ${item.contenu}`
+  ).join("\n");
 
   try {
     const completion = await openai.chat.completions.create({
@@ -18,27 +31,22 @@ exports.handler = async function(event) {
       messages: [
         {
           role: "system",
-          content: `Tu es un assistant IA intégré au site "Espace IA Marketing", une plateforme interne.
-- Tu aides les collaborateurs à comprendre, utiliser et adopter des outils d’intelligence artificielle.
-- Tu peux guider sur les cas d’usage, les prompts disponibles, les demandes IA, les outils internes et les bonnes pratiques.
-- Sois pédagogue, bienveillant, clair et synthétique.`,
+          content: `Tu es un assistant IA pour un site de marketing. Voici ce que tu sais faire :\n${contexte}\nRéponds de manière utile, claire et concise.`,
         },
-        {
-          role: "user",
-          content: message,
-        },
+        { role: "user", content: message },
       ],
     });
 
+    const reply = completion.choices[0].message.content;
     return {
       statusCode: 200,
-      body: JSON.stringify({ reply: completion.choices[0].message.content }),
+      body: JSON.stringify({ reply }),
     };
-  } catch (err) {
-    console.error("Erreur OpenAI:", err);
+  } catch (error) {
+    console.error("Erreur OpenAI:", error.message);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erreur serveur ou API OpenAI" }),
+      body: JSON.stringify({ error: "Erreur serveur OpenAI" }),
     };
   }
 };
