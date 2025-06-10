@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Galerie - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* Styles généraux pour l'animation d'apparition de la page */
         body {
@@ -32,7 +33,7 @@
 
         /* Conteneur des contrôles en haut (filtres et boutons) */
         .header-controls-container {
-            max-width: 960px;
+            max-width: 960px; /* Conserve la largeur pour aligner avec la nouvelle galerie */
             margin: 20px auto 25px auto;
             padding: 0 20px;
             box-sizing: border-box;
@@ -40,7 +41,7 @@
 
         /* Conteneur principal de la galerie (la "box") */
         .galerie-container {
-            max-width: 960px;
+            max-width: 960px; /* Conserve la largeur */
             margin: 0px auto;
             padding: 20px;
             background: white;
@@ -99,116 +100,145 @@
             background: #005f8a;
         }
 
-        /* Section clé : la grille des prompts */
+        /* MODIFICATION : LA GRILLE DE PROMPTS DEVINT UNE COLONNE DE CARTES */
         #galerie {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 20px;
+            display: flex;
+            flex-direction: column; /* Empile les cartes verticalement */
+            gap: 15px; /* Espacement entre les cartes verticales */
             padding: 20px 0;
-            /* IMPORTANT: Pour que z-index fonctionne correctement sur les cartes enfants,
-               le conteneur parent doit avoir une position relative si les enfants sont positionnés absolu.
-               Bien que pas strictement nécessaire pour la carte elle-même si elle est relative, c'est une bonne pratique. */
             position: relative;
-            z-index: 1; /* Assure que la grille est une base pour les z-index de ses enfants */
+            z-index: 1;
         }
 
-        /* Styles pour chaque vignette/carte de prompt */
+        /* NOUVEAUX STYLES POUR CHAQUE VIGNETTE/CARTE DE PROMPT */
         .carte {
             background: #fff;
-            border-left: 5px solid #0077b6;
+            border-left: 5px solid transparent; /* Couleur définie par JS */
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-            /* REMPLACÉ: overflow: hidden; */
-            display: flex;
-            flex-direction: column;
-            position: relative; /* Nécessaire pour le z-index et le bouton supprimer */
-            transition: transform 0.2s ease, box-shadow 0.2s ease; /* Ajout box-shadow transition */
+            display: flex; /* Permet d'aligner l'image et le texte horizontalement */
+            align-items: center; /* Centre verticalement le contenu */
+            padding: 10px; /* Padding interne de la carte */
+            position: relative;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
             box-sizing: border-box;
-            z-index: 1; /* Base z-index pour les cartes normales */
+            width: 100%; /* Prend toute la largeur disponible */
+            z-index: 1;
+            min-height: 100px; /* Hauteur minimale pour les cartes */
         }
 
         .carte:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15); /* Ombre plus prononcée au survol */
-            z-index: 10; /* La carte survolée passe au-dessus des autres */
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+            z-index: 10;
         }
 
-        /* NOUVEAU: Conteneur pour l'image pour gérer l'overflow */
+        /* Conteneur de l'image (petite image ronde) */
         .image-container {
-            width: 100%;
-            height: 120px;
-            overflow: hidden; /* L'overflow hidden est ici, mais seulement pour l'image avant agrandissement */
-            position: relative; /* Nécessaire pour positionner l'image si besoin */
-            border-bottom: 1px solid #eee; /* Garde la bordure ici */
+            width: 80px; /* Taille de l'image ronde */
+            height: 80px;
+            border-radius: 50%; /* Rend l'image ronde */
+            overflow: hidden; /* Cache les parties qui dépassent */
+            flex-shrink: 0; /* Empêche l'image de rétrécir */
+            margin-right: 15px; /* Espace entre l'image et le texte */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
         }
 
-        .carte img {
+        .carte:hover .image-container {
+            transform: scale(1.05);
+        }
+
+        .image-container img {
             width: 100%;
-            height: 100%; /* L'image prend la hauteur de son conteneur */
+            height: 100%;
             object-fit: cover;
             display: block;
-            transition: transform 0.3s ease; /* Transition pour l'agrandissement */
         }
 
-        .carte:hover .image-container img {
-            transform: scale(1.1); /* Agrandissement de l'image au survol de la carte */
-        }
-
-        .texte-col {
-            padding: 12px;
-            flex-grow: 1;
+        /* Conteneur pour toutes les informations textuelles */
+        .infos-wrapper {
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* Empile les infos verticalement */
+            flex-grow: 1; /* Prend l'espace restant */
+            min-width: 0; /* Permet au contenu de s'adapter */
         }
 
-        .outil-highlight {
-            background-color: #e0f7ff;
-            color: #0077b6;
-            padding: 4px 8px;
-            border-radius: 4px;
+        /* Ligne de l'auteur et de l'outil */
+        .primary-info-row {
+            display: flex;
+            justify-content: space-between; /* Auteur à gauche, Outil à droite */
+            align-items: baseline; /* Alignement de base pour les textes de tailles différentes */
+            margin-bottom: 5px;
+        }
+
+        .primary-info-row .auteur {
             font-weight: bold;
-            margin-bottom: 8px;
-            align-self: flex-start;
+            font-size: 1.1em;
+            color: #0077b6;
+            flex-shrink: 1; /* Permet au texte de l'auteur de se réduire si besoin */
+            min-width: 0; /* Important pour le flex-shrink */
+            overflow: hidden; /* Cache le texte s'il est trop long */
+            text-overflow: ellipsis; /* Ajoute des points de suspension */
+            white-space: nowrap; /* Empêche le retour à la ligne */
+        }
+
+        .primary-info-row .outil {
+            font-size: 0.9em;
+            color: #666;
+            margin-left: 10px; /* Espace entre auteur et outil */
+            flex-shrink: 0; /* L'outil ne rétrécit pas */
+            white-space: nowrap; /* Empêche le retour à la ligne */
+        }
+
+        /* Ligne de la chaîne et de la date */
+        .secondary-info-row {
+            display: flex;
+            justify-content: space-between; /* Chaîne à gauche, Date à droite */
+            align-items: center;
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .secondary-info-row .chaine-text {
+            font-weight: bold;
+        }
+
+        .secondary-info-row .date {
+            color: #777;
             font-size: 0.85em;
         }
 
-        .infos {
-            font-size: 0.8em;
-            color: #666;
-            margin-bottom: 8px;
-            line-height: 1.3;
-        }
-
-        .infos strong {
-            color: #333;
-        }
-
-        .chaine-color {
-            padding: 1px 5px;
-            border-radius: 3px;
-            color: white;
-            font-size: 0.8em;
-        }
-
-        .prompt-texte {
+        /* Conteneur pour le prompt lui-même */
+        .prompt-text-display {
             font-size: 0.85em;
             color: #444;
-            margin-bottom: 12px;
-            max-height: 70px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
+            margin-top: 5px; /* Espace après les infos */
+            margin-bottom: 10px; /* Espace avant les boutons */
+            max-height: 45px; /* Limite la hauteur du texte du prompt */
+            overflow-y: auto; /* Permet le défilement si le texte est trop long */
+            white-space: pre-wrap; /* Conserve les sauts de ligne */
+            word-break: break-word; /* Casse les mots si trop longs */
+        }
+
+
+        /* Boutons d'action sur la carte */
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: auto; /* Pousse les boutons en bas du infos-wrapper */
+            justify-content: flex-end; /* Aligne les boutons à droite */
         }
 
         .copier-btn {
             background-color: #28a745;
             color: white;
             border: none;
-            padding: 7px 12px;
-            border-radius: 4px;
+            padding: 6px 12px;
+            border-radius: 5px;
             cursor: pointer;
             font-size: 0.85em;
-            margin-top: auto;
             transition: background-color 0.2s;
         }
 
@@ -217,27 +247,19 @@
         }
 
         .supprimer-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: rgba(255, 0, 0, 0.7);
-            color: white;
+            background: none;
             border: none;
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1em;
+            color: #dc3545;
+            font-size: 1.2em; /* Taille de l'icône de poubelle */
             cursor: pointer;
-            transition: background 0.2s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            z-index: 10; /* Assure que le bouton est au-dessus de l'image */
+            transition: color 0.2s;
+            padding: 0;
+            margin-left: 10px;
+            /* Si l'icône de la poubelle est une image, ajuster `width/height` si besoin */
         }
 
         .supprimer-btn:hover {
-            background: rgba(255, 0, 0, 0.9);
+            color: #c82333;
         }
 
         #success-message {
@@ -327,7 +349,6 @@
                     headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 })
                 .finally(() => {
-                    console.log("Header chargé, application des classes show au body et main.");
                     bodyElement.classList.add("show");
                     mainElement.classList.add("show");
                     chargerEtAfficherPrompts();
@@ -383,41 +404,54 @@
                 const promptId = prompt.id || `temp-id-${Math.random().toString(36).substring(2, 9)}`;
                 carte.dataset.promptId = promptId;
 
-                // NOUVEAU: Conteneur pour l'image
+                // Appliquer la couleur de bordure de la chaîne dynamique
+                carte.style.borderLeftColor = getChaineColor(prompt.chaine);
+
+                // Conteneur de l'image
                 const imageContainer = document.createElement('div');
                 imageContainer.className = 'image-container';
 
                 const img = document.createElement('img');
-                img.src = prompt.imageUrl || `https://via.placeholder.com/120x120?text=No_Image`;
+                img.src = prompt.imageUrl || `https://via.placeholder.com/80?text=Image`; // Plus petite pour la ronde
                 img.alt = prompt.titre || 'Prompt Image';
                 img.onerror = function() {
                     this.onerror = null;
-                    this.src = `https://via.placeholder.com/120x120?text=Image_Non_Dispo`;
+                    this.src = `https://via.placeholder.com/80?text=Image`; // Fallback ronde
                 };
                 imageContainer.appendChild(img);
-                carte.appendChild(imageContainer); // Ajout du conteneur d'image à la carte
+                carte.appendChild(imageContainer);
 
-                const texteCol = document.createElement('div');
-                texteCol.className = 'texte-col';
+                // Conteneur pour toutes les infos textuelles
+                const infosWrapper = document.createElement('div');
+                infosWrapper.className = 'infos-wrapper';
 
-                const outilHighlight = document.createElement('span');
-                outilHighlight.className = 'outil-highlight';
-                outilHighlight.textContent = prompt.outil || 'N/A';
-                texteCol.appendChild(outilHighlight);
-
-                const infos = document.createElement('p');
-                infos.className = 'infos';
-                infos.innerHTML = `
-                    <strong>Auteur :</strong> ${prompt.auteur || 'Inconnu'}<br>
-                    <strong>Chaîne :</strong> <span class="chaine-color" style="background-color:${getChaineColor(prompt.chaine)};">${prompt.chaine || 'N/A'}</span><br>
-                    <strong>Date :</strong> ${prompt.date ? new Date(prompt.date).toLocaleDateString('fr-FR') : 'N/A'}
+                // Ligne des infos primaires (Auteur, Outil IA)
+                const primaryInfoRow = document.createElement('div');
+                primaryInfoRow.className = 'primary-info-row';
+                primaryInfoRow.innerHTML = `
+                    <span class="auteur">${prompt.auteur || 'Inconnu'}</span>
+                    <span class="outil">${prompt.outil || 'Outil N/A'}</span>
                 `;
-                texteCol.appendChild(infos);
+                infosWrapper.appendChild(primaryInfoRow);
 
-                const promptTexte = document.createElement('p');
-                promptTexte.className = 'prompt-texte';
-                promptTexte.textContent = prompt.texte || 'Aucun texte de prompt.';
-                texteCol.appendChild(promptTexte);
+                // Ligne des infos secondaires (Chaîne, Date)
+                const secondaryInfoRow = document.createElement('div');
+                secondaryInfoRow.className = 'secondary-info-row';
+                secondaryInfoRow.innerHTML = `
+                    <span class="chaine-text">${prompt.chaine || 'Chaîne N/A'}</span>
+                    <span class="date">${prompt.date ? new Date(prompt.date).toLocaleDateString('fr-FR') : 'Date N/A'}</span>
+                `;
+                infosWrapper.appendChild(secondaryInfoRow);
+
+                // Texte du prompt (avec défilement si trop long)
+                const promptTextDisplay = document.createElement('p');
+                promptTextDisplay.className = 'prompt-text-display';
+                promptTextDisplay.textContent = prompt.texte || 'Aucun texte de prompt fourni.';
+                infosWrapper.appendChild(promptTextDisplay);
+
+                // Boutons d'action (Copier et Supprimer)
+                const cardActions = document.createElement('div');
+                cardActions.className = 'card-actions';
 
                 const copierBtn = document.createElement('button');
                 copierBtn.className = 'copier-btn';
@@ -429,11 +463,11 @@
                         console.error('Erreur de copie:', err);
                     });
                 };
-                texteCol.appendChild(copierBtn);
+                cardActions.appendChild(copierBtn);
 
                 const supprimerBtn = document.createElement('button');
                 supprimerBtn.className = 'supprimer-btn';
-                supprimerBtn.innerHTML = '&times;';
+                supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Icône poubelle
                 supprimerBtn.title = "Supprimer ce prompt";
                 supprimerBtn.onclick = async (e) => {
                     e.stopPropagation();
@@ -460,9 +494,10 @@
                         }
                     }
                 };
-                carte.appendChild(supprimerBtn);
+                cardActions.appendChild(supprimerBtn);
+                infosWrapper.appendChild(cardActions); // Ajoute les actions au wrapper d'infos
 
-                carte.appendChild(texteCol);
+                carte.appendChild(infosWrapper); // Ajoute le wrapper d'infos à la carte
                 galerieDiv.appendChild(carte);
             });
         }
