@@ -112,7 +112,6 @@
 
         /* ************************************************* */
         /* NOUVEAUX STYLES POUR CHAQUE PLAQUE (CARTE) */
-        /* Inspiré de image_f10e5a.png et image_e711d0.png */
         /* ************************************************* */
         .carte {
             background: #fff;
@@ -126,7 +125,7 @@
             transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
             box-sizing: border-box;
             width: 100%;
-            min-height: 160px; /* Augmente la hauteur minimale pour l'image et l'info */
+            min-height: 160px;
             z-index: 1;
         }
 
@@ -136,12 +135,12 @@
             z-index: 100;
         }
 
-        /* Conteneur pour l'image et l'outil */
+        /* Conteneur pour l'image et la première ligne d'info (outil) */
         .left-panel {
-            flex-shrink: 0; /* Empêche ce bloc de rétrécir */
+            flex-shrink: 0;
             display: flex;
             flex-direction: column;
-            align-items: flex-start; /* Aligne l'image et l'outil à gauche */
+            align-items: flex-start;
             margin-right: 20px;
             text-align: left;
             width: 130px; /* Largeur fixe pour le panneau gauche */
@@ -155,21 +154,25 @@
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
-            margin-bottom: 8px; /* Espacement entre image et nom de l'outil */
+            margin-bottom: 8px; /* Espacement entre image et bloc outil/auteur */
         }
 
         .carte:hover .carte-image {
-            transform: scale(1.05);
+            transform: scale(1.05); /* Zoom initial 1.05x */
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
-        .outil-name {
-            font-size: 0.9em; /* Légèrement plus grand */
-            color: #0077b6; /* Couleur du design pour l'outil */
+        /* NOUVEAU: Conteneur de l'outil pour le rectangle bleu clair */
+        .outil-badge {
+            background-color: #e0f2f7; /* Bleu très clair */
+            color: #0077b6; /* Bleu du design pour le texte */
+            font-size: 0.85em; /* Taille légèrement plus grande */
             font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px; /* Espacement sous le badge */
+            white-space: nowrap;
             text-transform: uppercase;
-            white-space: nowrap; /* Évite la coupure du nom d'outil */
-            margin-bottom: 10px; /* Espace avant le prompt */
         }
 
         /* Conteneur pour toutes les informations textuelles (à droite du panneau gauche) */
@@ -178,15 +181,15 @@
             flex-direction: column;
             flex-grow: 1;
             min-width: 0;
-            padding-right: 10px; /* Un peu de padding à droite */
+            padding-right: 10px;
         }
 
         /* Section des métadonnées (Auteur, Chaîne, Date) */
         .metadata-section {
-            display: grid; /* Utilise Grid pour une disposition claire */
-            grid-template-columns: auto 1fr; /* 2 colonnes: libellé et valeur */
-            gap: 5px 10px; /* Espacement entre les éléments */
-            font-size: 0.95em;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 5px 10px;
+            font-size: 0.9em; /* MODIF: Taille plus petite pour l'auteur et les métadonnées */
             color: #555;
             margin-bottom: 15px;
             padding-bottom: 10px;
@@ -196,12 +199,23 @@
         .metadata-label {
             font-weight: bold;
             color: #333;
-            white-space: nowrap; /* Empêche les libellés de se casser */
+            white-space: nowrap;
         }
 
         .metadata-value {
             color: #666;
-            word-break: break-word; /* Permet aux valeurs longues de se casser */
+            word-break: break-word;
+        }
+        /* MODIF: Taille plus petite pour la valeur de l'auteur */
+        .metadata-value.auteur-value {
+            font-size: 1em; /* Par rapport au 0.9em du parent */
+            color: #444; /* Un gris plus neutre */
+            font-weight: normal; /* Pas en gras */
+        }
+        /* MODIF: Couleur spécifique pour la chaîne */
+        .metadata-value.chaine-value {
+             color: #0077b6; /* Bleu du design pour la chaîne */
+             font-weight: bold;
         }
 
         /* Texte du prompt */
@@ -238,8 +252,9 @@
             font-size: 0.9em;
             font-weight: 600;
             transition: background-color 0.2s, transform 0.1s;
-            flex-shrink: 0; /* Ne pas rétrécir */
+            flex-shrink: 0;
             white-space: nowrap;
+            /* MODIF: Retiré flex-grow pour que le bouton soit compact */
         }
 
         .copier-btn:hover {
@@ -250,7 +265,7 @@
         .supprimer-btn {
             background: none;
             border: none;
-            color: #dc3545;
+            color: #888; /* MODIF: Gris classique pour la poubelle */
             font-size: 1.4em;
             cursor: pointer;
             transition: color 0.2s, transform 0.1s;
@@ -258,7 +273,7 @@
         }
 
         .supprimer-btn:hover {
-            color: #c82333;
+            color: #555; /* Gris plus foncé au survol */
             transform: translateY(-1px);
         }
 
@@ -406,7 +421,7 @@
 
                 carte.style.borderLeftColor = getChaineColor(prompt.chaine);
 
-                // NOUVEAU: Panneau gauche (image et outil)
+                // Panneau gauche (image et outil)
                 const leftPanel = document.createElement('div');
                 leftPanel.className = 'left-panel';
 
@@ -420,10 +435,11 @@
                 };
                 leftPanel.appendChild(img);
 
-                const outilName = document.createElement('div');
-                outilName.className = 'outil-name';
-                outilName.textContent = prompt.outil || 'Outil N/A';
-                leftPanel.appendChild(outilName);
+                // NOUVEAU: Badge pour l'outil
+                const outilBadge = document.createElement('div');
+                outilBadge.className = 'outil-badge';
+                outilBadge.textContent = prompt.outil || 'Outil N/A';
+                leftPanel.appendChild(outilBadge);
 
                 carte.appendChild(leftPanel);
 
@@ -431,14 +447,14 @@
                 const infosWrapper = document.createElement('div');
                 infosWrapper.className = 'infos-wrapper';
 
-                // NOUVEAU: Section des métadonnées (Auteur, Chaîne, Date)
+                // Section des métadonnées (Auteur, Chaîne, Date)
                 const metadataSection = document.createElement('div');
                 metadataSection.className = 'metadata-section';
                 metadataSection.innerHTML = `
                     <span class="metadata-label">Auteur :</span>
-                    <span class="metadata-value">${prompt.auteur || 'Inconnu'}</span>
+                    <span class="metadata-value auteur-value">${prompt.auteur || 'Inconnu'}</span>
                     <span class="metadata-label">Chaîne :</span>
-                    <span class="metadata-value">${prompt.chaine || 'Chaîne N/A'}</span>
+                    <span class="metadata-value chaine-value">${prompt.chaine || 'Chaîne N/A'}</span>
                     <span class="metadata-label">Date :</span>
                     <span class="metadata-value">${prompt.date ? new Date(prompt.date).toLocaleDateString('fr-FR') : 'Date N/A'}</span>
                 `;
@@ -455,7 +471,7 @@
 
                 const copierBtn = document.createElement('button');
                 copierBtn.className = 'copier-btn';
-                copierBtn.textContent = 'Copier le prompt';
+                copierBtn.textContent = 'Copier'; /* MODIF: Texte du bouton "Copier" */
                 copierBtn.onclick = () => {
                     navigator.clipboard.writeText(prompt.texte || '').then(() => {
                         alert('Prompt copié !');
