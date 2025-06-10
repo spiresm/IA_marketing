@@ -65,7 +65,6 @@
             min-width: 0;
         }
 
-        /* AJUSTEMENT : Styles pour le nouveau champ de recherche et les selects existants */
         #filters input[type="text"],
         #filters select {
             padding: 8px 12px;
@@ -75,12 +74,10 @@
             flex: 1;
             min-width: 120px;
         }
-        /* Style spécifique pour le champ de recherche pour le rendre reconnaissable */
         #search-keyword {
             min-width: 180px;
             max-width: 250px;
         }
-
 
         .action-buttons {
             display: flex;
@@ -108,6 +105,11 @@
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: 20px;
             padding: 20px 0;
+            /* IMPORTANT: Pour que z-index fonctionne correctement sur les cartes enfants,
+               le conteneur parent doit avoir une position relative si les enfants sont positionnés absolu.
+               Bien que pas strictement nécessaire pour la carte elle-même si elle est relative, c'est une bonne pratique. */
+            position: relative;
+            z-index: 1; /* Assure que la grille est une base pour les z-index de ses enfants */
         }
 
         /* Styles pour chaque vignette/carte de prompt */
@@ -116,24 +118,40 @@
             border-left: 5px solid #0077b6;
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-            overflow: hidden;
+            /* REMPLACÉ: overflow: hidden; */
             display: flex;
             flex-direction: column;
-            position: relative;
-            transition: transform 0.2s ease;
+            position: relative; /* Nécessaire pour le z-index et le bouton supprimer */
+            transition: transform 0.2s ease, box-shadow 0.2s ease; /* Ajout box-shadow transition */
             box-sizing: border-box;
+            z-index: 1; /* Base z-index pour les cartes normales */
         }
 
         .carte:hover {
             transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15); /* Ombre plus prononcée au survol */
+            z-index: 10; /* La carte survolée passe au-dessus des autres */
+        }
+
+        /* NOUVEAU: Conteneur pour l'image pour gérer l'overflow */
+        .image-container {
+            width: 100%;
+            height: 120px;
+            overflow: hidden; /* L'overflow hidden est ici, mais seulement pour l'image avant agrandissement */
+            position: relative; /* Nécessaire pour positionner l'image si besoin */
+            border-bottom: 1px solid #eee; /* Garde la bordure ici */
         }
 
         .carte img {
             width: 100%;
-            height: 120px;
+            height: 100%; /* L'image prend la hauteur de son conteneur */
             object-fit: cover;
             display: block;
-            border-bottom: 1px solid #eee;
+            transition: transform 0.3s ease; /* Transition pour l'agrandissement */
+        }
+
+        .carte:hover .image-container img {
+            transform: scale(1.1); /* Agrandissement de l'image au survol de la carte */
         }
 
         .texte-col {
@@ -215,7 +233,7 @@
             cursor: pointer;
             transition: background 0.2s;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            z-index: 10;
+            z-index: 10; /* Assure que le bouton est au-dessus de l'image */
         }
 
         .supprimer-btn:hover {
@@ -362,11 +380,12 @@
             prompts.forEach(prompt => {
                 const carte = document.createElement('div');
                 carte.className = 'carte';
-                // Assurez-vous que prompt.id est toujours défini ici, même avec un fallback fort.
-                // Le fallback avec btoa(prompt.texte) est une solution temporaire si prompt.id n'existe pas du tout.
-                // Idéalement, chaque prompt venant de l'API devrait avoir un ID unique.
-                const promptId = prompt.id || `temp-id-${Math.random().toString(36).substring(2, 9)}`; // Toujours un ID !
-                carte.dataset.promptId = promptId; // Stocker l'ID dans le dataset
+                const promptId = prompt.id || `temp-id-${Math.random().toString(36).substring(2, 9)}`;
+                carte.dataset.promptId = promptId;
+
+                // NOUVEAU: Conteneur pour l'image
+                const imageContainer = document.createElement('div');
+                imageContainer.className = 'image-container';
 
                 const img = document.createElement('img');
                 img.src = prompt.imageUrl || `https://via.placeholder.com/120x120?text=No_Image`;
@@ -375,7 +394,8 @@
                     this.onerror = null;
                     this.src = `https://via.placeholder.com/120x120?text=Image_Non_Dispo`;
                 };
-                carte.appendChild(img);
+                imageContainer.appendChild(img);
+                carte.appendChild(imageContainer); // Ajout du conteneur d'image à la carte
 
                 const texteCol = document.createElement('div');
                 texteCol.className = 'texte-col';
@@ -415,11 +435,9 @@
                 supprimerBtn.className = 'supprimer-btn';
                 supprimerBtn.innerHTML = '&times;';
                 supprimerBtn.title = "Supprimer ce prompt";
-                // MODIFICATION CLÉ ICI : Passer promptId directement à la fonction
                 supprimerBtn.onclick = async (e) => {
-                    e.stopPropagation(); // Empêche l'événement de se propager aux parents (la carte)
+                    e.stopPropagation();
                     if (confirm('Êtes-vous sûr de vouloir supprimer ce prompt ? Cette action est irréversible.')) {
-                        // Ici, promptId est accessible grâce à la portée de la closure
                         try {
                             if (!promptId || promptId.startsWith('temp-id-')) {
                                 alert("Impossible de supprimer : ID de prompt temporaire/invalide. Veuillez recharger la page ou contacter l'administrateur.");
@@ -431,7 +449,7 @@
                             });
                             if (deleteResponse.ok) {
                                 alert('Prompt supprimé avec succès !');
-                                chargerEtAfficherPrompts(); // Recharge la galerie après suppression
+                                chargerEtAfficherPrompts();
                             } else {
                                 const errorData = await deleteResponse.json();
                                 alert(`Échec de la suppression: ${errorData.message || 'Une erreur inconnue est survenue.'}`);
