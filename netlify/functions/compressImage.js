@@ -1,112 +1,104 @@
 // netlify/functions/compressImage.js
 
 const sharp = require('sharp');
-const multiparty = require('multiparty');
-const fs = require('fs');
-const { Readable } = require('stream'); // Importe la classe Readable
+// const multiparty = require('multiparty'); // N'est plus nécessaire !
 
 exports.handler = async (event, context) => {
+    // 1. Vérification de la méthode HTTP (doit être POST)
     if (event.httpMethod !== 'POST') {
         return {
-            statusCode: 405,
+            statusCode: 405, // Méthode non autorisée
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: 'Method Not Allowed. Only POST requests are accepted.' }),
         };
     }
 
-    return new Promise((resolve) => {
-        const form = new multiparty.Form();
+    try {
+        // Le corps de l'événement Netlify pour les requêtes JSON est déjà une chaîne.
+        // On la parse directement en JSON.
+        const requestBody = JSON.parse(event.body); // event.body est déjà une chaîne JSON par défaut pour Netlify
 
-        // Créer un Readable Stream à partir du corps de l'événement Netlify
-        const requestStream = new Readable();
-        requestStream.push(Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8'));
-        requestStream.push(null); // Indique la fin du stream
+        const base64Image = requestBody.image;
+        const quality = requestBody.quality;
 
-        // CRUCIAL : Simuler un objet 'req' (requête HTTP) avec les en-têtes que multiparty attend.
-        // multiparty a besoin de req.headers['content-type'] et req.headers['content-length']
-        const fakeReq = {
-            headers: event.headers, // Utilise les en-têtes réels de l'événement Netlify
-            // On s'assure que Content-Length est bien là, même si Netlify le gère différemment
-            // Netlify ne met pas Content-Length dans event.headers pour les requêtes POST
-            // mais multiparty peut le déduire du stream si le Content-Type est correct.
-            // On pourrait tenter d'ajouter event.body.length ici, mais ce n'est pas fiable avec Base64.
-            // La solution est de s'assurer que multiparty traite le stream correctement.
-            // La méthode .parse(stream, headers, cb) de multiparty est la bonne.
+        // 2. Validation des données reçues
+        if (!base64Image || typeof base64Image !== 'string' || !base64Image.startsWith('data:image')) {
+            return {
+                statusCode: 400,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: 'Invalid image data. Expected Base64 data URL (e.g., data:image/jpeg;base64,...).' }),
+            };
+        }
+        if (isNaN(quality) || quality < 1 || quality > 100) {
+            return {
+                statusCode: 400,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: 'Invalid quality parameter. Expected a number between 1 and 100.' }),
+            };
+        }
+
+        // Extraire les données Base64 pures (sans le préfixe "data:image/jpeg;base64,")
+        const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) {
+            return {
+                statusCode: 400,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: 'Invalid Base64 data URL format. Could not extract image data.' }),
+            };
+        }
+        const imageMimeType = matches[1]; // ex: 'image/jpeg', 'image/png'
+        const base64Data = matches[2]; // Les données Base64 pures de l'image
+
+        // Convertir la chaîne Base64 pure en Buffer binaire pour Sharp
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+
+        // 3. Compression de l'image avec Sharp
+        let compressedBuffer;
+        // Définir le type MIME de sortie. Nous allons forcer le JPEG ici pour la compression avec perte.
+        const outputMimeType = 'image/jpeg';
+
+        try {
+            compressedBuffer = await sharp(imageBuffer)
+                .jpeg({
+                    quality: quality,      // La qualité de compression (1-100)
+                    progressive: true,     // Pour un chargement progressif
+                    chromaSubsampling: '4:4:4' // Utilise 4:4:4 pour conserver les couleurs vives (peut être '4:2:0' pour plus de compression)
+                })
+                // Vous pouvez ajouter d'autres options si vous voulez gérer différents formats ou optimisations
+                // .toFormat(sharp.format.jpeg) // Force le format de sortie si nécessaire
+                .toBuffer(); // Convertit l'image compressée en Buffer
+        } catch (sharpError) {
+            console.error('Sharp compression failed:', sharpError);
+            // Gérer les erreurs spécifiques de Sharp (ex: format d'image non pris en charge)
+            return {
+                statusCode: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: 'Image compression failed with Sharp. Check image format or data.', error: sharpError.message }),
+            };
+        }
+
+        // 4. Retour de la réponse au client
+        // Le corps binaire de l'image compressée doit être encodé en Base64 pour Netlify Functions.
+        return {
+            statusCode: 200, // Succès
+            headers: {
+                'Content-Type': outputMimeType, // Définit le type de contenu de la réponse (ex: image/jpeg)
+                'Content-Length': compressedBuffer.length, // La taille du fichier compressé
+                'Access-Control-Allow-Origin': '*', // Pour CORS, permet à n'importe quelle origine d'accéder
+                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type',
+            },
+            body: compressedBuffer.toString('base64'), // Le contenu de l'image compressée encodé en Base64
+            isBase64Encoded: true, // Crucial : indique à Netlify que le corps est encodé en Base64
         };
 
-
-        // La bonne façon d'appeler form.parse avec un stream et des headers dans multiparty.
-        // Il faut lui passer le stream, puis un objet qui contient les en-têtes.
-        form.parse(requestStream, { headers: event.headers }, async (err, fields, files) => {
-            if (err) {
-                console.error('Error parsing form data:', err);
-                return resolve({
-                    statusCode: 500,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: 'Failed to parse form data.', error: err.message }),
-                });
-            }
-
-            const imageFile = files.image && files.image[0];
-            const quality = fields.quality && parseInt(fields.quality[0], 10);
-
-            if (!imageFile || isNaN(quality) || quality < 1 || quality > 100) {
-                if (imageFile && imageFile.path && fs.existsSync(imageFile.path)) {
-                    fs.unlinkSync(imageFile.path);
-                }
-                return resolve({
-                    statusCode: 400,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: 'Image file or valid quality (1-100) is missing or invalid.' }),
-                });
-            }
-
-            let imageBuffer;
-            try {
-                imageBuffer = fs.readFileSync(imageFile.path);
-            } catch (readError) {
-                console.error('Error reading temporary image file:', readError);
-                return resolve({
-                    statusCode: 500,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: 'Failed to read temporary image file.', error: readError.message }),
-                });
-            } finally {
-                if (imageFile.path && fs.existsSync(imageFile.path)) {
-                    fs.unlinkSync(imageFile.path);
-                }
-            }
-
-            try {
-                const compressedBuffer = await sharp(imageBuffer)
-                    .jpeg({
-                        quality: quality,
-                        progressive: true,
-                        chromaSubsampling: '4:4:4'
-                    })
-                    .toBuffer();
-
-                resolve({
-                    statusCode: 200,
-                    headers: {
-                        'Content-Type': 'image/jpeg',
-                        'Content-Length': compressedBuffer.length,
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                        'Access-Control-Allow-Headers': 'Content-Type',
-                    },
-                    body: compressedBuffer.toString('base64'),
-                    isBase64Encoded: true,
-                });
-
-            } catch (compressionError) {
-                console.error('Error during image compression with sharp:', compressionError);
-                return resolve({
-                    statusCode: 500,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: 'Failed to compress image due to server error.', error: compressionError.message }),
-                });
-            }
-        });
-    });
+    } catch (error) {
+        // Gérer les erreurs générales de parsing ou d'exécution non capturées par Sharp
+        console.error('General error in Netlify Function:', error);
+        return {
+            statusCode: 500, // Erreur interne du serveur
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'An unexpected error occurred in the function.', error: error.message }),
+        };
+    }
 };
