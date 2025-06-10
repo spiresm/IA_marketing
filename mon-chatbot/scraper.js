@@ -3,9 +3,9 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 
 const pages = [
-  { url: 'https://ton-site.netlify.app/index.html', nom: 'Accueil' },
-  { url: 'https://ton-site.netlify.app/aide.html', nom: 'Aide' },
-  { url: 'https://ton-site.netlify.app/faq.html', nom: 'FAQ' }
+  { url: 'https://iamarketing.netlify.app//index.html', nom: 'Accueil' },
+  { url: 'https://iamarketing.netlify.app//aide.html', nom: 'Aide' },
+  { url: 'https://iamarketing.netlify.app//faq.html', nom: 'FAQ' }
 ];
 
 async function extraireContenu(url) {
