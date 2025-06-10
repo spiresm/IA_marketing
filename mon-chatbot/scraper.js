@@ -2,6 +2,8 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs');
 
+console.log("✅ Le script démarre !");
+
 const pages = [
   { url: 'https://iamarketing.netlify.app/index.html', nom: 'Accueil' },
   { url: 'https://iamarketing.netlify.app/chatbot.html', nom: 'Chatbot' },
@@ -18,9 +20,9 @@ async function extraireContenu(url) {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
     const texte = $('body').text().replace(/\s+/g, ' ').trim();
-    return texte.slice(0, 4000); // Limite à 4000 caractères
+    return texte.slice(0, 4000);
   } catch (e) {
-    console.error(`❌ Erreur ${url} :`, e.message);
+    console.error(`❌ Erreur lors du scraping de ${url} :`, e.message);
     return '';
   }
 }
@@ -29,7 +31,7 @@ async function construireBase() {
   const base = [];
 
   for (const page of pages) {
-    console.log(`🔎 Scraping : ${page.nom}`);
+    console.log(`🔎 Scraping : ${page.nom} - ${page.url}`);
     const contenu = await extraireContenu(page.url);
     base.push({
       titre: page.nom,
