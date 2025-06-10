@@ -15,7 +15,7 @@ const pages = [
   { url: 'https://iamarketing.netlify.app/faq.html', nom: 'FAQ' }
 ];
 
-async function extraireContenu(url) { // Cette fonction est déjà async
+async function extraireContenu(url) {
   try {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
@@ -38,6 +38,7 @@ async function extraireContenu(url) { // Cette fonction est déjà async
       texteExtrait = $('main, article, .container').text().replace(/\s+/g, ' ').trim();
     }
 
+    // Gardons une limite pour éviter des fichiers géants si le scraping dérape
     return texteExtrait.slice(0, 8000); 
 
   } catch (e) {
@@ -46,8 +47,7 @@ async function extraireContenu(url) { // Cette fonction est déjà async
   }
 }
 
-// <<< MODIFICATION ICI : AJOUT DE 'async' DEVANT 'function construireBase()'
-async function construireBase() { 
+async function construireBase() { // <<< C'EST BIEN ASYNC ICI
   const base = [];
   const connaissancesFilePath = path.resolve(__dirname, 'connaissances.json');
 
