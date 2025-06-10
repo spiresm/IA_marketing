@@ -1,340 +1,430 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Compresseur d'image</title>
-  <link rel="stylesheet" href="style.css" />
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      background: linear-gradient(to right, #eef2f3, #f8fbfc);
-      color: #333;
-      opacity: 0; /* Ajouté pour le fondu global du body */
-      transition: opacity 0.5s ease-in; /* Ajouté pour le fondu global du body */
-    }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Compresseur d'Image - Espace IA</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        /* Ajouts pour le fondu global de la page */
+        body {
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+        }
 
-    body.show {
-      opacity: 1;
-    }
+        body.show {
+            opacity: 1;
+        }
 
-    #header-placeholder {
-      width: 100%;
-    }
+        main {
+            opacity: 0; /* Initialement caché */
+            transition: opacity 0.5s ease-in; /* Animation de fondu */
+        }
 
-    /* Le .fade-in est déjà défini dans votre CSS. Nous l'appliquerons au main */
-    /* .fade-in {
-      opacity: 0;
-      transition: opacity 0.5s ease-in;
-    }
+        main.show {
+            opacity: 1; /* Visible lorsque la classe 'show' est ajoutée */
+        }
 
-    .fade-in.show {
-      opacity: 1;
-    } */
+        #header-placeholder {
+            width: 100%;
+        }
 
-    main {
-      padding: 30px 20px;
-      opacity: 0; /* Assurez-vous que main est initialement caché */
-      transition: opacity 0.5s ease-in; /* Transition pour main */
-    }
+        /* Votre CSS existant pour compresseur.html (à ajuster si vous avez des styles spécifiques) */
+        .compresseur-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
 
-    main.show {
-      opacity: 1;
-    }
+        h1 {
+            color: #333;
+            margin-bottom: 25px;
+        }
 
-    .container {
-      max-width: 700px;
-      margin: 20px auto;
-      padding: 20px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    }
+        .form-group {
+            margin-bottom: 20px;
+        }
 
-    h1 {
-      text-align: center;
-      color: #0077b6;
-      margin-bottom: 1.5rem;
-    }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #555;
+        }
 
-    #dropZone {
-      border: 2px dashed #0077b6;
-      border-radius: 12px;
-      padding: 40px;
-      text-align: center;
-      color: #555;
-      cursor: pointer;
-      margin-bottom: 20px;
-      transition: background 0.3s, border-color 0.3s;
-    }
+        input[type="file"] {
+            display: block;
+            margin: 0 auto 15px auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: fit-content;
+        }
 
-    #dropZone.dragover {
-      background-color: #e0f7ff;
-      border-color: #005f8a;
-    }
+        input[type="range"] {
+            width: 80%;
+            margin-top: 10px;
+            -webkit-appearance: none;
+            height: 8px;
+            border-radius: 5px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
 
-    input[type="file"] {
-      display: none;
-    }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #0077b6;
+            cursor: pointer;
+        }
 
-    label {
-      font-weight: bold;
-    }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #0077b6;
+            cursor: pointer;
+        }
 
-    .controls {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
+        .quality-display {
+            font-weight: bold;
+            color: #0077b6;
+            margin-top: 5px;
+        }
 
-    .controls label {
-      margin-bottom: 4px;
-    }
+        button {
+            background-color: #0077b6;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
 
-    select, input[type="range"] {
-      width: 100%;
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
+        button:hover:not(:disabled) {
+            background-color: #005f8a;
+        }
 
-    input[type="range"] {
-      -webkit-appearance: none;
-      height: 4px;
-      background: #0077b6;
-      border-radius: 4px;
-      outline: none;
-    }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
 
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 16px;
-      height: 16px;
-      background: #005f8a;
-      border-radius: 50%;
-      cursor: pointer;
-      border: 2px solid white;
-    }
+        #message {
+            margin-top: 20px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            color: white;
+        }
 
-    input[type="range"]::-moz-range-thumb {
-      width: 16px;
-      height: 16px;
-      background: #005f8a;
-      border-radius: 50%;
-      cursor: pointer;
-      border: 2px solid white;
-    }
+        #message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
 
-    .preview {
-      text-align: center;
-      margin: 20px 0;
-    }
+        #message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
 
-    .preview img {
-      max-width: 100%;
-      max-height: 300px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
+        .image-display {
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
 
-    .btn {
-      background: #0077b6;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-weight: bold;
-      cursor: pointer;
-      display: inline-block;
-      margin: 0 auto 10px;
-    }
+        .image-display .image-box {
+            flex-basis: 45%; /* Environ la moitié de la largeur */
+            min-width: 250px; /* Largeur minimale pour éviter un trop petit affichage */
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
 
-    .btn:hover {
-      background: #005f8a;
-    }
+        .image-display img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
 
-    .btn-container {
-      text-align: center;
-      margin-top: 10px;
-    }
-  </style>
+        .image-display p {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .image-display a.download-btn {
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .image-display a.download-btn:hover {
+            background-color: #218838;
+        }
+    </style>
 </head>
 <body>
-  <div id="header-placeholder"></div>
+    <div id="header-placeholder"></div>
 
-  <main class="fade-in"> <div class="container">
-      <a href="galerie.html" style="text-decoration: none; color: #0077b6; font-weight: bold; font-size: 1.2em; display: inline-block; margin-bottom: 10px;">⟵ Retour</a>
-      <h1>Compresseur d'image</h1>
+    <main>
+        <div class="compresseur-container">
+            <h1>Compresser une image</h1>
+            <div id="message"></div>
 
-      <div id="dropZone">
-        Glissez-déposez une image ici ou cliquez pour choisir un fichier
-        <input type="file" id="fileInput" accept="image/*" hidden />
-      </div>
+            <div class="form-group">
+                <label for="imageUpload">Sélectionnez une image :</label>
+                <input type="file" id="imageUpload" accept="image/*" />
+            </div>
 
-      <div class="controls">
-        <div>
-          <label for="quality">Qualité :</label>
-          <input type="range" id="quality" min="10" max="100" value="80">
+            <div class="form-group">
+                <label for="qualityRange">Qualité (1-100) :</label>
+                <input type="range" id="qualityRange" min="1" max="100" value="80" />
+                <p class="quality-display">Qualité actuelle: <span id="qualityValue">80</span>%</p>
+            </div>
+
+            <button id="compressBtn" disabled>Compresser l'image</button>
+
+            <div class="image-display">
+                <div class="image-box" id="originalImageContainer" style="display:none;">
+                    <h2>Originale</h2>
+                    <img id="originalImage" src="#" alt="Image originale" />
+                    <p>Taille: <span id="originalSize"></span></p>
+                </div>
+                <div class="image-box" id="compressedImageContainer" style="display:none;">
+                    <h2>Compressée</h2>
+                    <img id="compressedImage" src="#" alt="Image compressée" />
+                    <p>Taille: <span id="compressedSize"></span></p>
+                    <p>Réduction: <span id="reduction"></span></p>
+                    <a id="downloadBtn" class="download-btn" download="image_compressee.jpeg" style="display:none;">Télécharger</a>
+                </div>
+            </div>
         </div>
-        <div>
-          <label for="format">Format de sortie :</label>
-          <select id="format">
-            <option value="image/jpeg">JPEG</option>
-            <option value="image/webp">WEBP</option>
-          </select>
-        </div>
-      </div>
+    </main>
 
-      <div class="preview" id="preview"></div>
+    <script>
+        // CHEMIM MODIFIÉ: Utilise l'origine actuelle de la page pour les fonctions Netlify
+        const apiBase = window.location.origin + '/.netlify/functions/';
+        const imageUpload = document.getElementById('imageUpload');
+        const qualityRange = document.getElementById('qualityRange');
+        const qualityValue = document.getElementById('qualityValue');
+        const compressBtn = document.getElementById('compressBtn');
+        const messageDiv = document.getElementById('message');
+        const originalImageContainer = document.getElementById('originalImageContainer');
+        const originalImage = document.getElementById('originalImage');
+        const originalSize = document.getElementById('originalSize');
+        const compressedImageContainer = document.getElementById('compressedImageContainer');
+        const compressedImage = document.getElementById('compressedImage');
+        const compressedSize = document.getElementById('compressedSize');
+        const reduction = document.getElementById('reduction');
+        const downloadBtn = document.getElementById('downloadBtn');
 
-      <div class="btn-container">
-        <button class="btn" id="downloadBtn" disabled>Télécharger l'image compressée</button>
-        </div>
-    </div>
-  </main>
+        let selectedFile = null;
 
-  <script>
-    // Cette fonction est nécessaire si vous avez un élément #notif-count dans votre header.html
-    // Si ce n'est pas le cas, vous pouvez la supprimer.
-    function mettreAJourBulleDemandes() {
-      const notif = document.getElementById("notif-count");
-      if (!notif) {
-        console.warn("L'élément #notif-count n'a pas été trouvé. La bulle de notification ne peut pas être mise à jour.");
-        return;
-      }
-      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
-      notif.textContent = demandes.length;
-      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-      console.log(`Bulle de notification mise à jour : ${demandes.length} demandes.`);
-    }
-
-    // Le script principal est exécuté une fois que le DOM est complètement chargé
-    document.addEventListener("DOMContentLoaded", () => {
-        console.log("DOMContentLoaded fired for compresseur.html");
-        const headerPlaceholder = document.getElementById("header-placeholder");
-        const mainElement = document.querySelector("main");
-        const bodyElement = document.body;
-
-        // 1. Charger le header.html
-        fetch("header.html")
-            .then(res => {
-                console.log("Header fetch response received.");
-                if (!res.ok) {
-                    throw new Error(`Erreur HTTP lors du chargement du header: ${res.status}`);
+        // Fonction pour mettre à jour la bulle de notification (si elle existe dans header.html)
+        async function mettreAJourBulleDemandes() {
+            const notifBubble = document.getElementById('notif-count');
+            if (!notifBubble) {
+                console.warn("Bulle de notification 'notif-count' non trouvée.");
+                return;
+            }
+            try {
+                const response = await fetch(`${apiBase}getDemandesCount`);
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
                 }
-                return res.text();
-            })
-            .then(data => {
-                console.log("Header HTML retrieved. Injecting into placeholder.");
-                headerPlaceholder.innerHTML = data;
+                const data = await response.json();
+                const count = data.count || 0;
 
-                // 2. Rendre le body et le main visibles avec une transition de fondu
-                console.log("Adding 'show' class to body and main.");
-                bodyElement.classList.add("show");
-                if (mainElement) {
-                    mainElement.classList.add("show");
+                if (count > 0) {
+                    notifBubble.textContent = count;
+                    notifBubble.style.display = 'inline-block';
+                } else {
+                    notifBubble.style.display = 'none';
                 }
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour de la bulle des demandes:", error);
+                notifBubble.style.display = 'none'; // Cacher en cas d'erreur
+            }
+        }
 
-                // 3. Mettre à jour la bulle de notification (si présente dans le header)
-                mettreAJourBulleDemandes();
 
-                // 4. Initialiser le script du compresseur après que tout soit prêt
-                console.log("Initializing image compressor script.");
-                const fileInput = document.getElementById("fileInput");
-                const qualityInput = document.getElementById("quality");
-                const formatSelect = document.getElementById("format");
-                const preview = document.getElementById("preview");
-                const downloadBtn = document.getElementById("downloadBtn");
-                const dropZone = document.getElementById("dropZone");
+        // Fonction pour afficher les messages
+        function showMessage(msg, type = 'info') {
+            messageDiv.textContent = msg;
+            messageDiv.className = ''; // Réinitialiser les classes
+            messageDiv.classList.add(type);
+            messageDiv.style.opacity = 1;
+            setTimeout(() => {
+                messageDiv.style.opacity = 0;
+            }, 3000);
+        }
 
-                let compressedBlob = null;
+        // Écouteur pour le fichier image
+        imageUpload.addEventListener('change', (event) => {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    originalImage.src = e.target.result;
+                    originalSize.textContent = `${(selectedFile.size / 1024).toFixed(2)} KB`;
+                    originalImageContainer.style.display = 'block';
+                    compressBtn.disabled = false;
+                };
+                reader.readAsDataURL(selectedFile);
+                // Cacher les résultats précédents
+                compressedImageContainer.style.display = 'none';
+                downloadBtn.style.display = 'none';
+            } else {
+                originalImageContainer.style.display = 'none';
+                compressedImageContainer.style.display = 'none';
+                compressBtn.disabled = true;
+            }
+        });
 
-                dropZone.addEventListener("click", () => fileInput.click());
+        // Écouteur pour le curseur de qualité
+        qualityRange.addEventListener('input', (event) => {
+            qualityValue.textContent = event.target.value;
+        });
 
-                ["dragenter", "dragover"].forEach(eventName => {
-                    dropZone.addEventListener(eventName, e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        dropZone.classList.add("dragover");
-                    });
+        // Écouteur pour le bouton de compression
+        compressBtn.addEventListener('click', async () => {
+            if (!selectedFile) {
+                showMessage('Veuillez sélectionner une image d\'abord.', 'error');
+                return;
+            }
+
+            compressBtn.disabled = true;
+            compressBtn.textContent = 'Compression en cours...';
+            showMessage('Compression en cours...', 'info');
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+            formData.append('quality', qualityRange.value);
+
+            try {
+                const response = await fetch(`${apiBase}compressImage`, {
+                    method: 'POST',
+                    body: formData,
                 });
 
-                ["dragleave", "drop"].forEach(eventName => {
-                    dropZone.addEventListener(eventName, e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        dropZone.classList.remove("dragover");
-                    });
-                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Erreur du serveur: ${response.status} - ${errorText}`);
+                }
 
-                dropZone.addEventListener("drop", e => {
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        fileInput.files = files;
-                        handleFile();
+                const blob = await response.blob();
+                const compressedSizeKB = (blob.size / 1024).toFixed(2);
+                const originalSizeKB = (selectedFile.size / 1024).toFixed(2);
+                const reductionPercentage = (((originalSizeKB - compressedSizeKB) / originalSizeKB) * 100).toFixed(2);
+
+                compressedImage.src = URL.createObjectURL(blob);
+                compressedSize.textContent = `${compressedSizeKB} KB`;
+                reduction.textContent = `${reductionPercentage}%`;
+
+                compressedImageContainer.style.display = 'block';
+                downloadBtn.href = URL.createObjectURL(blob);
+                downloadBtn.style.display = 'inline-block';
+                showMessage('Image compressée avec succès !', 'success');
+
+            } catch (error) {
+                console.error('Erreur lors de la compression de l\'image:', error);
+                showMessage(`Erreur de compression: ${error.message}. Vérifiez la console.`, 'error');
+            } finally {
+                compressBtn.disabled = false;
+                compressBtn.textContent = 'Compresser l\'image';
+            }
+        });
+
+
+        // Au chargement du DOM, charge le header
+        document.addEventListener("DOMContentLoaded", () => {
+            console.log("DOMContentLoaded fired for compresseur.html");
+            const headerPlaceholder = document.getElementById("header-placeholder");
+            const mainElement = document.querySelector("main");
+            const bodyElement = document.body;
+
+            fetch("header.html")
+                .then(res => {
+                    console.log("Header fetch response received.");
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
                     }
+                    return res.text();
+                })
+                .then(data => {
+                    console.log("Header HTML retrieved. Injecting into placeholder.");
+                    headerPlaceholder.innerHTML = data;
+
+                    // Rendre le body et le main visibles avec une transition de fondu
+                    console.log("Adding 'show' class to body and main.");
+                    bodyElement.classList.add("show");
+                    if (mainElement) { // Vérification de sécurité pour mainElement
+                        mainElement.classList.add("show");
+                    }
+
+                    // Active le lien "Compresser une image" dans la navigation si présent
+                    const links = document.querySelectorAll("nav a");
+                    links.forEach(link => {
+                        if (link.getAttribute("href") === "compresseur.html") {
+                            link.classList.add("active");
+                        }
+                    });
+
+                    // Appelle mettreAJourBulleDemandes si la fonction est définie (potentiellement dans header.html ou un script lié)
+                    if (typeof mettreAJourBulleDemandes === "function") {
+                        mettreAJourBulleDemandes();
+                    } else {
+                        console.warn("⚠️ La fonction mettreAJourBulleDemandes est absente. Assurez-vous que header.html ou un script associé contient le nécessaire.");
+                    }
+
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement de header.html:", error);
+                    document.getElementById("header-placeholder").innerHTML =
+                        "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                    // Assurez-vous que le main est au moins visible même en cas d'erreur du header
+                    bodyElement.classList.add("show");
+                    if (mainElement) { // Vérification de sécurité pour mainElement
+                        mainElement.classList.add("show");
+                    }
+                    mettreAJourBulleDemandes(); // Tenter l'appel même en cas d'erreur
                 });
-
-                fileInput.addEventListener("change", handleFile);
-
-                function handleFile() {
-                    const file = fileInput.files[0];
-                    if (!file) return;
-
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        const img = new Image();
-                        img.onload = function() {
-                            const canvas = document.createElement("canvas");
-                            const ctx = canvas.getContext("2d");
-                            canvas.width = img.width;
-                            canvas.height = img.height;
-                            ctx.drawImage(img, 0, 0);
-
-                            const quality = parseInt(qualityInput.value, 10) / 100;
-                            const format = formatSelect.value;
-
-                            canvas.toBlob(blob => {
-                                compressedBlob = blob;
-                                const url = URL.createObjectURL(blob);
-                                preview.innerHTML = `<img src="${url}" alt="aperçu" />`;
-                                downloadBtn.disabled = false;
-
-                                downloadBtn.onclick = () => {
-                                    const a = document.createElement("a");
-                                    a.href = url;
-                                    a.download = `image_compressée.${format.split('/')[1]}`;
-                                    a.click();
-                                };
-                            }, format, quality);
-                        };
-                        img.src = event.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                }
-
-                qualityInput.addEventListener("input", () => {
-                    if (fileInput.files.length > 0) handleFile();
-                });
-
-                formatSelect.addEventListener("change", () => {
-                    if (fileInput.files.length > 0) handleFile();
-                });
-
-            })
-            .catch(error => {
-                console.error("Erreur critique lors du chargement du header ou initialisation de la page:", error);
-                headerPlaceholder.innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-                // Assurez-vous que le main est au moins visible même en cas d'erreur du header
-                bodyElement.classList.add("show");
-                if (mainElement) {
-                    mainElement.classList.add("show");
-                }
-                mettreAJourBulleDemandes(); // Tenter l'appel même en cas d'erreur
-            });
-    });
-  </script>
+        });
+    </script>
 </body>
 </html>
