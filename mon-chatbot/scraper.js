@@ -1,8 +1,9 @@
+cat > scraper.js << 'EOF'
 console.log("✅ Le script démarre");
 
 const axios = require('axios');
 const cheerio = require('cheerio');
-const fs = require('fs').promises; // Utilisation de la version basée sur les promesses de fs pour async/await
+const fs = require('fs').promises;
 const path = require('path');
 
 const pages = [
@@ -38,7 +39,6 @@ async function extraireContenu(url) {
       texteExtrait = $('main, article, .container').text().replace(/\s+/g, ' ').trim();
     }
 
-    // Gardons une limite pour éviter des fichiers géants si le scraping dérape
     return texteExtrait.slice(0, 8000); 
 
   } catch (e) {
@@ -47,16 +47,16 @@ async function extraireContenu(url) {
   }
 }
 
-async function construireBase() { // <<< C'EST BIEN ASYNC ICI
+async function construireBase() {
   const base = [];
   const connaissancesFilePath = path.resolve(__dirname, 'connaissances.json');
 
   for (const page of pages) {
-    console.log(`🔎 Extraction de : ${page.nom} (${page.url})`);
+    console.log(`🔎 Extraction de : <span class="math-inline">\{page\.nom\} \(</span>{page.url})`);
     const contenu = await extraireContenu(page.url);
 
     if (!contenu || contenu.length < 50) {
-      console.warn(`⚠️ Contenu insuffisant pour ${page.nom} (${contenu.length} caractères).`);
+      console.warn(`⚠️ Contenu insuffisant pour <span class="math-inline">\{page\.nom\} \(</span>{contenu.length} caractères).`);
       console.warn(`🧪 Aperçu insuffisant : ${contenu.substring(0, Math.min(contenu.length, 100))}...\n`);
     } else {
       console.log(`✅ ${page.nom} — extrait ${contenu.length} caractères.`);
@@ -97,3 +97,4 @@ async function construireBase() { // <<< C'EST BIEN ASYNC ICI
 }
 
 construireBase();
+EOF
