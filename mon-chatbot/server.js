@@ -1,4 +1,4 @@
-require('dotenv').config(); // 🔐 Charge les variables d'environnement (local)
+require('dotenv').config(); // 🔐 Charge les variables d'environnement en local
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -11,50 +11,45 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// 🔍 Vérification de la clé API
+// 🔐 Vérifie la présence de la clé API
 if (!process.env.OPENAI_API_KEY) {
   console.error("❌ Clé API OpenAI manquante. Vérifie .env ou les variables Netlify.");
   process.exit(1);
 }
 
-// 🧠 Chargement des connaissances JSON
-let connaissances = {};
+// 🧠 Chargement des connaissances (tableau de pages)
+let baseConnaissances = [];
 try {
   const data = fs.readFileSync('./connaissances.json', 'utf-8');
-  connaissances = JSON.parse(data);
-  console.log("✅ Base de connaissances chargée.");
+  baseConnaissances = JSON.parse(data);
+  console.log(`✅ ${baseConnaissances.length} pages de connaissances chargées.`);
 } catch (err) {
-  console.warn("⚠️ Aucun fichier de connaissances trouvé. Le chatbot fonctionnera sans contexte enrichi.");
+  console.warn("⚠️ Aucune base de connaissances trouvée. Le chatbot fonctionnera sans contexte enrichi.");
 }
 
-// 🔧 Initialisation de l'API OpenAI
+// 🔧 Configuration de l'API OpenAI
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 🌐 Sert les fichiers statiques
-app.use(express.static(__dirname));
-
-// 🧠 Endpoint de chat avec contexte JSON injecté
+// 🧠 Endpoint principal avec injection du contexte
 app.post('/api/chat', async (req, res) => {
   const userMessage = req.body.message;
 
-  const contexte = connaissances.presentation
-    ? `Tu es un assistant IA basé sur les informations suivantes :
-Présentation : ${connaissances.presentation}
-Objectifs : ${connaissances.objectifs?.join(', ')}
-Services : ${connaissances.services?.join(', ')}
-Contact : ${connaissances.contact}
-Utilise ces infos pour répondre.` 
-    : "Tu es un assistant IA.";
+  // 🧩 Crée le prompt de contexte à partir des pages
+  const contexte = baseConnaissances.map(p => `📄 ${p.titre} (${p.url}) : ${p.contenu}`).join("\n\n");
+
+  const systemPrompt = baseConnaissances.length > 0
+    ? `Tu es un assistant pour un site d'équipe marketing. Voici des informations à connaître sur le site :\n\n${contexte}`
+    : "Tu es un assistant IA pour un site d'équipe marketing.";
 
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
-        { role: 'system', content: contexte },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
-      ]
+      ],
     });
 
     const reply = completion.choices[0].message.content;
@@ -65,12 +60,12 @@ Utilise ces infos pour répondre.`
   }
 });
 
-// 🔁 Redirection vers l'interface
+// 🌍 Sert l'interface HTML
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'chatbot.html'));
 });
 
-// 🚀 Lancement du serveur
+// 🚀 Lance le serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
