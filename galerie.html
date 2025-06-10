@@ -3,528 +3,407 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Galerie - Espace IA</title>
+    <title>Galerie de Prompts - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
     <style>
-        /*
-        ATTENTION: Ces styles devraient idéalement être dans votre fichier style.css
-        pour une meilleure gestion et éviter les doublons.
-        Je les laisse ici temporairement pour la démonstration si style.css n'a pas été mis à jour,
-        mais la meilleure pratique est de les déplacer.
-        */
+        /* Styles pour les transitions de visibilité du body et main */
         body {
             opacity: 0;
-            transition: opacity 0.5s ease-in;
+            transition: opacity 0.5s ease-in; /* 'ease-in' pour une apparition douce */
         }
+
         body.show {
             opacity: 1;
         }
+
         main {
-            opacity: 0;
-            transition: opacity 0.5s ease-in;
+            opacity: 0; /* Gardez ceci pour la transition d'apparition de main */
+            transition: opacity 0.5s ease-in; /* 'ease-in' pour une apparition douce */
+            padding: 40px 20px; /* Appliqué ici, car il est spécifique à main */
         }
+
         main.show {
             opacity: 1;
         }
 
-        #header-placeholder {
-            width: 100%;
-        }
-
-        .galerie-container {
+        /* Styles spécifiques à la galerie */
+        .gallery-container {
             max-width: 1200px;
-            margin: 20px auto;
+            margin: 0 auto;
             padding: 20px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
         }
 
-        .filters-header {
+        .gallery-header {
+            text-align: center;
+            color: #0077b6;
+            margin-bottom: 30px;
+        }
+
+        .filter-controls {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
+            flex-wrap: wrap; /* Permet aux éléments de passer à la ligne */
             gap: 15px;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
+            justify-content: center; /* Centre les filtres */
+            align-items: flex-end; /* Aligne les éléments du bas */
         }
 
-        #filters {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            flex-grow: 1;
-            min-width: 0;
+        .filter-group {
+            flex: 1; /* Permet aux groupes de filtres de prendre de la place */
+            min-width: 200px; /* Largeur minimale pour éviter le rétrécissement excessif */
         }
 
-        #filters input,
-        #filters select {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .filter-group input[type="text"],
+        .filter-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
             border-radius: 8px;
-            font-size: 0.9em;
-            flex: 1;
-            min-width: 120px;
+            font-size: 1em;
+            background: #f9fafb;
+            box-sizing: border-box; /* Important pour que padding n'augmente pas la largeur */
         }
 
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .action-buttons a {
-            background: #0077b6;
-            color: white;
-            text-decoration: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: background 0.3s ease;
-        }
-
-        .action-buttons a:hover {
-            background: #005f8a;
-        }
-
-        #galerie {
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        .gallery-grid {
             display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 25px;
             padding: 20px 0;
         }
 
-        .carte {
+        .prompt-card {
             background: #fff;
-            border-left: 5px solid #0077b6;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            position: relative;
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            height: 100%; /* Assure que toutes les cartes ont la même hauteur */
         }
 
-        .carte:hover {
+        .prompt-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.12);
         }
 
-        .carte img {
+        .prompt-card img {
             width: 100%;
-            height: 150px;
-            object-fit: cover;
+            height: 200px; /* Hauteur fixe pour les images */
+            object-fit: cover; /* Recadre l'image pour couvrir la zone */
             display: block;
             border-bottom: 1px solid #eee;
         }
 
-        .texte-col {
-            padding: 15px;
-            flex-grow: 1;
+        .prompt-card-content {
+            padding: 20px;
             display: flex;
             flex-direction: column;
+            flex-grow: 1; /* Permet au contenu de prendre l'espace restant */
         }
 
-        .outil-highlight {
-            background-color: #e0f7ff;
+        .prompt-card-content h3 {
             color: #0077b6;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-weight: bold;
+            margin-top: 0;
             margin-bottom: 10px;
-            align-self: flex-start;
+            font-size: 1.25em;
         }
 
-        .infos {
-            font-size: 0.85em;
-            color: #666;
-            margin-bottom: 10px;
-            line-height: 1.4;
-        }
-
-        .infos strong {
-            color: #333;
-        }
-
-        .chaine-color {
-            padding: 2px 6px;
-            border-radius: 3px;
-            color: white;
-            font-size: 0.9em;
-        }
-
-        .prompt-texte {
-            font-size: 0.9em;
-            color: #444;
+        .prompt-card-content p {
+            font-size: 0.95em;
+            color: #555;
+            line-height: 1.5;
             margin-bottom: 15px;
-            max-height: 80px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
+            flex-grow: 1; /* Permet au paragraphe de prendre plus de place */
+            white-space: pre-wrap; /* Préserve les retours à la ligne */
+            word-wrap: break-word; /* Casse les mots longs */
         }
 
-        .copier-btn {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
-            margin-top: auto;
-            transition: background-color 0.2s;
+        .prompt-meta {
+            font-size: 0.85em;
+            color: #888;
+            border-top: 1px dashed #eee;
+            padding-top: 10px;
+            margin-top: 10px;
         }
 
-        .copier-btn:hover {
-            background-color: #218838;
+        .prompt-meta span {
+            display: block;
+            margin-bottom: 3px;
         }
 
-        .supprimer-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 0, 0, 0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        .no-results {
+            text-align: center;
+            color: #777;
             font-size: 1.2em;
-            cursor: pointer;
-            transition: background 0.2s;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            padding: 50px 0;
         }
 
-        .supprimer-btn:hover {
-            background: rgba(255, 0, 0, 0.9);
+        .loader {
+            display: block;
+            margin: 50px auto;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #0077b6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
 
-        #success-message {
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Message de succès après redirection */
+        .success-message {
             background-color: #d4edda;
             color: #155724;
-            border: 1px solid #c3e6cb;
-            padding: 10px 20px;
+            padding: 15px;
+            margin-bottom: 20px;
             border-radius: 8px;
             text-align: center;
-            margin-bottom: 20px;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
+            font-weight: bold;
+            border: 1px solid #badbcc;
+            opacity: 0; /* Commence invisible */
+            animation: fadeIn 0.5s forwards; /* Animation d'apparition */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
+
     <div id="header-placeholder"></div>
-
     <main>
-        <div class="galerie-container">
-            <div id="success-message"></div>
-
-            <div class="filters-header">
-                <div id="filters">
-                    <select id="filtre-auteur">
-                        <option value="">Tous les auteurs</option>
-                        </select>
-
-                    <select id="filtre-outil">
-                        <option value="">Tous les outils</option>
-                        <option>Midjourney</option>
-                        <option>DALL·E</option>
-                        <option>Stable Diffusion</option>
-                        <option>Adobe Firefly</option>
-                        <option>Runway</option>
-                        <option>ChatGPT</option>
-                    </select>
-                    <select id="filtre-chaine">
-                        <option value="">Toutes les chaînes</option>
-                        <option>La Une</option>
-                        <option>Tipik</option>
-                        <option>La Trois</option>
-                        <option>La première</option>
-                        <option>Classic 21</option>
-                        <option>vivacité</option>
-                        <option>Musiq3</option>
-                        <option>Auvio</option>
-                    </select>
-                    <select id="filtre-tri">
-                        <option value="recent">Plus récent</option>
-                        <option value="ancien">Plus ancien</option>
-                    </select>
-                </div>
-                <div class="action-buttons">
-                    <a href="prompts.html">➕ Archiver un prompt</a>
-                    <a href="compresseur.html">✂️ Compresser une image</a>
-                </div>
-            </div>
-
-            <div id="galerie">
-                <p>Chargement des prompts...</p>
-            </div>
-        </div>
+        <div id="app"></div>
     </main>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
-        let tousLesPrompts = []; // Stocke tous les prompts récupérés pour le filtrage
 
         document.addEventListener("DOMContentLoaded", () => {
+            console.log("DOMContentLoaded déclenché pour galerie.html");
+
             const headerPlaceholder = document.getElementById("header-placeholder");
             const mainElement = document.querySelector("main");
             const bodyElement = document.body;
-            // const galerieDiv = document.getElementById('galerie'); // Non nécessaire ici, car déjà défini dans chargerEtAfficherPrompts
 
-            // Suppression du code JS qui forçait les styles inline.
-            // On se repose sur les classes 'show' et le CSS externe maintenant.
+            // Déstructure les fonctions de Vue 3 (ref, createApp, computed, onMounted)
+            const { ref, createApp, computed, onMounted, nextTick } = Vue;
 
-            // 1. Charger le header
+            // Simple fonction de debounce pour limiter les appels de filtre
+            function debounce(fn, delay) {
+                let timeoutId = null;
+                return function(...args) {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => fn.apply(this, args), delay);
+                };
+            }
+
+            // Définition du composant Vue
+            const GalleryApp = {
+                template: `
+                    <div class="gallery-container">
+                        <h2 class="gallery-header">Galerie des Prompts IA</h2>
+
+                        <div v-if="successMessage" class="success-message">
+                            {{ successMessage }}
+                        </div>
+
+                        <div class="filter-controls">
+                            <div class="filter-group">
+                                <label for="search">Rechercher un mot-clé :</label>
+                                <input type="text" id="search" v-model="searchTerm" @input="debouncedFilter" placeholder="Filtrer par texte, outil, chaîne..." />
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="authorFilter">Filtrer par auteur :</label>
+                                <select id="authorFilter" v-model="selectedAuthor" @change="applyFilters">
+                                    <option value="">Tous les auteurs</option>
+                                    <option v-for="authorName in uniqueAuthors" :key="authorName" :value="authorName">{{ authorName }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div v-if="isLoading" class="loader"></div>
+                        <div v-else-if="filteredPrompts.length === 0" class="no-results">
+                            Aucun prompt trouvé pour les critères de recherche.
+                        </div>
+                        <div v-else class="gallery-grid">
+                            <div class="prompt-card" v-for="prompt in filteredPrompts" :key="prompt._id">
+                                <img v-if="prompt.imageUrl" :src="prompt.imageUrl" :alt="'Image pour le prompt: ' + prompt.texte" />
+                                <img v-else src="https://via.placeholder.com/280x200?text=Pas+d%27image" alt="Pas d'image disponible" />
+                                <div class="prompt-card-content">
+                                    <h3>{{ prompt.outil }} ({{ prompt.chaine }})</h3>
+                                    <p>{{ prompt.texte }}</p>
+                                    <div class="prompt-meta">
+                                        <span>Par: {{ prompt.auteur || 'Anonyme' }}</span>
+                                        <span>Publié le: {{ formatDate(prompt.date) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                setup() {
+                    const prompts = ref([]);
+                    const isLoading = ref(true);
+                    const searchTerm = ref(''); // Nouveau: pour la recherche par mot-clé
+                    const selectedAuthor = ref(''); // Pour le filtre par auteur
+                    const successMessage = ref('');
+
+                    // Débounce la fonction de filtrage pour le champ de recherche
+                    const debouncedFilter = debounce(() => {
+                        // Pas besoin de faire grand-chose ici, computed property fera le travail
+                        console.log('Filtre de recherche déclenché après debounce');
+                    }, 300); // Délai de 300ms
+
+                    // Gère l'application des filtres (principalement pour le select, le input est debounced)
+                    function applyFilters() {
+                        // Le computed property filteredPrompts se mettra à jour automatiquement
+                        console.log('Filtres appliqués');
+                    }
+
+                    // Calculer les auteurs uniques à partir de tous les prompts chargés
+                    const uniqueAuthors = computed(() => {
+                        const authors = new Set();
+                        prompts.value.forEach(p => {
+                            if (p.auteur && p.auteur.trim() !== '') {
+                                authors.add(p.auteur.trim());
+                            }
+                        });
+                        // Convertir en tableau et trier alphabétiquement
+                        return Array.from(authors).sort((a, b) => a.localeCompare(b));
+                    });
+
+                    // Filtrer les prompts en fonction des critères
+                    const filteredPrompts = computed(() => {
+                        let filtered = prompts.value;
+
+                        // 1. Filtre par mot-clé (searchTerm)
+                        if (searchTerm.value) {
+                            const lowerCaseSearchTerm = searchTerm.value.toLowerCase();
+                            filtered = filtered.filter(prompt =>
+                                prompt.texte.toLowerCase().includes(lowerCaseSearchTerm) ||
+                                prompt.outil.toLowerCase().includes(lowerCaseSearchTerm) ||
+                                prompt.chaine.toLowerCase().includes(lowerCaseSearchTerm)
+                            );
+                        }
+
+                        // 2. Filtre par auteur sélectionné
+                        if (selectedAuthor.value) {
+                            filtered = filtered.filter(prompt =>
+                                (prompt.auteur || 'Anonyme').toLowerCase() === selectedAuthor.value.toLowerCase()
+                            );
+                        }
+
+                        return filtered;
+                    });
+
+                    // Fonction pour charger les prompts depuis Netlify Function
+                    async function fetchPrompts() {
+                        isLoading.value = true;
+                        try {
+                            const response = await fetch(`${apiBase}getGalleryPrompts`);
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            const data = await response.json();
+                            prompts.value = data; // Assurez-vous que data est un tableau de prompts
+                        } catch (error) {
+                            console.error("Erreur lors du chargement des prompts:", error);
+                            // Gérer l'affichage d'une erreur à l'utilisateur si nécessaire
+                        } finally {
+                            isLoading.value = false;
+                        }
+                    }
+
+                    // Fonction pour formater la date
+                    function formatDate(dateString) {
+                        const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                        return new Date(dateString).toLocaleDateString('fr-FR', options);
+                    }
+
+                    // Exécuter la fonction de chargement au montage du composant
+                    onMounted(() => {
+                        fetchPrompts();
+                        // Vérifier le message de succès dans l'URL
+                        const urlParams = new URLSearchParams(window.location.search);
+                        if (urlParams.get('success') === '1') {
+                            successMessage.value = 'Votre prompt a été partagé avec succès !';
+                            // Supprimer le paramètre d'URL après affichage
+                            history.replaceState({}, document.title, window.location.pathname);
+                            // Faire disparaître le message après quelques secondes
+                            setTimeout(() => {
+                                successMessage.value = '';
+                            }, 5000);
+                        }
+                    });
+
+                    return {
+                        prompts,
+                        isLoading,
+                        searchTerm,
+                        selectedAuthor,
+                        uniqueAuthors,
+                        filteredPrompts,
+                        successMessage,
+                        debouncedFilter, // Exposer la fonction debounced
+                        applyFilters,
+                        formatDate,
+                    };
+                }
+            };
+
+            // Chargez le header d'abord
             fetch("header.html")
-                .then(res => res.ok ? res.text() : Promise.reject(res))
+                .then(res => {
+                    console.log("Header fetch response:", res.status);
+                    if (!res.ok) {
+                        return Promise.reject(res);
+                    }
+                    return res.text();
+                })
                 .then(data => {
                     headerPlaceholder.innerHTML = data;
+                    console.log("Header chargé dans le placeholder.");
+                    // Activez le lien de navigation correspondant
                     document.querySelectorAll("nav a").forEach(link => {
                         if (link.getAttribute("href") === "galerie.html") {
                             link.classList.add("active");
+                            console.log("Lien 'Galerie' activé.");
                         }
                     });
                 })
                 .catch(error => {
-                    console.error("Erreur de chargement du menu:", error);
+                    console.error("Erreur de chargement du menu (header.html):", error);
                     headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 })
                 .finally(() => {
-                    // 2. Afficher le corps et le main après le chargement du header (via classes)
-                    console.log("Header chargé, application des classes show au body et main.");
-                    bodyElement.classList.add("show");
-                    mainElement.classList.add("show");
-                    
-                    // 3. Charger et afficher les prompts (contenu dynamique)
-                    chargerEtAfficherPrompts();
-                });
+                    // Montez l'application Vue.js SEULEMENT après le chargement du header
+                    createApp(GalleryApp).mount('#app');
+                    console.log("Application Vue montée sur #app.");
 
-            // 4. Gérer le message de succès si un prompt vient d'être partagé
-            if (window.location.search.includes('success=1')) {
-                const msg = document.getElementById('success-message');
-                msg.textContent = '✅ Prompt partagé avec succès vers la galerie !';
-                msg.style.opacity = '1';
-                setTimeout(() => msg.style.opacity = '0', 2000);
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-            }
-        });
-
-        // --- Fonctions de chargement et d'affichage des prompts ---
-        async function chargerEtAfficherPrompts() {
-            const galerieDiv = document.getElementById('galerie');
-            galerieDiv.innerHTML = '<p>Chargement des prompts...</p>'; // Message de chargement initial
-
-            try {
-                const response = await fetch(`${apiBase}getGalleryPrompts`);
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
-                }
-
-                const prompts = await response.json();
-                tousLesPrompts = prompts; // Stocke tous les prompts pour le filtrage
-                console.log("Prompts récupérés :", prompts);
-
-                if (prompts.length === 0) {
-                    galerieDiv.innerHTML = '<p>Aucun prompt trouvé pour le moment.</p>';
-                } else {
-                    peuplerFiltreAuteur(); // NOUVEL APPEL : Peuple le filtre des auteurs AVANT d'afficher les prompts
-                    afficherPrompts(prompts); // Affiche tous les prompts au départ
-                    setupFiltres(); // Met en place les listeners des filtres
-                }
-
-            } catch (error) {
-                console.error("Erreur lors du chargement des prompts de la galerie:", error);
-                galerieDiv.innerHTML = `<p style="color:red;">Erreur lors du chargement des prompts : ${error.message}</p>`;
-            }
-        }
-
-        // NOUVELLE FONCTION : Peuple le filtre des auteurs
-        function peuplerFiltreAuteur() {
-            const filtreAuteurSelect = document.getElementById('filtre-auteur');
-            if (!filtreAuteurSelect) {
-                console.warn("L'élément 'filtre-auteur' est introuvable. Impossible de peupler le filtre des auteurs.");
-                return;
-            }
-
-            // Efface les options existantes sauf "Tous les auteurs"
-            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
-
-            const auteursUniques = new Set();
-            tousLesPrompts.forEach(prompt => {
-                // Assurez-vous que prompt.auteur existe, n'est pas vide et n'est pas "Anonyme"
-                if (prompt.auteur && prompt.auteur.trim() !== '' && prompt.auteur.trim().toLowerCase() !== 'anonyme') {
-                    auteursUniques.add(prompt.auteur.trim());
-                }
-            });
-
-            // Convertit le Set en Array, le trie et ajoute les options au select
-            Array.from(auteursUniques).sort((a, b) => a.localeCompare(b)).forEach(auteur => { // Ajout de localeCompare pour un tri alphabétique correct
-                const option = document.createElement('option');
-                option.value = auteur;
-                option.textContent = auteur;
-                filtreAuteurSelect.appendChild(option);
-            });
-        }
-
-        function afficherPrompts(prompts) {
-            const galerieDiv = document.getElementById('galerie');
-            galerieDiv.innerHTML = ''; // Vide la galerie avant d'ajouter les prompts
-
-            if (prompts.length === 0) {
-                galerieDiv.innerHTML = '<p>Aucun prompt ne correspond aux filtres.</p>';
-                return;
-            }
-
-            prompts.forEach(prompt => {
-                const carte = document.createElement('div');
-                carte.className = 'carte';
-                carte.dataset.promptId = prompt.id || (prompt.texte ? btoa(prompt.texte).substring(0,10) : `no-id-${Math.random().toString(36).substring(2, 9)}`);
-
-                const img = document.createElement('img');
-                img.src = prompt.imageUrl || `https://via.placeholder.com/180x150?text=No_Image`; // Fallback pour les images manquantes
-                img.alt = prompt.titre || 'Prompt Image';
-                img.onerror = function() {
-                    this.onerror = null; // Empêche une boucle d'erreurs
-                    this.src = `https://via.placeholder.com/180x150?text=Image_Non_Dispo`; // Image de substitution si l'image ne charge pas
-                };
-                carte.appendChild(img);
-
-                const texteCol = document.createElement('div');
-                texteCol.className = 'texte-col';
-
-                const outilHighlight = document.createElement('span');
-                outilHighlight.className = 'outil-highlight';
-                outilHighlight.textContent = prompt.outil || 'N/A';
-                texteCol.appendChild(outilHighlight);
-
-                const infos = document.createElement('p');
-                infos.className = 'infos';
-                infos.innerHTML = `
-                    <strong>Auteur :</strong> ${prompt.auteur || 'Inconnu'}<br>
-                    <strong>Chaîne :</strong> <span class="chaine-color" style="background-color:${getChaineColor(prompt.chaine)};">${prompt.chaine || 'N/A'}</span><br>
-                    <strong>Date :</strong> ${prompt.date ? new Date(prompt.date).toLocaleDateString('fr-FR') : 'N/A'}
-                `;
-                texteCol.appendChild(infos);
-
-                const promptTexte = document.createElement('p');
-                promptTexte.className = 'prompt-texte';
-                promptTexte.textContent = prompt.texte || 'Aucun texte de prompt.';
-                texteCol.appendChild(promptTexte);
-
-                const copierBtn = document.createElement('button');
-                copierBtn.className = 'copier-btn';
-                copierBtn.textContent = 'Copier le prompt';
-                copierBtn.onclick = () => {
-                    navigator.clipboard.writeText(prompt.texte || '').then(() => {
-                        alert('Prompt copié !');
-                    }).catch(err => {
-                        console.error('Erreur de copie:', err);
+                    // Rendre le body et le main visibles après le chargement du header ET le montage de Vue
+                    nextTick(() => {
+                        bodyElement.classList.add("show");
+                        mainElement.classList.add("show");
+                        console.log("Classes 'show' ajoutées à body et main après le montage de Vue.");
                     });
-                };
-                texteCol.appendChild(copierBtn);
-
-                const supprimerBtn = document.createElement('button');
-                supprimerBtn.className = 'supprimer-btn';
-                supprimerBtn.innerHTML = '&times;'; // Symbole "x"
-                supprimerBtn.title = "Supprimer ce prompt";
-                supprimerBtn.onclick = async (e) => {
-                    e.stopPropagation(); // Empêche l'événement de se propager si la carte avait un autre événement click
-                    if (confirm('Êtes-vous sûr de vouloir supprimer ce prompt ? Cette action est irréversible.')) {
-                        try {
-                            const promptToDeleteId = prompt.id; // Utilisez l'ID réel du prompt
-                            if (!promptToDeleteId) {
-                                alert("Impossible de supprimer : ID de prompt introuvable. Veuillez recharger la page ou contacter l'administrateur.");
-                                return;
-                            }
-                            const deleteResponse = await fetch(`${apiBase}deletePrompt?id=${promptToDeleteId}`, {
-                                method: 'DELETE'
-                            });
-                            if (deleteResponse.ok) {
-                                alert('Prompt supprimé avec succès !');
-                                chargerEtAfficherPrompts(); // Recharge la galerie après suppression
-                            } else {
-                                const errorData = await deleteResponse.json();
-                                alert(`Échec de la suppression: ${errorData.message || 'Une erreur inconnue est survenue.'}`);
-                            }
-                        } catch (delError) {
-                            console.error("Erreur lors de la suppression:", delError);
-                            alert("Erreur réseau ou interne lors de la tentative de suppression.");
-                        }
-                    }
-                };
-                carte.appendChild(supprimerBtn);
-
-                carte.appendChild(texteCol);
-                galerieDiv.appendChild(carte);
-            });
-        }
-
-        // Fonction pour obtenir une couleur basée sur la chaîne
-        function getChaineColor(chaine) {
-            switch (chaine) {
-                case 'La Une': return '#FF5733';
-                case 'Tipik': return '#33FF57';
-                case 'La Trois': return '#3357FF';
-                case 'La première': return '#FF33A1';
-                case 'Classic 21': return '#57FF33';
-                case 'vivacité': return '#A133FF';
-                case 'Musiq3': return '#33A1FF';
-                case 'Auvio': return '#FFBD33';
-                default: return '#6c757d'; // Couleur par défaut
-            }
-        }
-
-        // --- Fonctions de filtrage et de tri ---
-        function filtrerEtTrierPrompts() {
-            // CHANGÉ : Utilisation de 'filtre-auteur' au lieu de 'filtre-nom'
-            const filtreAuteur = document.getElementById('filtre-auteur').value;
-            const filtreOutil = document.getElementById('filtre-outil').value;
-            const filtreChaine = document.getElementById('filtre-chaine').value;
-            const filtreTri = document.getElementById('filtre-tri').value;
-
-            let promptsFiltres = [...tousLesPrompts]; // Copie de tous les prompts
-
-            // CHANGÉ : Logique de filtrage pour l'auteur
-            if (filtreAuteur) { // Si un auteur spécifique est sélectionné (pas "Tous les auteurs")
-                promptsFiltres = promptsFiltres.filter(prompt => prompt.auteur === filtreAuteur);
-            }
-            // Si vous voulez une recherche par mots-clés EN PLUS du filtre par auteur,
-            // il faudra ajouter un autre champ input séparé pour cela.
-
-            if (filtreOutil) {
-                promptsFiltres = promptsFiltres.filter(prompt => prompt.outil === filtreOutil);
-            }
-            if (filtreChaine) {
-                promptsFiltres = promptsFiltres.filter(prompt => prompt.chaine === filtreChaine);
-            }
-
-            promptsFiltres.sort((a, b) => {
-                const dateA = a.date ? new Date(a.date) : new Date(0); // Gère les dates manquantes
-                const dateB = b.date ? new Date(b.date) : new Date(0);
-
-                if (filtreTri === 'recent') {
-                    return dateB - dateA; // Plus récent d'abord
-                } else {
-                    return dateA - dateB; // Plus ancien d'abord
-                }
-            });
-
-            afficherPrompts(promptsFiltres);
-        }
-
-        function setupFiltres() {
-            // CHANGÉ : Listener pour 'filtre-auteur' au lieu de l'ancien 'filtre-nom'
-            document.getElementById('filtre-auteur').addEventListener('change', filtrerEtTrierPrompts);
-            document.getElementById('filtre-outil').addEventListener('change', filtrerEtTrierPrompts);
-            document.getElementById('filtre-chaine').addEventListener('change', filtrerEtTrierPrompts);
-            document.getElementById('filtre-tri').addEventListener('change', filtrerEtTrierPrompts);
-        }
+                });
+        });
     </script>
 </body>
 </html>
