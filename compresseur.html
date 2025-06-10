@@ -34,12 +34,7 @@
             font-weight: bold;
         }
         input[type="file"] {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+            display: none; /* Masqué pour le drag&drop */
         }
         input[type="range"] {
             width: 100%;
@@ -64,6 +59,7 @@
             font-size: 16px;
             width: 100%;
             transition: background-color 0.3s ease;
+            margin-top: 10px; /* Ajouté pour espacement */
         }
         button:hover:not(:disabled) {
             background-color: #0056b3;
@@ -113,16 +109,61 @@
         #downloadBtn:hover {
             background-color: #218838;
         }
+        .back-button {
+            display: block;
+            margin-top: 20px;
+            text-align: center;
+            padding: 10px 15px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+        .back-button:hover {
+            background-color: #5a6268;
+        }
+
+        /* Styles pour le Drag & Drop */
+        #dropArea {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+        }
+        #dropArea.highlight {
+            border-color: #007bff;
+            background-color: #e6f7ff;
+        }
+        #dropArea p {
+            margin: 0;
+            font-size: 1.2em;
+            color: #666;
+        }
+        #dropArea .icon {
+            font-size: 3em;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Compresseur d'Image IA</h1>
 
+        <a href="galerie.html" class="back-button">Retour vers la galerie</a>
+
         <div id="imageCompressorForm">
             <div class="form-group">
-                <label for="fileInput">Sélectionner une image :</label>
+                <label for="fileInput">Sélectionner ou glisser-déposer une image :</label>
                 <input type="file" id="fileInput" accept="image/*">
+                <div id="dropArea">
+                    <p class="icon">&#x2193;</p> <p>Glissez & déposez votre image ici, ou cliquez pour sélectionner</p>
+                    <p id="fileNameDisplay" style="font-weight: bold; color: #333; margin-top: 10px;"></p>
+                </div>
             </div>
 
             <div class="form-group">
@@ -159,44 +200,86 @@
         const compressedImageContainer = document.getElementById('compressedImageContainer');
         const downloadBtn = document.getElementById('downloadBtn');
         const messageDiv = document.getElementById('message');
+        const dropArea = document.getElementById('dropArea'); // Nouvelle référence pour le drag&drop
+        const fileNameDisplay = document.getElementById('fileNameDisplay'); // Affichage du nom de fichier
 
         let selectedFile = null;
 
         // Fonction pour afficher des messages à l'utilisateur
         function showMessage(msg, type) {
             messageDiv.textContent = msg;
-            // Utilisation de classList.add/remove pour une meilleure gestion des classes
-            messageDiv.className = 'alert'; // Réinitialise les classes
+            messageDiv.className = 'alert';
             messageDiv.classList.add(`alert-${type}`);
             messageDiv.style.display = 'block';
         }
 
-        // Gestion de la sélection de fichier
-        fileInput.addEventListener('change', (event) => {
-            selectedFile = event.target.files[0];
-            if (selectedFile) {
+        // Fonction commune pour gérer la sélection de fichier (manuel ou drag&drop)
+        function handleFileSelection(file) {
+            if (file && file.type.startsWith('image/')) {
+                selectedFile = file;
                 showMessage(`Fichier sélectionné : ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(2)} KB)`, 'info');
-                // Réinitialiser l'affichage précédent si un nouveau fichier est choisi
+                fileNameDisplay.textContent = selectedFile.name; // Afficher le nom du fichier
                 compressedImageContainer.style.display = 'none';
                 downloadBtn.style.display = 'none';
             } else {
-                showMessage('Aucun fichier sélectionné.', 'warning');
+                selectedFile = null;
+                showMessage('Veuillez sélectionner un fichier image valide (JPEG, PNG, GIF, etc.).', 'warning');
+                fileNameDisplay.textContent = '';
             }
+        }
+
+        // Gestion de la sélection de fichier via l'input
+        fileInput.addEventListener('change', (event) => {
+            handleFileSelection(event.target.files[0]);
         });
+
+        // --- Logique Drag & Drop ---
+        // Empêche le comportement par défaut (ouverture du fichier dans le navigateur)
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false); // Pour éviter que le navigateur n'ouvre le fichier
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Mettre en évidence la zone de dépôt lors du survol
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'), false);
+        });
+
+        // Gérer le fichier déposé
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                handleFileSelection(files[0]); // Ne prendre que le premier fichier s'il y en a plusieurs
+            }
+        }
+
+        // Permettre le clic sur la zone de dépôt pour ouvrir l'input file
+        dropArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        // --- FIN Logique Drag & Drop ---
+
 
         // Le chemin vers votre fonction Netlify
         const apiBase = window.location.origin + '/.netlify/functions/';
 
         // Écouteur pour le bouton de compression
         compressBtn.addEventListener('click', async (event) => {
-            // Empêche la soumission par défaut du formulaire si le bouton est de type "submit"
-            // Bien que nous utilisions type="button", c'est une bonne pratique de sécurité.
-            // if (event && event.preventDefault) {
-            //     event.preventDefault();
-            // }
-
             if (!selectedFile) {
-                showMessage('Veuillez d\'abord sélectionner une image.', 'warning');
+                showMessage('Veuillez d\'abord sélectionner ou glisser-déposer une image.', 'warning');
                 return;
             }
 
@@ -204,54 +287,43 @@
             compressBtn.textContent = 'Compression en cours...';
             showMessage('Compression en cours...', 'info');
 
-            // Nouvelle logique : lire le fichier comme une URL de données (Base64)
             const reader = new FileReader();
 
             reader.onload = async (e) => {
-                const base64Image = e.target.result; // L'image est maintenant en Base64 (data:image/jpeg;base64,...)
+                const base64Image = e.target.result;
                 const quality = qualityRange.value;
 
                 try {
-                    // Envoyer l'image en Base64 et la qualité en tant qu'objet JSON
                     const response = await fetch(`${apiBase}compressImage`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json', // TRÈS IMPORTANT : nous envoyons du JSON
+                            'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ // Stringifier l'objet JSON pour l'envoi
+                        body: JSON.stringify({
                             image: base64Image,
                             quality: parseInt(quality, 10)
                         }),
                     });
 
-                    // Vérifier si la réponse HTTP est OK (statut 2xx)
                     if (!response.ok) {
-                        const errorBody = await response.text(); // Lire le corps de l'erreur du serveur
+                        const errorBody = await response.text();
                         throw new Error(`Erreur du serveur: ${response.status} - ${errorBody}`);
                     }
 
-                    // --- DÉBUT DE LA CORRECTION CLÉ POUR L'ERREUR 'InvalidCharacterError' ---
-                    // Le serveur renvoie isBase64Encoded: true et Content-Type: image/jpeg.
-                    // Fetch peut directement lire cela comme un Blob.
                     const blob = await response.blob();
 
-                    // Validation simple du blob
                     if (!blob || blob.size === 0) {
                         throw new Error('Réponse vide ou invalide de la fonction Netlify.');
                     }
-                    // --- FIN DE LA CORRECTION ---
 
-                    // Calcul des tailles et de la réduction
                     const compressedSizeKB = (blob.size / 1024).toFixed(2);
                     const originalSizeKB = (selectedFile.size / 1024).toFixed(2);
                     const reductionPercentage = originalSizeKB > 0 ? (((originalSizeKB - compressedSizeKB) / originalSizeKB) * 100).toFixed(2) : 0;
 
-                    // Afficher l'image compressée
                     compressedImage.src = URL.createObjectURL(blob);
                     compressedSize.textContent = `${compressedSizeKB} KB`;
                     reduction.textContent = `${reductionPercentage}%`;
 
-                    // Afficher les éléments cachés et configurer le bouton de téléchargement
                     compressedImageContainer.style.display = 'block';
                     downloadBtn.href = URL.createObjectURL(blob);
                     downloadBtn.download = `compressed_${selectedFile.name.replace(/\.[^/.]+$/, "")}.jpeg`;
@@ -262,13 +334,11 @@
                     console.error('Erreur lors de la compression de l\'image:', error);
                     showMessage(`Erreur de compression: ${error.message}. Vérifiez la console pour plus de détails.`, 'error');
                 } finally {
-                    // Réactiver le bouton après la tentative, qu'elle soit réussie ou échouée
                     compressBtn.disabled = false;
                     compressBtn.textContent = 'Compresser l\'image';
                 }
             };
 
-            // Lancer la lecture du fichier en Base64
             reader.readAsDataURL(selectedFile);
         });
 
@@ -279,7 +349,6 @@
         });
         // Initialiser la valeur au chargement
         qualityValueSpan.textContent = qualityRange.value;
-
     </script>
 </body>
 </html>
