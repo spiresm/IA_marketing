@@ -3,395 +3,343 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Archiver un prompt - Espace IA</title>
+    <title>Partager un Prompt - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
     <style>
-        /* Ajouts pour le fondu global de la page */
+        /* Styles pour les transitions de visibilité du body et main */
         body {
             opacity: 0;
-            transition: opacity 0.5s ease-in;
+            transition: opacity 0.5s ease;
         }
 
         body.show {
             opacity: 1;
         }
 
-        /* Supprimez l'opacité initiale de 'main' ici.
-           Nous la gérerons par JS au chargement du DOM pour plus de fiabilité. */
-        /* main {
-            opacity: 0;
-            transition: opacity 0.5s ease-in;
-        } */
+        main {
+            opacity: 0; /* Gardez ceci pour la transition d'apparition de main */
+            transition: opacity 0.5s ease;
+        }
 
         main.show {
             opacity: 1;
         }
 
-        /* Pour vous assurer que 'main' est visible même si la classe 'show' n'est pas encore là */
+        /* Vos autres styles CSS spécifiques à cette page */
         main {
-            opacity: 0; /* Gardez cette ligne si vous voulez le fondu initial */
-            transition: opacity 0.5s ease-in;
+            padding: 40px 20px;
         }
 
-
-        #header-placeholder {
-            width: 100%;
-        }
-
-        /* Votre CSS existant pour prompts.html (à ajuster si vous avez des styles spécifiques) */
-        .prompt-container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background: white;
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
             border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            position: relative; /* Nécessaire si vous utilisez des éléments positionnés à l'intérieur */
         }
 
-        form {
-            display: grid;
-            gap: 15px;
+        .retour-lien {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #0077b6;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+
+        .retour-lien:hover {
+            text-decoration: underline;
         }
 
         label {
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-weight: 600;
             display: block;
+            margin-top: 15px;
         }
 
-        input[type="text"],
-        input[type="url"],
-        textarea,
-        select {
+        input, select, textarea {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ddd;
+            margin-top: 5px;
+            border: 1px solid #ccc;
             border-radius: 8px;
             font-size: 1em;
-            box-sizing: border-box; /* Inclut le padding dans la largeur totale */
+            background: #f9fafb;
+            box-sizing: border-box; /* Assure que le padding ne fait pas déborder l'élément */
         }
 
-        textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .image-preview {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .image-preview img {
-            max-width: 150px;
-            height: auto;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-
-        button[type="submit"] {
-            background-color: #0077b6;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: bold;
-            transition: background-color 0.3s ease;
-            margin-top: 20px;
-        }
-
-        button[type="submit"]:hover {
-            background-color: #005f8a;
-        }
-
-        #message {
-            margin-top: 20px;
-            padding: 10px 15px;
-            border-radius: 8px;
+        #drop-zone {
+            border: 2px dashed #0077b6;
+            padding: 20px;
             text-align: center;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-            color: white;
-        }
-
-        #message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        #message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        /* Styles pour le bouton "Supprimer image" */
-        .delete-image-button {
-            background-color: #dc3545; /* Rouge pour supprimer */
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
+            color: #777;
+            margin-top: 10px;
+            border-radius: 10px;
             cursor: pointer;
-            font-size: 0.8em;
-            margin-left: 10px;
-            transition: background-color 0.2s;
+            transition: background 0.2s;
         }
 
-        .delete-image-button:hover {
-            background-color: #c82333;
+        #drop-zone.dragover {
+            background: #e0f7ff;
+        }
+
+        #image-preview {
+            display: block;
+            max-width: 80%;
+            margin: 15px auto;
+            border-radius: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #0077b6;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            margin-top: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            box-sizing: border-box; /* Assure que le padding ne fait pas déborder l'élément */
+        }
+
+        button:hover {
+            background: #005f8a;
+        }
+
+        .confirmation {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .confirmation img {
+            max-width: 80%;
+            margin-top: 15px;
+            border-radius: 10px;
+        }
+
+        .loader {
+            display: block;
+            margin: 20px auto;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #ccc;
+            border-top: 4px solid #0077b6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
+
     <div id="header-placeholder"></div>
-
     <main>
-        <div id="app" class="prompt-container">
-            <h1>Archiver un nouveau prompt</h1>
-            <div id="message" :class="messageClass" :style="{ opacity: messageOpacity }">{{ message }}</div>
+        <div id="app"></div> </main>
 
-            <form @submit.prevent="submitPrompt">
-                <label for="titre">Titre du prompt :</label>
-                <input type="text" id="titre" v-model="form.titre" required />
-
-                <label for="texte">Prompt (texte généré) :</label>
-                <textarea id="texte" v-model="form.texte" required></textarea>
-
-                <label for="outil">Outil IA :</label>
-                <select id="outil" v-model="form.outil" required>
-                    <option value="">Sélectionnez un outil</option>
-                    <option>Midjourney</option>
-                    <option>DALL·E</option>
-                    <option>Stable Diffusion</option>
-                    <option>Adobe Firefly</option>
-                    <option>Runway</option>
-                    <option>ChatGPT</option>
-                </select>
-
-                <label for="chaine">Chaîne (RTBF) :</label>
-                <select id="chaine" v-model="form.chaine" required>
-                    <option value="">Sélectionnez une chaîne</option>
-                    <option>La Une</option>
-                    <option>Tipik</option>
-                    <option>La Trois</option>
-                    <option>La première</option>
-                    <option>Classic 21</option>
-                    <option>vivacité</option>
-                    <option>Musiq3</option>
-                    <option>Auvio</option>
-                </select>
-
-                <label for="categorie">Catégorie :</label>
-                <input type="text" id="categorie" v-model="form.categorie" placeholder="ex: Communication, Graphisme, Rédaction" />
-
-                <label for="auteur">Auteur :</label>
-                <input type="text" id="auteur" v-model="form.auteur" placeholder="Votre nom ou pseudonyme" />
-
-                <label for="image">Télécharger une image :</label>
-                <input type="file" id="image" @change="handleImageUpload" accept="image/*" />
-                <div v-if="imagePreviewUrl" class="image-preview">
-                    <img :src="imagePreviewUrl" alt="Aperçu de l'image" />
-                    <button type="button" @click="removeImage" class="delete-image-button">Supprimer image</button>
-                </div>
-
-                <button type="submit" :disabled="loading">
-                    {{ loading ? 'Envoi en cours...' : 'Archiver le prompt' }}
-                </button>
-            </form>
-        </div>
-    </main>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
     <script>
-        const apiBase = window.location.origin + '/.netlify/functions/';
-        const branch = 'main';
-
-        async function mettreAJourBulleDemandes() {
-            const notifBubble = document.getElementById('notif-count');
-            if (!notifBubble) {
-                console.warn("Bulle de notification 'notif-count' non trouvée.");
-                return;
-            }
-            try {
-                const response = await fetch(`${apiBase}getDemandesCount`);
-                if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status}`);
-                }
-                const data = await response.json();
-                const count = data.count || 0;
-
-                if (count > 0) {
-                    notifBubble.textContent = count;
-                    notifBubble.style.display = 'inline-block';
-                } else {
-                    notifBubble.style.display = 'none';
-                }
-            } catch (error) {
-                console.error("Erreur lors de la mise à jour de la bulle des demandes:", error);
-                notifBubble.style.display = 'none';
-            }
-        }
-
+        // S'assurer que le DOM est entièrement chargé avant d'exécuter les scripts
         document.addEventListener("DOMContentLoaded", () => {
-            console.log("DOMContentLoaded fired for prompts.html");
             const headerPlaceholder = document.getElementById("header-placeholder");
             const mainElement = document.querySelector("main");
             const bodyElement = document.body;
 
-            // --- NOUVEAU: Rendre le main visible IMMÉDIATEMENT dès que le DOM est prêt ---
-            // C'est crucial car Vue.js va être monté sur un élément qui doit être visible.
-            if (mainElement) {
-                mainElement.classList.add("show");
-                console.log("Main element should now be visible.");
-            } else {
-                console.warn("Main element not found in prompts.html");
-            }
-            // --- Fin de l'ajout ---
+            // Déstructure les fonctions de Vue 3 (ref, createApp)
+            const { ref, createApp } = Vue;
 
+            // Définition du composant Vue
+            const PromptForm = {
+                template: `
+                    <div class="container">
+                        <a href="galerie.html" class="retour-lien">← Retour</a>
+                        <h2 style="text-align:center; color:#0077b6;">Partager un prompt</h2>
+                        <form @submit.prevent="submitForm">
+                            <label for="auteur">Votre nom</label>
+                            <input id="auteur" v-model="auteur" required />
 
-            // --- NOUVEAU: Initialiser l'application Vue.js ici, APRES avoir rendu main visible ---
-            // De cette façon, Vue.js montera son instance sur un élément déjà visible,
-            // évitant ainsi le problème de "formulaire invisible".
-            new Vue({
-                el: '#app',
-                data: {
-                    form: {
-                        titre: '',
-                        texte: '',
-                        outil: '',
-                        chaine: '',
-                        categorie: '',
-                        auteur: '',
-                    },
-                    imageFile: null,
-                    imagePreviewUrl: null,
-                    loading: false,
-                    message: '',
-                    messageClass: '',
-                    messageOpacity: 0
-                },
-                methods: {
-                    handleImageUpload(event) {
-                        const file = event.target.files[0];
-                        if (file) {
-                            this.imageFile = file;
-                            this.imagePreviewUrl = URL.createObjectURL(file);
-                        } else {
-                            this.removeImage();
+                            <label for="outil">Outil IA utilisé</label>
+                            <select id="outil" v-model="outil">
+                                <option>Midjourney</option>
+                                <option>DALL·E</option>
+                                <option>Stable Diffusion</option>
+                                <option>Adobe Firefly</option>
+                                <option>Runway</option>
+                                <option>ChatGPT</option>
+                            </select>
+
+                            <label for="chaine">Chaîne</label>
+                            <select id="chaine" v-model="chaine">
+                                <option>La Une</option>
+                                <option>Tipik</option>
+                                <option>La Trois</option>
+                                <option>La Première</option>
+                                <option>Classic 21</option>
+                                <option>Vivacité</option>
+                                <option>Musiq3</option>
+                                <option>Auvio</option>
+                            </select>
+
+                            <label for="texte">Prompt</label>
+                            <textarea id="texte" v-model="texte" rows="4" required></textarea>
+
+                            <label>Image</label>
+                            <div id="drop-zone"
+                                    @click="triggerFile"
+                                    @dragover.prevent="onDragOver"
+                                    @dragleave="onDragLeave"
+                                    @drop.prevent="onDrop">
+                                Déposez ou cliquez
+                            </div>
+                            <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
+                            <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
+
+                            <div v-if="isLoading" class="loader"></div>
+                            <button v-else type="submit">Partager</button>
+                        </form>
+
+                        <div class="confirmation" v-if="confirmationVisible">
+                            <p>✅ Prompt partagé avec succès vers la <strong>galerie</strong> !</p>
+                            <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
+                            <p style="white-space: pre-wrap;">{{ confirmationTexte }}</p>
+                            <p style="margin-top: 15px; color: #0077b6;">Redirection vers la galerie dans 5 secondes...</p>
+                        </div>
+                    </div>
+                `,
+                setup() {
+                    const auteur = ref('');
+                    const outil = ref('Midjourney');
+                    const chaine = ref('La Une');
+                    const texte = ref('');
+                    const fileInput = ref(null);
+                    const imagePreviewUrl = ref('');
+                    const confirmationVisible = ref(false);
+                    const confirmationImageUrl = ref('');
+                    const confirmationTexte = ref('');
+                    const isLoading = ref(false);
+
+                    function triggerFile() { fileInput.value?.click(); }
+                    function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
+                    function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+                    function onDrop(e) {
+                        e.currentTarget.classList.remove('dragover');
+                        const files = e.dataTransfer.files;
+                        if (files.length) {
+                            fileInput.value.files = files;
+                            handleFile(files[0]);
                         }
-                    },
-                    removeImage() {
-                        this.imageFile = null;
-                        this.imagePreviewUrl = null;
-                        const fileInput = document.getElementById('image');
-                        if (fileInput) {
-                            fileInput.value = '';
-                        }
-                    },
-                    async submitPrompt() {
-                        this.loading = true;
-                        this.message = '';
-                        this.messageOpacity = 0;
+                    }
+                    function onFileChange(e) {
+                        const file = e.target.files[0];
+                        if (file) handleFile(file);
+                    }
+                    function handleFile(file) {
+                        const reader = new FileReader();
+                        reader.onload = () => { imagePreviewUrl.value = reader.result; };
+                        reader.readAsDataURL(file);
+                    }
+                    function getBase64(file) {
+                        return new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result.split(',')[1]);
+                            reader.onerror = () => reject();
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                    async function submitForm() {
+                        confirmationVisible.value = false;
+                        isLoading.value = true;
 
-                        const formData = new FormData();
-                        formData.append('promptData', JSON.stringify({
-                            titre: this.form.titre,
-                            texte: this.form.texte,
-                            outil: this.form.outil,
-                            chaine: this.form.chaine,
-                            categorie: this.form.categorie,
-                            auteur: this.form.auteur,
-                            date: new Date().toISOString().slice(0, 10)
-                        }));
-
-                        if (this.imageFile) {
-                            formData.append('imageFile', this.imageFile);
-                        }
+                        let imageUrl = '';
+                        const file = fileInput.value?.files?.[0];
 
                         try {
-                            const response = await fetch(`${apiBase}savePrompt`, {
+                            if (file) {
+                                const base64 = await getBase64(file);
+                                const payload = { fileBase64: base64, fileName: file.name };
+                                const resp = await fetch('/.netlify/functions/uploadImage', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(payload)
+                                });
+                                if (!resp.ok) throw new Error(`Upload failed: ${resp.status}`);
+                                const data = await resp.json();
+                                imageUrl = data.url;
+                            }
+
+                            const promptResp = await fetch('/.netlify/functions/pushPrompt', {
                                 method: 'POST',
-                                body: formData
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    auteur: auteur.value,
+                                    outil: outil.value,
+                                    chaine: chaine.value,
+                                    texte: texte.value,
+                                    imageUrl
+                                })
                             });
 
-                            const result = await response.json();
+                            if (!promptResp.ok) throw new Error(`Prompt failed: ${promptResp.status}`);
 
-                            if (response.ok && result.success) {
-                                this.showMessage('✅ Prompt archivé et image compressée avec succès ! Redirection...', 'success');
-                                this.form = {
-                                    titre: '',
-                                    texte: '',
-                                    outil: '',
-                                    chaine: '',
-                                    categorie: '',
-                                    auteur: '',
-                                };
-                                this.removeImage();
-                                setTimeout(() => {
-                                    window.location.href = 'galerie.html?success=1';
-                                }, 2000);
-                            } else {
-                                this.showMessage(`❌ Erreur: ${result.error || 'Une erreur inconnue est survenue.'}`, 'error');
-                            }
-                        } catch (error) {
-                            console.error('Erreur lors de l\'envoi du prompt:', error);
-                            this.showMessage('❌ Une erreur réseau est survenue ou la fonction Netlify n\'est pas accessible.', 'error');
+                            confirmationImageUrl.value = imageUrl;
+                            confirmationTexte.value = texte.value;
+                            confirmationVisible.value = true;
+
+                            setTimeout(() => {
+                                window.location.href = "/galerie.html";
+                            }, 3000);
+
+                            // Réinitialiser les champs du formulaire
+                            auteur.value = '';
+                            outil.value = 'Midjourney';
+                            chaine.value = 'La Une';
+                            texte.value = '';
+                            imagePreviewUrl.value = '';
+                            if (fileInput.value) fileInput.value.value = null; // Effacer le champ de fichier
+                        } catch (err) {
+                            alert('Échec envoi prompt');
+                            console.error("Erreur lors de l'envoi du formulaire:", err); // Ajoutez ceci pour le débogage
                         } finally {
-                            this.loading = false;
+                            isLoading.value = false;
                         }
-                    },
-                    showMessage(text, type) {
-                        this.message = text;
-                        this.messageClass = type;
-                        this.messageOpacity = 1;
-                        setTimeout(() => {
-                            this.messageOpacity = 0;
-                        }, 3000);
                     }
+
+                    return {
+                        auteur, outil, chaine, texte, fileInput,
+                        imagePreviewUrl, confirmationVisible,
+                        confirmationImageUrl, confirmationTexte,
+                        isLoading,
+                        triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
+                    };
                 }
-            });
+            };
 
+            // Montez l'application Vue.js sur l'élément #app
+            createApp(PromptForm).mount('#app');
 
-            // Le chargement du header peut se faire en parallèle, il n'impacte pas la visibilité du formulaire Vue.js
+            // Chargez le header et rendez le body/main visible
+            // Cette partie s'exécute APRÈS que Vue ait monté le formulaire
             fetch("header.html")
-                .then(res => {
-                    console.log("Header fetch response received.");
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-                    return res.text();
-                })
-                .then(data => {
-                    console.log("Header HTML retrieved. Injecting into placeholder.");
-                    headerPlaceholder.innerHTML = data;
-
-                    // Active le lien "Archiver un prompt" dans la navigation si présent
-                    const links = document.querySelectorAll("nav a");
-                    links.forEach(link => {
-                        if (link.getAttribute("href") === "prompts.html") {
-                            link.classList.add("active");
-                        }
-                    });
-
-                    if (typeof mettreAJourBulleDemandes === "function") {
-                        mettreAJourBulleDemandes();
-                    } else {
-                        console.warn("⚠️ La fonction mettreAJourBulleDemandes est absente. Assurez-vous que header.html ou un script associé contient le nécessaire.");
-                    }
+                .then(r => r.text())
+                .then(html => {
+                    headerPlaceholder.innerHTML = html;
+                    bodyElement.classList.add("show");
+                    mainElement.classList.add("show");
                 })
                 .catch(error => {
                     console.error("Erreur lors du chargement de header.html:", error);
-                    document.getElementById("header-placeholder").innerHTML =
-                        "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                    headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 });
-
-            // bodyElement.classList.add("show"); // Ceci peut être déplacé ici pour une visibilité plus rapide si besoin.
-                                                // Votre CSS body { opacity: 0; } et body.show { opacity: 1; } gère déjà cela.
         });
     </script>
 </body>
