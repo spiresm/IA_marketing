@@ -1,33 +1,3 @@
-// ... (tout le code avant le bloc d'écriture de fichier) ...
-
-// --- NOUVELLES VÉRIFICATIONS ICI ---
-console.log(`📊 Taille de la base de données collectée : ${base.length} pages.`);
-if (base.length === 0) {
-    console.error("❌ La base de données 'base' est vide. Le fichier connaissances.json ne sera PAS mis à jour avec du contenu.");
-    return; // Arrête l'exécution si la base est vide
-}
-
-const jsonString = JSON.stringify(base, null, 2);
-console.log(`📏 Taille des données JSON à écrire : ${jsonString.length} caractères.`); // Ajouté: taille du JSON
-console.log(`📝 Début de l'écriture du fichier : ${connaissancesFilePath}`); // Ajouté: confirmation début écriture
-
-try {
-    // Tente de supprimer l'ancien fichier avant d'écrire le nouveau
-    await fs.unlink(connaissancesFilePath).catch(e => {
-        if (e.code !== 'ENOENT') { // 'ENOENT' signifie que le fichier n'existe pas, ce qui est OK
-            console.warn(`⚠️ Impossible de supprimer l'ancien fichier connaissances.json (peut-être verrouillé ou permission):`, e.message);
-        } else {
-            console.log(`🗑️ Ancien fichier connaissances.json non trouvé (OK, il sera créé).`);
-        }
-    });
-
-    await fs.writeFile(connaissancesFilePath, jsonString, 'utf-8'); // Utilise jsonString
-    console.log(`✅ Fichier connaissances.json mis à jour avec succès à : ${connaissancesFilePath}`);
-} catch (error) {
-    console.error(`❌ Erreur CRITIQUE lors de l'écriture du fichier connaissances.json :`, error);
-}
-
-// ... (le reste du code, qui n'est plus pertinent après l'écriture) ...
 console.log("✅ Le script démarre");
 
 const axios = require('axios');
@@ -45,7 +15,7 @@ const pages = [
   { url: 'https://iamarketing.netlify.app/faq.html', nom: 'FAQ' }
 ];
 
-async function extraireContenu(url) {
+async function extraireContenu(url) { // Cette fonction est déjà async
   try {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
@@ -68,7 +38,6 @@ async function extraireContenu(url) {
       texteExtrait = $('main, article, .container').text().replace(/\s+/g, ' ').trim();
     }
 
-    // Gardons une limite pour éviter des fichiers géants si le scraping dérape
     return texteExtrait.slice(0, 8000); 
 
   } catch (e) {
@@ -77,7 +46,8 @@ async function extraireContenu(url) {
   }
 }
 
-async function construireBase() {
+// <<< MODIFICATION ICI : AJOUT DE 'async' DEVANT 'function construireBase()'
+async function construireBase() { 
   const base = [];
   const connaissancesFilePath = path.resolve(__dirname, 'connaissances.json');
 
@@ -87,7 +57,6 @@ async function construireBase() {
 
     if (!contenu || contenu.length < 50) {
       console.warn(`⚠️ Contenu insuffisant pour ${page.nom} (${contenu.length} caractères).`);
-      // Affiche le début du contenu même s'il est insuffisant pour diagnostic
       console.warn(`🧪 Aperçu insuffisant : ${contenu.substring(0, Math.min(contenu.length, 100))}...\n`);
     } else {
       console.log(`✅ ${page.nom} — extrait ${contenu.length} caractères.`);
@@ -101,23 +70,26 @@ async function construireBase() {
     });
   }
 
-  // --- NOUVELLES VÉRIFICATIONS ICI ---
   console.log(`📊 Taille de la base de données collectée : ${base.length} pages.`);
   if (base.length === 0) {
-      console.error("❌ La base de données 'base' est vide. Le fichier connaissances.json ne sera pas mis à jour avec du contenu.");
-      return; // Arrête l'exécution si la base est vide
+      console.error("❌ La base de données 'base' est vide. Le fichier connaissances.json ne sera PAS mis à jour avec du contenu.");
+      return;
   }
-  // --- FIN NOUVELLES VÉRIFICATIONS ---
+
+  const jsonString = JSON.stringify(base, null, 2);
+  console.log(`📏 Taille des données JSON à écrire : ${jsonString.length} caractères.`);
+  console.log(`📝 Début de l'écriture du fichier : ${connaissancesFilePath}`);
 
   try {
-    // Tente de supprimer l'ancien fichier avant d'écrire le nouveau
     await fs.unlink(connaissancesFilePath).catch(e => {
-        if (e.code !== 'ENOENT') { // 'ENOENT' signifie que le fichier n'existe pas, ce qui est OK
+        if (e.code !== 'ENOENT') {
             console.warn(`⚠️ Impossible de supprimer l'ancien fichier connaissances.json (peut-être verrouillé ou permission):`, e.message);
+        } else {
+            console.log(`🗑️ Ancien fichier connaissances.json non trouvé (OK, il sera créé).`);
         }
     });
 
-    await fs.writeFile(connaissancesFilePath, JSON.stringify(base, null, 2), 'utf-8');
+    await fs.writeFile(connaissancesFilePath, jsonString, 'utf-8');
     console.log(`✅ Fichier connaissances.json mis à jour avec succès à : ${connaissancesFilePath}`);
   } catch (error) {
     console.error(`❌ Erreur CRITIQUE lors de l'écriture du fichier connaissances.json :`, error);
