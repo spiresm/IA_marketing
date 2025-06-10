@@ -36,7 +36,7 @@
             max-width: 960px;
             margin: 20px auto 25px auto;
             padding: 0 20px;
-            box-sizing: border;
+            box-sizing: border-box;
         }
 
         /* Conteneur principal de la galerie (la "box" blanche) */
@@ -119,13 +119,12 @@
             border-radius: 12px;
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
             display: flex;
-            align-items: flex-start;
-            padding: 15px;
+            align-items: flex-start; /* Alignement au début */
+            padding: 0; /* MODIF: Pas de padding pour la carte, l'image remplit */
             position: relative;
             transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
             box-sizing: border-box;
             width: 100%;
-            /* min-height sera ajustée par le contenu, pas de valeur fixe */
             z-index: 1;
         }
 
@@ -141,24 +140,25 @@
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            margin-right: 20px;
-            width: 240px; /* Largeur fixe pour la colonne de l'image */
+            margin-right: 0; /* MODIF: Pas de marge ici, l'image remplit la zone */
+            width: 200px; /* MODIF: Largeur fixe pour le panneau gauche */
+            overflow: hidden; /* Pour s'assurer que l'image ne déborde pas du left-panel si elle est plus large */
+            border-top-left-radius: 12px; /* Assure que le coin est rond */
+            border-bottom-left-radius: 12px; /* Assure que le coin est rond */
         }
 
         .carte-image {
-            width: 240px; /* Largeur de l'image */
-            height: auto; /* MODIF: Hauteur automatique pour conserver les proportions */
-            object-fit: cover; /* Permet de recadrer si l'image n'est pas exactement 240px de large */
+            width: 100%; /* MODIF: L'image remplit la largeur du left-panel */
+            height: 100%; /* MODIF: L'image remplit la hauteur du left-panel */
+            object-fit: cover; /* MODIF: IMPORTANT pour couvrir la zone sans déformer */
             display: block;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            margin-bottom: 0;
+            border-radius: 0; /* MODIF: Retirer le border-radius de l'image elle-même */
+            box-shadow: none; /* MODIF: Pas d'ombre sur l'image seule */
+            transition: transform 0.3s ease;
         }
 
         .carte:hover .carte-image {
             transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
         /* Conteneur pour toutes les informations textuelles (à droite de l'image) */
@@ -167,7 +167,7 @@
             flex-direction: column;
             flex-grow: 1;
             min-width: 0;
-            padding-right: 10px;
+            padding: 15px; /* MODIF: Padding ajouté ici au lieu de la carte */
         }
 
         /* Badge pour l'outil (dans infos-wrapper) */
@@ -220,7 +220,7 @@
             font-size: 0.9em;
             color: #444;
             line-height: 1.4;
-            max-height: 70px;
+            max-height: 70px; /* Conservez cette hauteur ou ajustez selon le besoin */
             overflow-y: auto;
             white-space: pre-wrap;
             word-break: break-word;
@@ -419,19 +419,18 @@
                 const chaineColor = getChaineColor(prompt.chaine);
                 carte.style.borderLeftColor = chaineColor;
 
-                // Panneau gauche (juste l'image)
+                // Panneau gauche (pour l'image)
                 const leftPanel = document.createElement('div');
                 leftPanel.className = 'left-panel';
 
                 const img = document.createElement('img');
                 img.className = 'carte-image';
-                // L'image aura une largeur de 240px et conservera sa proportion d'origine
-                // Le placeholder est maintenant juste une largeur, la hauteur s'adapte
-                img.src = prompt.imageUrl || `https://via.placeholder.com/240xAUTO?text=Image`;
+                // Le placeholder doit aussi refléter que la hauteur est auto
+                img.src = prompt.imageUrl || `https://via.placeholder.com/200x150?text=Image`; // Placeholder avec un ratio commun, mais object-fit fera le travail
                 img.alt = prompt.titre || 'Prompt Image';
                 img.onerror = function() {
                     this.onerror = null;
-                    this.src = `https://via.placeholder.com/240xAUTO?text=Image`; // Fallback avec auto-height
+                    this.src = `https://via.placeholder.com/200x150?text=Image`;
                 };
                 leftPanel.appendChild(img);
 
@@ -515,19 +514,25 @@
 
                 carte.appendChild(infosWrapper);
                 galerieDiv.appendChild(carte);
+
+                // Assurez-vous que la hauteur du left-panel est ajustée après l'ajout des éléments
+                // Cela est important pour que l'image puisse remplir toute la hauteur
+                const infoWrapperHeight = infosWrapper.offsetHeight;
+                leftPanel.style.height = `${infoWrapperHeight}px`;
+
             });
         }
 
         function getChaineColor(chaine) {
             switch (chaine) {
-                case 'La Une': return '#FF5733';
-                case 'Tipik': return '#33FF57';
-                case 'La Trois': return '#3357FF';
-                case 'La première': return '#FF33A1';
-                case 'Classic 21': return '#57FF33';
-                case 'vivacité': return '#A133FF';
-                case 'Musiq3': return '#33A1FF';
-                case 'Auvio': return '#FFBD33';
+                case 'Classic 21': return 'purple'; //
+                case 'La Une': return 'red'; //
+                case 'Tipik': return 'green'; //
+                case 'La première': return 'blue'; //
+                case 'La Trois': return 'mediumorchid'; //
+                case 'Auvio': return 'black'; //
+                case 'vivacité': return 'orange'; //
+                case 'Musiq3': return 'hotpink'; //
                 default: return '#6c757d'; // Couleur par défaut
             }
         }
