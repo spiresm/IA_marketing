@@ -1,7 +1,7 @@
 // netlify/functions/compressImage.js
 
 const sharp = require('sharp');
-// const multiparty = require('multiparty'); // N'est plus nécessaire !
+// const multiparty = require('multiparty'); // <-- CETTE LIGNE DOIT ÊTRE SUPPRIMÉE OU COMMENTÉE !
 
 exports.handler = async (event, context) => {
     // 1. Vérification de la méthode HTTP (doit être POST)
@@ -16,7 +16,7 @@ exports.handler = async (event, context) => {
     try {
         // Le corps de l'événement Netlify pour les requêtes JSON est déjà une chaîne.
         // On la parse directement en JSON.
-        const requestBody = JSON.parse(event.body); // event.body est déjà une chaîne JSON par défaut pour Netlify
+        const requestBody = JSON.parse(event.body);
 
         const base64Image = requestBody.image;
         const quality = requestBody.quality;
@@ -46,7 +46,7 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify({ message: 'Invalid Base64 data URL format. Could not extract image data.' }),
             };
         }
-        const imageMimeType = matches[1]; // ex: 'image/jpeg', 'image/png'
+        // const imageMimeType = matches[1]; // Vous n'avez pas besoin de cette variable si vous forcez le JPEG en sortie
         const base64Data = matches[2]; // Les données Base64 pures de l'image
 
         // Convertir la chaîne Base64 pure en Buffer binaire pour Sharp
@@ -54,22 +54,18 @@ exports.handler = async (event, context) => {
 
         // 3. Compression de l'image avec Sharp
         let compressedBuffer;
-        // Définir le type MIME de sortie. Nous allons forcer le JPEG ici pour la compression avec perte.
-        const outputMimeType = 'image/jpeg';
+        const outputMimeType = 'image/jpeg'; // On force le JPEG ici pour la compression avec perte.
 
         try {
             compressedBuffer = await sharp(imageBuffer)
                 .jpeg({
-                    quality: quality,      // La qualité de compression (1-100)
-                    progressive: true,     // Pour un chargement progressif
-                    chromaSubsampling: '4:4:4' // Utilise 4:4:4 pour conserver les couleurs vives (peut être '4:2:0' pour plus de compression)
+                    quality: quality,
+                    progressive: true,
+                    chromaSubsampling: '4:4:4'
                 })
-                // Vous pouvez ajouter d'autres options si vous voulez gérer différents formats ou optimisations
-                // .toFormat(sharp.format.jpeg) // Force le format de sortie si nécessaire
-                .toBuffer(); // Convertit l'image compressée en Buffer
+                .toBuffer();
         } catch (sharpError) {
             console.error('Sharp compression failed:', sharpError);
-            // Gérer les erreurs spécifiques de Sharp (ex: format d'image non pris en charge)
             return {
                 statusCode: 500,
                 headers: { 'Content-Type': 'application/json' },
@@ -78,25 +74,23 @@ exports.handler = async (event, context) => {
         }
 
         // 4. Retour de la réponse au client
-        // Le corps binaire de l'image compressée doit être encodé en Base64 pour Netlify Functions.
         return {
-            statusCode: 200, // Succès
+            statusCode: 200,
             headers: {
-                'Content-Type': outputMimeType, // Définit le type de contenu de la réponse (ex: image/jpeg)
-                'Content-Length': compressedBuffer.length, // La taille du fichier compressé
-                'Access-Control-Allow-Origin': '*', // Pour CORS, permet à n'importe quelle origine d'accéder
+                'Content-Type': outputMimeType,
+                'Content-Length': compressedBuffer.length,
+                'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type',
             },
-            body: compressedBuffer.toString('base64'), // Le contenu de l'image compressée encodé en Base64
-            isBase64Encoded: true, // Crucial : indique à Netlify que le corps est encodé en Base64
+            body: compressedBuffer.toString('base64'),
+            isBase64Encoded: true,
         };
 
     } catch (error) {
-        // Gérer les erreurs générales de parsing ou d'exécution non capturées par Sharp
         console.error('General error in Netlify Function:', error);
         return {
-            statusCode: 500, // Erreur interne du serveur
+            statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: 'An unexpected error occurred in the function.', error: error.message }),
         };
