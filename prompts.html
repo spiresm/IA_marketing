@@ -17,14 +17,23 @@
             opacity: 1;
         }
 
-        main {
-            opacity: 0; /* Initialement caché */
-            transition: opacity 0.5s ease-in; /* Animation de fondu */
-        }
+        /* Supprimez l'opacité initiale de 'main' ici.
+           Nous la gérerons par JS au chargement du DOM pour plus de fiabilité. */
+        /* main {
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+        } */
 
         main.show {
-            opacity: 1; /* Visible lorsque la classe 'show' est ajoutée */
+            opacity: 1;
         }
+
+        /* Pour vous assurer que 'main' est visible même si la classe 'show' n'est pas encore là */
+        main {
+            opacity: 0; /* Gardez cette ligne si vous voulez le fondu initial */
+            transition: opacity 0.5s ease-in;
+        }
+
 
         #header-placeholder {
             width: 100%;
@@ -199,11 +208,9 @@
     </main>
 
     <script>
-        // CHEMIM MODIFIÉ: Utilise l'origine actuelle de la page pour les fonctions Netlify
         const apiBase = window.location.origin + '/.netlify/functions/';
-        const branch = 'main'; // La branche de votre dépôt GitHub
+        const branch = 'main';
 
-        // Fonction pour mettre à jour la bulle de notification (si elle existe dans header.html)
         async function mettreAJourBulleDemandes() {
             const notifBubble = document.getElementById('notif-count');
             if (!notifBubble) {
@@ -226,7 +233,7 @@
                 }
             } catch (error) {
                 console.error("Erreur lors de la mise à jour de la bulle des demandes:", error);
-                notifBubble.style.display = 'none'; // Cacher en cas d'erreur
+                notifBubble.style.display = 'none';
             }
         }
 
@@ -236,6 +243,121 @@
             const mainElement = document.querySelector("main");
             const bodyElement = document.body;
 
+            // --- NOUVEAU: Rendre le main visible IMMÉDIATEMENT dès que le DOM est prêt ---
+            // C'est crucial car Vue.js va être monté sur un élément qui doit être visible.
+            if (mainElement) {
+                mainElement.classList.add("show");
+                console.log("Main element should now be visible.");
+            } else {
+                console.warn("Main element not found in prompts.html");
+            }
+            // --- Fin de l'ajout ---
+
+
+            // --- NOUVEAU: Initialiser l'application Vue.js ici, APRES avoir rendu main visible ---
+            // De cette façon, Vue.js montera son instance sur un élément déjà visible,
+            // évitant ainsi le problème de "formulaire invisible".
+            new Vue({
+                el: '#app',
+                data: {
+                    form: {
+                        titre: '',
+                        texte: '',
+                        outil: '',
+                        chaine: '',
+                        categorie: '',
+                        auteur: '',
+                    },
+                    imageFile: null,
+                    imagePreviewUrl: null,
+                    loading: false,
+                    message: '',
+                    messageClass: '',
+                    messageOpacity: 0
+                },
+                methods: {
+                    handleImageUpload(event) {
+                        const file = event.target.files[0];
+                        if (file) {
+                            this.imageFile = file;
+                            this.imagePreviewUrl = URL.createObjectURL(file);
+                        } else {
+                            this.removeImage();
+                        }
+                    },
+                    removeImage() {
+                        this.imageFile = null;
+                        this.imagePreviewUrl = null;
+                        const fileInput = document.getElementById('image');
+                        if (fileInput) {
+                            fileInput.value = '';
+                        }
+                    },
+                    async submitPrompt() {
+                        this.loading = true;
+                        this.message = '';
+                        this.messageOpacity = 0;
+
+                        const formData = new FormData();
+                        formData.append('promptData', JSON.stringify({
+                            titre: this.form.titre,
+                            texte: this.form.texte,
+                            outil: this.form.outil,
+                            chaine: this.form.chaine,
+                            categorie: this.form.categorie,
+                            auteur: this.form.auteur,
+                            date: new Date().toISOString().slice(0, 10)
+                        }));
+
+                        if (this.imageFile) {
+                            formData.append('imageFile', this.imageFile);
+                        }
+
+                        try {
+                            const response = await fetch(`${apiBase}savePrompt`, {
+                                method: 'POST',
+                                body: formData
+                            });
+
+                            const result = await response.json();
+
+                            if (response.ok && result.success) {
+                                this.showMessage('✅ Prompt archivé et image compressée avec succès ! Redirection...', 'success');
+                                this.form = {
+                                    titre: '',
+                                    texte: '',
+                                    outil: '',
+                                    chaine: '',
+                                    categorie: '',
+                                    auteur: '',
+                                };
+                                this.removeImage();
+                                setTimeout(() => {
+                                    window.location.href = 'galerie.html?success=1';
+                                }, 2000);
+                            } else {
+                                this.showMessage(`❌ Erreur: ${result.error || 'Une erreur inconnue est survenue.'}`, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Erreur lors de l\'envoi du prompt:', error);
+                            this.showMessage('❌ Une erreur réseau est survenue ou la fonction Netlify n\'est pas accessible.', 'error');
+                        } finally {
+                            this.loading = false;
+                        }
+                    },
+                    showMessage(text, type) {
+                        this.message = text;
+                        this.messageClass = type;
+                        this.messageOpacity = 1;
+                        setTimeout(() => {
+                            this.messageOpacity = 0;
+                        }, 3000);
+                    }
+                }
+            });
+
+
+            // Le chargement du header peut se faire en parallèle, il n'impacte pas la visibilité du formulaire Vue.js
             fetch("header.html")
                 .then(res => {
                     console.log("Header fetch response received.");
@@ -248,13 +370,6 @@
                     console.log("Header HTML retrieved. Injecting into placeholder.");
                     headerPlaceholder.innerHTML = data;
 
-                    // Rendre le body et le main visibles avec une transition de fondu
-                    console.log("Adding 'show' class to body and main.");
-                    bodyElement.classList.add("show");
-                    if (mainElement) { // Vérification de sécurité pour mainElement
-                        mainElement.classList.add("show");
-                    }
-
                     // Active le lien "Archiver un prompt" dans la navigation si présent
                     const links = document.querySelectorAll("nav a");
                     links.forEach(link => {
@@ -263,129 +378,20 @@
                         }
                     });
 
-                    // Appelle mettreAJourBulleDemandes si la fonction est définie (potentiellement dans header.html ou un script lié)
                     if (typeof mettreAJourBulleDemandes === "function") {
                         mettreAJourBulleDemandes();
                     } else {
                         console.warn("⚠️ La fonction mettreAJourBulleDemandes est absente. Assurez-vous que header.html ou un script associé contient le nécessaire.");
                     }
-
-                    // Initialise l'application Vue.js APRÈS que le header est chargé
-                    // et que les éléments body/main sont rendus visibles.
-                    // C'est crucial pour que Vue puisse monter sur un DOM visible et complet.
-                    new Vue({
-                        el: '#app',
-                        data: {
-                            form: {
-                                titre: '',
-                                texte: '',
-                                outil: '',
-                                chaine: '',
-                                categorie: '',
-                                auteur: '',
-                            },
-                            imageFile: null,
-                            imagePreviewUrl: null,
-                            loading: false,
-                            message: '',
-                            messageClass: '',
-                            messageOpacity: 0
-                        },
-                        methods: {
-                            handleImageUpload(event) {
-                                const file = event.target.files[0];
-                                if (file) {
-                                    this.imageFile = file;
-                                    this.imagePreviewUrl = URL.createObjectURL(file);
-                                } else {
-                                    this.removeImage();
-                                }
-                            },
-                            removeImage() {
-                                this.imageFile = null;
-                                this.imagePreviewUrl = null;
-                                // Réinitialise l'input de fichier pour permettre de re-sélectionner le même fichier
-                                const fileInput = document.getElementById('image');
-                                if (fileInput) {
-                                    fileInput.value = '';
-                                }
-                            },
-                            async submitPrompt() {
-                                this.loading = true;
-                                this.message = '';
-                                this.messageOpacity = 0;
-
-                                const formData = new FormData();
-                                formData.append('promptData', JSON.stringify({
-                                    titre: this.form.titre,
-                                    texte: this.form.texte,
-                                    outil: this.form.outil,
-                                    chaine: this.form.chaine,
-                                    categorie: this.form.categorie,
-                                    auteur: this.form.auteur,
-                                    date: new Date().toISOString().slice(0, 10) // Format YYYY-MM-DD
-                                }));
-
-                                if (this.imageFile) {
-                                    formData.append('imageFile', this.imageFile);
-                                }
-
-                                try {
-                                    const response = await fetch(`${apiBase}savePrompt`, {
-                                        method: 'POST',
-                                        body: formData // Pas de 'Content-Type' avec FormData, le navigateur le gère
-                                    });
-
-                                    const result = await response.json();
-
-                                    if (response.ok && result.success) {
-                                        this.showMessage('✅ Prompt archivé et image compressée avec succès ! Redirection...', 'success');
-                                        // Réinitialiser le formulaire
-                                        this.form = {
-                                            titre: '',
-                                            texte: '',
-                                            outil: '',
-                                            chaine: '',
-                                            categorie: '',
-                                            auteur: '',
-                                        };
-                                        this.removeImage(); // Supprimer l'aperçu et le fichier
-                                        setTimeout(() => {
-                                            window.location.href = 'galerie.html?success=1'; // Redirige vers la galerie avec un message de succès
-                                        }, 2000);
-                                    } else {
-                                        this.showMessage(`❌ Erreur: ${result.error || 'Une erreur inconnue est survenue.'}`, 'error');
-                                    }
-                                } catch (error) {
-                                    console.error('Erreur lors de l\'envoi du prompt:', error);
-                                    this.showMessage('❌ Une erreur réseau est survenue ou la fonction Netlify n\'est pas accessible.', 'error');
-                                } finally {
-                                    this.loading = false;
-                                }
-                            },
-                            showMessage(text, type) {
-                                this.message = text;
-                                this.messageClass = type;
-                                this.messageOpacity = 1;
-                                setTimeout(() => {
-                                    this.messageOpacity = 0;
-                                }, 3000);
-                            }
-                        }
-                    });
-
                 })
                 .catch(error => {
                     console.error("Erreur lors du chargement de header.html:", error);
                     document.getElementById("header-placeholder").innerHTML =
                         "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
-                    // Assurez-vous que le main est au moins visible même en cas d'erreur du header
-                    bodyElement.classList.add("show");
-                    if (mainElement) { // Vérification de sécurité pour mainElement
-                        mainElement.classList.add("show");
-                    }
-                    mettreAJourBulleDemandes(); // Tenter l'appel même en cas d'erreur
                 });
+
+            // bodyElement.classList.add("show"); // Ceci peut être déplacé ici pour une visibilité plus rapide si besoin.
+                                                // Votre CSS body { opacity: 0; } et body.show { opacity: 1; } gère déjà cela.
         });
     </script>
 </body>
