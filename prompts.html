@@ -7,10 +7,9 @@
     <link rel="stylesheet" href="style.css" />
     <style>
         /* Styles pour les transitions de visibilité du body et main */
-        /* Ces styles s'appliquent en priorité si définis ici */
         body {
             opacity: 0;
-            transition: opacity 0.5s ease-in; /* 'ease-in' pour une apparition douce */
+            transition: opacity 0.5s ease-in;
         }
 
         body.show {
@@ -18,9 +17,9 @@
         }
 
         main {
-            opacity: 0; /* Gardez ceci pour la transition d'apparition de main */
-            transition: opacity 0.5s ease-in; /* 'ease-in' pour une apparition douce */
-            padding: 40px 20px; /* Appliqué ici, car il est spécifique à main */
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+            padding: 40px 20px;
         }
 
         main.show {
@@ -55,18 +54,31 @@
             font-weight: 600;
             display: block;
             margin-top: 15px;
-            margin-bottom: 5px; /* Ajouté pour un meilleur espacement */
+            margin-bottom: 5px;
         }
 
         input, select, textarea {
             width: 100%;
             padding: 10px;
-            /* margin-top: 5px; -- Supprimé car le label a un margin-bottom */
             border: 1px solid #ccc;
             border-radius: 8px;
             font-size: 1em;
             background: #f9fafb;
             box-sizing: border-box;
+        }
+        
+        /* Styles spécifiques pour le groupe Auteur */
+        .form-group-auteur {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form-group-auteur button {
+            width: auto;
+            padding: 8px 15px;
+            margin-top: 5px;
+            align-self: flex-start;
         }
 
         #drop-zone {
@@ -87,10 +99,10 @@
         #image-preview {
             display: block;
             max-width: 80%;
-            height: auto; /* Important pour garder les proportions */
+            height: auto;
             margin: 15px auto;
             border-radius: 10px;
-            border: 1px solid #eee; /* Petite bordure pour les aperçus */
+            border: 1px solid #eee;
         }
 
         button {
@@ -118,16 +130,16 @@
             border: 1px solid #b7eb8f;
             border-radius: 10px;
             text-align: center;
-            color: #28a745; /* Couleur pour le texte de succès */
-            font-weight: bold; /* Texte plus visible */
+            color: #28a745;
+            font-weight: bold;
         }
 
         .confirmation img {
             max-width: 80%;
-            height: auto; /* Important pour garder les proportions */
+            height: auto;
             margin-top: 15px;
             border-radius: 10px;
-            border: 1px solid #b7eb8f; /* Bordure pour l'image de confirmation */
+            border: 1px solid #b7eb8f;
         }
 
         .loader {
@@ -145,7 +157,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Message d'erreur / succès au niveau du formulaire */
         .form-message {
             margin-top: 15px;
             padding: 10px;
@@ -177,7 +188,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
     <script>
-        const apiBase = window.location.origin + '/.netlify/functions/'; // Assurez-vous que c'est correct
+        const apiBase = window.location.origin + '/.netlify/functions/';
 
         document.addEventListener("DOMContentLoaded", () => {
             console.log("DOMContentLoaded déclenché pour prompts.html");
@@ -186,19 +197,31 @@
             const mainElement = document.querySelector("main");
             const bodyElement = document.body;
 
-            // Déstructure les fonctions de Vue 3 (ref, createApp, nextTick)
-            const { ref, createApp, nextTick } = Vue;
+            const { ref, createApp, nextTick, onMounted } = Vue;
 
-            // Définition du composant Vue
             const PromptForm = {
                 template: `
                     <div class="container">
                         <a href="galerie.html" class="retour-lien">← Retour à la galerie</a>
                         <h2 style="text-align:center; color:#0077b6;">Partager un prompt</h2>
                         <form @submit.prevent="submitForm">
-                            <label for="auteur">Votre nom (facultatif)</label>
-                            <input id="auteur" v-model="auteur" placeholder="Anonyme" />
-
+                            <div class="form-group-auteur">
+                                <label for="auteurSelect">Auteur du prompt :</label>
+                                <select id="auteurSelect" v-model="auteur" :disabled="isCreatingNewAuthor" required>
+                                    <option value="">Sélectionner un auteur existant</option>
+                                    <option v-for="auth in auteurs" :key="auth.name" :value="auth.name">{{ auth.name }}</option>
+                                </select>
+                                <button type="button" @click="toggleNewAuthorInput" :class="{'btn-secondary': isCreatingNewAuthor}">
+                                    {{ isCreatingNewAuthor ? 'Annuler la création d\'auteur' : 'Créer un nouvel auteur' }}
+                                </button>
+                                <input type="text"
+                                       id="newAuthorNameInput"
+                                       v-if="isCreatingNewAuthor"
+                                       v-model="newAuthorName"
+                                       placeholder="Nom du nouvel auteur"
+                                       required
+                                       @input="clearAuthorSelect" />
+                            </div>
                             <label for="outil">Outil IA utilisé</label>
                             <select id="outil" v-model="outil" required>
                                 <option value="">-- Sélectionnez un outil --</option>
@@ -230,10 +253,10 @@
 
                             <label>Image (facultatif)</label>
                             <div id="drop-zone"
-                                 @click="triggerFile"
-                                 @dragover.prevent="onDragOver"
-                                 @dragleave="onDragLeave"
-                                 @drop.prevent="onDrop">
+                                    @click="triggerFile"
+                                    @dragover.prevent="onDragOver"
+                                    @dragleave="onDragLeave"
+                                    @drop.prevent="onDrop">
                                 <p>Déposez une image ici ou cliquez pour la sélectionner.</p>
                                 <p v-if="selectedFileName">Fichier sélectionné : {{ selectedFileName }}</p>
                             </div>
@@ -258,20 +281,80 @@
                     </div>
                 `,
                 setup() {
-                    const auteur = ref('');
-                    const outil = ref(''); // Valeur vide par défaut pour forcer la sélection
-                    const chaine = ref(''); // Valeur vide par défaut pour forcer la sélection
+                    const auteur = ref(''); // Valeur sélectionnée dans le dropdown des auteurs
+                    const auteurs = ref([]); // Liste des auteurs à afficher dans le dropdown
+                    const isCreatingNewAuthor = ref(false); // Indique si l'utilisateur est en train de créer un nouvel auteur
+                    const newAuthorName = ref(''); // Nom du nouvel auteur à saisir
+
+                    const outil = ref('');
+                    const chaine = ref('');
                     const texte = ref('');
                     const fileInput = ref(null);
                     const imagePreviewUrl = ref('');
-                    const selectedFileName = ref(''); // Pour afficher le nom du fichier
+                    const selectedFileName = ref('');
                     const confirmationVisible = ref(false);
                     const confirmationImageUrl = ref('');
                     const confirmationTexte = ref('');
                     const isLoading = ref(false);
-                    const formMessage = ref(''); // Pour les messages de validation/erreur
-                    const messageType = ref(''); // 'success' ou 'error'
-                    const countdown = ref(3); // Compte à rebours pour la redirection
+                    const formMessage = ref('');
+                    const messageType = ref('');
+                    const countdown = ref(3);
+
+                    // Charger les auteurs au montage du composant Vue
+                    onMounted(() => {
+                        fetchAuthors();
+                    });
+
+                    async function fetchAuthors() {
+                        try {
+                            // Appel à une fonction Netlify qui va récupérer TOUS les prompts
+                            // et en extraire les auteurs uniques pour le select.
+                            // C'est une approche si vous n'avez pas de collection d'auteurs séparée.
+                            const response = await fetch(`${apiBase}getGalleryPrompts`);
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            const allPrompts = await response.json();
+                            
+                            const uniqueAuthors = new Set();
+                            allPrompts.forEach(prompt => {
+                                if (prompt.auteur && prompt.auteur.trim() !== '') {
+                                    uniqueAuthors.add(prompt.auteur.trim());
+                                }
+                            });
+                            
+                            // Convertir le Set en tableau, le trier et mettre à jour le ref `auteurs`
+                            // Chaque auteur est un objet { name: "Nom" } pour la compatibilité avec v-for
+                            auteurs.value = Array.from(uniqueAuthors)
+                                .sort((a, b) => a.localeCompare(b))
+                                .map(name => ({ name: name }));
+                            
+                            console.log("Auteurs chargés pour le formulaire:", auteurs.value);
+
+                        } catch (error) {
+                            console.error("Erreur lors du chargement des auteurs pour le formulaire:", error);
+                            formMessage.value = "Impossible de charger la liste des auteurs. Veuillez réessayer plus tard.";
+                            messageType.value = "error";
+                        }
+                    }
+
+                    function toggleNewAuthorInput() {
+                        isCreatingNewAuthor.value = !isCreatingNewAuthor.value;
+                        if (isCreatingNewAuthor.value) {
+                            auteur.value = ''; // Désélectionne l'auteur existant quand on veut en créer un nouveau
+                            nextTick(() => {
+                                document.getElementById('newAuthorNameInput')?.focus();
+                            });
+                        } else {
+                            newAuthorName.value = ''; // Réinitialise le champ du nouvel auteur si on annule
+                        }
+                    }
+
+                    function clearAuthorSelect() {
+                        // Lorsque l'utilisateur commence à taper dans le champ "nouvelAuteurInput",
+                        // on désélectionne automatiquement l'option du select existant.
+                        auteur.value = '';
+                    }
 
                     function triggerFile() { fileInput.value?.click(); }
                     function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
@@ -280,7 +363,7 @@
                         e.currentTarget.classList.remove('dragover');
                         const files = e.dataTransfer.files;
                         if (files.length) {
-                            fileInput.value.files = files; // Assign files to native input
+                            fileInput.value.files = files;
                             handleFile(files[0]);
                         }
                     }
@@ -299,12 +382,12 @@
                         const reader = new FileReader();
                         reader.onload = () => { imagePreviewUrl.value = reader.result; };
                         reader.readAsDataURL(file);
-                        formMessage.value = ''; // Clear message on new file selection
+                        formMessage.value = '';
                     }
                     function clearImage() {
                         imagePreviewUrl.value = '';
                         selectedFileName.value = '';
-                        if (fileInput.value) fileInput.value.value = null; // Clear native file input
+                        if (fileInput.value) fileInput.value.value = null;
                     }
 
                     function getBase64(file) {
@@ -317,13 +400,27 @@
                     }
 
                     async function submitForm() {
-                        formMessage.value = ''; // Clear previous messages
+                        formMessage.value = '';
                         messageType.value = '';
                         confirmationVisible.value = false;
                         isLoading.value = true;
 
-                        // Basic client-side validation
-                        if (!auteur.value.trim()) auteur.value = 'Anonyme'; // Default if empty
+                        let finalAuteur = '';
+                        if (isCreatingNewAuthor.value) {
+                            finalAuteur = newAuthorName.value.trim();
+                        } else {
+                            finalAuteur = auteur.value.trim();
+                        }
+
+                        // Validation côté client pour l'auteur
+                        if (!finalAuteur) {
+                            formMessage.value = 'Veuillez sélectionner ou entrer un nom d\'auteur.';
+                            messageType.value = 'error';
+                            isLoading.value = false;
+                            return;
+                        }
+                        
+                        // Validation pour les autres champs obligatoires
                         if (!outil.value || !chaine.value || !texte.value.trim()) {
                             formMessage.value = 'Veuillez remplir tous les champs obligatoires (Outil, Chaîne, Prompt).';
                             messageType.value = 'error';
@@ -336,7 +433,6 @@
 
                         try {
                             if (file) {
-                                // 1. Upload de l'image
                                 const base64 = await getBase64(file);
                                 const payload = { fileBase64: base64, fileName: file.name };
                                 console.log("Envoi de l'image à Netlify Function...");
@@ -354,18 +450,17 @@
                                 console.log("Image uploadée, URL:", finalImageUrl);
                             }
 
-                            // 2. Soumission du prompt
                             console.log("Envoi du prompt à Netlify Function...");
                             const promptResp = await fetch(`${apiBase}pushPrompt`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                    auteur: auteur.value,
+                                    auteur: finalAuteur,
                                     outil: outil.value,
                                     chaine: chaine.value,
                                     texte: texte.value,
                                     imageUrl: finalImageUrl,
-                                    date: new Date().toISOString() // Ajout de la date ici
+                                    date: new Date().toISOString()
                                 })
                             });
 
@@ -381,7 +476,6 @@
                             formMessage.value = 'Prompt partagé avec succès !';
                             messageType.value = 'success';
 
-                            // Démarrer le compte à rebours
                             let count = 3;
                             countdown.value = count;
                             const interval = setInterval(() => {
@@ -389,16 +483,19 @@
                                 countdown.value = count;
                                 if (count <= 0) {
                                     clearInterval(interval);
-                                    window.location.href = "/galerie.html?success=1"; // Rediriger vers la galerie avec un flag de succès
+                                    window.location.href = "/galerie.html?success=1";
                                 }
                             }, 1000);
 
                             // Réinitialiser le formulaire
                             auteur.value = '';
-                            outil.value = ''; // Remettre à la valeur par défaut du select
-                            chaine.value = ''; // Remettre à la valeur par défaut du select
+                            newAuthorName.value = '';
+                            isCreatingNewAuthor.value = false;
+                            outil.value = '';
+                            chaine.value = '';
                             texte.value = '';
-                            clearImage(); // Utiliser la fonction pour nettoyer l'image
+                            clearImage();
+                            fetchAuthors(); // Recharger la liste des auteurs pour inclure le nouvel auteur si créé
                         } catch (err) {
                             console.error("Erreur lors de l'envoi du formulaire:", err);
                             formMessage.value = `Échec du partage: ${err.message || 'Vérifiez la console.'}`;
@@ -409,7 +506,8 @@
                     }
 
                     return {
-                        auteur, outil, chaine, texte, fileInput,
+                        auteur, auteurs, isCreatingNewAuthor, newAuthorName, toggleNewAuthorInput, clearAuthorSelect,
+                        outil, chaine, texte, fileInput,
                         imagePreviewUrl, selectedFileName,
                         confirmationVisible, confirmationImageUrl, confirmationTexte,
                         isLoading, formMessage, messageType, countdown,
@@ -431,7 +529,6 @@
                 .then(data => {
                     headerPlaceholder.innerHTML = data;
                     console.log("Header chargé dans le placeholder.");
-                    // Activez le lien de navigation correspondant
                     document.querySelectorAll("nav a").forEach(link => {
                         if (link.getAttribute("href") === "prompts.html") {
                             link.classList.add("active");
@@ -444,13 +541,9 @@
                     headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 })
                 .finally(() => {
-                    // Montez l'application Vue.js SEULEMENT après le chargement du header
-                    // Ceci garantit que #app est dans le DOM et visible (opacity gérée par mainElement.classList.add('show'))
                     createApp(PromptForm).mount('#app');
                     console.log("Application Vue montée sur #app.");
 
-                    // Rendre le body et le main visibles après le chargement du header ET le montage de Vue
-                    // Utilisez nextTick pour vous assurer que Vue a fini ses mises à jour initiales
                     nextTick(() => {
                         bodyElement.classList.add("show");
                         mainElement.classList.add("show");
