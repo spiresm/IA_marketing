@@ -11,23 +11,36 @@
       margin: 0;
       background: linear-gradient(to right, #eef2f3, #f8fbfc);
       color: #333;
+      opacity: 0; /* Ajouté pour le fondu global du body */
+      transition: opacity 0.5s ease-in; /* Ajouté pour le fondu global du body */
+    }
+
+    body.show {
+      opacity: 1;
     }
 
     #header-placeholder {
       width: 100%;
     }
 
-    .fade-in {
+    /* Le .fade-in est déjà défini dans votre CSS. Nous l'appliquerons au main */
+    /* .fade-in {
       opacity: 0;
       transition: opacity 0.5s ease-in;
     }
 
     .fade-in.show {
       opacity: 1;
-    }
+    } */
 
     main {
       padding: 30px 20px;
+      opacity: 0; /* Assurez-vous que main est initialement caché */
+      transition: opacity 0.5s ease-in; /* Transition pour main */
+    }
+
+    main.show {
+      opacity: 1;
     }
 
     .container {
@@ -149,10 +162,9 @@
   </style>
 </head>
 <body>
-  <div id="header-placeholder" class="fade-in"></div>
+  <div id="header-placeholder"></div>
 
-  <main>
-    <div class="container">
+  <main class="fade-in"> <div class="container">
       <a href="galerie.html" style="text-decoration: none; color: #0077b6; font-weight: bold; font-size: 1.2em; display: inline-block; margin-bottom: 10px;">⟵ Retour</a>
       <h1>Compresseur d'image</h1>
 
@@ -179,103 +191,150 @@
 
       <div class="btn-container">
         <button class="btn" id="downloadBtn" disabled>Télécharger l'image compressée</button>
-        <!-- <button class="btn" id="sendToPromptBtn" disabled>Envoyer vers Prompts</button> -->
-      </div>
+        </div>
     </div>
   </main>
 
   <script>
-    const fileInput = document.getElementById("fileInput");
-    const qualityInput = document.getElementById("quality");
-    const formatSelect = document.getElementById("format");
-    const preview = document.getElementById("preview");
-    const downloadBtn = document.getElementById("downloadBtn");
-    const dropZone = document.getElementById("dropZone");
-
-    let compressedBlob = null;
-
-    dropZone.addEventListener("click", () => fileInput.click());
-
-    ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
-      dropZone.addEventListener(eventName, e => {
-        e.preventDefault();
-        e.stopPropagation();
-      });
-    });
-
-    ["dragenter", "dragover"].forEach(eventName => {
-      dropZone.classList.add("dragover");
-    });
-
-    ["dragleave", "drop"].forEach(eventName => {
-      dropZone.classList.remove("dragover");
-    });
-
-    dropZone.addEventListener("drop", e => {
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        fileInput.files = files;
-        handleFile();
+    // Cette fonction est nécessaire si vous avez un élément #notif-count dans votre header.html
+    // Si ce n'est pas le cas, vous pouvez la supprimer.
+    function mettreAJourBulleDemandes() {
+      const notif = document.getElementById("notif-count");
+      if (!notif) {
+        console.warn("L'élément #notif-count n'a pas été trouvé. La bulle de notification ne peut pas être mise à jour.");
+        return;
       }
-    });
-
-    fileInput.addEventListener("change", handleFile);
-
-    function handleFile() {
-      const file = fileInput.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
-
-          const quality = parseInt(qualityInput.value, 10) / 100;
-          const format = formatSelect.value;
-
-          canvas.toBlob(blob => {
-            compressedBlob = blob;
-            const url = URL.createObjectURL(blob);
-            preview.innerHTML = `<img src="${url}" alt="aperçu" />`;
-            downloadBtn.disabled = false;
-
-            downloadBtn.onclick = () => {
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `image_compressée.${format.split('/')[1]}`;
-              a.click();
-            };
-          }, format, quality);
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
+      const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+      notif.textContent = demandes.length;
+      notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+      console.log(`Bulle de notification mise à jour : ${demandes.length} demandes.`);
     }
 
-    qualityInput.addEventListener("input", () => {
-      if (fileInput.files.length > 0) handleFile();
-    });
+    // Le script principal est exécuté une fois que le DOM est complètement chargé
+    document.addEventListener("DOMContentLoaded", () => {
+        console.log("DOMContentLoaded fired for compresseur.html");
+        const headerPlaceholder = document.getElementById("header-placeholder");
+        const mainElement = document.querySelector("main");
+        const bodyElement = document.body;
 
-    formatSelect.addEventListener("change", () => {
-      if (fileInput.files.length > 0) handleFile();
-    });
+        // 1. Charger le header.html
+        fetch("header.html")
+            .then(res => {
+                console.log("Header fetch response received.");
+                if (!res.ok) {
+                    throw new Error(`Erreur HTTP lors du chargement du header: ${res.status}`);
+                }
+                return res.text();
+            })
+            .then(data => {
+                console.log("Header HTML retrieved. Injecting into placeholder.");
+                headerPlaceholder.innerHTML = data;
 
-    // Fondu sur le header
-    const header = document.getElementById("header-placeholder");
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => {
-        header.innerHTML = data;
-        requestAnimationFrame(() => header.classList.add("show"));
-      })
-      .catch(() => {
-        header.innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-      });
+                // 2. Rendre le body et le main visibles avec une transition de fondu
+                console.log("Adding 'show' class to body and main.");
+                bodyElement.classList.add("show");
+                if (mainElement) {
+                    mainElement.classList.add("show");
+                }
+
+                // 3. Mettre à jour la bulle de notification (si présente dans le header)
+                mettreAJourBulleDemandes();
+
+                // 4. Initialiser le script du compresseur après que tout soit prêt
+                console.log("Initializing image compressor script.");
+                const fileInput = document.getElementById("fileInput");
+                const qualityInput = document.getElementById("quality");
+                const formatSelect = document.getElementById("format");
+                const preview = document.getElementById("preview");
+                const downloadBtn = document.getElementById("downloadBtn");
+                const dropZone = document.getElementById("dropZone");
+
+                let compressedBlob = null;
+
+                dropZone.addEventListener("click", () => fileInput.click());
+
+                ["dragenter", "dragover"].forEach(eventName => {
+                    dropZone.addEventListener(eventName, e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropZone.classList.add("dragover");
+                    });
+                });
+
+                ["dragleave", "drop"].forEach(eventName => {
+                    dropZone.addEventListener(eventName, e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropZone.classList.remove("dragover");
+                    });
+                });
+
+                dropZone.addEventListener("drop", e => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        fileInput.files = files;
+                        handleFile();
+                    }
+                });
+
+                fileInput.addEventListener("change", handleFile);
+
+                function handleFile() {
+                    const file = fileInput.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.onload = function() {
+                            const canvas = document.createElement("canvas");
+                            const ctx = canvas.getContext("2d");
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            ctx.drawImage(img, 0, 0);
+
+                            const quality = parseInt(qualityInput.value, 10) / 100;
+                            const format = formatSelect.value;
+
+                            canvas.toBlob(blob => {
+                                compressedBlob = blob;
+                                const url = URL.createObjectURL(blob);
+                                preview.innerHTML = `<img src="${url}" alt="aperçu" />`;
+                                downloadBtn.disabled = false;
+
+                                downloadBtn.onclick = () => {
+                                    const a = document.createElement("a");
+                                    a.href = url;
+                                    a.download = `image_compressée.${format.split('/')[1]}`;
+                                    a.click();
+                                };
+                            }, format, quality);
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+                qualityInput.addEventListener("input", () => {
+                    if (fileInput.files.length > 0) handleFile();
+                });
+
+                formatSelect.addEventListener("change", () => {
+                    if (fileInput.files.length > 0) handleFile();
+                });
+
+            })
+            .catch(error => {
+                console.error("Erreur critique lors du chargement du header ou initialisation de la page:", error);
+                headerPlaceholder.innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
+                // Assurez-vous que le main est au moins visible même en cas d'erreur du header
+                bodyElement.classList.add("show");
+                if (mainElement) {
+                    mainElement.classList.add("show");
+                }
+                mettreAJourBulleDemandes(); // Tenter l'appel même en cas d'erreur
+            });
+    });
   </script>
 </body>
 </html>
