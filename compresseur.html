@@ -313,12 +313,6 @@
             from { opacity: 0; transform: translateY(5px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
-        /* FIX SPÉCIFIQUE POUR LA COULEUR DU TITRE MARKETING DU HEADER */
-        /* Ceci force le titre marketing dans le header à être blanc sur cette page */
-        #header-placeholder .marketing-title {
-            color: #FFFFFF !important;
-        }
     </style>
 </head>
 <body>
@@ -401,7 +395,7 @@
         function handleFileSelection(file) {
             if (file && file.type.startsWith('image/')) {
                 selectedFile = file;
-                showMessage(`Fichier sélectionné : <span class="math-inline">\{selectedFile\.name\} \(</span>{(selectedFile.size / 1024).toFixed(2)} KB)`, 'info');
+                showMessage(`Fichier sélectionné : ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(2)} KB)`, 'info');
                 fileNameDisplay.textContent = selectedFile.name; // Affiche le nom du fichier
                 compressedImageContainer.style.display = 'none'; // Cache la section de résultat précédente
                 downloadBtn.style.display = 'none'; // Cache le bouton de téléchargement
@@ -510,3 +504,36 @@
                     const reductionPercentage = originalSizeKB > 0 ? (((originalSizeKB - compressedSizeKB) / originalSizeKB) * 100).toFixed(2) : 0;
 
                     // Affiche l'image compressée et les informations
+                    compressedImage.src = URL.createObjectURL(blob); // Crée une URL temporaire pour afficher l'image
+                    compressedSize.textContent = `${compressedSizeKB} KB`;
+                    reduction.textContent = `${reductionPercentage}%`;
+
+                    compressedImageContainer.style.display = 'block'; // Affiche la section de résultat
+                    downloadBtn.href = URL.createObjectURL(blob); // Définit l'URL pour le téléchargement
+                    downloadBtn.download = `compressed_${selectedFile.name.replace(/\.[^/.]+$/, "")}.jpeg`; // Nom du fichier de téléchargement
+                    downloadBtn.style.display = 'inline-block'; // Affiche le bouton de téléchargement
+                    showMessage('Image compressée avec succès ! Vous pouvez maintenant la télécharger.', 'success');
+
+                } catch (error) {
+                    console.error('Erreur lors de la compression de l\'image:', error);
+                    showMessage(`Erreur de compression: ${error.message}. Vérifiez la console pour plus de détails.`, 'error');
+                } finally {
+                    // Réactive le bouton et réinitialise son texte
+                    compressBtn.disabled = false;
+                    compressBtn.textContent = 'Compresser l\'image';
+                }
+            };
+
+            // Lit le fichier sélectionné comme une URL de données (Base64)
+            reader.readAsDataURL(selectedFile);
+        });
+
+        // Met à jour l'affichage de la qualité au fur et à mesure que le slider est déplacé
+        qualityRange.addEventListener('input', () => {
+            qualityValueSpan.textContent = qualityRange.value;
+        });
+        // Initialise l'affichage de la qualité au chargement de la page
+        qualityValueSpan.textContent = qualityRange.value;
+    </script>
+</body>
+</html>
