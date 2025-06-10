@@ -1,27 +1,31 @@
 // netlify/functions/compressImage.js
 
 const sharp = require('sharp');
-// const multiparty = require('multiparty'); // <-- CETTE LIGNE DOIT ÊTRE SUPPRIMÉE OU COMMENTÉE !
 
 exports.handler = async (event, context) => {
-    // 1. Vérification de la méthode HTTP (doit être POST)
     if (event.httpMethod !== 'POST') {
         return {
-            statusCode: 405, // Méthode non autorisée
+            statusCode: 405,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: 'Method Not Allowed. Only POST requests are accepted.' }),
         };
     }
 
     try {
-        // Le corps de l'événement Netlify pour les requêtes JSON est déjà une chaîne.
-        // On la parse directement en JSON.
-        const requestBody = JSON.parse(event.body);
+        // --- DÉBUT DE LA CORRECTION POUR LE PARSING DU BODY ---
+        let requestBody;
+        if (event.isBase64Encoded) {
+            // Si le corps est encodé en Base64, il faut d'abord le décoder
+            requestBody = JSON.parse(Buffer.from(event.body, 'base64').toString('utf8'));
+        } else {
+            // Sinon, il est déjà en texte (JSON stringifié)
+            requestBody = JSON.parse(event.body);
+        }
+        // --- FIN DE LA CORRECTION ---
 
         const base64Image = requestBody.image;
         const quality = requestBody.quality;
 
-        // 2. Validation des données reçues
         if (!base64Image || typeof base64Image !== 'string' || !base64Image.startsWith('data:image')) {
             return {
                 statusCode: 400,
@@ -37,7 +41,6 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Extraire les données Base64 pures (sans le préfixe "data:image/jpeg;base64,")
         const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
         if (!matches || matches.length !== 3) {
             return {
@@ -46,15 +49,12 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify({ message: 'Invalid Base64 data URL format. Could not extract image data.' }),
             };
         }
-        // const imageMimeType = matches[1]; // Vous n'avez pas besoin de cette variable si vous forcez le JPEG en sortie
-        const base64Data = matches[2]; // Les données Base64 pures de l'image
+        const base64Data = matches[2];
 
-        // Convertir la chaîne Base64 pure en Buffer binaire pour Sharp
         const imageBuffer = Buffer.from(base64Data, 'base64');
 
-        // 3. Compression de l'image avec Sharp
         let compressedBuffer;
-        const outputMimeType = 'image/jpeg'; // On force le JPEG ici pour la compression avec perte.
+        const outputMimeType = 'image/jpeg';
 
         try {
             compressedBuffer = await sharp(imageBuffer)
@@ -73,7 +73,6 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // 4. Retour de la réponse au client
         return {
             statusCode: 200,
             headers: {
