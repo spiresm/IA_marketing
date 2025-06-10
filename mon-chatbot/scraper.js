@@ -52,6 +52,10 @@ async function construireBase() {
   console.log(`📁 Écriture dans : ${cheminFichier}`);
   fs.writeFileSync(cheminFichier, JSON.stringify(base, null, 2), 'utf-8');
   console.log('✅ Fichier connaissances.json mis à jour avec toutes les pages.');
+
+  console.log("🧾 Chemin absolu de __dirname :", __dirname);
+console.log("📁 Fichier JSON complet :", path.resolve(__dirname, 'connaissances.json'));
+
 }
 
 construireBase();
