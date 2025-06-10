@@ -19,7 +19,7 @@ async function extraireContenu(url) {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
     const texte = $('main, section, .tile, article, body').text().replace(/\s+/g, ' ').trim();
-    return texte.slice(0, 4000); // on limite pour éviter les débordements
+    return texte.slice(0, 4000);
   } catch (e) {
     console.error(`❌ Erreur lors de l'extraction de ${url} :`, e.message);
     return '';
@@ -32,9 +32,14 @@ async function construireBase() {
   for (const page of pages) {
     console.log(`🔎 Extraction de : ${page.nom} (${page.url})`);
     const contenu = await extraireContenu(page.url);
-    if (contenu.length < 50) {
-      console.warn(`⚠️ Contenu faible ou vide pour ${page.nom}`);
+
+    if (!contenu || contenu.length < 50) {
+      console.warn(`⚠️ Contenu insuffisant pour ${page.nom} (${contenu.length} caractères)`);
+    } else {
+      console.log(`✅ ${page.nom} — extrait ${contenu.length} caractères`);
+      console.log(`🧪 Aperçu : ${contenu.substring(0, 120)}...\n`);
     }
+
     base.push({
       titre: page.nom,
       url: page.url,
