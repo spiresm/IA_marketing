@@ -4,14 +4,13 @@ const fs = require('fs');
 
 const pages = [
   { url: 'https://iamarketing.netlify.app/.html', nom: 'Accueil' },
-  { url: 'https://iamarketing.netlify.app//chatbot.html', nom: 'Chatbot' }
-  { url: 'https://iamarketing.netlify.app/outils.html', nom: 'outils' }
-  { url: 'https://iamarketing.netlify.app/cas-usages', nom: 'cas-usages' }
-  { url: 'https://iamarketing.netlify.app/equipe', nom: 'equipe' }
-  { url: 'https://iamarketing.netlify.app/galerie', nom: 'galerie' }
-  { url: 'https://iamarketing.netlify.app/charte', nom: 'charte' }
-  { url: 'https://iamarketing.netlify.app/faq', nom: 'faq' }
-
+  { url: 'https://iamarketing.netlify.app/chatbot.html', nom: 'Chatbot' },
+  { url: 'https://iamarketing.netlify.app/outils.html', nom: 'Outils' },
+  { url: 'https://iamarketing.netlify.app/cas-usages', nom: 'Cas d’usages' },
+  { url: 'https://iamarketing.netlify.app/equipe', nom: 'Équipe' },
+  { url: 'https://iamarketing.netlify.app/galerie', nom: 'Galerie' },
+  { url: 'https://iamarketing.netlify.app/charte', nom: 'Charte' },
+  { url: 'https://iamarketing.netlify.app/faq', nom: 'FAQ' }
 ];
 
 async function extraireContenu(url) {
@@ -19,7 +18,7 @@ async function extraireContenu(url) {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
     const texte = $('body').text().replace(/\s+/g, ' ').trim();
-    return texte.slice(0, 4000);
+    return texte.slice(0, 4000); // Limite à 4000 caractères
   } catch (e) {
     console.error(`❌ Erreur ${url} :`, e.message);
     return '';
