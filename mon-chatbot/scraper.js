@@ -2,7 +2,7 @@ console.log("✅ Le script démarre");
 
 const axios = require('axios');
 const cheerio = require('cheerio');
-const fs = require('fs');
+const fs = require('fs').promises; // Utilisation de la version basée sur les promesses de fs pour async/await
 const path = require('path');
 
 const pages = [
@@ -21,10 +21,8 @@ async function extraireContenu(url) {
     const $ = cheerio.load(data);
     let texteExtrait = '';
 
-    // Logique d'extraction spécifique pour la page FAQ
     if (url.includes('faq.html')) {
       let contenuFaq = [];
-      // Cibler toutes les sections de FAQ (faq-page-1, faq-page-2, etc.)
       $('div.faq-page').each((index, pageElement) => {
         $(pageElement).find('details.card').each((i, element) => {
           const question = $(element).find('summary').text().replace(/\s+/g, ' ').trim();
@@ -35,23 +33,17 @@ async function extraireContenu(url) {
           }
         });
       });
-      texteExtrait = contenuFaq.join('\n\n---\n\n'); // Séparer les FAQ par un délimiteur clair
+      texteExtrait = contenuFaq.join('\n\n---\n\n');
     } else {
-      // Logique d'extraction générique pour les autres pages
-      // On tente de cibler le contenu principal, en évitant les éléments de navigation ou de pied de page.
-      // Vous pourriez avoir besoin d'affiner davantage ces sélecteurs si le contenu reste incomplet.
-      // Exemples de sélecteurs plus précis pour d'autres pages :
-      // $('article.main-content').text() ou $('div#page-body').text()
       texteExtrait = $('main, article, .container').text().replace(/\s+/g, ' ').trim();
     }
 
-    // On limite le texte à une taille raisonnable pour le chatbot
-    // Le 8000 est une suggestion, vous pouvez l'ajuster ou le supprimer.
+    // Gardons une limite pour éviter des fichiers géants si le scraping dérape
     return texteExtrait.slice(0, 8000); 
 
   } catch (e) {
     console.error(`❌ Erreur lors de l'extraction de ${url} :`, e.message);
-    return ''; // Retourne une chaîne vide en cas d'erreur
+    return '';
   }
 }
 
@@ -64,10 +56,11 @@ async function construireBase() {
     const contenu = await extraireContenu(page.url);
 
     if (!contenu || contenu.length < 50) {
-      console.warn(`⚠️ Contenu insuffisant pour ${page.nom} (${contenu.length} caractères)`);
+      console.warn(`⚠️ Contenu insuffisant pour ${page.nom} (${contenu.length} caractères).`);
+      // Affiche le début du contenu même s'il est insuffisant pour diagnostic
+      console.warn(`🧪 Aperçu insuffisant : ${contenu.substring(0, Math.min(contenu.length, 100))}...\n`);
     } else {
-      console.log(`✅ ${page.nom} — extrait ${contenu.length} caractères`);
-      // Affiche un aperçu du contenu extrait pour faciliter le débogage
+      console.log(`✅ ${page.nom} — extrait ${contenu.length} caractères.`);
       console.log(`🧪 Aperçu : ${contenu.substring(0, Math.min(contenu.length, 200))}...\n`);
     }
 
@@ -78,13 +71,27 @@ async function construireBase() {
     });
   }
 
+  // --- NOUVELLES VÉRIFICATIONS ICI ---
+  console.log(`📊 Taille de la base de données collectée : ${base.length} pages.`);
+  if (base.length === 0) {
+      console.error("❌ La base de données 'base' est vide. Le fichier connaissances.json ne sera pas mis à jour avec du contenu.");
+      return; // Arrête l'exécution si la base est vide
+  }
+  // --- FIN NOUVELLES VÉRIFICATIONS ---
+
   try {
-    fs.writeFileSync(connaissancesFilePath, JSON.stringify(base, null, 2), 'utf-8');
-    console.log(`✅ Fichier connaissances.json mis à jour à : ${connaissancesFilePath}`);
+    // Tente de supprimer l'ancien fichier avant d'écrire le nouveau
+    await fs.unlink(connaissancesFilePath).catch(e => {
+        if (e.code !== 'ENOENT') { // 'ENOENT' signifie que le fichier n'existe pas, ce qui est OK
+            console.warn(`⚠️ Impossible de supprimer l'ancien fichier connaissances.json (peut-être verrouillé ou permission):`, e.message);
+        }
+    });
+
+    await fs.writeFile(connaissancesFilePath, JSON.stringify(base, null, 2), 'utf-8');
+    console.log(`✅ Fichier connaissances.json mis à jour avec succès à : ${connaissancesFilePath}`);
   } catch (error) {
-    console.error(`❌ Erreur critique lors de l'écriture du fichier connaissances.json :`, error);
+    console.error(`❌ Erreur CRITIQUE lors de l'écriture du fichier connaissances.json :`, error);
   }
 }
 
-// Lance le processus de construction de la base de connaissances
 construireBase();
