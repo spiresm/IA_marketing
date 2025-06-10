@@ -1,4 +1,4 @@
-console.log("✅ Le script démarre...");
+console.log("✅ Le script démarre");
 
 const axios = require('axios');
 const cheerio = require('cheerio');
@@ -19,11 +19,11 @@ async function extraireContenu(url) {
   try {
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
-    const texte = $('body').text().replace(/\s+/g, ' ').trim();
-    return texte.length ? texte.slice(0, 4000) : '[⚠️ Aucun texte détecté]';
+    const texte = $('main, section, .tile, article, body').text().replace(/\s+/g, ' ').trim();
+    return texte.slice(0, 4000); // on limite pour éviter les débordements
   } catch (e) {
-    console.error(`❌ Erreur lors du chargement de ${url} :`, e.message);
-    return '[❌ Erreur de récupération]';
+    console.error(`❌ Erreur lors de l'extraction de ${url} :`, e.message);
+    return '';
   }
 }
 
@@ -31,21 +31,20 @@ async function construireBase() {
   const base = [];
 
   for (const page of pages) {
-    console.log(`🔎 Scraping : ${page.nom} (${page.url})`);
+    console.log(`🔎 Extraction de : ${page.nom} (${page.url})`);
     const contenu = await extraireContenu(page.url);
-
+    if (contenu.length < 50) {
+      console.warn(`⚠️ Contenu faible ou vide pour ${page.nom}`);
+    }
     base.push({
       titre: page.nom,
       url: page.url,
       contenu
     });
-
-    // Optionnel : petite pause pour éviter d'enchaîner trop vite
-    await new Promise(resolve => setTimeout(resolve, 300));
   }
 
   fs.writeFileSync('connaissances.json', JSON.stringify(base, null, 2), 'utf-8');
-  console.log('✅ Fichier "connaissances.json" généré avec', base.length, 'pages.');
+  console.log('✅ Fichier connaissances.json mis à jour avec toutes les pages.');
 }
 
 construireBase();
