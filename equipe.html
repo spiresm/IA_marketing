@@ -244,7 +244,44 @@
             font-size: 0.95rem;
             margin-top: 15px;
         }
-
+        /* Styles spécifiques pour la galerie dans le panneau latéral */
+        .side-panel .gallery-section {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .side-panel .gallery-section h3 {
+            color: #0077b6;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        .side-panel .gallery-images-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 10px;
+            min-height: 100px;
+            background-color: #e9f5ff;
+            padding: 5px;
+            border-radius: 8px;
+        }
+        .side-panel .gallery-images-container img {
+            width: 100%;
+            max-width: 150px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+        }
+        .side-panel .no-image-placeholder {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+            font-size: 0.9rem;
+            padding: 10px 0;
+        }
         footer {
             text-align: center;
             margin-top: 4rem;
@@ -284,6 +321,7 @@
     <script>
         const PROXY_URL = "/.netlify/functions/proxy";
         let profils = [];
+        let galleryPrompts = []; // Nouvelle variable globale pour stocker les prompts de la galerie
 
         const listContainer = document.getElementById("profil-list");
         const filterPole = document.getElementById("filterPole");
@@ -326,7 +364,7 @@
                 const hasNote = (p.note || '').trim() !== '';
 
                 div.innerHTML = `
-                    <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;}">Note</span>
+                    <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
                     <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}" alt="${p.name || 'Profil'}" />
                     <h3>${p.name || 'Nom Inconnu'}</h3>
                     <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
@@ -336,7 +374,7 @@
                         <button class="btn-delete" title="Supprimer">🗑️</button>
                     </div>
                     <div class="note-editor">
-                        <textarea id="note-textarea-${p.id}"></textarea>
+                        <textarea>${p.note || ''}</textarea>
                         <div class="actions">
                             <button class="save-note">Enregistrer</button>
                             <button class="clear-note">Effacer</button>
@@ -344,13 +382,9 @@
                         </div>
                     </div>`;
 
-                // SÉLECTION ET ASSIGNATION DU CONTENU DE LA TEXTAREA APRÈS SA CRÉATION
                 const noteBadge = div.querySelector(".note-badge");
                 const noteEditor = div.querySelector(".note-editor");
-                const textarea = div.querySelector(`#note-textarea-${p.id}`); // Sélectionnez la textarea par son ID unique
-                if (textarea) { // Vérifiez que la textarea a été trouvée
-                    textarea.textContent = p.note || ''; // Utilisez textContent pour insérer du texte brut
-                }
+                const textarea = noteEditor.querySelector("textarea");
 
                 div.querySelector(".btn-note").addEventListener("click", e => {
                     e.stopPropagation();
@@ -442,7 +476,8 @@
                             if (data.success) {
                                 console.log("Équipe: Profil supprimé avec succès:", p.name);
                                 profils = profils.filter(profile => profile.id !== p.id);
-                                initPageData(); // Appel de la fonction globale d'initialisation (rechargera les profils)
+                                // Re-charger les prompts pour s'assurer que les images sont à jour si le profil est supprimé
+                                initPageData(); // Appel de la fonction globale d'initialisation
                             } else {
                                 console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
                                 alert("Erreur lors de la suppression du profil : " + data.message);
@@ -458,6 +493,56 @@
                 div.addEventListener("click", e => {
                     if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
                         console.log("Équipe: Ouverture du panneau latéral pour", p.name);
+                        
+                        let gallerySection = '';
+                        const profilNameNormalized = normalizeString(p.name || '');
+
+                        // Filtrer les prompts de la galerie par l'auteur (nom du profil)
+                        // Nous nous basons sur `galleryPrompts` qui est déjà chargé.
+                        const imagesByAuthor = galleryPrompts.filter(prompt => {
+                            // Assurez-vous que prompt.auteur existe et est comparable
+                            return normalizeString(prompt.auteur || '') === profilNameNormalized;
+                        }).map(prompt => prompt.imageUrl).filter(Boolean); // Extrait seulement les URLs non vides
+
+                        console.log(`DEBUG: Images de galerie trouvées pour "${p.name}" :`, imagesByAuthor);
+
+                        if (imagesByAuthor.length > 0) {
+                            // Nous allons montrer les 2 dernières images publiées par cet auteur.
+                            const lastTwoImages = imagesByAuthor.slice(-2);
+                            console.log("DEBUG: Les 2 dernières images sélectionnées pour l'affichage:", lastTwoImages);
+                            
+                            const imagesHtml = lastTwoImages.map(imgSrc => {
+                                if (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) {
+                                    return `<img src="${imgSrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x100?text=Erreur+image';" title="Image: ${imgSrc}">`;
+                                } else {
+                                    console.warn("DEBUG: URL d'image de galerie invalide détectée:", imgSrc);
+                                    return `<img src="https://via.placeholder.com/150x100?text=Image+Invalide" alt="Image invalide" title="URL invalide: ${imgSrc}">`;
+                                }
+                            }).join('');
+
+                            gallerySection = `
+                                <div class="gallery-section">
+                                    <h3>Derniers prompts partagés</h3>
+                                    <div class="gallery-images-container">
+                                        ${imagesHtml}
+                                    </div>
+                                    <p class="no-image-placeholder">
+                                        <a href="galerie.html?auteur=${encodeURIComponent(p.name)}">Voir tous les prompts de ${p.name}</a>
+                                    </p>
+                                </div>
+                            `;
+                        } else {
+                            console.log("DEBUG: Aucune image de galerie trouvée pour l'auteur :", p.name);
+                            gallerySection = `
+                                <div class="gallery-section">
+                                    <h3>Derniers prompts partagés</h3>
+                                    <p class="no-image-placeholder">Aucun prompt partagé par ${p.name} n'a été trouvé.</p>
+                                    <p class="no-image-placeholder">
+                                        <a href="prompt.html">Partager un prompt maintenant !</a>
+                                    </p>
+                                </div>
+                            `;
+                        }
 
                         const toolsList = (Array.isArray(p.tools) ? p.tools : []).map(t => `<li>${t}</li>`).join('');
 
@@ -467,6 +552,7 @@
                             <p><strong>Outils IA :</strong></p>
                             <ul>${toolsList}</ul>
                             ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}
+                            ${gallerySection}
                         `;
                         sidePanel.classList.add("show");
                     }
@@ -515,9 +601,25 @@
             }
         }
 
-        // Cette fonction n'est pas utilisée dans cette version du code, car la galerie n'est pas affichée.
+        // Nouvelle fonction pour charger tous les prompts de la galerie
         async function fetchGalleryPrompts() {
-             console.log("Équipe: fetchGalleryPrompts non appelé, pas de galerie dans le panneau.");
+            console.log("Équipe: Tentative de récupération des prompts de la galerie...");
+            try {
+                // Assurez-vous que votre fonction Netlify 'proxy' peut gérer cette action
+                // et qu'elle renvoie un tableau d'objets avec 'auteur' et 'imageUrl'.
+                const res = await fetch(`${PROXY_URL}?action=getGalleryPrompts`);
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Erreur HTTP lors de la récupération des prompts de galerie: ${res.status} - ${errorText}`);
+                }
+                const data = await res.json();
+                // Assurez-vous que 'data' est un tableau, sinon initialisez-le comme un tableau vide
+                galleryPrompts = Array.isArray(data) ? data : [];
+                console.log("Équipe: Prompts de la galerie chargés :", galleryPrompts.length, galleryPrompts);
+            } catch (error) {
+                console.error("Équipe: Erreur lors du chargement des prompts de la galerie :", error);
+                galleryPrompts = []; // S'assurer que c'est un tableau même en cas d'erreur
+            }
         }
 
         // Fonction d'initialisation principale qui charge toutes les données nécessaires
@@ -536,8 +638,12 @@
                     console.error("Équipe: L'élément #header-placeholder n'a pas été trouvé.");
                 }
 
-                // 2. Charger les profils
-                const profilsResponse = await fetch(`${PROXY_URL}?action=getProfils`);
+                // 2. Charger les profils et les prompts de la galerie en parallèle
+                // Utilisation de Promise.all pour charger les deux sets de données en même temps
+                const [profilsResponse] = await Promise.all([
+                    fetch(`${PROXY_URL}?action=getProfils`),
+                    fetchGalleryPrompts() // Cette fonction met à jour `galleryPrompts`
+                ]);
 
                 if (!profilsResponse.ok) {
                     throw new Error(`Erreur HTTP lors de la récupération des profils: ${profilsResponse.status}`);
@@ -545,7 +651,7 @@
                 const profilsData = await profilsResponse.json();
                 profils = Array.isArray(profilsData) ? profilsData : (profilsData.profils || []);
                 console.log("Équipe: Profils chargés :", profils.length, profils);
-
+                
                 // 3. Afficher la page
                 document.body.style.opacity = "1";
                 const mainElement = document.querySelector("main");
@@ -556,7 +662,7 @@
                 }
 
                 mettreAJourBulleDemandes();
-
+                
                 const path = location.pathname.split("/").pop();
                 const links = document.querySelectorAll("nav a");
                 links.forEach(link => {
@@ -565,7 +671,7 @@
                     }
                 });
 
-                renderProfils(); // Rendre les profils initiaux
+                renderProfils(); // Rendre les profils initiaux avec les données de la galerie disponibles
             } catch (error) {
                 console.error("Équipe: Erreur critique lors de l'initialisation de la page ou chargement des données :", error);
                 document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu.</p>";
