@@ -120,7 +120,7 @@
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
             display: flex;
             align-items: flex-start; /* Alignement au début */
-            padding: 0; /* MODIF: Pas de padding pour la carte, l'image remplit */
+            padding: 0; /* Pas de padding pour la carte, l'image remplit */
             position: relative;
             transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
             box-sizing: border-box;
@@ -140,20 +140,20 @@
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            margin-right: 0; /* MODIF: Pas de marge ici, l'image remplit la zone */
-            width: 200px; /* MODIF: Largeur fixe pour le panneau gauche */
+            margin-right: 0; /* Pas de marge ici, l'image remplit la zone */
+            width: 200px; /* Largeur fixe pour le panneau gauche */
             overflow: hidden; /* Pour s'assurer que l'image ne déborde pas du left-panel si elle est plus large */
             border-top-left-radius: 12px; /* Assure que le coin est rond */
             border-bottom-left-radius: 12px; /* Assure que le coin est rond */
         }
 
         .carte-image {
-            width: 100%; /* MODIF: L'image remplit la largeur du left-panel */
-            height: 100%; /* MODIF: L'image remplit la hauteur du left-panel */
-            object-fit: cover; /* MODIF: IMPORTANT pour couvrir la zone sans déformer */
+            width: 100%; /* L'image remplit la largeur du left-panel */
+            height: 100%; /* L'image remplit la hauteur du left-panel */
+            object-fit: cover; /* IMPORTANT pour couvrir la zone sans déformer */
             display: block;
-            border-radius: 0; /* MODIF: Retirer le border-radius de l'image elle-même */
-            box-shadow: none; /* MODIF: Pas d'ombre sur l'image seule */
+            border-radius: 0; /* Retirer le border-radius de l'image elle-même */
+            box-shadow: none; /* Pas d'ombre sur l'image seule */
             transition: transform 0.3s ease;
         }
 
@@ -167,7 +167,7 @@
             flex-direction: column;
             flex-grow: 1;
             min-width: 0;
-            padding: 15px; /* MODIF: Padding ajouté ici au lieu de la carte */
+            padding: 15px; /* Padding ajouté ici au lieu de la carte */
         }
 
         /* Badge pour l'outil (dans infos-wrapper) */
@@ -425,7 +425,6 @@
 
                 const img = document.createElement('img');
                 img.className = 'carte-image';
-                // Le placeholder doit aussi refléter que la hauteur est auto
                 img.src = prompt.imageUrl || `https://via.placeholder.com/200x150?text=Image`; // Placeholder avec un ratio commun, mais object-fit fera le travail
                 img.alt = prompt.titre || 'Prompt Image';
                 img.onerror = function() {
@@ -498,7 +497,14 @@
                             });
                             if (deleteResponse.ok) {
                                 alert('Prompt supprimé avec succès !');
-                                chargerEtAfficherPrompts();
+                                // MODIFICATION CLÉ ICI : Supprimer la carte directement du DOM
+                                carte.remove();
+                                // Mettre à jour 'tousLesPrompts' pour qu'il reflète la suppression sans recharger tout
+                                tousLesPrompts = tousLesPrompts.filter(p => p.id !== promptId);
+                                // Si la galerie devient vide, afficher un message
+                                if (tousLesPrompts.length === 0) {
+                                    galerieDiv.innerHTML = '<p>Aucun prompt trouvé pour le moment.</p>';
+                                }
                             } else {
                                 const errorData = await deleteResponse.json();
                                 alert(`Échec de la suppression: ${errorData.message || 'Une erreur inconnue est survenue.'}`);
@@ -517,22 +523,25 @@
 
                 // Assurez-vous que la hauteur du left-panel est ajustée après l'ajout des éléments
                 // Cela est important pour que l'image puisse remplir toute la hauteur
-                const infoWrapperHeight = infosWrapper.offsetHeight;
-                leftPanel.style.height = `${infoWrapperHeight}px`;
+                // UTILISEZ setTimeout pour que le calcul de offsetHeight se fasse après le rendu initial du infosWrapper
+                setTimeout(() => {
+                    const infoWrapperHeight = infosWrapper.offsetHeight;
+                    leftPanel.style.height = `${infoWrapperHeight}px`;
+                }, 0);
 
             });
         }
 
         function getChaineColor(chaine) {
             switch (chaine) {
-                case 'Classic 21': return 'purple'; //
-                case 'La Une': return 'red'; //
-                case 'Tipik': return 'green'; //
-                case 'La première': return 'blue'; //
-                case 'La Trois': return 'mediumorchid'; //
-                case 'Auvio': return 'black'; //
-                case 'vivacité': return 'orange'; //
-                case 'Musiq3': return 'hotpink'; //
+                case 'Classic 21': return 'purple';
+                case 'La Une': return 'red';
+                case 'Tipik': return 'green';
+                case 'La Trois': return 'mediumorchid';
+                case 'La première': return 'blue';
+                case 'Auvio': return 'black';
+                case 'vivacité': return 'orange';
+                case 'Musiq3': return 'hotpink';
                 default: return '#6c757d'; // Couleur par défaut
             }
         }
