@@ -5,11 +5,222 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Galerie - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
-    </head>
+    <style>
+        /* Ajouts pour le fondu global de la page */
+        body {
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+        }
+
+        body.show {
+            opacity: 1;
+        }
+
+        main {
+            opacity: 0; /* Initialement caché */
+            transition: opacity 0.5s ease-in; /* Animation de fondu */
+        }
+
+        main.show {
+            opacity: 1; /* Visible lorsque la classe 'show' est ajoutée */
+        }
+
+        #header-placeholder {
+            width: 100%;
+        }
+
+        /* Votre CSS existant pour la galerie */
+        .galerie-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .filters-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        #filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            flex-grow: 1;
+            min-width: 0; /* Permet aux filtres de s'adapter */
+        }
+
+        #filters input,
+        #filters select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9em;
+            flex: 1; /* Permet aux éléments de s'étirer */
+            min-width: 120px; /* Largeur minimale pour les filtres */
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-buttons a {
+            background: #0077b6;
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        .action-buttons a:hover {
+            background: #005f8a;
+        }
+
+        #galerie {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            padding: 20px 0;
+        }
+
+        .carte {
+            background: #fff;
+            border-left: 5px solid #0077b6; /* Couleur par défaut si non spécifiée par JS */
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s ease;
+            position: relative; /* Pour le bouton de suppression */
+        }
+
+        .carte:hover {
+            transform: translateY(-5px);
+        }
+
+        .carte img {
+            width: 100%;
+            height: 200px; /* Hauteur fixe pour les images */
+            object-fit: cover; /* Recadre l'image pour couvrir la zone */
+            display: block;
+            border-bottom: 1px solid #eee;
+        }
+
+        .carte .texte-col {
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .carte .outil-highlight {
+            background-color: #e0f7ff;
+            color: #0077b6;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+            align-self: flex-start;
+        }
+
+        .carte .infos {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .carte .infos strong {
+            color: #333;
+        }
+
+        .carte .chaine-color {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: white;
+            font-weight: normal;
+            font-size: 0.9em;
+        }
+
+        .carte .prompt-texte {
+            font-size: 0.9em;
+            color: #444;
+            margin-bottom: 15px;
+            max-height: 100px; /* Limite la hauteur du texte */
+            overflow-y: auto; /* Ajoute un scroll si le texte est trop long */
+            white-space: pre-wrap; /* Préserve les retours à la ligne */
+            word-break: break-word; /* Casse les mots si trop longs */
+        }
+
+        .carte .copier-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+            margin-top: auto; /* Aligne le bouton en bas */
+        }
+
+        .carte .copier-btn:hover {
+            background-color: #218838;
+        }
+
+        .carte .supprimer-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .carte .supprimer-btn:hover {
+            background: rgba(255, 0, 0, 0.9);
+        }
+
+        #success-message {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+    </style>
+</head>
 <body>
     <div id="header-placeholder"></div>
 
-    <main>
+    <main class="fade-in">
         <div class="galerie-container">
             <div id="success-message"></div>
 
@@ -60,14 +271,13 @@
     <script>
         // Chemin vers votre fonction Netlify.
         const apiBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                                ? '/.netlify/functions/'
-                                : 'https://ia-marketing.netlify.app/.netlify/functions/';
+                                 ? '/.netlify/functions/'
+                                 : 'https://ia-marketing.netlify.app/.netlify/functions/';
         const branch = 'main'; // La branche de votre dépôt GitHub
 
         let tousLesPrompts = []; // Stocke tous les prompts chargés initialement
 
         // Fonction pour mettre à jour la bulle de notification (si elle existe dans header.html)
-        // Cette fonction doit être définie dans js/header-script.js ou dans header.html lui-même
         async function mettreAJourBulleDemandes() {
             const notifBubble = document.getElementById('notif-count');
             if (!notifBubble) {
@@ -93,7 +303,6 @@
                 notifBubble.style.display = 'none'; // Cacher en cas d'erreur
             }
         }
-
 
         const couleursParChaine = {
             'Classic 21': '#800080', 'La Une': '#FF0000', 'Tipik': '#008000',
@@ -219,10 +428,10 @@
                         <button class="copier-btn" data-prompt="${prompt.texte || ''}">Copier le prompt</button>
                     </div>
                     <button class="supprimer-btn"
-                            data-prompt-path="${prompt.path}"
-                            data-prompt-sha="${prompt.sha}"
-                            data-image-path="${imagePathForDeletion}"
-                            data-image-sha="${prompt.imageSha || ''}" >❌</button>
+                                data-prompt-path="${prompt.path}"
+                                data-prompt-sha="${prompt.sha}"
+                                data-image-path="${imagePathForDeletion}"
+                                data-image-sha="${prompt.imageSha || ''}" >❌</button>
                 `;
                 galerieDiv.appendChild(carte);
             });
@@ -303,15 +512,29 @@
 
         // Au chargement du DOM, charge le header et les prompts
         document.addEventListener("DOMContentLoaded", () => {
+            console.log("DOMContentLoaded fired for galerie.html");
+            const headerPlaceholder = document.getElementById("header-placeholder");
+            const mainElement = document.querySelector("main");
+            const bodyElement = document.body;
+
             fetch("header.html")
                 .then(res => {
+                    console.log("Header fetch response received.");
                     if (!res.ok) {
                         throw new Error(`HTTP error! status: ${res.status}`);
                     }
                     return res.text();
                 })
                 .then(data => {
-                    document.getElementById("header-placeholder").innerHTML = data;
+                    console.log("Header HTML retrieved. Injecting into placeholder.");
+                    headerPlaceholder.innerHTML = data;
+
+                    // Rendre le body et le main visibles avec une transition de fondu
+                    console.log("Adding 'show' class to body and main.");
+                    bodyElement.classList.add("show");
+                    if (mainElement) { // Vérification de sécurité pour mainElement
+                        mainElement.classList.add("show");
+                    }
 
                     // Active le lien "Galerie" dans la navigation si présent
                     const links = document.querySelectorAll("nav a");
@@ -327,18 +550,21 @@
                     } else {
                         console.warn("⚠️ La fonction mettreAJourBulleDemandes est absente. Assurez-vous que header.html ou un script associé contient le nécessaire.");
                     }
+
+                    // Charger les prompts depuis GitHub/Netlify une fois que le header est là
+                    chargerPromptsDepuisGitHub();
                 })
                 .catch(error => {
                     console.error("Erreur lors du chargement de header.html:", error);
                     document.getElementById("header-placeholder").innerHTML =
                         "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
-                })
-                .finally(() => {
-                    // Rendre le corps et le main visibles après le chargement (réussi ou échoué) du header
-                    document.body.style.opacity = "1";
-                    document.querySelector("main").style.display = "block";
-                    // Charger les prompts depuis GitHub/Netlify une fois que le header est là
-                    chargerPromptsDepuisGitHub();
+                    // Assurez-vous que le main est au moins visible même en cas d'erreur du header
+                    bodyElement.classList.add("show");
+                    if (mainElement) { // Vérification de sécurité pour mainElement
+                        mainElement.classList.add("show");
+                    }
+                    mettreAJourBulleDemandes(); // Tenter l'appel même en cas d'erreur
+                    chargerPromptsDepuisGitHub(); // Tenter de charger les prompts même si le header échoue
                 });
         });
 
