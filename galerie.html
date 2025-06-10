@@ -258,32 +258,9 @@
   <script>
     const apiBase = window.location.origin + '/.netlify/functions/';
     const branch = 'main';
-    let tousLesPrompts = [];
+    let tousLesPrompts = []; // Stocke tous les prompts récupérés
 
-    function ensureNotifParentPosition() {
-      const demandeLink = document.querySelector("a.demandes");
-      if (demandeLink) {
-        const style = getComputedStyle(demandeLink);
-        if (style.position === "static" || !style.position) {
-          demandeLink.style.position = "relative";
-        }
-      }
-    }
-
-    async function mettreAJourBulleDemandes() {
-      const notifBubble = document.getElementById('notif-count');
-      if (!notifBubble) return;
-      try {
-        const response = await fetch(`${apiBase}proxy?action=getDemandesIA`);
-        const demandes = await response.json();
-        notifBubble.textContent = demandes.length;
-        notifBubble.style.display = demandes.length > 0 ? 'inline-block' : 'none';
-      } catch (error) {
-        console.error("Erreur bulle notification:", error);
-        notifBubble.style.display = 'none';
-      }
-    }
-
+    // Fonction pour charger le header
     document.addEventListener("DOMContentLoaded", () => {
       const headerPlaceholder = document.getElementById("header-placeholder");
       const mainElement = document.querySelector("main");
@@ -293,7 +270,6 @@
         .then(res => res.ok ? res.text() : Promise.reject(res))
         .then(data => {
           headerPlaceholder.innerHTML = data;
-          ensureNotifParentPosition();
           bodyElement.classList.add("show");
           mainElement.classList.add("show");
 
@@ -302,26 +278,218 @@
               link.classList.add("active");
             }
           });
-
-          mettreAJourBulleDemandes();
-          chargerPromptsDepuisGitHub();
+          
+          // APRES le chargement du header et du DOM
+          chargerEtAfficherPrompts(); // Appel de la fonction pour charger et afficher les prompts
         })
-        .catch(() => {
+        .catch(error => { // Capture l'erreur de fetch
+          console.error("Erreur de chargement du menu:", error);
           headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
           bodyElement.classList.add("show");
           mainElement.classList.add("show");
-          mettreAJourBulleDemandes();
-          chargerPromptsDepuisGitHub();
+          
+          // Tente quand même de charger les prompts même si le header a échoué
+          chargerEtAfficherPrompts(); 
         });
 
+      // Gérer l'affichage du message de succès si un prompt vient d'être partagé
       if (window.location.search.includes('success=1')) {
         const msg = document.getElementById('success-message');
         msg.textContent = '✅ Prompt partagé avec succès vers la galerie !';
         msg.style.opacity = '1';
         setTimeout(() => msg.style.opacity = '0', 2000);
-        setTimeout(() => window.location.href = window.location.pathname, 2500);
+        // Supprime le paramètre de succès de l'URL après l'affichage du message
+        setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500); 
       }
     });
+
+    // --- Nouvelle fonction pour charger et afficher les prompts ---
+    async function chargerEtAfficherPrompts() {
+      const galerieDiv = document.getElementById('galerie');
+      galerieDiv.innerHTML = '<p>Chargement des prompts...</p>'; // Message de chargement
+
+      try {
+        // Appel de votre fonction Netlify getGalleryPrompts
+        const response = await fetch(`${apiBase}getGalleryPrompts`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
+        }
+        
+        const prompts = await response.json();
+        tousLesPrompts = prompts; // Stocke les prompts pour le filtrage
+        
+        console.log("Prompts récupérés :", prompts);
+
+        if (prompts.length === 0) {
+          galerieDiv.innerHTML = '<p>Aucun prompt trouvé pour le moment.</p>';
+        } else {
+          afficherPrompts(prompts); // Affiche tous les prompts au départ
+          setupFiltres(); // Met en place les listeners des filtres après le chargement initial
+        }
+
+      } catch (error) {
+        console.error("Erreur lors du chargement des prompts de la galerie:", error);
+        galerieDiv.innerHTML = `<p style="color:red;">Erreur lors du chargement des prompts : ${error.message}</p>`;
+      }
+    }
+
+    // Fonction pour afficher les prompts dans la galerie
+    function afficherPrompts(prompts) {
+      const galerieDiv = document.getElementById('galerie');
+      galerieDiv.innerHTML = ''; // Vide la galerie avant d'ajouter les prompts
+
+      if (prompts.length === 0) {
+        galerieDiv.innerHTML = '<p>Aucun prompt ne correspond aux filtres.</p>';
+        return;
+      }
+
+      prompts.forEach(prompt => {
+        const carte = document.createElement('div');
+        carte.className = 'carte';
+        // Ajout d'un dataset pour l'ID du prompt si besoin pour suppression
+        carte.dataset.promptId = prompt.id || prompt.fileName; // Utilisez un ID unique si disponible
+
+        const img = document.createElement('img');
+        img.src = prompt.imageUrl || `https://via.placeholder.com/180x150?text=No_Image`;
+        img.alt = prompt.titre || 'Prompt Image';
+        img.onerror = function() { // Gère les erreurs de chargement d'image
+          this.onerror = null; // Empêche la boucle infinie
+          this.src = `https://via.placeholder.com/180x150?text=Image_Non_Dispo`;
+        };
+        carte.appendChild(img);
+
+        const texteCol = document.createElement('div');
+        texteCol.className = 'texte-col';
+
+        const outilHighlight = document.createElement('span');
+        outilHighlight.className = 'outil-highlight';
+        outilHighlight.textContent = prompt.outil || 'N/A';
+        texteCol.appendChild(outilHighlight);
+
+        const infos = document.createElement('p');
+        infos.className = 'infos';
+        infos.innerHTML = `
+          <strong>Auteur :</strong> ${prompt.auteur || 'Inconnu'}<br>
+          <strong>Chaîne :</strong> <span class="chaine-color" style="background-color:${getChaineColor(prompt.chaine)};">${prompt.chaine || 'N/A'}</span><br>
+          <strong>Date :</strong> ${prompt.date ? new Date(prompt.date).toLocaleDateString('fr-FR') : 'N/A'}
+        `;
+        texteCol.appendChild(infos);
+
+        const promptTexte = document.createElement('p');
+        promptTexte.className = 'prompt-texte';
+        promptTexte.textContent = prompt.prompt || 'Aucun texte de prompt.';
+        texteCol.appendChild(promptTexte);
+
+        const copierBtn = document.createElement('button');
+        copierBtn.className = 'copier-btn';
+        copierBtn.textContent = 'Copier le prompt';
+        copierBtn.onclick = () => {
+          navigator.clipboard.writeText(prompt.prompt || '').then(() => {
+            alert('Prompt copié !');
+          }).catch(err => {
+            console.error('Erreur de copie:', err);
+          });
+        };
+        texteCol.appendChild(copierBtn);
+
+        // Bouton de suppression (si vous voulez gérer la suppression depuis la galerie)
+        const supprimerBtn = document.createElement('button');
+        supprimerBtn.className = 'supprimer-btn';
+        supprimerBtn.innerHTML = '&times;'; // Symbole "x"
+        supprimerBtn.title = "Supprimer ce prompt";
+        supprimerBtn.onclick = async (e) => {
+          e.stopPropagation(); // Empêche de déclencher d'autres événements sur la carte
+          if (confirm('Êtes-vous sûr de vouloir supprimer ce prompt ?')) {
+            try {
+              // Assurez-vous que prompt.id ou prompt.fileName est la bonne valeur pour la suppression
+              const deleteResponse = await fetch(`${apiBase}deletePrompt?id=${prompt.id || prompt.fileName}`, {
+                method: 'DELETE'
+              });
+              if (deleteResponse.ok) {
+                alert('Prompt supprimé avec succès !');
+                chargerEtAfficherPrompts(); // Recharge la galerie après suppression
+              } else {
+                const errorData = await deleteResponse.json();
+                alert(`Échec de la suppression: ${errorData.message}`);
+              }
+            } catch (delError) {
+              console.error("Erreur lors de la suppression:", delError);
+              alert("Erreur réseau ou interne lors de la tentative de suppression.");
+            }
+          }
+        };
+        carte.appendChild(supprimerBtn);
+
+
+        carte.appendChild(texteCol);
+        galerieDiv.appendChild(carte);
+      });
+    }
+
+    // Fonction pour attribuer une couleur à chaque chaîne (personnalisez si besoin)
+    function getChaineColor(chaine) {
+      switch (chaine) {
+        case 'La Une': return '#FF5733';
+        case 'Tipik': return '#33FF57';
+        case 'La Trois': return '#3357FF';
+        case 'La première': return '#FF33A1';
+        case 'Classic 21': return '#57FF33';
+        case 'vivacité': return '#A133FF';
+        case 'Musiq3': return '#33A1FF';
+        case 'Auvio': return '#FFBD33';
+        default: return '#6c757d'; // Couleur par défaut
+      }
+    }
+
+
+    // --- Fonctions de filtrage et de tri ---
+    function filtrerEtTrierPrompts() {
+      const filtreNom = document.getElementById('filtre-nom').value.toLowerCase();
+      const filtreOutil = document.getElementById('filtre-outil').value;
+      const filtreChaine = document.getElementById('filtre-chaine').value;
+      const filtreTri = document.getElementById('filtre-tri').value;
+
+      let promptsFiltres = [...tousLesPrompts]; // Commence avec tous les prompts
+
+      if (filtreNom) {
+        promptsFiltres = promptsFiltres.filter(prompt =>
+          (prompt.titre && prompt.titre.toLowerCase().includes(filtreNom)) ||
+          (prompt.prompt && prompt.prompt.toLowerCase().includes(filtreNom))
+        );
+      }
+      if (filtreOutil) {
+        promptsFiltres = promptsFiltres.filter(prompt => prompt.outil === filtreOutil);
+      }
+      if (filtreChaine) {
+        promptsFiltres = promptsFiltres.filter(prompt => prompt.chaine === filtreChaine);
+      }
+
+      // Tri
+      promptsFiltres.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        if (filtreTri === 'recent') {
+          return dateB - dateA; // Du plus récent au plus ancien
+        } else { // 'ancien'
+          return dateA - dateB; // Du plus ancien au plus récent
+        }
+      });
+
+      afficherPrompts(promptsFiltres);
+    }
+
+    // Met en place les event listeners pour les filtres
+    function setupFiltres() {
+        document.getElementById('filtre-nom').addEventListener('input', filtrerEtTrierPrompts);
+        document.getElementById('filtre-outil').addEventListener('change', filtrerEtTrierPrompts);
+        document.getElementById('filtre-chaine').addEventListener('change', filtrerEtTrierPrompts);
+        document.getElementById('filtre-tri').addEventListener('change', filtrerEtTrierPrompts);
+    }
+
+    // Le script pour la bulle de notification a été supprimé comme demandé.
+    // La fonction ensureNotifParentPosition() n'est plus nécessaire si la bulle est supprimée.
   </script>
 </body>
 </html>
