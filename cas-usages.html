@@ -165,16 +165,54 @@
             white-space: nowrap; /* Empêche le saut de ligne */
             overflow: hidden; /* Cache le texte qui dépasse */
             text-overflow: ellipsis; /* Affiche "..." si le texte est tronqué */
-            padding-right: 15px; /* Espace avant l'icône */
+            padding-right: 15px; /* Espace avant les icônes */
+        }
+
+        /* Conteneur pour les actions et l'icône de dépliage dans le header */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px; /* Espace entre les boutons/icônes */
         }
 
         .tip-header .toggle-icon {
             font-size: 1em; /* Taille d'icône ajustée */
             color: #0077b6;
             transition: transform 0.3s ease;
+            margin-left: 5px; /* Petit espace à gauche de l'icône de dépliage */
         }
         .tip-item.expanded .tip-header .toggle-icon {
             transform: rotate(90deg);
+        }
+
+        /* Bouton Supprimer dans le header */
+        .header-supprimer-btn {
+            background: none;
+            border: 1px solid #dc3545; /* Bordure rouge */
+            color: #dc3545;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap; /* Empêche le bouton de sauter à la ligne */
+        }
+
+        .header-supprimer-btn:hover {
+            background-color: #dc3545;
+            color: white;
+            border-color: #dc3545;
+        }
+        .header-supprimer-btn:disabled {
+            background-color: #e9ecef;
+            color: #a8a8a8;
+            border-color: #d1d1d1;
+            cursor: not-allowed;
+            opacity: 0.7;
         }
 
         /* Contenu détaillé du Tip (caché par défaut) */
@@ -323,43 +361,9 @@
             font-weight: 700;
         }
 
-        /* Boutons d'action sur la carte */
-        .card-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            justify-content: flex-start;
-            padding-top: 8px;
-            border-top: 1px dashed #eee;
-        }
+        /* Pas de .card-actions en bas du tip-content car le bouton est dans le header */
+        /* Suppression des styles inutiles pour .card-actions */
 
-        .supprimer-btn {
-            background: none;
-            border: 1px solid #dc3545;
-            color: #dc3545;
-            padding: 7px 14px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.85em;
-            font-weight: 600;
-            transition: background-color 0.2s, color 0.2s, transform 0.1s, border-color 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .supprimer-btn:hover {
-            background-color: #dc3545;
-            color: white;
-            transform: translateY(-1px);
-        }
-        .supprimer-btn:disabled {
-            background-color: #e9ecef; /* Couleur de fond pour désactivé */
-            color: #a8a8a8; /* Couleur du texte pour désactivé */
-            border-color: #d1d1d1; /* Couleur de la bordure pour désactivé */
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
 
         #success-message {
             background-color: #d4edda;
@@ -406,6 +410,20 @@
                 flex-grow: 1;
                 text-align: center;
             }
+            .tip-header {
+                flex-wrap: wrap; /* Permet aux éléments du header de passer à la ligne */
+                justify-content: center;
+            }
+            .tip-header h2 {
+                width: 100%; /* Le titre prend toute la largeur disponible */
+                text-align: center;
+                padding-right: 0; /* Pas de padding droit si sur une ligne */
+                margin-bottom: 10px; /* Espace sous le titre */
+            }
+            .header-actions {
+                width: 100%; /* Les actions prennent toute la largeur */
+                justify-content: center;
+            }
         }
 
         @media (max-width: 480px) {
@@ -429,7 +447,7 @@
                 font-size: 0.9em;
                 padding: 4px;
             }
-            .supprimer-btn {
+            .header-supprimer-btn {
                 padding: 5px 10px;
                 font-size: 0.8em;
             }
@@ -591,6 +609,11 @@
         }
 
         function toggleTipDetails(event) {
+            // Vérifie si l'événement provient du bouton de suppression pour ne pas déplier/replier
+            if (event.target.closest('.header-supprimer-btn')) {
+                return;
+            }
+
             const tipItem = event.currentTarget.closest('.tip-item');
             const tipContent = tipItem.querySelector('.tip-content');
 
@@ -628,16 +651,62 @@
                 // --- TIP HEADER (Toujours visible) ---
                 const tipHeader = document.createElement('div');
                 tipHeader.className = 'tip-header';
-                tipHeader.addEventListener('click', toggleTipDetails);
+                tipHeader.addEventListener('click', toggleTipDetails); // Garde le toggle sur le header entier
 
                 const tipTitle = document.createElement('h2');
                 tipTitle.className = 'tip-title';
                 tipTitle.textContent = tip.titre || 'Titre du Tip';
                 tipHeader.appendChild(tipTitle);
 
+                // Conteneur pour les actions et l'icône de dépliage
+                const headerActions = document.createElement('div');
+                headerActions.className = 'header-actions';
+
+                const supprimerBtn = document.createElement('button');
+                supprimerBtn.className = 'header-supprimer-btn'; // Nouvelle classe pour ce bouton
+                supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Supprimer';
+                supprimerBtn.title = "Supprimer ce tip";
+
+                // Désactive le bouton si l'ID n'est pas présent
+                if (!tipId) {
+                    supprimerBtn.disabled = true;
+                    supprimerBtn.title = "Impossible de supprimer: ID manquant pour ce tip";
+                }
+
+                supprimerBtn.onclick = async (e) => {
+                    e.stopPropagation(); // Empêche l'événement de se propager au header et de replier/déplier
+                    if (!confirm('Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.')) {
+                        return;
+                    }
+
+                    try {
+                        const deleteResponse = await fetch(`${apiBase}delete-tip?id=${tipId}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (deleteResponse.ok) {
+                            alert('Tip supprimé avec succès !');
+                            tipItem.remove(); // Supprime l'élément du DOM
+                            tousLesTips = tousLesTips.filter(t => t.id !== tipId); // Met à jour le tableau en mémoire
+                            if (tousLesTips.length === 0) {
+                                tipsListDiv.innerHTML = '<p>Aucun tip trouvé pour le moment.</p>';
+                            }
+                        } else {
+                            const errorData = await deleteResponse.json();
+                            alert(`Échec de la suppression: ${errorData.message || 'Une erreur inconnue est survenue.'}`);
+                        }
+                    } catch (delError) {
+                        console.error("Erreur lors de la suppression:", delError);
+                        alert("Erreur réseau ou interne lors de la tentative de suppression.");
+                    }
+                };
+                headerActions.appendChild(supprimerBtn);
+
                 const toggleIcon = document.createElement('i');
                 toggleIcon.className = 'fas fa-chevron-right toggle-icon';
-                tipHeader.appendChild(toggleIcon);
+                headerActions.appendChild(toggleIcon);
+
+                tipHeader.appendChild(headerActions); // Ajoute le conteneur d'actions au header
 
                 tipItem.appendChild(tipHeader);
 
@@ -710,50 +779,6 @@
                     <span class="metadata-value">${tip.categorie || 'Catégorie N/A'}</span>
                 `;
                 infosWrapper.appendChild(metadataSection);
-
-                const cardActions = document.createElement('div');
-                cardActions.className = 'card-actions';
-
-                const supprimerBtn = document.createElement('button');
-                supprimerBtn.className = 'supprimer-btn';
-                supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Supprimer';
-                supprimerBtn.title = "Supprimer ce tip";
-
-                // Désactive le bouton si l'ID n'est pas présent (signifie qu'il n'est pas en BDD)
-                if (!tipId) {
-                    supprimerBtn.disabled = true;
-                    supprimerBtn.title = "Impossible de supprimer: ID manquant pour ce tip";
-                }
-
-                supprimerBtn.onclick = async (e) => {
-                    e.stopPropagation(); // Empêche l'événement de se propager au header et de replier/déplier
-                    if (!confirm('Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.')) {
-                        return;
-                    }
-
-                    try {
-                        const deleteResponse = await fetch(`${apiBase}delete-tip?id=${tipId}`, {
-                            method: 'DELETE'
-                        });
-
-                        if (deleteResponse.ok) {
-                            alert('Tip supprimé avec succès !');
-                            tipItem.remove(); // Supprime l'élément du DOM
-                            tousLesTips = tousLesTips.filter(t => t.id !== tipId); // Met à jour le tableau en mémoire
-                            if (tousLesTips.length === 0) {
-                                tipsListDiv.innerHTML = '<p>Aucun tip trouvé pour le moment.</p>';
-                            }
-                        } else {
-                            const errorData = await deleteResponse.json();
-                            alert(`Échec de la suppression: ${errorData.message || 'Une erreur inconnue est survenue.'}`);
-                        }
-                    } catch (delError) {
-                        console.error("Erreur lors de la suppression:", delError);
-                        alert("Erreur réseau ou interne lors de la tentative de suppression.");
-                    }
-                };
-                cardActions.appendChild(supprimerBtn);
-                infosWrapper.appendChild(cardActions);
 
                 tipContent.appendChild(infosWrapper);
                 tipItem.appendChild(tipContent);
