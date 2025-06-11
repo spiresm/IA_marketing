@@ -129,6 +129,7 @@
             border-radius: 8px; /* Coins plus petits */
             overflow: hidden; /* Assure que les bords arrondis sont respectés */
             transition: box-shadow 0.2s ease, border-color 0.2s ease;
+            position: relative; /* Nécessaire pour positionner le tooltip */
         }
 
         .tip-item.expanded {
@@ -173,6 +174,7 @@
             display: flex;
             align-items: center;
             gap: 10px; /* Espace entre les boutons/icônes */
+            flex-shrink: 0; /* Empêche les actions de prendre trop de place */
         }
 
         .tip-header .toggle-icon {
@@ -277,7 +279,15 @@
             white-space: pre-wrap;
         }
 
-        /* Texte du prompt */
+        /* PROMPT STYLES */
+        .prompt-label {
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+            display: block; /* S'assure qu'il prend toute la largeur */
+        }
+
         .prompt-text-display {
             font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
             font-size: 0.85em; /* Plus petit */
@@ -286,15 +296,15 @@
             background-color: #f8f9fa;
             border: 1px solid #e9ecef;
             border-radius: 6px;
-            padding: 12px 15px 12px 10px; /* Ajusté */
+            padding: 12px 15px 12px 10px; /* Ajusté pour le bouton */
             margin-bottom: 12px;
             white-space: pre-wrap;
             word-break: break-word;
-            position: relative;
+            position: relative; /* Pour positionner le bouton copier */
         }
 
         /* Bouton Copier dans le prompt */
-        .prompt-text-display button {
+        .prompt-text-display .copy-prompt-btn { /* Classe plus spécifique */
             position: absolute;
             top: 6px; /* Ajusté */
             right: 6px; /* Ajusté */
@@ -309,7 +319,7 @@
             opacity: 0.7;
         }
 
-        .prompt-text-display button:hover {
+        .prompt-text-display .copy-prompt-btn:hover {
             color: #005f8a;
             background-color: #e0f2f7;
             opacity: 1;
@@ -361,9 +371,6 @@
             font-weight: 700;
         }
 
-        /* Pas de .card-actions en bas du tip-content car le bouton est dans le header */
-        /* Suppression des styles inutiles pour .card-actions */
-
 
         #success-message {
             background-color: #d4edda;
@@ -377,6 +384,33 @@
             transition: opacity 0.5s ease-in-out;
             font-weight: 500;
         }
+
+        /* --- STYLES POUR LA PLAQUE FLOTTANTE (EXEMPLE) --- */
+        .example-tooltip {
+            position: fixed; /* Reste visible même en scrollant */
+            background-color: #333; /* Fond sombre */
+            color: white;
+            padding: 12px 18px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000; /* Assure qu'il est au-dessus des autres éléments */
+            opacity: 0;
+            visibility: hidden; /* Cache complètement l'élément */
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            max-width: 300px; /* Limite la largeur */
+            pointer-events: none; /* Permet de cliquer à travers pour le contenu en dessous */
+            line-height: 1.5;
+            font-size: 0.9em;
+            word-wrap: break-word; /* Casse les longs mots */
+            white-space: pre-wrap; /* Maintient les sauts de ligne si présents */
+        }
+        .example-tooltip strong {
+            display: block; /* Le label "Exemple :" sur une nouvelle ligne */
+            margin-bottom: 5px;
+            color: #a0d8ff; /* Couleur vive pour le label */
+        }
+        /* --- FIN STYLES PLAQUE FLOTTANTE --- */
+
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
@@ -412,17 +446,26 @@
             }
             .tip-header {
                 flex-wrap: wrap; /* Permet aux éléments du header de passer à la ligne */
-                justify-content: center;
+                justify-content: space-between; /* Ajuste la justification */
+                align-items: flex-start; /* Aligne les éléments en haut */
             }
             .tip-header h2 {
                 width: 100%; /* Le titre prend toute la largeur disponible */
-                text-align: center;
-                padding-right: 0; /* Pas de padding droit si sur une ligne */
+                text-align: left; /* Aligne le titre à gauche */
+                padding-right: 0;
                 margin-bottom: 10px; /* Espace sous le titre */
             }
             .header-actions {
-                width: 100%; /* Les actions prennent toute la largeur */
-                justify-content: center;
+                width: auto; /* Les actions s'adaptent */
+                justify-content: flex-end; /* Aligne les actions à droite */
+                flex-grow: 1; /* Permet aux actions de prendre l'espace restant */
+            }
+             .example-tooltip { /* Ajustement du tooltip pour les petits écrans */
+                max-width: 90%;
+                left: 50% !important; /* Force le centrage */
+                transform: translateX(-50%); /* Ajuste le centrage */
+                top: auto !important; /* Laisse le positionnement vertical libre */
+                bottom: 20px; /* Fixe en bas */
             }
         }
 
@@ -443,7 +486,7 @@
                 padding: 8px 12px 8px 8px;
                 font-size: 0.8em;
             }
-            .prompt-text-display button {
+            .prompt-text-display .copy-prompt-btn {
                 font-size: 0.9em;
                 padding: 4px;
             }
@@ -516,10 +559,14 @@
         </div>
     </main>
 
+    <div id="exampleTooltip" class="example-tooltip"></div>
+
+
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
         const PROXY_URL = "/.netlify/functions/proxy";
         let tousLesTips = [];
+        const exampleTooltip = document.getElementById('exampleTooltip');
 
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
@@ -645,8 +692,17 @@
                 const tipId = tip.id; // Utilisez directement l'ID du tip
                 tipItem.dataset.tipId = tipId;
 
+                // Ajout de l'exemple comme data attribute
+                if (tip.exemple) {
+                    tipItem.dataset.exemple = tip.exemple;
+                }
+
                 const chaineColor = getChaineColor(tip.chaine);
                 tipItem.style.borderLeftColor = chaineColor;
+
+                // Gérer les événements de survol pour la plaque flottante
+                tipItem.addEventListener('mouseenter', showExampleTooltip);
+                tipItem.addEventListener('mouseleave', hideExampleTooltip);
 
                 // --- TIP HEADER (Toujours visible) ---
                 const tipHeader = document.createElement('div');
@@ -748,11 +804,18 @@
                 infosWrapper.appendChild(tipDescription);
 
                 if (tip.prompt && tip.prompt.trim() !== '') {
+                    // Ajout du label "Prompt"
+                    const promptLabel = document.createElement('span');
+                    promptLabel.className = 'prompt-label';
+                    promptLabel.textContent = 'Prompt :';
+                    infosWrapper.appendChild(promptLabel);
+
                     const promptTextDisplay = document.createElement('div');
                     promptTextDisplay.className = 'prompt-text-display';
                     promptTextDisplay.innerHTML = `<code>${tip.prompt}</code>`;
 
                     const copyBtn = document.createElement('button');
+                    copyBtn.className = 'copy-prompt-btn'; // Nouvelle classe
                     copyBtn.innerHTML = '<i class="far fa-copy"></i>';
                     copyBtn.title = "Copier le prompt";
                     copyBtn.onclick = (e) => {
@@ -816,11 +879,13 @@
                     const auteur = (tip.auteur || '').toLowerCase();
                     const description = (tip.description || '').toLowerCase();
                     const promptText = (tip.prompt || '').toLowerCase();
+                    const exempleText = (tip.exemple || '').toLowerCase(); // Inclure l'exemple dans la recherche
 
                     return titre.includes(searchKeyword) ||
                            auteur.includes(searchKeyword) ||
                            description.includes(searchKeyword) ||
-                           promptText.includes(searchKeyword);
+                           promptText.includes(searchKeyword) ||
+                           exempleText.includes(searchKeyword);
                 });
             }
 
@@ -853,6 +918,61 @@
             document.getElementById('filtre-categorie').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-auteur').addEventListener('change', filtrerEtTrierPrompts);
         }
+
+        // --- Fonctions pour la plaque flottante (tooltip) ---
+
+        function showExampleTooltip(event) {
+            const tipItem = event.currentTarget;
+            const exempleText = tipItem.dataset.exemple;
+
+            if (exempleText) {
+                exampleTooltip.innerHTML = `<strong>Exemple :</strong> ${exempleText}`;
+                exampleTooltip.style.opacity = '1';
+                exampleTooltip.style.visibility = 'visible';
+
+                // Positionnement de la plaque flottante
+                const rect = tipItem.getBoundingClientRect();
+                const tooltipWidth = exampleTooltip.offsetWidth;
+                const tooltipHeight = exampleTooltip.offsetHeight;
+
+                let left = rect.right + 15; // 15px à droite de la carte
+                let top = rect.top + window.scrollY + (rect.height / 2) - (tooltipHeight / 2); // Centré verticalement
+
+                // Gérer le débordement à droite de la fenêtre
+                if (left + tooltipWidth > window.innerWidth - 20) { // 20px de marge à droite
+                    left = rect.left - tooltipWidth - 15; // À gauche de la carte
+                    if (left < 20) { // Si toujours pas de place à gauche, alors en haut ou en bas
+                        left = (window.innerWidth - tooltipWidth) / 2; // Centre horizontalement
+                        top = rect.bottom + window.scrollY + 15; // En dessous de la carte
+                        if (top + tooltipHeight > window.innerHeight + window.scrollY - 20) {
+                            top = rect.top + window.scrollY - tooltipHeight - 15; // Au-dessus de la carte
+                        }
+                    }
+                }
+
+                // Gérer le débordement en haut/bas de la fenêtre
+                if (top < window.scrollY + 10) { // 10px de marge en haut
+                    top = window.scrollY + 10;
+                }
+                if (top + tooltipHeight > window.scrollY + window.innerHeight - 10) { // 10px de marge en bas
+                    top = window.scrollY + window.innerHeight - tooltipHeight - 10;
+                }
+
+
+                exampleTooltip.style.left = `${left}px`;
+                exampleTooltip.style.top = `${top}px`;
+            } else {
+                hideExampleTooltip(); // Cache si pas d'exemple
+            }
+        }
+
+        function hideExampleTooltip() {
+            exampleTooltip.style.opacity = '0';
+            exampleTooltip.style.visibility = 'hidden';
+        }
+
+        // --- Fin Fonctions pour la plaque flottante ---
+
     </script>
 </body>
 </html>
