@@ -15,6 +15,22 @@
         input[type="text"], textarea, select { padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: #f9f9f9; width: 100%; box-sizing: border-box; }
         button { padding: 12px 25px; background-color: #0077b6; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em; transition: background-color 0.3s ease; }
         button:hover { background-color: #005f8a; }
+        .response-message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .response-message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .response-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
@@ -49,13 +65,17 @@
                     <option>Pôle Créa</option>
                 </select>
 
+                <label for="auteur">Votre Nom/Pseudo :</label>
+                <input type="text" id="auteur" name="auteur" required />
+
                 <button type="submit">Ajouter le Tip</button>
             </form>
+            <div id="responseMessage" class="response-message" style="display: none;"></div>
         </div>
     </main>
 
     <script>
-        // Script pour charger le header
+        // Script pour charger le header (votre code existant)
         function mettreAJourBulleDemandes() {
             const notif = document.getElementById("notif-count");
             if (!notif) return;
@@ -79,26 +99,57 @@
                 }, 100);
             });
 
-        // Script pour la soumission du formulaire (c'est ici que l'on appellera la fonction Netlify pushPrompt plus tard)
-        document.getElementById('tipForm').addEventListener('submit', function(event) {
+        // Script pour la soumission du formulaire (modifié)
+        document.getElementById('tipForm').addEventListener('submit', async function(event) {
             event.preventDefault(); // Empêche le rechargement de la page
+
+            const responseMessageDiv = document.getElementById('responseMessage');
+            responseMessageDiv.style.display = 'none'; // Cacher le message précédent
+            responseMessageDiv.classList.remove('success', 'error'); // Supprimer les classes de style précédentes
 
             const newTip = {
                 titre: document.getElementById('titre').value,
                 description: document.getElementById('description').value,
                 prompt: document.getElementById('prompt').value,
                 outil: document.getElementById('outil').value,
-                categorie: document.getElementById('categorie').value
+                categorie: document.getElementById('categorie').value,
+                auteur: document.getElementById('auteur').value // Ajout du champ auteur
             };
 
-            // Pour l'instant, on simule la sauvegarde dans localStorage
-            // Plus tard, cette partie appellera une fonction Netlify comme 'pushPrompt'
-            let tips = JSON.parse(localStorage.getItem('tips') || '[]');
-            tips.push(newTip);
-            localStorage.setItem('tips', JSON.stringify(tips));
+            try {
+                // Envoi des données à la fonction Netlify save-tip
+                const response = await fetch('/.netlify/functions/save-tip', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newTip)
+                });
 
-            alert('Tip ajouté avec succès !');
-            window.location.href = 'cas-usages.html'; // Redirige vers la page des tips
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || response.statusText);
+                }
+
+                const result = await response.json();
+                responseMessageDiv.textContent = result.message || 'Tip ajouté avec succès ! Un nouveau déploiement est en cours.';
+                responseMessageDiv.classList.add('success');
+
+                // Réinitialiser le formulaire après l'envoi
+                this.reset();
+
+                // Optionnel: Rediriger après un petit délai pour laisser le temps au déploiement de commencer
+                // setTimeout(() => {
+                //     window.location.href = 'cas-usages.html';
+                // }, 3000); // Redirige après 3 secondes
+
+            } catch (error) {
+                console.error('Erreur lors de l\'envoi du tip:', error);
+                responseMessageDiv.textContent = `Une erreur est survenue lors de l\'ajout du tip : ${error.message}. Veuillez réessayer.`;
+                responseMessageDiv.classList.add('error');
+            } finally {
+                responseMessageDiv.style.display = 'block';
+            }
         });
     </script>
 </body>
