@@ -1,9 +1,11 @@
 // netlify/functions/delete-tip.mjs
-import { Octokit } from "@octokit/rest";
+import { Octokit } from "@octokit/core"; // Corrected import
+import { rest } from "@octokit/plugin-rest"; // Corrected import
 import { Buffer } from 'buffer';
 
+const MyOctokit = Octokit.plugin(rest); // Create an Octokit instance with the rest plugin
+
 export const handler = async (event, context) => {
-    // Seules les requêtes DELETE sont acceptées
     if (event.httpMethod !== 'DELETE') {
         return {
             statusCode: 405,
@@ -24,10 +26,10 @@ export const handler = async (event, context) => {
         };
     }
 
-    const octokit = new Octokit({ auth: GITHUB_TOKEN });
+    const octokit = new MyOctokit({ auth: GITHUB_TOKEN }); // Use MyOctokit here
 
     try {
-        const { id } = JSON.parse(event.body); // L'ID du tip à supprimer
+        const { id } = JSON.parse(event.body); 
 
         if (!id) {
             return {
@@ -36,7 +38,6 @@ export const handler = async (event, context) => {
             };
         }
 
-        // 1. Obtenir le contenu actuel du fichier et son SHA
         let currentFile;
         try {
             const { data } = await octokit.repos.getContent({
@@ -48,19 +49,17 @@ export const handler = async (event, context) => {
             currentFile = data;
         } catch (readError) {
             if (readError.status === 404) {
-                // Le fichier n'existe pas, donc il n'y a rien à supprimer
                 return {
                     statusCode: 404,
                     body: JSON.stringify({ message: 'Le fichier des tips n\'existe pas encore, rien à supprimer.' }),
                 };
             }
-            throw readError; // Renvoyer d'autres erreurs de lecture
+            throw readError;
         }
 
         const currentContent = Buffer.from(currentFile.content, 'base64').toString('utf8');
         let tips = JSON.parse(currentContent);
 
-        // 2. Filtrer le tip à supprimer
         const initialLength = tips.length;
         tips = tips.filter(tip => tip.id !== id);
 
@@ -71,7 +70,6 @@ export const handler = async (event, context) => {
             };
         }
 
-        // 3. Encoder le nouveau contenu et le mettre à jour sur GitHub
         const updatedContent = Buffer.from(JSON.stringify(tips, null, 2)).toString('base64');
 
         await octokit.repos.updateFile({
@@ -80,15 +78,15 @@ export const handler = async (event, context) => {
             path: TIPS_FILE_PATH,
             message: COMMIT_MESSAGE,
             content: updatedContent,
-            sha: currentFile.sha, // Important pour éviter les conflits
-            branch: 'main', // Assurez-vous que c'est la bonne branche
+            sha: currentFile.sha,
+            branch: 'main',
         });
 
         return {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Origin": "*", 
                 "Access-Control-Allow-Methods": "DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
