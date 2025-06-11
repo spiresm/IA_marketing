@@ -1,40 +1,107 @@
-// netlify/functions/get-tips-test.js
-exports.handler = async (event, context) => {
-    // Les tips que vous aviez dans tipsDataBase
-    const dummyTips = [
-        {
-            titre: "Utiliser ChatGPT pour résumer un article",
-            description: "Collez l’URL ou le contenu de l’article et demandez à ChatGPT un résumé en 3 phrases.",
-            prompt: "Résume cet article en trois phrases claires et concises.",
-            outil: "ChatGPT",
-            categorie: "Productivité"
-        },
-        {
-            titre: "Générer des idées de campagne marketing",
-            description: "Formulez votre objectif et votre public cible, et demandez à l’IA des idées originales avec arguments.",
-            prompt: "Propose 5 idées de campagne marketing créatives pour [produit/service], en précisant l’axe et la promesse.",
-            outil: "Claude",
-            categorie: "Marketing Digital"
-        },
-        {
-            titre: "Tip de Test Affiché !",
-            description: "Ceci est un nouveau tip que vous devriez voir si tout fonctionne.",
-            prompt: "Bonjour le monde depuis Netlify Functions!",
-            outil: "Netlify",
-            categorie: "Test"
-        }
-        // Vous pouvez ajouter plus de tips ici si vous le souhaitez
-    ];
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Créer un nouveau Tip - IA Marketing</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="notif.js"></script>
+    <style>
+        /* Vos styles spécifiques pour cette page */
+        body { opacity: 0; transition: opacity 0.3s ease-in; margin: 0; }
+        .container { max-width: 800px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        form { display: flex; flex-direction: column; gap: 20px; }
+        label { font-weight: bold; }
+        input[type="text"], textarea, select { padding: 10px; border-radius: 8px; border: 1px solid #ccc; background: #f9f9f9; width: 100%; box-sizing: border-box; }
+        button { padding: 12px 25px; background-color: #0077b6; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em; transition: background-color 0.3s ease; }
+        button:hover { background-color: #005f8a; }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+    <main>
+        <div class="container">
+            <h1>Créer un nouveau Tip</h1>
+            <form id="tipForm">
+                <label for="titre">Titre du Tip :</label>
+                <input type="text" id="titre" name="titre" required />
 
-    return {
-        statusCode: 200,
-        headers: {
-            "Content-Type": "application/json",
-            // Permet à votre frontend de faire des requêtes vers cette fonction
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        },
-        body: JSON.stringify(dummyTips),
-    };
-};
+                <label for="description">Description :</label>
+                <textarea id="description" name="description" rows="4" required></textarea>
+
+                <label for="prompt">Prompt à utiliser :</label>
+                <textarea id="prompt" name="prompt" rows="6" required></textarea>
+
+                <label for="outil">Outil d'IA :</label>
+                <input type="text" id="outil" name="outil" required />
+
+                <label for="categorie">Catégorie :</label>
+                <select id="categorie" name="categorie" required>
+                    <option value="">Sélectionnez une catégorie</option>
+                    <option>Productivité</option>
+                    <option>Marketing Digital</option>
+                    <option>Graphisme</option>
+                    <option>Communication</option>
+                    <option>CRM</option>
+                    <option>Com. Presse & Influenceurs</option>
+                    <option>Partenariats & Évènements</option>
+                    <option>Positionnement</option>
+                    <option>Pôle Créa</option>
+                </select>
+
+                <button type="submit">Ajouter le Tip</button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // Script pour charger le header
+        function mettreAJourBulleDemandes() {
+            const notif = document.getElementById("notif-count");
+            if (!notif) return;
+            const demandes = JSON.parse(localStorage.getItem("demandesIA") || "[]");
+            notif.textContent = demandes.length;
+            notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+        }
+
+        fetch("header.html")
+            .then(res => res.text())
+            .then(html => {
+                document.getElementById("header-placeholder").innerHTML = html;
+            })
+            .catch(() => {
+                document.getElementById("header-placeholder").innerHTML = '<p style="color:white;text-align:center">Erreur de chargement du menu</p>';
+            })
+            .finally(() => {
+                document.body.style.opacity = "1";
+                setTimeout(() => {
+                    if (typeof mettreAJourBulleDemandes === "function") mettreAJourBulleDemandes();
+                }, 100);
+            });
+
+        // Script pour la soumission du formulaire (c'est ici que l'on appellera la fonction Netlify pushPrompt plus tard)
+        document.getElementById('tipForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Empêche le rechargement de la page
+
+            const newTip = {
+                titre: document.getElementById('titre').value,
+                description: document.getElementById('description').value,
+                prompt: document.getElementById('prompt').value,
+                outil: document.getElementById('outil').value,
+                categorie: document.getElementById('categorie').value
+            };
+
+            // *** Important : Ici, vous aurez besoin de la logique pour envoyer le tip à votre fonction Netlify 'pushPrompt' ***
+            // Pour l'instant, on peut simuler la sauvegarde dans localStorage comme avant pour le test,
+            // mais l'objectif est de remplacer cela par un appel à une fonction Netlify.
+
+            let tips = JSON.parse(localStorage.getItem('tips') || '[]');
+            tips.push(newTip);
+            localStorage.setItem('tips', JSON.stringify(tips));
+
+            alert('Tip ajouté avec succès !');
+            window.location.href = 'cas-usages.html'; // Redirige vers la page des tips
+        });
+    </script>
+</body>
+</html>
