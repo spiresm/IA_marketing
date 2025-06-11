@@ -129,7 +129,7 @@
             border-radius: 8px; /* Coins plus petits */
             overflow: hidden; /* Assure que les bords arrondis sont respectés */
             transition: box-shadow 0.2s ease, border-color 0.2s ease;
-            position: relative; /* Nécessaire pour positionner le tooltip */
+            position: relative; /* Nécessaire pour positionner le panneau d'exemple */
         }
 
         .tip-item.expanded {
@@ -199,6 +199,7 @@
             transition: max-height 0.5s ease-out, opacity 0.5s ease-out, padding 0.5s ease-out;
             box-sizing: border-box;
             background-color: #ffffff; /* Assure un fond blanc pour le contenu */
+            position: relative; /* Pour contenir le panneau d'exemple */
         }
 
         .tip-item.expanded .tip-content {
@@ -270,8 +271,10 @@
             margin-bottom: 12px;
             white-space: pre-wrap;
             word-break: break-word;
-            position: relative; /* Pour positionner le bouton copier */
+            position: relative; /* Pour positionner le bouton copier et l'icône d'exemple */
             text-align: left; /* Ensure left justification for prompt */
+            cursor: pointer; /* Indique qu'il est cliquable */
+            user-select: none; /* Empêche la sélection de texte au clic */
         }
 
         /* Bouton Copier dans le prompt */
@@ -288,6 +291,7 @@
             padding: 5px;
             border-radius: 5px;
             opacity: 0.7;
+            z-index: 2; /* S'assure qu'il est au-dessus du prompt */
         }
 
         .prompt-text-display .copy-prompt-btn:hover {
@@ -295,6 +299,100 @@
             background-color: #e0f2f7;
             opacity: 1;
         }
+
+        /* Nouvelle icône pour déplier l'exemple */
+        .prompt-text-display .example-toggle-icon {
+            position: absolute;
+            bottom: 6px; /* Positionné en bas à droite */
+            right: 6px;
+            background: none;
+            border: none;
+            color: #0077b6;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: transform 0.3s ease, color 0.2s;
+            padding: 5px;
+            border-radius: 5px;
+            z-index: 2;
+            transform: translateX(0); /* Position initiale */
+        }
+
+        .prompt-text-display .example-toggle-icon:hover {
+            color: #005f8a;
+        }
+
+        .prompt-text-display.example-open .example-toggle-icon {
+            transform: translateX(-10px); /* Déplace légèrement pour indiquer le panneau */
+        }
+
+
+        /* --- STYLES POUR LE PANNEAU D'EXEMPLE COULISSANT (NOUVEAU) --- */
+        .example-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 300px; /* Largeur du panneau d'exemple */
+            height: 100%;
+            background-color: #444; /* Fond sombre pour le contraste */
+            color: #f0f0f0; /* Texte clair */
+            padding: 15px;
+            box-sizing: border-box;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.3);
+            transform: translateX(100%); /* Masqué par défaut (hors de la carte) */
+            transition: transform 0.3s ease-out;
+            z-index: 50; /* S'assure qu'il est au-dessus du contenu de la carte */
+            overflow-y: auto; /* Pour les longs exemples */
+            border-top-right-radius: 8px; /* Coins arrondis pour correspondre à la carte */
+            border-bottom-right-radius: 8px;
+        }
+
+        .tip-item .example-panel.open {
+            transform: translateX(0); /* Visible */
+        }
+
+        .example-panel strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #a0d8ff; /* Couleur vive pour le titre */
+            font-size: 1.1em;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 8px;
+        }
+
+        .example-panel p {
+            font-size: 0.9em;
+            line-height: 1.6;
+            margin: 0;
+            white-space: pre-wrap; /* Préserve le formatage */
+            word-break: break-word; /* Assure le retour à la ligne pour les longs mots */
+        }
+
+        /* Ombre sur le contenu principal quand le panneau est ouvert */
+        .tip-item.example-active .tip-content > *:not(.example-panel) {
+            filter: brightness(0.7);
+            transition: filter 0.3s ease;
+        }
+
+        /* Overlay léger pour le "clic dans le vide" dans la carte */
+        .tip-item .example-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.1); /* Très légère opacité */
+            z-index: 40; /* Sous le panneau, au-dessus du contenu */
+            opacity: 0;
+            pointer-events: none; /* Ne bloque pas les clics si non visible */
+            transition: opacity 0.3s ease;
+        }
+
+        .tip-item.example-active .example-overlay {
+            opacity: 1;
+            pointer-events: auto; /* Active les clics quand le panneau est ouvert */
+        }
+        /* --- FIN STYLES PANNEAU D'EXEMPLE --- */
+
 
         /* Badge pour l'outil (dans infos-wrapper) */
         .outil-badge {
@@ -355,60 +453,6 @@
             font-weight: 500;
         }
 
-        /* --- STYLES POUR LE PANNEAU FLOTTANT (EXEMPLE) --- */
-        .example-panel-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5); /* Semi-transparent overlay */
-            display: flex;
-            justify-content: flex-end; /* Push panel to the right */
-            align-items: flex-start;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-
-        .example-panel-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .example-panel {
-            background-color: #333;
-            color: white;
-            padding: 20px;
-            width: 350px; /* Fixed width for the panel */
-            height: 100%; /* Full height */
-            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
-            transform: translateX(100%); /* Start off-screen to the right */
-            transition: transform 0.3s ease-out;
-            box-sizing: border-box;
-            overflow-y: auto; /* Enable scrolling for long content */
-        }
-
-        .example-panel-overlay.show .example-panel {
-            transform: translateX(0); /* Slide in */
-        }
-
-        .example-panel strong {
-            display: block;
-            margin-bottom: 10px;
-            color: #a0d8ff;
-            font-size: 1.1em;
-        }
-
-        .example-panel p {
-            font-size: 0.95em;
-            line-height: 1.6;
-            margin: 0;
-            white-space: pre-wrap; /* Preserve formatting from prompt */
-            word-break: break-word; /* Ensure long words break */
-        }
-        /* --- FIN STYLES PANNEAU FLOTTANT --- */
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
@@ -539,21 +583,12 @@
         </div>
     </main>
 
-    <div id="examplePanelOverlay" class="example-panel-overlay">
-        <div class="example-panel">
-            <strong>Exemple :</strong>
-            <p id="examplePanelContent"></p>
-        </div>
-    </div>
-
     <script>
         // Utilisez l'URL de votre fonction Netlify pour récupérer les tips
         const TIPS_DATA_URL = '/.netlify/functions/get-tips';
         const PROXY_URL = "/.netlify/functions/proxy"; // Assurez-vous que cette URL est correcte si vous l'utilisez
 
         let tousLesTips = [];
-        const examplePanelOverlay = document.getElementById('examplePanelOverlay');
-        const examplePanelContent = document.getElementById('examplePanelContent');
 
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
@@ -590,13 +625,6 @@
                 setTimeout(() => msg.style.opacity = '0', 2000);
                 setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
             }
-
-            // Click listener to close the panel when clicking outside
-            examplePanelOverlay.addEventListener('click', (event) => {
-                if (event.target === examplePanelOverlay) { // Only close if click is on the overlay itself, not the panel
-                    hideExamplePanel();
-                }
-            });
         });
 
         // Fonction pour charger et afficher les tips
@@ -667,6 +695,17 @@
 
             const tipItem = event.currentTarget.closest('.tip-item');
             const tipContent = tipItem.querySelector('.tip-content');
+            const examplePanel = tipItem.querySelector('.example-panel');
+            const exampleOverlay = tipItem.querySelector('.example-overlay');
+
+
+            // If the example panel is open, close it first
+            if (examplePanel && examplePanel.classList.contains('open')) {
+                hideExamplePanel(tipItem); // Call hideExamplePanel on the specific tipItem
+                // If we also want to toggle the accordion, let the rest of the function proceed
+                // If only example panel should be toggled, uncomment return;
+                // return;
+            }
 
             tipItem.classList.toggle('expanded');
 
@@ -766,7 +805,13 @@
                                 <div class="prompt-text-display" id="prompt-display-${tip.id}">
                                     ${tip.prompt}
                                     <button class="copy-prompt-btn" onclick="copierPrompt('${tip.id}', event)"><i class="far fa-copy"></i></button>
+                                    <button class="example-toggle-icon" onclick="toggleExamplePanel('${tip.id}', event)"><i class="fas fa-angle-double-right"></i></button>
                                 </div>
+                                <div class="example-panel" id="example-panel-${tip.id}">
+                                    <strong>Exemple :</strong>
+                                    <p>${tip.promptExample || 'Aucun exemple disponible pour ce prompt.'}</p>
+                                </div>
+                                <div class="example-overlay" onclick="hideExamplePanel(this.closest('.tip-item'), event)"></div>
                             </div>
                             ` : ''}
                             <div class="metadata-section">
@@ -784,15 +829,26 @@
                 tipsListDiv.appendChild(tipItem);
                 tipItem.querySelector('.tip-header').addEventListener('click', toggleTipDetails);
 
-                // Add click listener to the prompt display area to show the example panel
-                if (tip.prompt) {
-                    tipItem.querySelector(`#prompt-display-${tip.id}`).addEventListener('click', (event) => {
-                        // Prevent click on the copy button from triggering the panel
-                        if (!event.target.closest('.copy-prompt-btn')) {
-                            showExamplePanel(tip.prompt);
-                        }
-                    });
-                }
+                // Add a click listener to the tip-item itself to close panels if clicked elsewhere
+                tipItem.addEventListener('click', (event) => {
+                    const examplePanel = tipItem.querySelector('.example-panel');
+                    const exampleToggleIcon = tipItem.querySelector('.example-toggle-icon');
+                    const copyButton = tipItem.querySelector('.copy-prompt-btn');
+                    const promptDisplay = tipItem.querySelector('.prompt-text-display');
+
+                    // If click is inside the example panel, copy button, or the toggle icon itself, do nothing
+                    if (examplePanel && examplePanel.contains(event.target) ||
+                        copyButton && copyButton.contains(event.target) ||
+                        exampleToggleIcon && exampleToggleIcon.contains(event.target)) {
+                        return;
+                    }
+
+                    // If example panel is open and click is outside it, close it
+                    if (examplePanel && examplePanel.classList.contains('open') &&
+                        !promptDisplay.contains(event.target)) { // Also ensure click wasn't on the prompt display itself
+                        hideExamplePanel(tipItem);
+                    }
+                });
             });
         }
 
@@ -830,7 +886,7 @@
             if (promptElement) {
                 // Create a temporary textarea to hold the text
                 const textarea = document.createElement('textarea');
-                textarea.value = promptElement.innerText; // Get text content, which might include whitespace
+                textarea.value = promptElement.innerText.replace(/\s*[\u21E7\u21E8]\s*/g, ''); // Remove the arrow and any surrounding whitespace
                 document.body.appendChild(textarea);
                 textarea.select();
                 document.execCommand('copy');
@@ -839,17 +895,50 @@
             }
         }
 
-        // Fonctions pour gérer le panneau d'exemple
-        function showExamplePanel(promptText) {
-            examplePanelContent.innerText = promptText; // Set the prompt text
-            examplePanelOverlay.classList.add('show');
-            // Add a temporary class to the body to prevent scrolling when panel is open
-            document.body.classList.add('no-scroll');
+        // Fonction pour gérer le panneau d'exemple
+        function toggleExamplePanel(tipId, event) {
+            event.stopPropagation(); // Prevent the accordion from toggling
+
+            const tipItem = document.querySelector(`.tip-item[data-id="${tipId}"]`);
+            const examplePanel = tipItem.querySelector(`#example-panel-${tipId}`);
+            const promptDisplay = tipItem.querySelector(`#prompt-display-${tipId}`);
+
+            if (examplePanel && promptDisplay) {
+                // Close any other open example panels first
+                document.querySelectorAll('.tip-item.example-active').forEach(otherTipItem => {
+                    if (otherTipItem !== tipItem) {
+                        hideExamplePanel(otherTipItem);
+                    }
+                });
+
+                // Toggle current panel
+                const isOpen = examplePanel.classList.toggle('open');
+                tipItem.classList.toggle('example-active', isOpen); // Add/remove active class on the tip-item
+                promptDisplay.classList.toggle('example-open', isOpen); // Indicate prompt display is open
+            }
         }
 
-        function hideExamplePanel() {
-            examplePanelOverlay.classList.remove('show');
-            document.body.classList.remove('no-scroll');
+        function hideExamplePanel(tipItem, event) {
+            if (event) { // If event is provided, check if click is outside the panel
+                const examplePanel = tipItem.querySelector('.example-panel');
+                const promptDisplay = tipItem.querySelector('.prompt-text-display');
+                if (examplePanel.contains(event.target) || promptDisplay.contains(event.target)) {
+                    return; // Clicked inside the panel or on the prompt, do not close
+                }
+            }
+
+            const examplePanel = tipItem.querySelector('.example-panel');
+            const promptDisplay = tipItem.querySelector('.prompt-text-display');
+
+            if (examplePanel) {
+                examplePanel.classList.remove('open');
+            }
+            if (tipItem) {
+                tipItem.classList.remove('example-active');
+            }
+            if (promptDisplay) {
+                promptDisplay.classList.remove('example-open');
+            }
         }
     </script>
 </body>
