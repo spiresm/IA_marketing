@@ -1,15 +1,14 @@
 // netlify/functions/delete-tip.mjs
 import { Octokit } from "@octokit/rest";
-import { Buffer } from 'buffer'; // Module intégré à Node.js pour gérer les données binaires
+import { Buffer } from 'buffer';
 
 export default async (event, context) => {
     // Vérifier si la méthode HTTP est DELETE
     if (event.httpMethod !== 'DELETE') {
-        return {
-            statusCode: 405,
-            body: JSON.stringify({ message: 'Méthode non autorisée. Seule la méthode DELETE est acceptée.' }),
+        return new Response(JSON.stringify({ message: 'Méthode non autorisée. Seule la méthode DELETE est acceptée.' }), {
+            status: 405,
             headers: { 'Content-Type': 'application/json' },
-        };
+        });
     }
 
     // Récupérer l'ID du tip à supprimer depuis les paramètres de la requête (query string)
@@ -17,29 +16,25 @@ export default async (event, context) => {
 
     if (!tipId) {
         console.error('Erreur: ID du tip manquant dans la requête.');
-        return {
-            statusCode: 400,
-            body: JSON.stringify({ message: 'ID du tip manquant.' }),
+        return new Response(JSON.stringify({ message: 'ID du tip manquant.' }), {
+            status: 400,
             headers: { 'Content-Type': 'application/json' },
-        };
+        });
     }
 
     // Configuration des accès GitHub via les variables d'environnement Netlify
-    // Assurez-vous que ces variables sont bien configurées dans votre tableau de bord Netlify.
-    const githubToken = process.env.GITHUB_PAT; // Votre Personal Access Token GitHub (avec les droits 'repo')
-    const repoOwner = process.env.GITHUB_OWNER; // Votre nom d'utilisateur ou celui de l'organisation GitHub
-    const repoName = process.env.GITHUB_REPO;   // Le nom de votre dépôt GitHub (ex: IA_marketing)
-    const filePath = process.env.TIPS_FILE_PATH || 'data/all-tips.json'; // Chemin vers votre fichier JSON dans le dépôt
-    const branch = 'main'; // La branche de votre dépôt où se trouve le fichier (généralement 'main' ou 'master')
+    const githubToken = process.env.GITHUB_PAT;
+    const repoOwner = process.env.GITHUB_OWNER;
+    const repoName = process.env.GITHUB_REPO;
+    const filePath = process.env.TIPS_FILE_PATH || 'data/all-tips.json';
+    const branch = 'main';
 
-    // Vérification des variables d'environnement essentielles
     if (!githubToken || !repoOwner || !repoName) {
         console.error('Erreur de configuration: GITHUB_PAT, GITHUB_OWNER ou GITHUB_REPO manquant.');
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ message: 'Configuration de l\'API GitHub manquante sur le serveur.' }),
+        return new Response(JSON.stringify({ message: 'Configuration de l\'API GitHub manquante sur le serveur.' }), {
+            status: 500,
             headers: { 'Content-Type': 'application/json' },
-        };
+        });
     }
 
     const octokit = new Octokit({ auth: githubToken });
@@ -58,11 +53,13 @@ export default async (event, context) => {
         } catch (getContentsError) {
             if (getContentsError.status === 404) {
                 console.warn(`Le fichier ${filePath} n'existe pas encore sur GitHub. Création d'un tableau vide.`);
-                // Si le fichier n'existe pas, on initialise un tableau vide et on gérera la création plus tard
                 fileResponse = { data: { sha: null, content: Buffer.from(JSON.stringify([])).toString('base64') } };
             } else {
                 console.error(`Erreur lors de la récupération du fichier ${filePath} depuis GitHub:`, getContentsError);
-                throw new Error(`Échec de la lecture des tips depuis GitHub: ${getContentsError.message}`);
+                return new Response(JSON.stringify({ message: `Échec de la lecture des tips depuis GitHub: ${getContentsError.message}` }), {
+                    status: 500,
+                    headers: { 'Content-Type': 'application/json' },
+                });
             }
         }
 
@@ -73,18 +70,17 @@ export default async (event, context) => {
 
         // 2. Filtrer la liste pour retirer le tip avec l'ID donné
         const initialLength = tipsData.length;
-        const updatedTips = tipsData.filter(tip => String(tip.id) !== String(tipId)); // Convertir en String pour une comparaison fiable
+        // Utilisez String() pour s'assurer que les comparaisons d'ID sont fiables,
+        // car les IDs peuvent être stockés comme nombres ou chaînes.
+        const updatedTips = tipsData.filter(tip => String(tip.id) !== String(tipId));
         console.log(`Tentative de suppression du tip ID: ${tipId}. Tips avant: ${initialLength}, Tips après: ${updatedTips.length}`);
 
-
         if (updatedTips.length === initialLength) {
-            // Aucun tip n'a été supprimé, l'ID n'a pas été trouvé ou a échoué la conversion String
             console.warn(`Tip avec l'ID ${tipId} non trouvé ou aucune modification effectuée.`);
-            return {
-                statusCode: 404, // 404 car la ressource spécifique n'a pas été trouvée pour être supprimée
-                body: JSON.stringify({ message: `Tip avec l'ID ${tipId} non trouvé.` }),
+            return new Response(JSON.stringify({ message: `Tip avec l'ID ${tipId} non trouvé.` }), {
+                status: 404,
                 headers: { 'Content-Type': 'application/json' },
-            };
+            });
         }
 
         // 3. Préparer le nouveau contenu JSON (encodé en base64)
@@ -96,9 +92,9 @@ export default async (event, context) => {
             owner: repoOwner,
             repo: repoName,
             path: filePath,
-            message: `Suppression du tip: ${tipId}`, // Message de commit sur GitHub
+            message: `Suppression du tip: ${tipId}`,
             content: newContentBase64,
-            sha: currentFileSha, // Le SHA est OBLIGATOIRE pour la mise à jour d'un fichier existant
+            sha: currentFileSha,
             branch: branch,
             committer: {
                 name: 'Netlify Automation Bot',
@@ -112,7 +108,6 @@ export default async (event, context) => {
         console.log(`Fichier ${filePath} mis à jour avec succès sur GitHub.`);
 
         // 5. Déclencher un nouveau déploiement sur Netlify
-        // Cela est crucial pour que les changements dans all-tips.json soient propagés sur votre site live.
         const buildHookUrl = process.env.NETLIFY_BUILD_HOOK_URL;
         if (buildHookUrl) {
             console.log('Déclenchement du build hook Netlify...');
@@ -126,18 +121,17 @@ export default async (event, context) => {
             console.warn('La variable NETLIFY_BUILD_HOOK_URL n\'est pas configurée. Un déploiement manuel sera nécessaire pour voir les changements.');
         }
 
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ message: 'Tip supprimé avec succès et déploiement déclenché.' }),
+        // Retourner un objet Response standard du Web Fetch API
+        return new Response(JSON.stringify({ message: 'Tip supprimé avec succès et déploiement déclenché.' }), {
+            status: 200,
             headers: { 'Content-Type': 'application/json' },
-        };
+        });
 
     } catch (error) {
         console.error('Erreur inattendue dans la fonction delete-tip:', error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ message: `Échec de la suppression du tip: ${error.message}` }),
+        return new Response(JSON.stringify({ message: `Échec de la suppression du tip: ${error.message}` }), {
+            status: 500,
             headers: { 'Content-Type': 'application/json' },
-        };
+        });
     }
 };
