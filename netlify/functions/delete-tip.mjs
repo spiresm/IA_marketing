@@ -1,6 +1,6 @@
 // netlify/functions/delete-tip.mjs
-import { Octokit } from "@octokit/rest";
-import { Buffer } from 'buffer'; // Module intégré à Node.js pour gérer les données binaires
+
+// Suppression de l'import de 'node-fetch' car 'fetch' est globalement disponible dans Netlify Functions
 
 export default async (event, context) => {
     // --- Gérer la requête de pré-vérification CORS (méthode OPTIONS) ---
@@ -8,153 +8,224 @@ export default async (event, context) => {
     // pour vérifier si le serveur autorise la requête réelle.
     if (event.httpMethod === 'OPTIONS') {
         return new Response(null, {
-            status: 204, // Code de statut "No Content" (Pas de contenu) pour une réponse OPTIONS réussie
+            status: 204, // Code de statut "No Content" pour une réponse OPTIONS réussie
             headers: {
-                // Ces en-têtes sont cruciaux pour les CORS
-                'Access-Control-Allow-Origin': '*', // Autorise toutes les origines à accéder à cette fonction
-                'Access-Control-Allow-Methods': 'DELETE, POST, GET, OPTIONS', // Méthodes HTTP que le serveur autorise
-                'Access-Control-Allow-Headers': 'Content-Type', // En-têtes HTTP que le client est autorisé à envoyer
-                'Access-Control-Max-Age': '86400', // Cache la réponse preflight pour 24 heures (optimisation)
+                'Access-Control-Allow-Origin': '*', // Autorise toutes les origines
+                'Access-Control-Allow-Methods': 'DELETE, POST, GET, OPTIONS', // Méthodes HTTP autorisées
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization', // En-têtes HTTP autorisés
+                'Access-Control-Max-Age': '86400', // Cache la réponse preflight pour 24 heures
             },
         });
     }
 
-    // --- Gérer la méthode DELETE (la logique principale de la fonction) ---
+    // Vérifier la méthode HTTP pour s'assurer que c'est un DELETE
     if (event.httpMethod !== 'DELETE') {
-        console.error(`Méthode non autorisée reçue: ${event.httpMethod}. Seule DELETE est acceptée.`);
-        return new Response(JSON.stringify({ message: 'Méthode non autorisée. Seule la méthode DELETE est acceptée.' }), {
-            status: 405, // "Method Not Allowed" (Méthode non autorisée)
+        console.error(`❌ deleteTip: Méthode non autorisée reçue: ${event.httpMethod}. Seule DELETE est acceptée.`);
+        return new Response(JSON.stringify({ success: false, message: 'Méthode non autorisée. Utilisez DELETE.' }), {
+            status: 405,
             headers: { 'Content-Type': 'application/json' },
         });
     }
 
-    // Récupérer l'ID du tip à supprimer depuis les paramètres de la requête (query string)
-    const tipId = event.queryStringParameters.id;
+    const { id } = event.queryStringParameters; // Récupérer l'ID du tip depuis les paramètres de l'URL
 
-    if (!tipId) {
-        console.error('Erreur: ID du tip manquant dans la requête.');
-        return new Response(JSON.stringify({ message: 'ID du tip manquant.' }), {
-            status: 400, // "Bad Request" (Mauvaise requête)
+    if (!id) {
+        console.error("❌ deleteTip: ID manquant dans les paramètres de la requête.");
+        return new Response(JSON.stringify({ success: false, message: "ID du tip manquant. Impossible de supprimer." }), {
+            status: 400,
             headers: { 'Content-Type': 'application/json' },
         });
     }
-
-    // Configuration des accès GitHub via les variables d'environnement Netlify
-    // Assurez-vous que ces variables sont bien configurées dans votre tableau de bord Netlify.
-    const githubToken = process.env.GITHUB_PAT; // Votre Personal Access Token GitHub (avec les droits 'repo')
-    const repoOwner = process.env.GITHUB_OWNER; // Votre nom d'utilisateur ou celui de l'organisation GitHub
-    const repoName = process.env.GITHUB_REPO;   // Le nom de votre dépôt GitHub (ex: IA_marketing)
-    const filePath = process.env.TIPS_FILE_PATH || 'data/all-tips.json'; // Chemin vers votre fichier JSON dans le dépôt
-    const branch = 'main'; // La branche de votre dépôt où se trouve le fichier (généralement 'main' ou 'master')
-
-    // Vérification des variables d'environnement essentielles
-    if (!githubToken || !repoOwner || !repoName) {
-        console.error('Erreur de configuration: GITHUB_PAT, GITHUB_OWNER ou GITHUB_REPO manquant.');
-        return new Response(JSON.stringify({ message: 'Configuration de l\'API GitHub manquante sur le serveur.' }), {
-            status: 500, // "Internal Server Error" (Erreur interne du serveur)
-            headers: { 'Content-Type': 'application/json' },
-        });
-    }
-
-    const octokit = new Octokit({ auth: githubToken });
 
     try {
-        // 1. Récupérer le contenu actuel du fichier all-tips.json depuis GitHub
-        console.log(`Tentative de lecture du fichier ${filePath} depuis GitHub...`);
-        let fileResponse;
-        try {
-            fileResponse = await octokit.repos.getContents({
-                owner: repoOwner,
-                repo: repoName,
-                path: filePath,
-                ref: branch
-            });
-        } catch (getContentsError) {
-            if (getContentsError.status === 404) {
-                console.warn(`Le fichier ${filePath} n'existe pas encore sur GitHub. Initialisation d'un tableau vide.`);
-                // Si le fichier n'existe pas, on initialise un tableau vide (cela peut arriver au premier tip)
-                fileResponse = { data: { sha: null, content: Buffer.from(JSON.stringify([])).toString('base64') } };
-            } else {
-                console.error(`Erreur lors de la récupération du fichier ${filePath} depuis GitHub:`, getContentsError);
-                return new Response(JSON.stringify({ message: `Échec de la lecture des tips depuis GitHub: ${getContentsError.message}` }), {
-                    status: 500,
-                    headers: { 'Content-Type': 'application/json' },
-                });
-            }
-        }
+        // Il est recommandé d'utiliser process.env.GITHUB_PAT pour les tokens avec des droits d'écriture
+        const token = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT; // Fallback pour GITHUB_PAT
+        const repoOwner = "spiresm"; // REMPLACER par votre nom d'utilisateur GitHub si différent
+        const repoName = "IA_marketing"; // REMPLACER par le nom exact de votre dépôt
+        const filePath = "all-tips.json"; // Le chemin complet du fichier all-tips.json dans le dépôt
+        const branch = 'main'; // La branche de votre dépôt (ex: 'main' ou 'master')
 
-        const currentFileSha = fileResponse.data.sha;
-        const currentContentBase64 = fileResponse.data.content;
-        let tipsData = JSON.parse(Buffer.from(currentContentBase64, 'base64').toString('utf8'));
-        console.log(`Fichier ${filePath} récupéré. SHA: ${currentFileSha}. Nombre de tips: ${tipsData.length}`);
-
-        // 2. Filtrer la liste pour retirer le tip avec l'ID donné
-        const initialLength = tipsData.length;
-        // Utilisez String() pour s'assurer que les comparaisons d'ID sont fiables,
-        // car les IDs peuvent être stockés comme nombres ou chaînes.
-        const updatedTips = tipsData.filter(tip => String(tip.id) !== String(tipId));
-        console.log(`Tentative de suppression du tip ID: ${tipId}. Tips avant: ${initialLength}, Tips après: ${updatedTips.length}`);
-
-
-        if (updatedTips.length === initialLength) {
-            // Aucun tip n'a été supprimé, l'ID n'a pas été trouvé ou a échoué la conversion String
-            console.warn(`Tip avec l'ID ${tipId} non trouvé ou aucune modification effectuée.`);
-            return new Response(JSON.stringify({ message: `Tip avec l'ID ${tipId} non trouvé.` }), {
-                status: 404, // "Not Found" (Non trouvé) car la ressource spécifique n'a pas été trouvée pour être supprimée
+        if (!token) {
+            console.error("❌ GITHUB_TOKEN ou GITHUB_PAT manquant pour deleteTip. Veuillez le configurer.");
+            return new Response(JSON.stringify({ success: false, message: "Token GitHub manquant. Impossible de supprimer le tip. Contactez l'administrateur." }), {
+                status: 500,
                 headers: { 'Content-Type': 'application/json' },
             });
         }
 
-        // 3. Préparer le nouveau contenu JSON (encodé en base64)
-        const newContentBase64 = Buffer.from(JSON.stringify(updatedTips, null, 2)).toString('base64');
+        console.log(`📡 deleteTip: Tentative de suppression du tip ID: ${id} sur GitHub.`);
 
-        // 4. Mettre à jour le fichier all-tips.json sur GitHub
-        console.log(`Tentative de mise à jour du fichier ${filePath} sur GitHub...`);
-        await octokit.repos.createOrUpdateFileContents({
-            owner: repoOwner,
-            repo: repoName,
-            path: filePath,
-            message: `Suppression du tip: ${tipId}`, // Message de commit sur GitHub
-            content: newContentBase64,
-            sha: currentFileSha, // Le SHA est OBLIGATOIRE pour la mise à jour d'un fichier existant
-            branch: branch,
-            committer: {
-                name: 'Netlify Automation Bot',
-                email: 'netlify-bot@example.com',
-            },
-            author: {
-                name: 'Netlify Automation Bot',
-                email: 'netlify-bot@example.com',
+        // --- Étape 1 : Obtenir le SHA actuel du fichier all-tips.json ---
+        // L'API GitHub DELETE requiert le SHA du fichier que vous voulez supprimer.
+        // Nous devons d'abord faire un GET sur le fichier pour récupérer son SHA et le contenu actuel.
+        const getFileUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}?ref=${branch}`;
+        console.log(`📡 deleteTip: Récupération du SHA et du contenu pour ${getFileUrl}`);
+
+        const fileInfoRes = await fetch(getFileUrl, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Accept": "application/vnd.github.v3.raw", // Demander le contenu brut directement
+                "User-Agent": "Netlify-Function-deleteTip"
             },
         });
-        console.log(`Fichier ${filePath} mis à jour avec succès sur GitHub.`);
 
-        // 5. Déclencher un nouveau déploiement sur Netlify
-        // Cela est crucial pour que les changements dans all-tips.json soient propagés sur votre site live.
-        const buildHookUrl = process.env.NETLIFY_BUILD_HOOK_URL;
-        if (buildHookUrl) {
-            console.log('Déclenchement du build hook Netlify...');
-            const buildResponse = await fetch(buildHookUrl, { method: 'POST' });
-            if (!buildResponse.ok) {
-                console.error(`Échec du déclenchement du build hook Netlify: ${buildResponse.status} ${buildResponse.statusText}`);
-            } else {
-                console.log('Build hook Netlify déclenché avec succès.');
+        if (!fileInfoRes.ok) {
+            if (fileInfoRes.status === 404) {
+                console.warn(`Le fichier ${filePath} n'existe pas. Impossible de supprimer le tip ${id}.`);
+                return new Response(JSON.stringify({ success: false, message: `Le fichier des tips n'existe pas. Impossible de supprimer le tip ${id}.` }), {
+                    status: 404,
+                    headers: { 'Content-Type': 'application/json' },
+                });
             }
-        } else {
-            console.warn('La variable NETLIFY_BUILD_HOOK_URL n\'est pas configurée. Un déploiement manuel sera nécessaire pour voir les changements.');
+            const errorText = await fileInfoRes.text();
+            let errorMessage = `Erreur GitHub lors de la récupération du SHA/contenu du fichier: ${fileInfoRes.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.message || errorMessage;
+            } catch (jsonParseError) {
+                errorMessage += ` - ${errorText.substring(0, 200)}... (non-JSON)`;
+            }
+            console.error(`❌ deleteTip: ${errorMessage}`);
+            return new Response(JSON.stringify({ success: false, message: `Impossible de récupérer les informations du fichier des tips pour la suppression: ${errorMessage}` }), {
+                status: fileInfoRes.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
         }
 
-        // Retourner un objet Response standard du Web Fetch API
-        return new Response(JSON.stringify({ message: 'Tip supprimé avec succès et déploiement déclenché.' }), {
-            status: 200, // "OK"
-            headers: { 'Content-Type': 'application/json' },
+        const currentContent = await fileInfoRes.text(); // Le contenu est déjà brut (texte)
+        const currentTipsData = JSON.parse(currentContent);
+
+        // Obtenir le SHA du fichier directement à partir des en-têtes ou d'une autre requête si nécessaire.
+        // L'API "getContents" renvoie le SHA dans le corps JSON si Accept est 'application/vnd.github.v3+json'.
+        // Si Accept est 'application/vnd.github.v3.raw', on ne reçoit que le contenu.
+        // Pour être cohérent avec deletePrompt, faisons un appel pour obtenir le SHA séparément si nécessaire.
+        // Alternativement, on peut changer 'Accept' pour 'application/vnd.github.v3+json' et parser le JSON.
+        // Pour simplifier et rester proche de deletePrompt, faisons une requête HEAD ou GET séparée si nécessaire.
+        // Cependant, l'approche la plus simple est de changer le type d'acceptation de la première requête.
+        // Utilisons getContents avec 'application/vnd.github.v3+json' pour récupérer SHA et content ensemble.
+
+        const getFileMetaUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}?ref=${branch}`;
+        const fileMetaRes = await fetch(getFileMetaUrl, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Accept": "application/vnd.github.v3+json", // Demander le JSON pour le SHA
+                "User-Agent": "Netlify-Function-deleteTip"
+            },
+        });
+
+        if (!fileMetaRes.ok) {
+            const errorText = await fileMetaRes.text();
+            console.error(`❌ deleteTip: Erreur lors de la récupération des métadonnées du fichier: ${fileMetaRes.status} - ${errorText}`);
+            return new Response(JSON.stringify({ success: false, message: `Impossible de récupérer les métadonnées du fichier pour la suppression.` }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+        const fileMetaData = await fileMetaRes.json();
+        const fileSha = fileMetaData.sha;
+
+
+        if (!fileSha) {
+            console.error(`❌ deleteTip: SHA du fichier ${filePath} introuvable.`);
+            return new Response(JSON.stringify({ success: false, message: `SHA du fichier des tips introuvable. Impossible de supprimer.` }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        console.log(`✅ deleteTip: SHA du fichier ${filePath} récupéré: ${fileSha}`);
+
+        // Filtrer la liste pour retirer le tip avec l'ID donné
+        const initialLength = currentTipsData.length;
+        const updatedTips = currentTipsData.filter(tip => String(tip.id) !== String(id)); // Convertir en String pour comparaison fiable
+        console.log(`Tentative de suppression du tip ID: ${id}. Tips avant: ${initialLength}, Tips après: ${updatedTips.length}`);
+
+        if (updatedTips.length === initialLength) {
+            console.warn(`Tip avec l'ID ${id} non trouvé ou aucune modification effectuée.`);
+            return new Response(JSON.stringify({ success: false, message: `Tip avec l'ID ${id} non trouvé.` }), {
+                status: 404, // "Not Found" car la ressource spécifique n'a pas été trouvée pour être supprimée
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        // Préparer le nouveau contenu JSON (encodé en base64)
+        const newContentBase64 = Buffer.from(JSON.stringify(updatedTips, null, 2)).toString('base64');
+
+        // --- Étape 2 : Envoyer la requête PUT pour mettre à jour le fichier all-tips.json sur GitHub ---
+        // L'API GitHub pour modifier un fichier est PUT, pas DELETE.
+        // La méthode DELETE est pour supprimer le fichier lui-même, pas son contenu.
+        const updateApiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+        console.log(`📡 deleteTip: Envoi de la requête PUT pour mettre à jour ${updateApiUrl}`);
+
+        const updateRes = await fetch(updateApiUrl, {
+            method: "PUT", // Utilisation de PUT pour mettre à jour le contenu du fichier
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Accept": "application/vnd.github.v3+json",
+                "Content-Type": "application/json",
+                "User-Agent": "Netlify-Function-deleteTip"
+            },
+            body: JSON.stringify({
+                message: `Suppression du tip: ${id}`, // Message de commit
+                content: newContentBase64, // Le nouveau contenu du fichier
+                sha: fileSha, // Le SHA de la version du fichier que nous modifions (obligatoire)
+                branch: branch,
+            }),
+        });
+
+        if (!updateRes.ok) {
+            const errorText = await updateRes.text();
+            let errorMessage = `Erreur GitHub lors de la mise à jour du fichier: ${updateRes.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.message || errorMessage;
+            } catch (jsonParseError) {
+                errorMessage += ` - ${errorText.substring(0, 200)}... (non-JSON)`;
+            }
+            console.error(`❌ deleteTip: ${errorMessage}`);
+            return new Response(JSON.stringify({ success: false, message: `Erreur lors de la suppression du tip sur GitHub: ${errorMessage}` }), {
+                status: updateRes.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        console.log(`✅ deleteTip: Fichier ${filePath} mis à jour avec succès sur GitHub (tip ${id} supprimé du contenu).`);
+
+        // --- Déclencher un nouveau déploiement sur Netlify ---
+        // C'est crucial pour que les changements dans all-tips.json soient propagés sur votre site live.
+        const buildHookUrl = process.env.NETLIFY_BUILD_HOOK_URL;
+        if (buildHookUrl) {
+            console.log('📡 Déclenchement du build hook Netlify...');
+            const buildResponse = await fetch(buildHookUrl, { method: 'POST' });
+            if (!buildResponse.ok) {
+                console.error(`❌ Échec du déclenchement du build hook Netlify: ${buildResponse.status} ${buildResponse.statusText}`);
+            } else {
+                console.log('✅ Build hook Netlify déclenché avec succès.');
+            }
+        } else {
+            console.warn('⚠️ La variable NETLIFY_BUILD_HOOK_URL n\'est pas configurée. Un déploiement manuel sera nécessaire pour voir les changements.');
+        }
+
+        return new Response(JSON.stringify({ success: true, message: `Tip ${id} supprimé avec succès et déploiement déclenché.` }), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json',
+                "Access-Control-Allow-Origin": "*", // CORS
+                "Access-Control-Allow-Methods": "DELETE, POST, GET, OPTIONS", // Assurez-vous que les méthodes sont autorisées dans netlify.toml
+                "Access-Control-Allow-Headers": "Content-Type, Authorization"
+            },
         });
 
     } catch (error) {
-        console.error('Erreur inattendue dans la fonction delete-tip:', error);
-        return new Response(JSON.stringify({ message: `Échec de la suppression du tip: ${error.message}` }), {
-            status: 500, // "Internal Server Error"
-            headers: { 'Content-Type': 'application/json' },
+        console.error('❌ deleteTip: Erreur générale lors de la suppression du tip :', error);
+        return new Response(JSON.stringify({ success: false, message: `Erreur interne du serveur lors de la suppression du tip: ${error.message}` }), {
+            status: 500,
+            headers: {
+                'Content-Type': 'application/json',
+                "Access-Control-Allow-Origin": "*"
+            },
         });
     }
 };
