@@ -6,18 +6,38 @@
   <title>Créer un Tip - Espace IA</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    body { visibility: hidden; }
-    main { display: none; }
-
-    .container {
-      max-width: 800px;
-      margin: 40px auto;
-      background: #ffffff;
-      padding: 30px;
-      border-radius: 20px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    /* Styles pour la transition d'apparition du corps et du main */
+    body {
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+    }
+    body.show {
+      opacity: 1;
+    }
+    main {
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      padding: 40px 20px;
+    }
+    main.show {
+      opacity: 1;
     }
 
+    /* Styles du conteneur principal du formulaire */
+    .container {
+      max-width: 800px; /* Taille augmentée pour un meilleur agencement */
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      position: relative;
+    }
+
+    /* Styles du titre du formulaire */
     h1 {
       text-align: center;
       font-size: 1.8em;
@@ -25,22 +45,33 @@
       margin-bottom: 20px;
     }
 
+    /* Styles des labels des champs */
     label {
       font-weight: 600;
       display: block;
-      margin-top: 20px;
+      margin-top: 15px;
+      color: #333;
     }
 
+    /* Styles des champs de saisie (input, textarea, select) */
     input, textarea, select {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
+      margin-top: 5px;
       border: 1px solid #ccc;
       border-radius: 8px;
-      margin-top: 8px;
       font-size: 1em;
       background-color: #f9f9f9;
+      box-sizing: border-box; /* Inclut le padding et la bordure dans la largeur totale */
+      color: #333;
+    }
+    input:focus, select:focus, textarea:focus {
+        border-color: #0077b6;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.2);
     }
 
+    /* Styles du bouton d'enregistrement */
     button {
       margin-top: 30px;
       padding: 12px 20px;
@@ -51,19 +82,23 @@
       cursor: pointer;
       font-size: 1em;
       transition: background-color 0.3s;
+      width: 100%; /* Bouton pleine largeur */
     }
-
     button:hover {
       background-color: #005f8a;
     }
+    button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
 
+    /* Styles des messages de succès et d'erreur */
     .success {
       margin-top: 20px;
       color: green;
       font-weight: 600;
       text-align: center;
     }
-
     .error {
         margin-top: 20px;
         color: red;
@@ -71,6 +106,7 @@
         text-align: center;
     }
 
+    /* Styles de la prévisualisation du tip */
     .preview {
       margin-top: 30px;
       padding: 15px 20px;
@@ -78,20 +114,32 @@
       border-left: 5px solid #0077b6;
       border-radius: 10px;
     }
-
     .preview h2 {
       margin: 0 0 10px;
       color: #005f8a;
     }
-
     .preview p {
       margin: 0 0 10px;
     }
-
     .preview .meta {
       font-size: 0.9em;
       color: #666;
       font-style: italic;
+    }
+
+    /* Styles de l'indicateur de chargement (loader) */
+    .loader {
+        display: block;
+        margin: 20px auto;
+        width: 40px;
+        height: 40px;
+        border: 4px solid #ccc;
+        border-top: 4px solid #0077b6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -99,173 +147,276 @@
 
   <div id="header-placeholder"></div>
   <script>
+    // Chargement du header et gestion de l'apparition progressive du body et main
     fetch("header.html")
       .then(res => res.text())
       .then(html => {
         document.getElementById("header-placeholder").innerHTML = html;
-        document.body.style.visibility = "visible";
-        document.querySelector("main").style.display = "block";
-      });
+        document.body.classList.add("show");
+        document.querySelector("main").classList.add("show");
+      })
+      .catch(error => console.error("Erreur lors du chargement du header:", error));
   </script>
 
   <main>
-    <div class="container">
-      <h1>Créer un Tip & Cas d’usage</h1>
-
-      <label for="titre">Titre</label>
-      <input type="text" id="titre" placeholder="Ex : Créer un visuel pour réseaux sociaux">
-
-      <label for="description">Description</label>
-      <textarea id="description" rows="3" placeholder="Décrivez brièvement l’usage ou le contexte"></textarea>
-
-      <label for="prompt">Prompt</label>
-      <textarea id="prompt" rows="4" placeholder="Exemple de prompt utilisable par l’IA"></textarea>
-
-      <label for="outil">Outil IA utilisé</label>
-      <select id="outil">
-        <option value="">-- Sélectionnez --</option>
-        <option>ChatGPT</option>
-        <option>Claude</option>
-        <option>Midjourney</option>
-        <option>Firefly</option>
-        <option>Perplexity</option>
-        <option>Notion AI</option>
-      </select>
-
-      <label for="categorie">Catégorie</label>
-      <select id="categorie">
-        <option value="">-- Sélectionnez --</option>
-        <option>Productivité</option>
-        <option>Marketing Digital</option>
-        <option>Graphisme</option>
-        <option>Communication</option>
-        <option>CRM</option>
-        <option>Com. Presse & Influenceurs</option>
-        <option>Partenariats & Évènements</option>
-        <option>Positionnement</option>
-        <option>Pôle Créa</option>
-      </select>
-
-      <label for="auteur">Auteur du Tip</label>
-      <select id="auteur">
-        <option value="">-- Sélectionnez un auteur --</option>
-        </select>
-
-      <button onclick="validerTip()">Enregistrer le tip</button>
-      <div class="success" id="message-success" style="display:none">Tip enregistré avec succès ✅</div>
-      <div class="error" id="message-error" style="display:none">Erreur lors de l'enregistrement du tip ❌</div>
-      <div id="preview-container"></div>
-    </div>
+    <div id="app"></div>
   </main>
 
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script>
-    // URL de votre API backend pour sauvegarder les tips
-    const BACKEND_API_URL = 'http://localhost:3000/save-tip'; // À remplacer par l'URL de votre serveur
-    // URL de votre API backend ou fichier pour récupérer les noms des profils
-    const TEAM_PROFILES_URL = 'http://localhost:3000/team-profiles'; // À remplacer par l'URL de vos profils
+    const { ref, createApp, onMounted, computed } = Vue;
 
-    /**
-     * Charge les noms des profils de l'équipe et peuple le sélecteur.
-     * Pour une mise à jour automatique, cette fonction devrait être appelée
-     * après chaque modification sur la page équipe, via une API ou un webhook.
-     */
-    async function chargerProfilsEquipe() {
-        const auteurSelect = document.getElementById('auteur');
-        auteurSelect.innerHTML = '<option value="">-- Sélectionnez un auteur --</option>'; // Réinitialise les options
+    // URL de votre fonction Netlify 'proxy' qui gérera les requêtes
+    // Assurez-vous que cette URL est correcte pour votre déploiement Netlify
+    const PROXY_URL = "/.netlify/functions/proxy";
 
-        try {
-            // Dans un vrai scénario, vous feriez un fetch vers votre page équipe ou une API
-            // Exemple : const response = await fetch(TEAM_PROFILES_URL);
-            // const profils = await response.json();
+    const TipForm = {
+      template: `
+        <div class="container">
+          <h1>Créer un Tip & Cas d’usage</h1>
 
-            // Simule des profils d'équipe pour l'exemple
-            const profils = [
-                { id: '1', nom: 'Alice Dupont' },
-                { id: '2', nom: 'Bob Martin' },
-                { id: '3', nom: 'Charlie Leblanc' }
-            ];
+          <label for="auteur">Auteur du Tip</label>
+          <select id="auteur" v-model="auteur" required>
+            <option value="" disabled>Sélectionnez un auteur</option>
+            <option v-for="profilNom in profilsAuteurs" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
+          </select>
+          <p v-if="profilsAuteurs.length === 0 && !isLoadingProfils" style="color: #888; font-size: 0.9em; margin-top: 5px;">
+            Aucun profil trouvé. Assurez-vous d'avoir créé des profils dans la section "Équipe".
+          </p>
+          <p v-if="isLoadingProfils" style="color: #0077b6; font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
 
-            profils.forEach(profil => {
-                const option = document.createElement('option');
-                option.value = profil.nom; // Ou profil.id si vous préférez stocker l'ID
-                option.textContent = profil.nom;
-                auteurSelect.appendChild(option);
-            });
-        } catch (error) {
-            console.error("Erreur lors du chargement des profils de l'équipe :", error);
-            // Gérer l'erreur, par exemple, afficher un message à l'utilisateur
-        }
-    }
+          <label for="titre">Titre</label>
+          <input type="text" id="titre" v-model="titre" placeholder="Ex : Créer un visuel pour réseaux sociaux" required>
 
-    /**
-     * Valide les données du tip et l'envoie à l'API backend pour sauvegarde sur GitHub.
-     */
-    async function validerTip() {
-      const titre = document.getElementById('titre').value.trim();
-      const description = document.getElementById('description').value.trim();
-      const prompt = document.getElementById('prompt').value.trim();
-      const outil = document.getElementById('outil').value;
-      const categorie = document.getElementById('categorie').value;
-      const auteur = document.getElementById('auteur').value; // Nouveau champ
+          <label for="description">Description</label>
+          <textarea id="description" v-model="description" rows="3" placeholder="Décrivez brièvement l’usage ou le contexte" required></textarea>
 
-      const messageSuccess = document.getElementById('message-success');
-      const messageError = document.getElementById('message-error');
-      messageSuccess.style.display = 'none';
-      messageError.style.display = 'none';
+          <label for="prompt">Prompt</label>
+          <textarea id="prompt" v-model="prompt" rows="4" placeholder="Exemple de prompt utilisable par l’IA" required></textarea>
 
-      if (titre && description && prompt && outil && categorie && auteur) {
-        const nouveauTip = { titre, description, prompt, outil, categorie, auteur };
+          <label for="outil">Outil IA utilisé</label>
+          <select id="outil" v-model="outil" required>
+            <option value="">-- Sélectionnez --</option>
+            <option>ChatGPT</option>
+            <option>Claude</option>
+            <option>Midjourney</option>
+            <option>Firefly</option>
+            <option>Perplexity</option>
+            <option>Notion AI</option>
+          </select>
 
-        try {
-          // Envoi du tip à votre serveur backend
-          const response = await fetch(BACKEND_API_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(nouveauTip),
-          });
+          <label for="categorie">Catégorie</label>
+          <select id="categorie" v-model="categorie" required>
+            <option value="">-- Sélectionnez --</option>
+            <option>Productivité</option>
+            <option>Marketing Digital</option>
+            <option>Graphisme</option>
+            <option>Communication</option>
+            <option>CRM</option>
+            <option>Com. Presse & Influenceurs</option>
+            <option>Partenariats & Évènements</option>
+            <option>Positionnement</option>
+            <option>Pôle Créa</option>
+          </select>
 
-          if (response.ok) {
-            messageSuccess.style.display = 'block';
-            setTimeout(() => {
-              messageSuccess.style.display = 'none';
-            }, 3000);
+          <div v-if="isLoading" class="loader"></div>
+          <button v-else @click="validerTip" :disabled="!isFormValid || isLoading">Enregistrer le tip</button>
 
-            // Afficher le preview du tip sauvegardé
-            document.getElementById('preview-container').innerHTML = `
-              <div class="preview">
-                <h2>${titre}</h2>
-                <p>${description}</p>
-                <div class="prompt-box">
-                  <code>${prompt}</code>
-                </div>
-                <p class="meta">Outil : ${outil} • Catégorie : ${categorie} • Auteur : ${auteur}</p>
+          <div class="success" id="message-success" v-show="messageSuccessVisible">Tip enregistré avec succès ✅</div>
+          <div class="error" id="message-error" v-show="messageErrorVisible">{{ errorMessage }}</div>
+
+          <div id="preview-container" v-if="previewVisible">
+            <div class="preview">
+              <h2>{{ titrePreview }}</h2>
+              <p>{{ descriptionPreview }}</p>
+              <div class="prompt-box">
+                <code>{{ promptPreview }}</code>
               </div>
-            `;
+              <p class="meta">Outil : {{ outilPreview }} • Catégorie : {{ categoriePreview }} • Auteur : {{ auteurPreview }}</p>
+            </div>
+          </div>
+        </div>
+      `,
+      setup() {
+        // Données du formulaire, réactives avec ref()
+        const titre = ref('');
+        const description = ref('');
+        const prompt = ref('');
+        const outil = ref('');
+        const categorie = ref('');
+        const auteur = ref(''); // Modèle pour le champ select de l'auteur
 
-            // Réinitialiser le formulaire
-            document.querySelectorAll('input, textarea, select').forEach(e => e.value = '');
-            document.getElementById('auteur').value = ''; // Réinitialise l'auteur aussi
+        // États de l'interface utilisateur
+        const messageSuccessVisible = ref(false);
+        const messageErrorVisible = ref(false);
+        const errorMessage = ref('');
+        const previewVisible = ref(false);
+        const isLoading = ref(false);
 
-          } else {
-            const errorData = await response.json();
-            messageError.textContent = `Erreur lors de l'enregistrement du tip : ${errorData.message || response.statusText}`;
-            messageError.style.display = 'block';
-            console.error("Erreur serveur :", errorData);
-          }
-        } catch (error) {
-          messageError.textContent = "Impossible de se connecter au serveur. Vérifiez votre connexion ou l'URL du backend.";
-          messageError.style.display = 'block';
-          console.error("Erreur réseau ou du backend :", error);
+        // Données pour la prévisualisation (pour capturer l'état au moment de l'enregistrement)
+        const titrePreview = ref('');
+        const descriptionPreview = ref('');
+        const promptPreview = ref('');
+        const outilPreview = ref('');
+        const categoriePreview = ref('');
+        const auteurPreview = ref('');
+
+        // Données et état pour le filtre des profils d'auteur
+        const profilsAuteurs = ref([]);
+        const isLoadingProfils = ref(true);
+
+        // Propriété calculée pour vérifier si le formulaire est valide (tous les champs requis sont remplis)
+        const isFormValid = computed(() => {
+            return titre.value.trim() !== '' &&
+                   description.value.trim() !== '' &&
+                   prompt.value.trim() !== '' &&
+                   outil.value !== '' &&
+                   categorie.value !== '' &&
+                   auteur.value !== '';
+        });
+
+        /**
+         * Fonction asynchrone pour charger les noms des profils d'équipe
+         * depuis votre backend (fonction Netlify).
+         */
+        async function fetchProfils() {
+            isLoadingProfils.value = true; // Active l'indicateur de chargement des profils
+            try {
+                // Appel à la fonction Netlify 'proxy' avec l'action 'getProfils'
+                const response = await fetch(`${PROXY_URL}?action=getProfils`);
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                const data = await response.json();
+                // Extrait les noms uniques et les trie par ordre alphabétique
+                // Assure que 'data' est un tableau ou contient une propriété 'profils'
+                const profilesList = Array.isArray(data) ? data : (data.profils || []);
+                const names = [...new Set(profilesList.map(p => p.name).filter(Boolean))].sort();
+                profilsAuteurs.value = names;
+
+                // Sélectionne le premier profil par défaut si un seul est disponible, sinon réinitialise
+                if (names.length === 1) {
+                    auteur.value = names[0];
+                } else {
+                    auteur.value = '';
+                }
+                console.log("Noms de profils chargés:", profilsAuteurs.value);
+
+            } catch (error) {
+                console.error("Erreur lors du chargement des profils:", error);
+                errorMessage.value = "Impossible de charger la liste des auteurs. Vérifiez la console.";
+                messageErrorVisible.value = true;
+            } finally {
+                isLoadingProfils.value = false; // Désactive l'indicateur de chargement des profils
+            }
         }
-      } else {
-        alert("Merci de remplir tous les champs obligatoires.");
-      }
-    }
 
-    // Charge les profils de l'équipe au chargement de la page
-    document.addEventListener('DOMContentLoaded', chargerProfilsEquipe);
+        /**
+         * Fonction asynchrone pour valider le formulaire et envoyer le tip
+         * à votre backend (fonction Netlify) pour la sauvegarde sur GitHub.
+         */
+        async function validerTip() {
+            // Réinitialise les messages d'état et la prévisualisation
+            messageSuccessVisible.value = false;
+            messageErrorVisible.value = false;
+            errorMessage.value = '';
+            previewVisible.value = false;
+            isLoading.value = true; // Active l'indicateur de chargement du tip
+
+            // Vérifie la validité du formulaire avant l'envoi
+            if (!isFormValid.value) {
+                errorMessage.value = "Merci de remplir tous les champs obligatoires.";
+                messageErrorVisible.value = true;
+                isLoading.value = false; // Désactive l'indicateur si le formulaire est invalide
+                return;
+            }
+
+            // Construit l'objet du nouveau tip
+            const nouveauTip = {
+                titre: titre.value,
+                description: description.value,
+                prompt: prompt.value,
+                outil: outil.value,
+                categorie: categorie.value,
+                auteur: auteur.value,
+                date: new Date().toISOString().split('T')[0] // Ajoute la date actuelle au format YYYY-MM-DD
+            };
+
+            try {
+                // Envoi des données du tip à la fonction Netlify 'proxy' avec l'action 'saveTip'
+                const response = await fetch(`${PROXY_URL}?action=saveTip`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(nouveauTip),
+                });
+
+                if (response.ok) {
+                    messageSuccessVisible.value = true; // Affiche le message de succès
+
+                    // Capture les valeurs pour la prévisualisation avant de réinitialiser le formulaire
+                    titrePreview.value = titre.value;
+                    descriptionPreview.value = description.value;
+                    promptPreview.value = prompt.value;
+                    outilPreview.value = outil.value;
+                    categoriePreview.value = categorie.value;
+                    auteurPreview.value = auteur.value;
+                    previewVisible.value = true; // Affiche la prévisualisation
+
+                    // Réinitialise les champs du formulaire
+                    titre.value = '';
+                    description.value = '';
+                    prompt.value = '';
+                    outil.value = '';
+                    categorie.value = '';
+                    // Recharge les profils pour réinitialiser le sélecteur d'auteur (et sélectionner si un seul)
+                    fetchProfils();
+
+                    // Masque le message de succès et la prévisualisation après 5 secondes
+                    setTimeout(() => {
+                        messageSuccessVisible.value = false;
+                        previewVisible.value = false;
+                    }, 5000);
+
+                } else {
+                    const errorData = await response.json(); // Tente de lire l'erreur du serveur
+                    errorMessage.value = `Erreur lors de l'enregistrement du tip : ${errorData.message || response.statusText}`;
+                    messageErrorVisible.value = true;
+                    console.error("Erreur serveur :", errorData);
+                }
+            } catch (error) {
+                // Gère les erreurs réseau ou les problèmes avec la fonction Netlify
+                errorMessage.value = "Impossible de se connecter au serveur. Vérifiez votre connexion ou l'URL du backend.";
+                messageErrorVisible.value = true;
+                console.error("Erreur réseau ou du backend :", error);
+            } finally {
+                isLoading.value = false; // Désactive l'indicateur de chargement du tip
+            }
+        }
+
+        // Appel de fetchProfils au moment où le composant est monté (chargement de la page)
+        onMounted(fetchProfils);
+
+        return {
+          // Données du formulaire
+          titre, description, prompt, outil, categorie, auteur,
+          // États de l'interface utilisateur
+          messageSuccessVisible, messageErrorVisible, errorMessage, previewVisible, isLoading,
+          // Données de prévisualisation (pour qu'elles restent affichées après réinitialisation du formulaire)
+          titrePreview, descriptionPreview, promptPreview, outilPreview, categoriePreview, auteurPreview,
+          // Profils et leur état de chargement
+          profilsAuteurs, isLoadingProfils,
+          // Propriété calculée pour la validation du formulaire
+          isFormValid,
+          // Méthodes
+          validerTip
+        };
+      }
+    };
+
+    // Monte l'application Vue.js sur l'élément avec l'id 'app'
+    createApp(TipForm).mount('#app');
   </script>
 </body>
 </html>
