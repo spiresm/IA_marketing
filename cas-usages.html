@@ -271,6 +271,7 @@
             white-space: pre-wrap;
             word-break: break-word;
             position: relative; /* Pour positionner le bouton copier */
+            text-align: left; /* Ensure left justification for prompt */
         }
 
         /* Bouton Copier dans le prompt */
@@ -354,31 +355,60 @@
             font-weight: 500;
         }
 
-        /* --- STYLES POUR LA PLAQUE FLOTTANTE (EXEMPLE) --- */
-        .example-tooltip {
-            position: fixed; /* Reste visible même en scrollant */
-            background-color: #333; /* Fond sombre */
-            color: white;
-            padding: 12px 18px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            z-index: 1000; /* Assure qu'il est au-dessus des autres éléments */
+        /* --- STYLES POUR LE PANNEAU FLOTTANT (EXEMPLE) --- */
+        .example-panel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5); /* Semi-transparent overlay */
+            display: flex;
+            justify-content: flex-end; /* Push panel to the right */
+            align-items: flex-start;
+            z-index: 1000;
             opacity: 0;
-            visibility: hidden; /* Cache complètement l'élément */
+            visibility: hidden;
             transition: opacity 0.3s ease, visibility 0.3s ease;
-            max-width: 300px; /* Limite la largeur */
-            pointer-events: none; /* Permet de cliquer à travers pour le contenu en dessous */
-            line-height: 1.5;
-            font-size: 0.9em;
-            word-wrap: break-word; /* Casse les longs mots */
-            white-space: pre-wrap; /* Maintient les sauts de ligne si présents */
         }
-        .example-tooltip strong {
-            display: block; /* Le label "Exemple :" sur une nouvelle ligne */
-            margin-bottom: 5px;
-            color: #a0d8ff; /* Couleur vive pour le label */
+
+        .example-panel-overlay.show {
+            opacity: 1;
+            visibility: visible;
         }
-        /* --- FIN STYLES PLAQUE FLOTTANTE --- */
+
+        .example-panel {
+            background-color: #333;
+            color: white;
+            padding: 20px;
+            width: 350px; /* Fixed width for the panel */
+            height: 100%; /* Full height */
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+            transform: translateX(100%); /* Start off-screen to the right */
+            transition: transform 0.3s ease-out;
+            box-sizing: border-box;
+            overflow-y: auto; /* Enable scrolling for long content */
+        }
+
+        .example-panel-overlay.show .example-panel {
+            transform: translateX(0); /* Slide in */
+        }
+
+        .example-panel strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #a0d8ff;
+            font-size: 1.1em;
+        }
+
+        .example-panel p {
+            font-size: 0.95em;
+            line-height: 1.6;
+            margin: 0;
+            white-space: pre-wrap; /* Preserve formatting from prompt */
+            word-break: break-word; /* Ensure long words break */
+        }
+        /* --- FIN STYLES PANNEAU FLOTTANT --- */
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
@@ -428,12 +458,9 @@
                 justify-content: flex-end; /* Aligne les actions à droite */
                 flex-grow: 1; /* Permet aux actions de prendre l'espace restant */
             }
-            .example-tooltip { /* Ajustement du tooltip pour les petits écrans */
-                max-width: 90%;
-                left: 50% !important; /* Force le centrage */
-                transform: translateX(-50%); /* Ajuste le centrage */
-                top: auto !important; /* Laisse le positionnement vertical libre */
-                bottom: 20px; /* Fixe en bas */
+            .example-panel { /* Ajustement du panneau pour les petits écrans */
+                width: 80%; /* Take more width on smaller screens */
+                padding: 15px;
             }
         }
 
@@ -512,7 +539,12 @@
         </div>
     </main>
 
-    <div id="exampleTooltip" class="example-tooltip"></div>
+    <div id="examplePanelOverlay" class="example-panel-overlay">
+        <div class="example-panel">
+            <strong>Exemple :</strong>
+            <p id="examplePanelContent"></p>
+        </div>
+    </div>
 
     <script>
         // Utilisez l'URL de votre fonction Netlify pour récupérer les tips
@@ -520,7 +552,8 @@
         const PROXY_URL = "/.netlify/functions/proxy"; // Assurez-vous que cette URL est correcte si vous l'utilisez
 
         let tousLesTips = [];
-        const exampleTooltip = document.getElementById('exampleTooltip');
+        const examplePanelOverlay = document.getElementById('examplePanelOverlay');
+        const examplePanelContent = document.getElementById('examplePanelContent');
 
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
@@ -557,6 +590,13 @@
                 setTimeout(() => msg.style.opacity = '0', 2000);
                 setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
             }
+
+            // Click listener to close the panel when clicking outside
+            examplePanelOverlay.addEventListener('click', (event) => {
+                if (event.target === examplePanelOverlay) { // Only close if click is on the overlay itself, not the panel
+                    hideExamplePanel();
+                }
+            });
         });
 
         // Fonction pour charger et afficher les tips
@@ -723,8 +763,7 @@
                             ${tip.prompt ? `
                             <div class="prompt-section">
                                 <span class="prompt-label">Prompt:</span>
-                                <div class="prompt-text-display" id="prompt-display-${tip.id}"
-                                    onmousemove="showPromptTooltip(event, '${encodeURIComponent(tip.prompt)}')">
+                                <div class="prompt-text-display" id="prompt-display-${tip.id}">
                                     ${tip.prompt}
                                     <button class="copy-prompt-btn" onclick="copierPrompt('${tip.id}', event)"><i class="far fa-copy"></i></button>
                                 </div>
@@ -745,9 +784,14 @@
                 tipsListDiv.appendChild(tipItem);
                 tipItem.querySelector('.tip-header').addEventListener('click', toggleTipDetails);
 
-                // Add mouseleave listener to hide tooltip when mouse leaves the prompt display area
+                // Add click listener to the prompt display area to show the example panel
                 if (tip.prompt) {
-                    tipItem.querySelector(`#prompt-display-${tip.id}`).addEventListener('mouseleave', hidePromptTooltip);
+                    tipItem.querySelector(`#prompt-display-${tip.id}`).addEventListener('click', (event) => {
+                        // Prevent click on the copy button from triggering the panel
+                        if (!event.target.closest('.copy-prompt-btn')) {
+                            showExamplePanel(tip.prompt);
+                        }
+                    });
                 }
             });
         }
@@ -786,7 +830,7 @@
             if (promptElement) {
                 // Create a temporary textarea to hold the text
                 const textarea = document.createElement('textarea');
-                textarea.value = promptElement.innerText;
+                textarea.value = promptElement.innerText; // Get text content, which might include whitespace
                 document.body.appendChild(textarea);
                 textarea.select();
                 document.execCommand('copy');
@@ -795,36 +839,17 @@
             }
         }
 
-        // Fonctions pour gérer le tooltip du prompt
-        function showPromptTooltip(event, encodedPrompt) {
-            const promptText = decodeURIComponent(encodedPrompt);
-            exampleTooltip.innerHTML = `<strong>Exemple :</strong>${promptText}`;
-            exampleTooltip.style.opacity = '1';
-            exampleTooltip.style.visibility = 'visible';
-            positionTooltip(event);
+        // Fonctions pour gérer le panneau d'exemple
+        function showExamplePanel(promptText) {
+            examplePanelContent.innerText = promptText; // Set the prompt text
+            examplePanelOverlay.classList.add('show');
+            // Add a temporary class to the body to prevent scrolling when panel is open
+            document.body.classList.add('no-scroll');
         }
 
-        function hidePromptTooltip() {
-            exampleTooltip.style.opacity = '0';
-            exampleTooltip.style.visibility = 'hidden';
-        }
-
-        function positionTooltip(event) {
-            // Calcule la position en fonction de la souris
-            let x = event.clientX + 15; // Décalage pour ne pas masquer la souris
-            let y = event.clientY + 15;
-
-            // Ajuste si le tooltip dépasse l'écran à droite
-            if (x + exampleTooltip.offsetWidth > window.innerWidth) {
-                x = window.innerWidth - exampleTooltip.offsetWidth - 15;
-            }
-            // Ajuste si le tooltip dépasse l'écran en bas
-            if (y + exampleTooltip.offsetHeight > window.innerHeight) {
-                y = window.innerHeight - exampleTooltip.offsetHeight - 15;
-            }
-
-            exampleTooltip.style.left = `${x}px`;
-            exampleTooltip.style.top = `${y}px`;
+        function hideExamplePanel() {
+            examplePanelOverlay.classList.remove('show');
+            document.body.classList.remove('no-scroll');
         }
     </script>
 </body>
