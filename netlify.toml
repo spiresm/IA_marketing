@@ -4,49 +4,36 @@
   publish = "." # Le répertoire qui contient votre index.html et compresseur.html
   functions = "netlify/functions" # Le dossier où Netlify trouvera vos fonctions
 
-  # Spécifie la version de Node.js pour le build et les fonctions
   [build.environment]
     NODE_VERSION = "18" # Utilisez une version LTS stable comme "18" ou "20"
 
 [functions]
   node_bundler = "esbuild" # Recommandé pour des performances optimales et un build plus rapide
 
-# Configuration spécifique pour la fonction compressImage
 [functions.compressImage]
   external_node_modules = ["sharp"]
-
-# --- Vos autres configurations de fonctions existantes (CORRIGÉES) ---
-# Si ces fonctions (ou d'autres) utilisent les opérations de dépôt (getContent, updateFile)
-# avec la nouvelle syntaxe Octokit, elles DOIVENT lister les deux modules.
-# Cela s'applique très probablement à getProfils et uploadImage.
 
 [functions.proxy]
   external_node_modules = ["node-fetch"]
 
-# CORRECTION ICI : getProfils utilise maintenant @octokit/core ET @octokit/plugin-rest
+# getProfils utilise maintenant @octokit/core ET plugin-rest-endpoint-methods
 [functions.getProfils]
   external_node_modules = ["@octokit/core", "@octokit/plugin-rest-endpoint-methods"]
 
-# CORRECTION ICI : uploadImage utilise aussi @octokit/core ET @octokit/plugin-rest
+# uploadImage utilise aussi @octokit/core ET plugin-rest-endpoint-methods
 [functions.uploadImage]
-  external_node_modules = ["@octokit/core", "@octokit/plugin-rest", "node-fetch"]
+  external_node_modules = ["@octokit/core", "@octokit/plugin-rest-endpoint-methods", "node-fetch"]
 
 [functions.sendRequest]
   external_node_modules = ["nodemailer", "multiparty"]
 
-# --- Plugin pour s'assurer que les dépendances sont installées (très important !) ---
-# Ce plugin dit à Netlify d'installer les dépendances listées dans votre package.json
-# (soit celui de la racine, soit celui dans netlify/functions si vous l'avez gardé).
 [[plugins]]
 package = "@netlify/plugin-functions-install-core"
 
-
-# --- Configuration CORS (très important !) ---
-# Cela autorise les requêtes de votre frontend vers vos fonctions.
 [[headers]]
-  for = "/.netlify/functions/*" # Cette règle s'applique à toutes les requêtes vers les fonctions Netlify
+  for = "/.netlify/functions/*"
   [headers.values]
-    Access-Control-Allow-Origin = "*" # Autorise les requêtes de n'importe quelle origine (à adapter en production)
-    Access-Control-Allow-Methods = "GET, POST, DELETE, OPTIONS" # Les méthodes HTTP autorisées (inclut DELETE)
-    Access-Control-Allow-Headers = "Content-Type, Authorization" # Les en-têtes autorisés
-    Access-Control-Max-Age = "86400" # Cache les infos CORS pendant 24 heures
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Max-Age = "86400"
