@@ -224,17 +224,30 @@
             font-size: 0.9em;
             color: #444;
             line-height: 1.4;
-            max-height: 70px; /* Conservez cette hauteur ou ajustez selon le besoin */
-            overflow-y: auto; /* Permet le défilement si le texte dépasse la hauteur */
-            white-space: pre-wrap;
-            word-break: break-word;
             background-color: #f9f9f9;
             border: 1px solid #eee;
             border-radius: 5px;
             padding: 6px;
             margin-bottom: 4px;
+            white-space: pre-wrap; /* Préserve les retours à la ligne */
+            word-break: break-word; /* Casse les mots longs pour éviter les débordements */
         }
 
+        /* Styles pour le contenu dépliable */
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out; /* Animation fluide */
+            opacity: 0;
+            padding-top: 0;
+        }
+
+        .collapsible-content.show {
+            max-height: 500px; /* Grande valeur pour couvrir la plupart des contenus, à ajuster si besoin */
+            opacity: 1;
+            padding-top: 10px; /* Espacement après le dépliage */
+        }
+        
         /* Boutons d'action sur la carte */
         .card-actions {
             display: flex;
@@ -242,9 +255,10 @@
             margin-top: auto;
             justify-content: flex-start;
             padding-top: 5px;
+            align-items: center; /* Alignement vertical */
         }
 
-        .copier-btn {
+        .copier-btn, .toggle-content-btn {
             background-color: #0077b6;
             color: white;
             border: none;
@@ -258,7 +272,7 @@
             white-space: nowrap;
         }
 
-        .copier-btn:hover {
+        .copier-btn:hover, .toggle-content-btn:hover {
             background-color: #005f8a;
             transform: translateY(-1px);
         }
@@ -361,6 +375,17 @@
                 grid-template-columns: 1fr; /* Les labels et valeurs s'empilent */
                 gap: 5px;
             }
+            .card-actions {
+                flex-wrap: wrap; /* Permet aux boutons de passer à la ligne */
+            }
+            .copier-btn, .toggle-content-btn {
+                width: 100%; /* Boutons prennent toute la largeur sur mobile */
+                text-align: center;
+            }
+            .supprimer-btn {
+                width: auto; /* Bouton poubelle reste compact */
+                align-self: flex-end; /* Aligner à la fin */
+            }
         }
     </style>
 </head>
@@ -446,7 +471,10 @@
 
             // Charger le header
             fetch("header.html")
-                .then(res => res.ok ? res.text() : Promise.reject(res))
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status} for header.html`);
+                    return res.text();
+                })
                 .then(data => {
                     headerPlaceholder.innerHTML = data;
                     document.querySelectorAll("nav a").forEach(link => {
@@ -457,15 +485,18 @@
                     // Charger le footer après le header
                     return fetch("footer.html");
                 })
-                .then(res => res.ok ? res.text() : Promise.reject(res))
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status} for footer.html`);
+                    return res.text();
+                })
                 .then(data => {
                     footerPlaceholder.innerHTML = data;
                 })
                 .catch(error => {
                     console.error("Erreur de chargement des composants communs (header/footer):", error);
-                    headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                    headerPlaceholder.innerHTML = `<p style='color:red;text-align:center'>Erreur de chargement du menu: ${error.message}</p>`;
                     if (footerPlaceholder) {
-                        footerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du pied de page</p>";
+                        footerPlaceholder.innerHTML = `<p style='color:red;text-align:center'>Erreur de chargement du pied de page: ${error.message}</p>`;
                     }
                 })
                 .finally(() => {
@@ -584,36 +615,56 @@
                 `;
                 infosWrapper.appendChild(metadataSection);
 
+                // Contenu dépliable
+                const collapsibleContent = document.createElement('div');
+                collapsibleContent.className = 'collapsible-content';
+
                 const descriptionText = document.createElement('p');
                 descriptionText.className = 'prompt-text-display'; // Réutiliser la classe pour le style
                 descriptionText.textContent = tip.description || 'Aucune description fournie.';
-                infosWrapper.appendChild(descriptionText);
+                collapsibleContent.appendChild(descriptionText);
 
                 if (tip.prompt) {
                     const promptTitle = document.createElement('p');
                     promptTitle.innerHTML = '<strong>Prompt :</strong>';
-                    infosWrapper.appendChild(promptTitle);
+                    collapsibleContent.appendChild(promptTitle);
 
                     const promptContent = document.createElement('pre');
-                    promptContent.className = 'prompt-text-display'; // Assurez-vous que cela applique le bon style
+                    promptContent.className = 'prompt-text-display';
                     promptContent.textContent = tip.prompt;
-                    infosWrapper.appendChild(promptContent);
+                    collapsibleContent.appendChild(promptContent);
                 }
 
                 if (tip.exemple) {
                     const exempleTitle = document.createElement('p');
                     exempleTitle.innerHTML = '<strong>Exemple :</strong>';
-                    infosWrapper.appendChild(exempleTitle);
+                    collapsibleContent.appendChild(exempleTitle);
 
                     const exempleContent = document.createElement('pre');
-                    exempleContent.className = 'prompt-text-display'; // Assurez-vous que cela applique le bon style
+                    exempleContent.className = 'prompt-text-display';
                     exempleContent.textContent = tip.exemple;
-                    infosWrapper.appendChild(exempleContent);
+                    collapsibleContent.appendChild(exempleContent);
                 }
-
+                infosWrapper.appendChild(collapsibleContent);
 
                 const cardActions = document.createElement('div');
                 cardActions.className = 'card-actions';
+
+                // Bouton "Voir plus/moins"
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'toggle-content-btn';
+                toggleBtn.textContent = 'Voir plus';
+                toggleBtn.onclick = function() {
+                    collapsibleContent.classList.toggle('show');
+                    this.textContent = collapsibleContent.classList.contains('show') ? 'Voir moins' : 'Voir plus';
+                    // Réajuster la hauteur de l'image si le contenu dépliable affecte la hauteur de infosWrapper
+                    setTimeout(() => {
+                        const infoWrapperHeight = infosWrapper.offsetHeight;
+                        leftPanel.style.height = `${infoWrapperHeight}px`;
+                    }, 300); // Délai pour laisser l'animation CSS se faire
+                };
+                cardActions.appendChild(toggleBtn);
+
 
                 const copierBtn = document.createElement('button');
                 copierBtn.className = 'copier-btn';
