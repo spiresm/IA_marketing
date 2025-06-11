@@ -294,7 +294,7 @@
             color: #444;
             line-height: 1.4;
             background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
+            border: 1px solid #e9ece6;
             border-radius: 6px;
             padding: 12px 15px 12px 10px; /* Ajusté pour le bouton */
             margin-bottom: 12px;
@@ -550,9 +550,8 @@
     <div id="exampleTooltip" class="example-tooltip"></div>
 
     <script>
-        // Adjust the path to your tips.json file. It should be publicly accessible.
-        // If your JSON is in `src/data/tips.json`, it will be accessible at `/data/tips.json` after Netlify builds.
-        const TIPS_DATA_URL = '/data/tips.json';
+        // Utilisez l'URL de votre fonction Netlify pour récupérer les tips
+        const TIPS_DATA_URL = '/.netlify/functions/get-tips'; // MODIFIÉ
         const DELETE_TIP_FUNCTION_URL = '/.netlify/functions/delete-tip'; // New function for deletion
         const PROXY_URL = "/.netlify/functions/proxy"; // For fetching authors
 
@@ -602,17 +601,13 @@
             tipsListDiv.innerHTML = '<p>Chargement des tips...</p>'; // Show loading message
 
             try {
-                // Fetch directly from the static JSON file
+                // Fetch from the Netlify function
                 const response = await fetch(TIPS_DATA_URL);
                 if (!response.ok) {
-                    // Handle 404 specifically for when the file doesn't exist yet
-                    if (response.status === 404) {
-                        console.warn(`Le fichier de données des tips (${TIPS_DATA_URL}) n'a pas été trouvé. Aucun tip à afficher pour le moment.`);
-                        tousLesTips = []; // Initialize as empty array
-                    } else {
-                        const errorText = await response.text();
-                        throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
-                    }
+                    // La fonction Netlify devrait gérer les 404 de GitHub et retourner un [],
+                    // mais si elle retourne une erreur HTTP elle-même, nous la gérons ici.
+                    const errorText = await response.text();
+                    throw new Error(`Erreur HTTP lors de la récupération des tips: ${response.status} - ${errorText}`);
                 } else {
                     const tips = await response.json();
                     tousLesTips = tips; // Store all tips
@@ -806,13 +801,13 @@
                 outilBadge.textContent = tip.outil || 'Outil Inconnu';
                 infosWrapper.appendChild(outilBadge);
 
-                // Description (using tip.texte as description)
-                const tipDescription = document.createElement('p');
-                tipDescription.className = 'tip-description';
-                tipDescription.textContent = tip.texte || 'Pas de contenu détaillé fourni.';
-                infosWrapper.appendChild(tipDescription);
+                // Description
+                const description = document.createElement('p');
+                description.className = 'tip-description';
+                description.textContent = tip.description || 'Pas de contenu détaillé fourni.';
+                infosWrapper.appendChild(description);
 
-                // Prompt Section
+                // Prompt
                 if (tip.prompt && tip.prompt.trim() !== '') {
                     const promptLabel = document.createElement('span');
                     promptLabel.className = 'prompt-label';
@@ -821,54 +816,49 @@
 
                     const promptTextDisplay = document.createElement('div');
                     promptTextDisplay.className = 'prompt-text-display';
-                    promptTextDisplay.innerHTML = `<code>${tip.prompt}</code>`;
+                    promptTextDisplay.textContent = tip.prompt;
 
                     const copyBtn = document.createElement('button');
                     copyBtn.className = 'copy-prompt-btn';
                     copyBtn.innerHTML = '<i class="far fa-copy"></i>';
-                    copyBtn.title = "Copier le prompt";
-                    copyBtn.onclick = (e) => {
+                    copyBtn.title = 'Copier le prompt';
+                    copyBtn.onclick = async (e) => {
                         e.stopPropagation(); // Prevent accordion toggle
-                        navigator.clipboard.writeText(tip.prompt).then(() => {
-                            const originalIcon = copyBtn.innerHTML;
-                            copyBtn.innerHTML = '<i class="fas fa-check"></i>'; // Change to checkmark
+                        try {
+                            await navigator.clipboard.writeText(tip.prompt);
+                            copyBtn.innerHTML = '<i class="fas fa-check"></i>'; // Change icon to checkmark
                             setTimeout(() => {
-                                copyBtn.innerHTML = originalIcon; // Revert after a short delay
+                                copyBtn.innerHTML = '<i class="far fa-copy"></i>'; // Revert after 1.5s
                             }, 1500);
-                        }).catch(err => {
-                            console.error('Erreur lors de la copie du prompt:', err);
-                            alert('La copie a échoué. Veuillez copier manuellement.');
-                        });
+                        } catch (err) {
+                            console.error('Failed to copy prompt: ', err);
+                            alert('Erreur lors de la copie du prompt.');
+                        }
                     };
                     promptTextDisplay.appendChild(copyBtn);
                     infosWrapper.appendChild(promptTextDisplay);
                 }
 
-                // Metadata Section (Auteur, Chaîne, Date)
+                // Metadata
                 const metadataSection = document.createElement('div');
                 metadataSection.className = 'metadata-section';
 
-                function addMetadataRow(label, value, className = '') {
+                function addMetadataRow(label, value, valueClass = '') {
                     const labelSpan = document.createElement('span');
                     labelSpan.className = 'metadata-label';
-                    labelSpan.textContent = `${label}:`;
+                    labelSpan.textContent = `${label} :`;
                     metadataSection.appendChild(labelSpan);
 
                     const valueSpan = document.createElement('span');
-                    valueSpan.className = `metadata-value ${className}`;
-                    valueSpan.textContent = value;
+                    valueSpan.className = `metadata-value ${valueClass}`;
+                    valueSpan.textContent = value || 'N/A';
                     metadataSection.appendChild(valueSpan);
                 }
 
-                addMetadataRow('Auteur', tip.auteur || 'Inconnu', 'auteur-value');
-                addMetadataRow('Chaîne', tip.chaine || 'N/A', 'chaine-value');
-                // You might need to add 'catégorie' here if you re-introduce it
-                // addMetadataRow('Catégorie', tip.categorie || 'Non spécifiée');
-                addMetadataRow('Date de création', new Date(tip.date).toLocaleDateString('fr-FR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                }));
+                addMetadataRow('Auteur', tip.auteur, 'auteur-value');
+                addMetadataRow('Chaîne', tip.chaine, 'chaine-value');
+                addMetadataRow('Catégorie', tip.categorie);
+                addMetadataRow('Date', tip.date ? new Date(tip.date).toLocaleDateString('fr-FR') : 'N/A');
 
                 infosWrapper.appendChild(metadataSection);
                 tipContent.appendChild(infosWrapper);
@@ -877,110 +867,114 @@
             });
         }
 
-        // Assign colors to different 'chaîne' values for the left border
-        function getChaineColor(chaine) {
-            switch (chaine) {
-                case 'La Une': return '#005f8a'; // Darker blue
-                case 'Tipik': return '#e30613'; // Red
-                case 'La Trois': return '#662d91'; // Purple
-                case 'La première': return '#f7931e'; // Orange
-                case 'Classic 21': return '#00a896'; // Teal
-                case 'Vivacité': return '#92278f'; // Magenta
-                case 'Musiq3': return '#fbb03b'; // Amber
-                case 'Auvio': return '#8dc63f'; // Lime green
-                case 'Auvio Kids': return '#1d71b8'; // Lighter blue
-                default: return '#cccccc'; // Default grey
-            }
+        // FILTER LOGIC
+        function setupFiltres() {
+            const searchKeyword = document.getElementById('search-keyword');
+            const filtreOutil = document.getElementById('filtre-outil');
+            const filtreChaine = document.getElementById('filtre-chaine');
+            const filtreAuteur = document.getElementById('filtre-auteur');
+
+            searchKeyword.addEventListener('input', applyFilters);
+            filtreOutil.addEventListener('change', applyFilters);
+            filtreChaine.addEventListener('change', applyFilters);
+            filtreAuteur.addEventListener('change', applyFilters);
         }
 
-        // Filter functionality
         function applyFilters() {
-            const keyword = document.getElementById('search-keyword').value.toLowerCase();
-            const outil = document.getElementById('filtre-outil').value.toLowerCase();
-            const chaine = document.getElementById('filtre-chaine').value.toLowerCase();
-            // const categorie = document.getElementById('filtre-categorie').value.toLowerCase(); // Uncomment if re-adding
-            const auteur = document.getElementById('filtre-auteur').value.toLowerCase();
+            const searchKeywordValue = document.getElementById('search-keyword').value.toLowerCase();
+            const filtreOutilValue = document.getElementById('filtre-outil').value.toLowerCase();
+            const filtreChaineValue = document.getElementById('filtre-chaine').value.toLowerCase();
+            const filtreAuteurValue = document.getElementById('filtre-auteur').value.toLowerCase();
 
             const filteredTips = tousLesTips.filter(tip => {
-                const matchesKeyword =
-                    (tip.auteur && tip.auteur.toLowerCase().includes(keyword)) ||
-                    (tip.outil && tip.outil.toLowerCase().includes(keyword)) ||
-                    (tip.texte && tip.texte.toLowerCase().includes(keyword)); // Search in 'texte' (content)
+                const matchesKeyword = (
+                    tip.auteur?.toLowerCase().includes(searchKeywordValue) ||
+                    tip.outil?.toLowerCase().includes(searchKeywordValue) ||
+                    tip.description?.toLowerCase().includes(searchKeywordValue) ||
+                    tip.prompt?.toLowerCase().includes(searchKeywordValue) ||
+                    tip.categorie?.toLowerCase().includes(searchKeywordValue) ||
+                    tip.chaine?.toLowerCase().includes(searchKeywordValue) ||
+                    tip.texte?.toLowerCase().includes(searchKeywordValue) // Added for title/truncated text
+                );
 
-                const matchesOutil = outil === '' || (tip.outil && tip.outil.toLowerCase() === outil);
-                const matchesChaine = chaine === '' || (tip.chaine && tip.chaine.toLowerCase() === chaine);
-                // const matchesCategorie = categorie === '' || (tip.categorie && tip.categorie.toLowerCase() === categorie); // Uncomment if re-adding
-                const matchesAuteur = auteur === '' || (tip.auteur && tip.auteur.toLowerCase() === auteur);
+                const matchesOutil = !filtreOutilValue || (tip.outil?.toLowerCase() === filtreOutilValue);
+                const matchesChaine = !filtreChaineValue || (tip.chaine?.toLowerCase() === filtreChaineValue);
+                const matchesAuteur = !filtreAuteurValue || (tip.auteur?.toLowerCase() === filtreAuteurValue);
 
-                return matchesKeyword && matchesOutil && matchesChaine && matchesAuteur; // Adjust as needed
+                return matchesKeyword && matchesOutil && matchesChaine && matchesAuteur;
             });
 
-            // Sort filtered tips by date before displaying
+            // Re-sort filtered tips by date in descending order
             const sortedFilteredTips = [...filteredTips].sort((a, b) => new Date(b.date) - new Date(a.date));
+
             afficherTips(sortedFilteredTips);
         }
 
-        // Setup filter event listeners
-        function setupFiltres() {
-            document.getElementById('search-keyword').addEventListener('input', applyFilters);
-            document.getElementById('filtre-outil').addEventListener('change', applyFilters);
-            document.getElementById('filtre-chaine').addEventListener('change', applyFilters);
-            // document.getElementById('filtre-categorie').addEventListener('change', applyFilters); // Uncomment if re-adding
-            document.getElementById('filtre-auteur').addEventListener('change', applyFilters);
-        }
-
-        // Example tooltip functions
-        let tooltipTimeout;
-
+        // TOOLTIP LOGIC
         function showExampleTooltip(event) {
             const tipItem = event.currentTarget;
-            const exampleText = tipItem.dataset.exemple;
-
-            if (exampleText) {
-                clearTimeout(tooltipTimeout); // Clear any existing timeout
-                tooltipTimeout = setTimeout(() => {
-                    exampleTooltip.innerHTML = `<strong>Exemple :</strong>${exampleText}`;
-                    exampleTooltip.style.opacity = '1';
-                    exampleTooltip.style.visibility = 'visible';
-                    updateTooltipPosition(event);
-                }, 300); // Small delay to show tooltip
+            const exempleText = tipItem.dataset.exemple;
+            if (!exempleText) {
+                return;
             }
+
+            exampleTooltip.innerHTML = `<strong>Exemple :</strong><br>${exempleText}`;
+            exampleTooltip.style.visibility = 'visible';
+            exampleTooltip.style.opacity = '1';
+            positionTooltip(event);
         }
 
         function hideExampleTooltip() {
-            clearTimeout(tooltipTimeout);
             exampleTooltip.style.opacity = '0';
             exampleTooltip.style.visibility = 'hidden';
         }
 
-        function updateTooltipPosition(event) {
+        function positionTooltip(event) {
             const x = event.clientX;
             const y = event.clientY;
+            const tooltipRect = exampleTooltip.getBoundingClientRect();
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
 
-            // Positioning logic for the tooltip
-            let tooltipX = x + 15; // Offset from cursor
-            let tooltipY = y + 15;
+            let left = x + 15; // Offset from cursor
+            let top = y + 15;
 
-            // Ensure tooltip stays within viewport
-            if (tooltipX + exampleTooltip.offsetWidth > window.innerWidth - 20) {
-                tooltipX = window.innerWidth - exampleTooltip.offsetWidth - 20;
+            // Adjust if tooltip goes off right edge
+            if (left + tooltipRect.width > windowWidth - 20) {
+                left = x - tooltipRect.width - 15;
             }
-            if (tooltipY + exampleTooltip.offsetHeight > window.innerHeight - 20) {
-                tooltipY = y - exampleTooltip.offsetHeight - 15; // Position above cursor if space below is limited
+            // Adjust if tooltip goes off bottom edge
+            if (top + tooltipRect.height > windowHeight - 20) {
+                top = windowHeight - tooltipRect.height - 20;
             }
-            if (tooltipX < 10) tooltipX = 10;
-            if (tooltipY < 10) tooltipY = 10;
+            // Ensure tooltip doesn't go off top edge
+            if (top < 10) {
+                top = 10;
+            }
+            // Ensure tooltip doesn't go off left edge
+            if (left < 10) {
+                left = 10;
+            }
 
-            exampleTooltip.style.left = `${tooltipX}px`;
-            exampleTooltip.style.top = `${tooltipY}px`;
+            exampleTooltip.style.left = `${left}px`;
+            exampleTooltip.style.top = `${top}px`;
         }
 
-        // Add event listener for mousemove to update tooltip position constantly
-        document.addEventListener('mousemove', (event) => {
-            if (exampleTooltip.style.opacity === '1') {
-                updateTooltipPosition(event);
+        // Helper function for chaine colors
+        function getChaineColor(chaine) {
+            switch (chaine?.toLowerCase()) {
+                case 'la une': return '#FF5733'; // Orange
+                case 'tipik': return '#33FF57'; // Vert clair
+                case 'la trois': return '#3357FF'; // Bleu vif
+                case 'la première': return '#FF33A1'; // Rose
+                case 'classic 21': return '#A133FF'; // Violet
+                case 'vivacité': return '#33FFF6'; // Cyan
+                case 'musiq3': return '#FFD733'; // Jaune doré
+                case 'auvio': return '#FF3333'; // Rouge
+                case 'auvio kids': return '#33FFD7'; // Turquoise
+                default: return '#0077B6'; // Couleur par défaut (bleu principal)
             }
-        });
+        }
     </script>
 </body>
 </html>
