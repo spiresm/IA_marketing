@@ -351,9 +351,7 @@
                         <option value="">Tous les auteurs</option>
                     </select>
                     <select id="filtre-tri">
-                        <option value="recent">Plus récent</option>
-                        <option value="auteur-az">Auteur (A-Z)</option>
-                        <option value="auteur-za">Auteur (Z-A)</option>
+                        <option value="auteur-az">Auteur (A-Z)</option> <option value="auteur-za">Auteur (Z-A)</option>
                     </select>
                 </div>
                 <div class="action-buttons">
@@ -372,7 +370,7 @@
 
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
-        const PROXY_URL = "/.netlify/functions/proxy"; // Ajoutez cette ligne
+        const PROXY_URL = "/.netlify/functions/proxy";
         let tousLesTips = [];
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -398,7 +396,7 @@
                     bodyElement.classList.add("show");
                     mainElement.classList.add("show");
                     chargerEtAfficherTips();
-                    chargerAuteursPourFiltre(); // Charge les auteurs pour le filtre
+                    chargerAuteursPourFiltre();
                 });
 
             if (window.location.search.includes('success=1')) {
@@ -438,7 +436,7 @@
 
         async function chargerAuteursPourFiltre() {
             const filtreAuteurSelect = document.getElementById('filtre-auteur');
-            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>'; // Réinitialise les options
+            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
 
             try {
                 const response = await fetch(`${PROXY_URL}?action=getProfils`);
@@ -447,7 +445,6 @@
                 }
                 const data = await response.json();
                 const profilsList = Array.isArray(data) ? data : (data.profils || []);
-                // Utilisez un Set pour obtenir des noms uniques, puis triez-les
                 const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
 
                 if (names.length > 0) {
@@ -460,7 +457,6 @@
                 }
             } catch (error) {
                 console.error("Erreur lors du chargement des profils pour le filtre auteur :", error);
-                // Optionnellement, vous pouvez ajouter un message à l'utilisateur ici
             }
         }
 
@@ -618,7 +614,7 @@
             const filtreOutil = document.getElementById('filtre-outil').value;
             const filtreChaine = document.getElementById('filtre-chaine').value;
             const filtreCategorie = document.getElementById('filtre-categorie').value;
-            const filtreAuteur = document.getElementById('filtre-auteur').value; // NOUVEAU
+            const filtreAuteur = document.getElementById('filtre-auteur').value;
             const filtreTri = document.getElementById('filtre-tri').value;
 
             let tipsFiltres = [...tousLesTips];
@@ -646,26 +642,24 @@
             if (filtreCategorie) {
                 tipsFiltres = tipsFiltres.filter(tip => tip.categorie === filtreCategorie);
             }
-            if (filtreAuteur) { // NOUVEAU FILTRE PAR AUTEUR
+            if (filtreAuteur) {
                 tipsFiltres = tipsFiltres.filter(tip => tip.auteur === filtreAuteur);
             }
 
+            // Logique de tri mise à jour
             tipsFiltres.sort((a, b) => {
-                const dateA = a.date ? new Date(a.date) : new Date(0);
-                const dateB = b.date ? new Date(b.date) : new Date(0);
+                const auteurA = (a.auteur || '').toLowerCase();
+                const auteurB = (b.auteur || '').toLowerCase();
 
-                if (filtreTri === 'recent') {
-                    return dateB - dateA;
-                } else if (filtreTri === 'auteur-az') {
-                    const auteurA = (a.auteur || '').toLowerCase();
-                    const auteurB = (b.auteur || '').toLowerCase();
+                if (filtreTri === 'auteur-az') {
                     return auteurA.localeCompare(auteurB);
                 } else if (filtreTri === 'auteur-za') {
-                    const auteurA = (a.auteur || '').toLowerCase();
-                    const auteurB = (b.auteur || '').toLowerCase();
                     return auteurB.localeCompare(auteurA);
                 }
-                return dateB - dateA;
+                // Si aucune option de tri spécifique n'est sélectionnée ou une option non reconnue,
+                // le tri par défaut sera par auteur (A-Z) ou vous pouvez choisir une autre logique.
+                // Pour l'instant, je le laisse sur auteur (A-Z) si aucune option ne correspond.
+                return auteurA.localeCompare(auteurB);
             });
 
             afficherTips(tipsFiltres);
@@ -676,7 +670,7 @@
             document.getElementById('filtre-outil').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-chaine').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-categorie').addEventListener('change', filtrerEtTrierPrompts);
-            document.getElementById('filtre-auteur').addEventListener('change', filtrerEtTrierPrompts); // NOUVEAU
+            document.getElementById('filtre-auteur').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-tri').addEventListener('change', filtrerEtTrierPrompts);
         }
     </script>
