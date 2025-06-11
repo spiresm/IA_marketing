@@ -1,70 +1,89 @@
-const { Octokit } = require("@octokit/rest");
+// netlify/functions/deleteProfil.mjs
 
-exports.handler = async function (event) {
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  const REPO_OWNER = "spiresm";
-  const REPO_NAME = "IA_marketing";
-  const FILE_PATH = "netlify/functions/profil.json";
-  const BRANCH = "main";
+import { Octokit } from "@octokit/core";
+import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
+import { Buffer } from 'buffer'; // Gardez si nécessaire pour vos opérations de fichiers
 
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Méthode non autorisée" }),
-    };
-  }
+const MyOctokit = Octokit.plugin(restEndpointMethods);
 
-  const octokit = new Octokit({ auth: GITHUB_TOKEN });
+// Utilisation de la syntaxe ES Module pour l'exportation du handler
+export async function handler(event) {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const OWNER = process.env.GITHUB_OWNER;
+    const REPO = process.env.GITHUB_REPO;
+    const PROFILE_FILE_PATH = process.env.PROFIL_FILE_PATH || 'data/all-profils.json';
 
-  try {
-    const { id } = JSON.parse(event.body);
-    if (!id) throw new Error("ID de profil manquant.");
-
-    const { data: currentFile } = await octokit.repos.getContent({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
-      path: FILE_PATH,
-      ref: BRANCH,
-    });
-
-    const decodedContent = Buffer.from(currentFile.content, "base64").toString("utf8");
-    const json = JSON.parse(decodedContent);
-    const profils = json.profils || [];
-
-    const updatedProfils = profils.filter((p) => p.id !== id);
-
-    if (updatedProfils.length === profils.length) {
-      return {
-        statusCode: 404,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: "Aucun profil trouvé avec cet ID" }),
-      };
+    if (!GITHUB_TOKEN || !OWNER || !REPO) {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Configuration de l\'API GitHub manquante.' }),
+        };
     }
 
-    const updatedContent = JSON.stringify({ profils: updatedProfils }, null, 2);
+    if (event.httpMethod !== 'DELETE') {
+        return { statusCode: 405, body: 'Method Not Allowed' };
+    }
 
-    await octokit.repos.createOrUpdateFileContents({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
-      path: FILE_PATH,
-      message: `Suppression du profil ${id}`,
-      content: Buffer.from(updatedContent).toString("base64"),
-      sha: currentFile.sha,
-      branch: BRANCH,
-    });
+    let id;
+    try {
+        id = JSON.parse(event.body).id;
+    } catch (e) {
+        return { statusCode: 400, body: JSON.stringify({ message: 'Corps de la requête invalide.' }) };
+    }
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ success: true }),
-    };
-  } catch (error) {
-    console.error("Erreur suppression GitHub:", error);
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: error.message }),
-    };
-  }
-};
+    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
+
+    try {
+        const { data: fileData } = await octokit.rest.repos.getContent({
+            owner: OWNER,
+            repo: REPO,
+            path: PROFILE_FILE_PATH,
+            ref: 'main',
+        });
+
+        const content = Buffer.from(fileData.content, 'base64').toString('utf8');
+        let profils = JSON.parse(content);
+
+        const initialLength = profils.length;
+        profils = profils.filter(p => p.id !== id);
+
+        if (profils.length === initialLength) {
+            return {
+                statusCode: 404,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: `Profil avec l'ID ${id} non trouvé.` }),
+            };
+        }
+
+        await octokit.rest.repos.updateFile({
+            owner: OWNER,
+            repo: REPO,
+            path: PROFILE_FILE_PATH,
+            message: `Suppression du profil avec l'ID ${id}`,
+            content: Buffer.from(JSON.stringify(profils, null, 2)).toString('base64'),
+            sha: fileData.sha,
+            branch: 'main'
+        });
+
+        return {
+            statusCode: 200,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: `Profil avec l'ID ${id} supprimé.` }),
+        };
+
+    } catch (error) {
+        console.error('Erreur lors de la suppression du profil:', error);
+        if (error.status === 404) {
+             return {
+                statusCode: 404,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: 'Fichier des profils non trouvé ou chemin incorrect.' }),
+            };
+        }
+        return {
+            statusCode: 500,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: `Erreur interne du serveur: ${error.message}` }),
+        };
+    }
+}
