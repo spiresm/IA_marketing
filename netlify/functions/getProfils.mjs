@@ -1,65 +1,46 @@
-// netlify/functions/getProfils.js - Version complète et fonctionnelle
+// netlify/functions/getProfils.js
 
-const { Octokit } = require("@octokit/rest");
+exports.handler = async (event, context) => {
+    try {
+        // C'EST CETTE LIGNE QUI DOIT ÊTRE MODIFIÉE !
+        // AVANT : const { Octokit } = require("@octokit/rest");
+        // APRÈS :
+        const { Octokit } = await import("@octokit/rest");
 
-exports.handler = async function (event, context) {
-  // Récupère le token GitHub depuis les variables d'environnement Netlify
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  // Vos informations de dépôt GitHub
-  const REPO_OWNER = "spiresm";
-  const REPO_NAME = "IA_marketing";
-  // Chemin du fichier JSON dans votre dépôt GitHub (relatif à la racine du dépôt)
-  const FILE_PATH = "netlify/functions/profil.json";
-  const BRANCH = "main"; // La branche de votre dépôt
+        const octokit = new Octokit({
+            auth: process.env.GITHUB_TOKEN,
+        });
 
-  // Vérification du token GitHub
-  if (!GITHUB_TOKEN) {
-    console.error("Erreur: GITHUB_TOKEN n'est pas défini dans les variables d'environnement Netlify.");
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: "Configuration serveur manquante (GITHUB_TOKEN)." }),
-    };
-  }
+        // Adaptez la logique ci-dessous selon ce que vous voulez récupérer de GitHub
+        // Par exemple, pour lister des membres d'une organisation :
+        const { data } = await octokit.rest.orgs.listMembersForOrg({
+            org: "NomDeVotreOrganisation", // <--- REMPLACEZ PAR VOTRE NOM D'ORGANISATION
+        });
 
-  const octokit = new Octokit({ auth: GITHUB_TOKEN });
+        // Ou pour obtenir un utilisateur spécifique :
+        // const { data } = await octokit.rest.users.getByUsername({
+        //     username: "octocat", // <--- REMPLACEZ PAR UN NOM D'UTILISATEUR
+        // });
 
-  try {
-    // Tente de récupérer le contenu du fichier profil.json depuis GitHub
-    const { data: fileData } = await octokit.repos.getContent({
-      owner: REPO_OWNER,
-      repo: REPO_NAME,
-      path: FILE_PATH,
-      ref: BRANCH,
-    });
+        return {
+            statusCode: 200,
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+        };
 
-    // Le contenu des fichiers GitHub est encodé en base64, il faut le décoder
-    const decoded = Buffer.from(fileData.content, "base64").toString("utf8");
-    // Parse le contenu décodé en JSON
-    const json = JSON.parse(decoded);
-
-    // Retourne la réponse JSON avec un statut 200 (OK)
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        // Permet aux requêtes depuis n'importe quelle origine d'accéder à cette fonction
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify(json),
-    };
-  } catch (err) {
-    // Capture et log les erreurs lors de la récupération ou du traitement du fichier
-    console.error(`Erreur lors de la lecture du fichier profils depuis GitHub: ${err.message}`);
-    // Retourne une erreur avec le statut approprié (404 si GitHub a renvoyé un 404, sinon 500)
-    return {
-      statusCode: err.status || 500, // Utilise le statut d'erreur de GitHub si disponible
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        error: "Erreur lors de la récupération des profils depuis GitHub.",
-        details: err.message,
-        github_status: err.status, // Inclut le statut HTTP de GitHub si disponible
-      }),
-    };
-  }
+    } catch (error) {
+        console.error("Erreur dans la fonction getProfils:", error);
+        return {
+            statusCode: 500,
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                error: "Échec du chargement des profils. Vérifiez les logs Netlify.",
+                details: error.message // Utile pour le débogage côté client (attention à la sensibilité des infos)
+            }),
+        };
+    }
 };
