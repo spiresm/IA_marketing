@@ -64,6 +64,13 @@
       text-align: center;
     }
 
+    .error {
+        margin-top: 20px;
+        color: red;
+        font-weight: 600;
+        text-align: center;
+    }
+
     .preview {
       margin-top: 30px;
       padding: 15px 20px;
@@ -90,7 +97,6 @@
 </head>
 <body>
 
-  <!-- Header/menu injecté dynamiquement -->
   <div id="header-placeholder"></div>
   <script>
     fetch("header.html")
@@ -140,47 +146,126 @@
         <option>Pôle Créa</option>
       </select>
 
+      <label for="auteur">Auteur du Tip</label>
+      <select id="auteur">
+        <option value="">-- Sélectionnez un auteur --</option>
+        </select>
+
       <button onclick="validerTip()">Enregistrer le tip</button>
       <div class="success" id="message-success" style="display:none">Tip enregistré avec succès ✅</div>
+      <div class="error" id="message-error" style="display:none">Erreur lors de l'enregistrement du tip ❌</div>
       <div id="preview-container"></div>
     </div>
   </main>
 
   <script>
-    function validerTip() {
+    // URL de votre API backend pour sauvegarder les tips
+    const BACKEND_API_URL = 'http://localhost:3000/save-tip'; // À remplacer par l'URL de votre serveur
+    // URL de votre API backend ou fichier pour récupérer les noms des profils
+    const TEAM_PROFILES_URL = 'http://localhost:3000/team-profiles'; // À remplacer par l'URL de vos profils
+
+    /**
+     * Charge les noms des profils de l'équipe et peuple le sélecteur.
+     * Pour une mise à jour automatique, cette fonction devrait être appelée
+     * après chaque modification sur la page équipe, via une API ou un webhook.
+     */
+    async function chargerProfilsEquipe() {
+        const auteurSelect = document.getElementById('auteur');
+        auteurSelect.innerHTML = '<option value="">-- Sélectionnez un auteur --</option>'; // Réinitialise les options
+
+        try {
+            // Dans un vrai scénario, vous feriez un fetch vers votre page équipe ou une API
+            // Exemple : const response = await fetch(TEAM_PROFILES_URL);
+            // const profils = await response.json();
+
+            // Simule des profils d'équipe pour l'exemple
+            const profils = [
+                { id: '1', nom: 'Alice Dupont' },
+                { id: '2', nom: 'Bob Martin' },
+                { id: '3', nom: 'Charlie Leblanc' }
+            ];
+
+            profils.forEach(profil => {
+                const option = document.createElement('option');
+                option.value = profil.nom; // Ou profil.id si vous préférez stocker l'ID
+                option.textContent = profil.nom;
+                auteurSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Erreur lors du chargement des profils de l'équipe :", error);
+            // Gérer l'erreur, par exemple, afficher un message à l'utilisateur
+        }
+    }
+
+    /**
+     * Valide les données du tip et l'envoie à l'API backend pour sauvegarde sur GitHub.
+     */
+    async function validerTip() {
       const titre = document.getElementById('titre').value.trim();
       const description = document.getElementById('description').value.trim();
       const prompt = document.getElementById('prompt').value.trim();
       const outil = document.getElementById('outil').value;
       const categorie = document.getElementById('categorie').value;
+      const auteur = document.getElementById('auteur').value; // Nouveau champ
 
-      if (titre && description && prompt && outil && categorie) {
-        const nouveau = { titre, description, prompt, outil, categorie };
-        const existants = JSON.parse(localStorage.getItem('tips') || '[]');
-        existants.push(nouveau);
-        localStorage.setItem('tips', JSON.stringify(existants));
+      const messageSuccess = document.getElementById('message-success');
+      const messageError = document.getElementById('message-error');
+      messageSuccess.style.display = 'none';
+      messageError.style.display = 'none';
 
-        document.getElementById('message-success').style.display = 'block';
-        setTimeout(() => {
-          document.getElementById('message-success').style.display = 'none';
-        }, 3000);
+      if (titre && description && prompt && outil && categorie && auteur) {
+        const nouveauTip = { titre, description, prompt, outil, categorie, auteur };
 
-        document.getElementById('preview-container').innerHTML = `
-          <div class="preview">
-            <h2>${titre}</h2>
-            <p>${description}</p>
-            <div class="prompt-box">
-              <code>${prompt}</code>
-            </div>
-            <p class="meta">Outil : ${outil} • Catégorie : ${categorie}</p>
-          </div>
-        `;
+        try {
+          // Envoi du tip à votre serveur backend
+          const response = await fetch(BACKEND_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(nouveauTip),
+          });
 
-        document.querySelectorAll('input, textarea, select').forEach(e => e.value = '');
+          if (response.ok) {
+            messageSuccess.style.display = 'block';
+            setTimeout(() => {
+              messageSuccess.style.display = 'none';
+            }, 3000);
+
+            // Afficher le preview du tip sauvegardé
+            document.getElementById('preview-container').innerHTML = `
+              <div class="preview">
+                <h2>${titre}</h2>
+                <p>${description}</p>
+                <div class="prompt-box">
+                  <code>${prompt}</code>
+                </div>
+                <p class="meta">Outil : ${outil} • Catégorie : ${categorie} • Auteur : ${auteur}</p>
+              </div>
+            `;
+
+            // Réinitialiser le formulaire
+            document.querySelectorAll('input, textarea, select').forEach(e => e.value = '');
+            document.getElementById('auteur').value = ''; // Réinitialise l'auteur aussi
+
+          } else {
+            const errorData = await response.json();
+            messageError.textContent = `Erreur lors de l'enregistrement du tip : ${errorData.message || response.statusText}`;
+            messageError.style.display = 'block';
+            console.error("Erreur serveur :", errorData);
+          }
+        } catch (error) {
+          messageError.textContent = "Impossible de se connecter au serveur. Vérifiez votre connexion ou l'URL du backend.";
+          messageError.style.display = 'block';
+          console.error("Erreur réseau ou du backend :", error);
+        }
       } else {
-        alert("Merci de remplir tous les champs.");
+        alert("Merci de remplir tous les champs obligatoires.");
       }
     }
+
+    // Charge les profils de l'équipe au chargement de la page
+    document.addEventListener('DOMContentLoaded', chargerProfilsEquipe);
   </script>
 </body>
 </html>
