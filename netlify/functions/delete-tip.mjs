@@ -36,7 +36,7 @@ export default async (event, context) => {
         return new Response(JSON.stringify({ message: 'ID du tip manquant.' }), {
             status: 400, // "Bad Request" (Mauvaise requête)
             headers: { 'Content-Type': 'application/json' },
-        }); // Correction: Ajout de la parenthèse fermante ici
+        });
     }
 
     // Configuration des accès GitHub via les variables d'environnement Netlify
