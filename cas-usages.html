@@ -348,7 +348,8 @@
                     </select>
                     <select id="filtre-tri">
                         <option value="recent">Plus récent</option>
-                        <option value="ancien">Plus ancien</option>
+                        <option value="auteur-az">Auteur (A-Z)</option>
+                        <option value="auteur-za">Auteur (Z-A)</option>
                     </select>
                 </div>
                 <div class="action-buttons">
@@ -410,8 +411,7 @@
             tipsListDiv.innerHTML = '<p>Chargement des tips...</p>'; // Message mis à jour
 
             try {
-                // CORRECTION ICI : Changement de 'getTips' à 'get-tips' pour correspondre au nom de votre fichier de fonction
-                const response = await fetch(`${apiBase}get-tips`); // <-- CORRIGÉ
+                const response = await fetch(`${apiBase}get-tips`); // Correction du nom de la fonction
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
@@ -633,11 +633,23 @@
                 const dateA = a.date ? new Date(a.date) : new Date(0);
                 const dateB = b.date ? new Date(b.date) : new Date(0);
 
+                // Tri par date (plus récent) ou par auteur
                 if (filtreTri === 'recent') {
                     return dateB - dateA;
-                } else {
-                    return dateA - dateB;
+                } else if (filtreTri === 'auteur-az') {
+                    // Tri par auteur A-Z (sens croissant)
+                    const auteurA = (a.auteur || '').toLowerCase();
+                    const auteurB = (b.auteur || '').toLowerCase();
+                    return auteurA.localeCompare(auteurB);
+                } else if (filtreTri === 'auteur-za') {
+                    // Tri par auteur Z-A (sens décroissant)
+                    const auteurA = (a.auteur || '').toLowerCase();
+                    const auteurB = (b.auteur || '').toLowerCase();
+                    return auteurB.localeCompare(auteurA);
                 }
+                // Si aucune option de tri spécifique n'est sélectionnée (ex: 'recent' est le défaut),
+                // le tri par défaut sera par date récente.
+                return dateB - dateA;
             });
 
             afficherTips(tipsFiltres); // Appel à la fonction mise à jour
