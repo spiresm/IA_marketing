@@ -41,6 +41,19 @@ export const handler = async (event, context) => {
         };
     } catch (error) {
         console.error('Erreur lors de la lecture des tips depuis GitHub:', error);
+        // Si le fichier n'existe pas encore, renvoyer un tableau vide au lieu d'une erreur 500
+        if (error.status === 404) {
+            return {
+                statusCode: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type"
+                },
+                body: JSON.stringify([]), // Retourne un tableau vide si le fichier n'existe pas encore
+            };
+        }
         return {
             statusCode: 500,
             body: JSON.stringify({ message: `Erreur lors de la récupération des tips: ${error.message}` }),
