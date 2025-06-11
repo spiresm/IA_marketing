@@ -186,7 +186,7 @@
             template: `
                 <div class="container">
                     <a href="all-tips.html" class="retour-lien">← Retour</a>
-                    <h2 style="text-align:center; color:#0077b6;">Partager un Tip</h2>
+                    <h2 style="text-align:center; color:#0077b6;">Partager un Tip / Prompt</h2>
 
                     <form @submit.prevent="submitForm">
                         <label for="auteur">Votre nom</label>
@@ -199,11 +199,14 @@
                         </p>
                         <p v-if="isLoadingProfils" style="color: #0077b6; font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
 
-                        <label for="titre">Titre du Tip</label>
+                        <label for="titre">Titre du Tip / Prompt</label>
                         <input type="text" id="titre" v-model="titre" required />
 
-                        <label for="description">Description (détaillez le tip)</label>
-                        <textarea id="description" v-model="description" rows="6" required></textarea>
+                        <label for="description">Description (détaillez le tip ou le prompt)</label>
+                        <textarea id="description" v-model="description" rows="4" required></textarea>
+
+                        <label for="prompt">Le Prompt lui-même (si applicable)</label>
+                        <textarea id="prompt" v-model="promptText" rows="6" placeholder="Collez le prompt exact ici si c'est un prompt"></textarea>
 
                         <label for="categorie">Catégorie</label>
                         <select id="categorie" v-model="categorie">
@@ -232,14 +235,15 @@
                         <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
 
                         <div v-if="isLoading" class="loader"></div>
-                        <button v-else type="submit" :disabled="!auteur || !titre || !description || isLoading">Partager le Tip</button>
+                        <button v-else type="submit" :disabled="!auteur || !titre || !description || isLoading">Partager le Tip / Prompt</button>
                     </form>
 
                     <div class="confirmation" v-if="confirmationVisible">
-                        <p>✅ Tip partagé avec succès !</p>
+                        <p>✅ Tip / Prompt partagé avec succès !</p>
                         <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
                         <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
                         <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
+                        <p v-if="confirmationPromptText" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
                         <p style="margin-top: 15px; color: #0077b6;">Redirection vers la liste des tips dans 5 secondes...</p>
                     </div>
                 </div>
@@ -248,7 +252,8 @@
                 const auteur = ref('');
                 const titre = ref('');
                 const description = ref('');
-                const categorie = ref('Marketing Digital'); // Valeur par défaut
+                const promptText = ref(''); // Nouveau champ pour le prompt
+                const categorie = ref('Marketing Digital');
                 const plateforme = ref('');
                 const fileInput = ref(null);
                 const imagePreviewUrl = ref('');
@@ -256,6 +261,7 @@
                 const confirmationImageUrl = ref('');
                 const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
+                const confirmationPromptText = ref(''); // Pour l'affichage de confirmation
                 const isLoading = ref(false);
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
@@ -378,6 +384,7 @@
                                 auteur: auteur.value,
                                 titre: titre.value,
                                 description: description.value,
+                                prompt: promptText.value, // <-- NOUVEAU : Envoie le champ promptText
                                 categorie: categorie.value,
                                 plateforme: plateforme.value,
                                 imageUrl: imageUrl
@@ -393,6 +400,7 @@
                         confirmationImageUrl.value = imageUrl;
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
+                        confirmationPromptText.value = promptText.value; // Affiche aussi le prompt
                         confirmationVisible.value = true;
 
                         setTimeout(() => {
@@ -403,6 +411,7 @@
                         auteur.value = '';
                         titre.value = '';
                         description.value = '';
+                        promptText.value = ''; // Réinitialise le prompt
                         categorie.value = 'Marketing Digital';
                         plateforme.value = '';
                         imagePreviewUrl.value = '';
@@ -419,9 +428,9 @@
                 }
 
                 return {
-                    auteur, titre, description, categorie, plateforme, fileInput,
+                    auteur, titre, description, promptText, categorie, plateforme, fileInput,
                     imagePreviewUrl, confirmationVisible,
-                    confirmationImageUrl, confirmationTitre, confirmationDescription,
+                    confirmationImageUrl, confirmationTitre, confirmationDescription, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
                 };
