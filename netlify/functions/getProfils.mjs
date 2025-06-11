@@ -1,51 +1,64 @@
-// netlify/functions/getProfils.js
+// netlify/functions/getProfils.mjs
 
-exports.handler = async (event, context) => {
+import { Octokit } from "@octokit/core";
+import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
+import { Buffer } from 'buffer'; // Gardez si nécessaire
+
+const MyOctokit = Octokit.plugin(restEndpointMethods);
+
+export async function handler(event, context) {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const OWNER = process.env.GITHUB_OWNER;
+    const REPO = process.env.GITHUB_REPO;
+    const PROFIL_FILE_PATH = process.env.PROFIL_FILE_PATH || 'data/all-profils.json'; // Adaptez le chemin
+
+    if (!GITHUB_TOKEN || !OWNER || !REPO) {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Configuration de l\'API GitHub manquante.' }),
+        };
+    }
+
+    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
+
     try {
-        // --- C'EST ICI LA MODIFICATION CLÉ ! ---
-        // L'importation dynamique retourne un module. Nous devons accéder à la propriété 'Octokit' de ce module.
-        const { Octokit } = await import("@octokit/rest");
-
-        // Assurez-vous que Octokit est bien la classe attendue.
-        // Si l'erreur persiste, vous pourriez avoir besoin de :
-        // const Octokit = (await import("@octokit/rest")).Octokit;
-        // Ou, dans de rares cas où il y a un wrapper inattendu :
-        // const Octokit = (await import("@octokit/rest")).default.Octokit;
-
-        const octokit = new Octokit({
-            auth: process.env.GITHUB_TOKEN,
+        const { data } = await octokit.rest.repos.getContent({
+            owner: OWNER,
+            repo: REPO,
+            path: PROFIL_FILE_PATH,
+            ref: 'main',
         });
 
-        // Adaptez la logique ci-dessous selon ce que vous voulez récupérer de GitHub
-        // Par exemple, pour lister des membres d'une organisation :
-        const { data } = await octokit.rest.orgs.listMembersForOrg({
-            org: "NomDeVotreOrganisation", // <--- REMPLACEZ PAR VOTRE NOM D'ORGANISATION
-        });
-
-        // Ou pour obtenir un utilisateur spécifique :
-        // const { data } = await octokit.rest.users.getByUsername({
-        //     username: "octocat", // <--- REMPLACEZ PAR UN NOM D'UTILISATEUR
-        // });
+        const content = Buffer.from(data.content, 'base64').toString('utf8');
+        const profils = JSON.parse(content);
 
         return {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
             },
-            body: JSON.stringify(data),
+            body: JSON.stringify(profils),
         };
-
     } catch (error) {
-        console.error("Erreur dans la fonction getProfils:", error);
+        console.error('Erreur lors de la récupération des profils:', error);
+        if (error.status === 404) {
+            return {
+                statusCode: 200, // Retourne 200 avec tableau vide si le fichier n'existe pas
+                headers: {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type"
+                },
+                body: JSON.stringify([]),
+            };
+        }
         return {
             statusCode: 500,
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                error: "Échec du chargement des profils. Vérifiez les logs Netlify.",
-                details: error.message // Utile pour le débogage côté client (attention à la sensibilité des infos)
-            }),
+            body: JSON.stringify({ message: `Erreur interne du serveur: ${error.message}` }),
         };
     }
-};
+}
