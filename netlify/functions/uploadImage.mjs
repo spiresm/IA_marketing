@@ -1,102 +1,90 @@
 // netlify/functions/uploadImage.mjs
 
-import { Octokit } from '@octokit/rest';
-import { Buffer } from 'buffer'; // Ceci est crucial pour gérer les données base64
+import { Octokit } from "@octokit/core";
+import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
+import { Buffer } from 'buffer'; // Nécessaire pour les opérations de fichiers en base64
 
-export const handler = async (event) => {
-    // S'assurer que seules les requêtes POST sont autorisées
+const MyOctokit = Octokit.plugin(restEndpointMethods);
+
+export async function handler(event, context) {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const OWNER = process.env.GITHUB_OWNER;
+    const REPO = process.env.GITHUB_REPO;
+    const UPLOAD_DIR = process.env.UPLOAD_DIR || 'uploads/'; // Dossier où les images seront stockées dans le repo GitHub
+
+    if (!GITHUB_TOKEN || !OWNER || !REPO) {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Configuration de l\'API GitHub manquante.' }),
+        };
+    }
+
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
-    // Récupérer les variables d'environnement avec les noms que vous utilisez actuellement
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const OWNER = process.env.GITHUB_OWNER; // Votre variable GITHUB_OWNER
-    const REPO = process.env.GITHUB_REPO;   // Votre variable GITHUB_REPO
-    
-    // Le chemin des images, comme dans votre ancien code, est 'images/'
-    const IMAGES_DIR = 'images'; 
-
-    // Valider les variables d'environnement essentielles
-    // La validation se concentre maintenant sur les variables que vous avez fournies.
-    if (!GITHUB_TOKEN || !OWNER || !REPO) {
-        console.error('Variables d\'environnement GitHub manquantes pour uploadImage !');
-        return {
-            statusCode: 500,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                message: 'Configuration d\'upload d\'image manquante. Veuillez vérifier GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO dans vos variables d\'environnement Netlify.' 
-            }),
-        };
+    let fileName;
+    let fileContentBase64;
+    try {
+        const body = JSON.parse(event.body);
+        fileName = body.fileName;
+        fileContentBase64 = body.fileContent; // Contenu du fichier en base64
+    } catch (e) {
+        return { statusCode: 400, body: JSON.stringify({ message: 'Corps de la requête invalide.' }) };
     }
 
-    const octokit = new Octokit({ auth: GITHUB_TOKEN });
+    if (!fileName || !fileContentBase64) {
+        return { statusCode: 400, body: JSON.stringify({ message: 'Nom de fichier ou contenu manquant.' }) };
+    }
+
+    const filePath = `${UPLOAD_DIR}${fileName}`;
+    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
 
     try {
-        const { fileBase64, fileName } = JSON.parse(event.body);
-        if (!fileBase64 || !fileName) {
-            console.error('fileBase64 ou fileName manquant dans le corps de la requête.');
-            return {
-                statusCode: 400,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: 'Données d\'image manquantes (base64 ou nom de fichier).' }),
-            };
-        }
-
-        // Construire le chemin complet du fichier dans le dépôt, avec un timestamp pour l'unicité
-        const filePath = `${IMAGES_DIR}/${Date.now()}-${fileName}`;
-        let sha = null; // Utilisé si le fichier existe déjà pour le mettre à jour
-
-        // Tenter de récupérer le SHA du fichier s'il existe déjà
+        // Vérifier si le fichier existe déjà pour obtenir son SHA si nécessaire (pour updateFile)
+        let sha = undefined;
         try {
-            const { data } = await octokit.repos.getContent({
+            const { data } = await octokit.rest.repos.getContent({
                 owner: OWNER,
                 repo: REPO,
                 path: filePath,
+                ref: 'main',
             });
             sha = data.sha;
         } catch (error) {
-            // Si le fichier n'existe pas (erreur 404), c'est normal pour un nouvel upload
-            if (error.status === 404) {
-                console.log(`Fichier image non trouvé à ${filePath}, procéder à la création.`);
-            } else {
-                // Pour toute autre erreur, la propager
-                console.error('Erreur lors de la vérification du fichier image existant :', error);
-                throw error;
+            // Si le fichier n'existe pas (404), c'est normal, sha reste undefined pour createOrUpdateFileContents
+            if (error.status !== 404) {
+                throw error; // Lancer d'autres erreurs inattendues
             }
         }
 
-        // Créer ou mettre à jour le fichier sur GitHub
-        const { data } = await octokit.repos.createOrUpdateFileContents({
+        // Créer ou mettre à jour le fichier
+        await octokit.rest.repos.createOrUpdateFileContents({
             owner: OWNER,
             repo: REPO,
             path: filePath,
-            message: `Upload de l'image : ${fileName}`, // Message de commit
-            content: fileBase64, // Le contenu est déjà en base64
-            sha: sha, // Fourni si mise à jour, sinon null pour la création
-            branch: 'main', // Assurez-vous que c'est votre branche par défaut
-            committer: { // Détails du committer pour l'historique Git
-                name: "Netlify Bot",
-                email: "bot@netlify.com"
-            }
+            message: `Upload de ${fileName}`,
+            content: fileContentBase64, // Le contenu est déjà en base64
+            sha: sha, // SHA est nécessaire si vous mettez à jour un fichier existant
+            branch: 'main',
         });
-
-        // Construire l'URL publique de l'image pour l'affichage
-        const imageUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${filePath}`;
 
         return {
             statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: imageUrl, message: 'Image uploadée avec succès sur GitHub !' }),
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*", // IMPORTANT pour le CORS
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            body: JSON.stringify({ message: `Fichier ${fileName} uploadé avec succès sur GitHub !` }),
         };
 
     } catch (error) {
-        // Gérer les erreurs survenues pendant l'exécution de la fonction
-        console.error('Erreur dans la fonction uploadImage :', error);
+        console.error('Erreur lors de l\'upload de l\'image:', error);
         return {
             statusCode: 500,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: `Erreur interne du serveur lors de l'upload de l'image : ${error.message}` }),
+            body: JSON.stringify({ message: `Erreur interne du serveur: ${error.message}` }),
         };
     }
-};
+}
