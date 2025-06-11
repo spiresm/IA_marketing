@@ -3,10 +3,15 @@
 // Suppression de l'import de 'node-fetch' car 'fetch' est globalement disponible dans Netlify Functions
 
 export default async (event, context) => {
+    // --- NOUVEAU LOG POUR DÉBOGAGE ---
+    // Log l'objet event complet pour inspecter la méthode HTTP et autres paramètres
+    console.log('📡 deleteTip: Requête reçue. Objet event:', JSON.stringify(event, null, 2));
+
     // --- Gérer la requête de pré-vérification CORS (méthode OPTIONS) ---
     // Les navigateurs envoient une requête OPTIONS avant une requête HTTP complexe (comme DELETE)
     // pour vérifier si le serveur autorise la requête réelle.
     if (event.httpMethod === 'OPTIONS') {
+        console.log('📡 deleteTip: Méthode OPTIONS détectée. Réponse CORS preflight.');
         return new Response(null, {
             status: 204, // Code de statut "No Content" pour une réponse OPTIONS réussie
             headers: {
