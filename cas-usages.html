@@ -553,7 +553,7 @@
         // Utilisez l'URL de votre fonction Netlify pour récupérer les tips
         const TIPS_DATA_URL = '/.netlify/functions/get-tips';
         const DELETE_TIP_FUNCTION_URL = '/.netlify/functions/delete-tip';
-        const PROXY_URL = "/.netlify/functions/proxy";
+        const PROXY_URL = "/.netlify/functions/proxy"; // Assurez-vous que cette URL est correcte si vous l'utilisez
 
         let tousLesTips = [];
         const exampleTooltip = document.getElementById('exampleTooltip');
@@ -604,14 +604,12 @@
                 // Fetch from the Netlify function
                 const response = await fetch(TIPS_DATA_URL);
                 if (!response.ok) {
-                    // La fonction Netlify devrait gérer les 404 de GitHub et retourner un [],
-                    // mais si elle retourne une erreur HTTP elle-même, nous la gérons ici.
                     const errorText = await response.text();
                     throw new Error(`Erreur HTTP lors de la récupération des tips: ${response.status} - ${errorText}`);
                 } else {
                     const tips = await response.json();
                     tousLesTips = tips; // Store all tips
-                    console.log("Tips récupérés :", tips);
+                    console.log("Tips récupérés :", tips); // Utile pour le débogage
                 }
 
                 if (tousLesTips.length === 0) {
@@ -668,13 +666,14 @@
             tipItem.classList.toggle('expanded');
 
             if (tipItem.classList.contains('expanded')) {
+                // To allow for varying content heights, calculate scrollHeight
                 tipContent.style.maxHeight = tipContent.scrollHeight + "px";
                 tipContent.style.opacity = '1';
-                tipContent.style.padding = '20px';
+                tipContent.style.padding = '20px'; // Set padding when expanded
             } else {
                 tipContent.style.maxHeight = "0";
                 tipContent.style.opacity = '0';
-                tipContent.style.padding = '0 20px';
+                tipContent.style.padding = '0 20px'; // Revert padding when collapsed
             }
         }
 
@@ -711,7 +710,6 @@
 
                 const tipTitle = document.createElement('h2');
                 tipTitle.className = 'tip-title';
-                // CORRECTION APPLIQUÉE ICI : Utilise tip.titre au lieu de tip.texte
                 tipTitle.textContent = tip.titre ? tip.titre.substring(0, 100) + (tip.titre.length > 100 ? '...' : '') : 'Nouveau Cas d\'Usage';
                 tipHeader.appendChild(tipTitle);
 
@@ -807,102 +805,115 @@
                 description.textContent = tip.description || 'Pas de contenu détaillé fourni.';
                 infosWrapper.appendChild(description);
 
-                // Prompt Section
+                // PROMPT SECTION
                 if (tip.prompt && tip.prompt.trim() !== '') {
                     const promptLabel = document.createElement('span');
                     promptLabel.className = 'prompt-label';
                     promptLabel.textContent = 'Prompt :';
                     infosWrapper.appendChild(promptLabel);
 
-                    const promptTextDisplay = document.createElement('div');
-                    promptTextDisplay.className = 'prompt-text-display';
-                    promptTextDisplay.textContent = tip.prompt;
-                    infosWrapper.appendChild(promptTextDisplay);
+                    const promptDisplay = document.createElement('div');
+                    promptDisplay.className = 'prompt-text-display';
+                    promptDisplay.textContent = tip.prompt; // Assign the prompt text here
 
-                    const copyPromptBtn = document.createElement('button');
-                    copyPromptBtn.className = 'copy-prompt-btn';
-                    copyPromptBtn.innerHTML = '<i class="fas fa-copy"></i>';
-                    copyPromptBtn.title = 'Copier le prompt';
-                    promptTextDisplay.appendChild(copyPromptBtn);
-
-                    copyPromptBtn.onclick = async (e) => {
-                        e.stopPropagation(); // Prevent accordion toggle
+                    const copyButton = document.createElement('button');
+                    copyButton.className = 'copy-prompt-btn';
+                    copyButton.innerHTML = '<i class="far fa-copy"></i>'; // Font Awesome copy icon
+                    copyButton.title = 'Copier le prompt';
+                    copyButton.onclick = async () => {
                         try {
                             await navigator.clipboard.writeText(tip.prompt);
-                            showTemporaryTooltip(copyPromptBtn, 'Copié !', 'success');
+                            alert('Prompt copié !');
                         } catch (err) {
-                            console.error('Failed to copy prompt: ', err);
-                            showTemporaryTooltip(copyPromptBtn, 'Erreur de copie', 'error');
+                            console.error('Erreur lors de la copie du prompt:', err);
+                            alert('Impossible de copier le prompt.');
                         }
                     };
+                    promptDisplay.appendChild(copyButton); // Append the button to the prompt display div
+
+                    infosWrapper.appendChild(promptDisplay);
                 }
 
-                // Metadata Section
+                // METADATA SECTION (Auteur, Chaîne, Date)
                 const metadataSection = document.createElement('div');
                 metadataSection.className = 'metadata-section';
 
-                const addMetadataRow = (label, value, valueClass = '') => {
-                    if (value && value.trim() !== '') {
-                        const labelElem = document.createElement('span');
-                        labelElem.className = 'metadata-label';
-                        labelElem.textContent = `${label} :`;
-                        metadataSection.appendChild(labelElem);
+                function addMetadataRow(label, value, valueClass = '') {
+                    if (value) {
+                        const labelDiv = document.createElement('div');
+                        labelDiv.className = 'metadata-label';
+                        labelDiv.textContent = `${label} :`;
+                        metadataSection.appendChild(labelDiv);
 
-                        const valueElem = document.createElement('span');
-                        valueElem.className = `metadata-value ${valueClass}`;
-                        valueElem.textContent = value;
-                        metadataSection.appendChild(valueElem);
+                        const valueDiv = document.createElement('div');
+                        valueDiv.className = `metadata-value ${valueClass}`;
+                        valueDiv.textContent = value;
+                        metadataSection.appendChild(valueDiv);
                     }
-                };
+                }
 
                 addMetadataRow('Auteur', tip.auteur, 'auteur-value');
                 addMetadataRow('Chaîne', tip.chaine, 'chaine-value');
-                addMetadataRow('Catégorie', tip.categorie);
-                if (tip.date) {
-                    const dateObj = new Date(tip.date);
-                    // Format date as DD/MM/YYYY HH:MM
-                    const formattedDate = dateObj.toLocaleDateString('fr-FR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    addMetadataRow('Date d\'ajout', formattedDate);
-                }
-
+                addMetadataRow('Date', new Date(tip.date).toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }));
 
                 infosWrapper.appendChild(metadataSection);
-                tipContent.appendChild(infosWrapper);
-                tipItem.appendChild(tipContent);
-                tipsListDiv.appendChild(tipItem);
+
+
+                tipContent.appendChild(infosWrapper); // Add the right panel to tip content
+                tipItem.appendChild(tipContent); // Add tip content to the main tip item
+
+                tipsListDiv.appendChild(tipItem); // Finally, add the complete tip item to the list
             });
         }
 
-        // Filter functionality
+        // Helper function to get color based on 'chaine'
+        function getChaineColor(chaine) {
+            switch (chaine) {
+                case 'La Une': return '#0077b6';
+                case 'Tipik': return '#ff6b6b';
+                case 'La Trois': return '#28a745';
+                case 'La première': return '#6f42c1';
+                case 'Classic 21': return '#fd7e14';
+                case 'Vivacité': return '#20c997';
+                case 'Musiq3': return '#6610f2';
+                case 'Auvio': return '#17a2b8';
+                case 'Auvio Kids': return '#e83e8c';
+                default: return '#cccccc'; // Default grey for unknown
+            }
+        }
+
+        // Function to apply filters based on search input and dropdowns
         function applyFilters() {
-            const keyword = document.getElementById('search-keyword').value.toLowerCase();
-            const outilFilter = document.getElementById('filtre-outil').value.toLowerCase();
-            const chaineFilter = document.getElementById('filtre-chaine').value.toLowerCase();
-            const auteurFilter = document.getElementById('filtre-auteur').value.toLowerCase();
+            const searchKeyword = document.getElementById('search-keyword').value.toLowerCase();
+            const filtreOutil = document.getElementById('filtre-outil').value.toLowerCase();
+            const filtreChaine = document.getElementById('filtre-chaine').value.toLowerCase();
+            const filtreAuteur = document.getElementById('filtre-auteur').value.toLowerCase();
 
             const filteredTips = tousLesTips.filter(tip => {
-                const matchesKeyword = (tip.titre && tip.titre.toLowerCase().includes(keyword)) ||
-                                     (tip.description && tip.description.toLowerCase().includes(keyword)) ||
-                                     (tip.prompt && tip.prompt.toLowerCase().includes(keyword)) ||
-                                     (tip.auteur && tip.auteur.toLowerCase().includes(keyword)) ||
-                                     (tip.outil && tip.outil.toLowerCase().includes(keyword)) ||
-                                     (tip.chaine && tip.chaine.toLowerCase().includes(keyword));
+                const matchesKeyword = !searchKeyword ||
+                                    (tip.titre && tip.titre.toLowerCase().includes(searchKeyword)) ||
+                                    (tip.description && tip.description.toLowerCase().includes(searchKeyword)) ||
+                                    (tip.prompt && tip.prompt.toLowerCase().includes(searchKeyword)) ||
+                                    (tip.auteur && tip.auteur.toLowerCase().includes(searchKeyword)) ||
+                                    (tip.outil && tip.outil.toLowerCase().includes(searchKeyword)) ||
+                                    (tip.chaine && tip.chaine.toLowerCase().includes(searchKeyword));
 
-                const matchesOutil = outilFilter === '' || (tip.outil && tip.outil.toLowerCase() === outilFilter);
-                const matchesChaine = chaineFilter === '' || (tip.chaine && tip.chaine.toLowerCase() === chaineFilter);
-                const matchesAuteur = auteurFilter === '' || (tip.auteur && tip.auteur.toLowerCase() === auteurFilter);
+                const matchesOutil = !filtreOutil || (tip.outil && tip.outil.toLowerCase() === filtreOutil);
+                const matchesChaine = !filtreChaine || (tip.chaine && tip.chaine.toLowerCase() === filtreChaine);
+                const matchesAuteur = !filtreAuteur || (tip.auteur && tip.auteur.toLowerCase() === filtreAuteur);
 
                 return matchesKeyword && matchesOutil && matchesChaine && matchesAuteur;
             });
-            afficherTips(filteredTips);
+
+            const sortedTips = [...filteredTips].sort((a, b) => new Date(b.date) - new Date(a.date));
+            afficherTips(sortedTips);
         }
 
+        // Function to set up event listeners for filters
         function setupFiltres() {
             document.getElementById('search-keyword').addEventListener('input', applyFilters);
             document.getElementById('filtre-outil').addEventListener('change', applyFilters);
@@ -910,72 +921,34 @@
             document.getElementById('filtre-auteur').addEventListener('change', applyFilters);
         }
 
-
-        // Function to get color based on 'chaine'
-        function getChaineColor(chaine) {
-            switch (chaine) {
-                case 'La Une': return '#0077b6'; // Bleu
-                case 'Tipik': return '#00b65b'; // Vert
-                case 'La Trois': return '#e74c3c'; // Rouge
-                case 'La première': return '#f39c12'; // Orange
-                case 'Classic 21': return '#8e44ad'; // Violet
-                case 'Vivacité': return '#2c3e50'; // Gris foncé
-                case 'Musiq3': return '#d35400'; // Marron
-                case 'Auvio': return '#1abc9c'; // Turquoise
-                case 'Auvio Kids': return '#3498db'; // Bleu clair
-                default: return '#cccccc'; // Couleur par défaut
-            }
-        }
-
-        // --- TOOLTIP LOGIC FOR EXAMPLE (PROMPT EXAMPLE) ---
-        let tooltipTimeout;
-
+        // Functions for the example tooltip
         function showExampleTooltip(event) {
             const tipItem = event.currentTarget;
-            const exempleText = tipItem.dataset.exemple;
+            const exampleText = tipItem.dataset.exemple;
+            if (exampleText) {
+                exampleTooltip.innerHTML = `<strong>Exemple :</strong><br>${exampleText}`;
+                exampleTooltip.style.opacity = '1';
+                exampleTooltip.style.visibility = 'visible';
+                // Position the tooltip near the cursor
+                exampleTooltip.style.left = (event.clientX + 15) + 'px'; // 15px offset
+                exampleTooltip.style.top = (event.clientY + 15) + 'px'; // 15px offset
 
-            if (exempleText) {
-                clearTimeout(tooltipTimeout);
-                tooltipTimeout = setTimeout(() => {
-                    exampleTooltip.innerHTML = `<strong>Exemple :</strong><br>${exempleText}`;
-                    exampleTooltip.style.left = (event.clientX + 15) + 'px';
-                    exampleTooltip.style.top = (event.clientY + 15) + 'px';
-                    exampleTooltip.style.opacity = '1';
-                    exampleTooltip.style.visibility = 'visible';
-                }, 300); // Small delay before showing
+                // Adjust position if it goes off-screen
+                const rect = exampleTooltip.getBoundingClientRect();
+                if (rect.right > window.innerWidth) {
+                    exampleTooltip.style.left = (event.clientX - rect.width - 15) + 'px';
+                }
+                if (rect.bottom > window.innerHeight) {
+                    exampleTooltip.style.top = (event.clientY - rect.height - 15) + 'px';
+                }
             }
         }
 
         function hideExampleTooltip() {
-            clearTimeout(tooltipTimeout);
             exampleTooltip.style.opacity = '0';
             exampleTooltip.style.visibility = 'hidden';
         }
 
-        // Generic function for temporary messages/tooltips
-        function showTemporaryTooltip(targetElement, message, type = 'info') {
-            const originalText = targetElement.innerHTML;
-            let icon = '';
-            let color = '#333';
-
-            if (type === 'success') {
-                icon = '<i class="fas fa-check-circle"></i> ';
-                color = '#28a745';
-            } else if (type === 'error') {
-                icon = '<i class="fas fa-times-circle"></i> ';
-                color = '#dc3545';
-            }
-
-            targetElement.innerHTML = `${icon}${message}`;
-            targetElement.style.color = color;
-            targetElement.disabled = true; // Disable during message display
-
-            setTimeout(() => {
-                targetElement.innerHTML = originalText;
-                targetElement.style.color = ''; // Reset color
-                targetElement.disabled = false; // Re-enable
-            }, 1500);
-        }
     </script>
 </body>
 </html>
