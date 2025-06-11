@@ -1,6 +1,6 @@
 // netlify/functions/get-tips.mjs
 import { Octokit } from "@octokit/core"; // Corrected import
-import { rest } from "@octokit/plugin-rest"; // Corrected import
+import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Buffer } from 'buffer';
 
 const MyOctokit = Octokit.plugin(rest); // Create an Octokit instance with the rest plugin
