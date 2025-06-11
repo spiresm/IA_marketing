@@ -1,9 +1,8 @@
-// netlify/functions/delete-tip.mjs
-import { Octokit } from "@octokit/core"; // Corrected import
+import { Octokit } from "@octokit/core";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Buffer } from 'buffer';
 
-const MyOctokit = Octokit.plugin(rest); // Create an Octokit instance with the rest plugin
+const MyOctokit = Octokit.plugin(restEndpointMethods); // ✅ Correction ici
 
 export const handler = async (event, context) => {
     if (event.httpMethod !== 'DELETE') {
@@ -26,10 +25,10 @@ export const handler = async (event, context) => {
         };
     }
 
-    const octokit = new MyOctokit({ auth: GITHUB_TOKEN }); // Use MyOctokit here
+    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
 
     try {
-        const { id } = JSON.parse(event.body); 
+        const { id } = JSON.parse(event.body);
 
         if (!id) {
             return {
@@ -40,7 +39,7 @@ export const handler = async (event, context) => {
 
         let currentFile;
         try {
-            const { data } = await octokit.repos.getContent({
+            const { data } = await octokit.rest.repos.getContent({
                 owner: OWNER,
                 repo: REPO,
                 path: TIPS_FILE_PATH,
@@ -72,7 +71,7 @@ export const handler = async (event, context) => {
 
         const updatedContent = Buffer.from(JSON.stringify(tips, null, 2)).toString('base64');
 
-        await octokit.repos.updateFile({
+        await octokit.rest.repos.createOrUpdateFileContents({
             owner: OWNER,
             repo: REPO,
             path: TIPS_FILE_PATH,
@@ -86,7 +85,7 @@ export const handler = async (event, context) => {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*", 
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
