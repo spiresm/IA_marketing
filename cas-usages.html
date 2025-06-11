@@ -494,6 +494,76 @@
                 font-size: 0.8em;
             }
         }
+
+        /* Styles pour le modal */
+        .custom-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .custom-modal {
+            background-color: #fff;
+            padding: 25px 35px;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            transform: translateY(-20px);
+            opacity: 0;
+            animation: fadeInModal 0.3s forwards;
+            position: relative;
+        }
+        .custom-modal h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        .custom-modal-buttons {
+            margin-top: 25px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .custom-modal-buttons button {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .custom-modal-buttons button.confirm-btn {
+            background-color: #007bff;
+            color: white;
+        }
+        .custom-modal-buttons button.confirm-btn:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+        .custom-modal-buttons button.cancel-btn {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .custom-modal-buttons button.cancel-btn:hover {
+            background-color: #e0e0e0;
+            transform: translateY(-1px);
+        }
+        @keyframes fadeInModal {
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -690,402 +760,4 @@
             tipsToDisplay.forEach(tip => {
                 const tipItem = document.createElement('div');
                 tipItem.className = 'tip-item';
-                tipItem.dataset.tipId = tip.id; // Store ID for deletion
-
-                // Example tooltip logic (if tip.exemple exists)
-                if (tip.exemple) {
-                    tipItem.dataset.exemple = tip.exemple;
-                }
-                tipItem.addEventListener('mouseenter', showExampleTooltip);
-                tipItem.addEventListener('mouseleave', hideExampleTooltip);
-
-                // Get color for the left border based on 'chaine'
-                const chaineColor = getChaineColor(tip.chaine);
-                tipItem.style.borderLeftColor = chaineColor;
-
-                // --- TIP HEADER (Visible part of the accordion) ---
-                const tipHeader = document.createElement('div');
-                tipHeader.className = 'tip-header';
-                tipHeader.addEventListener('click', toggleTipDetails);
-
-                const tipTitle = document.createElement('h2');
-                tipTitle.className = 'tip-title';
-                tipTitle.textContent = tip.titre ? tip.titre.substring(0, 100) + (tip.titre.length > 100 ? '...' : '') : 'Nouveau Cas d\'Usage';
-                tipHeader.appendChild(tipTitle);
-
-                const headerActions = document.createElement('div');
-                headerActions.className = 'header-actions';
-
-                // Delete Button
-                const supprimerBtn = document.createElement('button'); // <-- Déclaration de supprimerBtn ici
-                supprimerBtn.className = 'header-supprimer-btn';
-                supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Supprimer';
-                supprimerBtn.title = "Supprimer ce tip";
-
-                if (!tip.id) { // Disable if no ID available for deletion
-                    supprimerBtn.disabled = true;
-                    supprimerBtn.title = "Impossible de supprimer: ID manquant pour ce tip";
-                }
-
-                supprimerBtn.onclick = async (e) => {
-                    e.stopPropagation(); // Prevent accordion toggle
-                    // Utilisation d'un modal personnalisé au lieu de confirm()
-                    const confirmation = await showCustomConfirm('Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.');
-                    if (!confirmation) {
-                        return;
-                    }
-
-                    try {
-                        // Changement ici : Envoie une requête POST au lieu de DELETE
-                        // L'ID du tip est envoyé dans le corps JSON de la requête.
-                        const deleteResponse = await fetch(DELETE_TIP_FUNCTION_URL, {
-                            method: 'POST', // <-- CHANGÉ DE 'DELETE' À 'POST'
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ id: tip.id, _method: 'DELETE' }) // <-- AJOUT DE L'ID ET DE '_method' POUR INDIQUER L'OPÉRATION RÉELLE
-                        });
-
-                        if (deleteResponse.ok) {
-                            // Utilisation d'un modal personnalisé au lieu de alert()
-                            showCustomAlert('Tip supprimé avec succès ! Un déploiement va démarrer.');
-                            tipItem.remove(); // Supprime du DOM immédiatement
-                            tousLesTips = tousLesTips.filter(t => t.id !== tip.id); // Met à jour le tableau en mémoire
-                            if (tousLesTips.length === 0) {
-                                tipsListDiv.innerHTML = '<p>Aucun tip trouvé pour le moment.</p>';
-                            }
-                            applyFilters(); // Re-filtre et affiche pour mettre à jour la liste des auteurs si nécessaire
-                        } else {
-                            const errorData = await deleteResponse.json();
-                            showCustomAlert(`Échec de la suppression: ${errorData.message || 'Une erreur inconnue est survenue.'}`);
-                        }
-                    } catch (delError) {
-                        console.error("Erreur lors de la suppression:", delError);
-                        showCustomAlert("Erreur réseau ou interne lors de la tentative de suppression.");
-                    }
-                };
-                headerActions.appendChild(supprimerBtn);
-
-                // Toggle Icon
-                const toggleIcon = document.createElement('i');
-                toggleIcon.className = 'fas fa-chevron-right toggle-icon';
-                headerActions.appendChild(toggleIcon);
-
-                tipHeader.appendChild(headerActions);
-                tipItem.appendChild(tipHeader);
-
-                // --- TIP CONTENT (Hidden detailed part) ---
-                const tipContent = document.createElement('div');
-                tipContent.className = 'tip-content';
-
-                // Image display
-                if (tip.imageUrl && tip.imageUrl.trim() !== '') {
-                    const leftPanel = document.createElement('div');
-                    leftPanel.className = 'left-panel';
-                    const img = document.createElement('img');
-                    img.className = 'carte-image';
-                    img.src = tip.imageUrl;
-                    img.alt = `Image pour ${tip.auteur || 'tip'}`;
-                    img.onerror = function() {
-                        // If image fails to load, remove the image panel and adjust layout
-                        this.onerror = null; // Prevent infinite loop
-                        this.closest('.tip-content').classList.add('no-image-layout');
-                        this.closest('.left-panel').remove();
-                    };
-                    leftPanel.appendChild(img);
-                    tipContent.appendChild(leftPanel);
-                } else {
-                    tipContent.classList.add('no-image-layout');
-                }
-
-                const infosWrapper = document.createElement('div');
-                infosWrapper.className = 'infos-wrapper';
-
-                // Tool Badge
-                const outilBadge = document.createElement('div');
-                outilBadge.className = 'outil-badge';
-                outilBadge.textContent = tip.outil || 'Outil Inconnu';
-                infosWrapper.appendChild(outilBadge);
-
-                // Description
-                const description = document.createElement('p');
-                description.className = 'tip-description';
-                description.textContent = tip.description || 'Pas de contenu détaillé fourni.';
-                infosWrapper.appendChild(description);
-
-                // PROMPT SECTION
-                if (tip.prompt && tip.prompt.trim() !== '') {
-                    const promptLabel = document.createElement('span');
-                    promptLabel.className = 'prompt-label';
-                    promptLabel.textContent = 'Prompt :';
-                    infosWrapper.appendChild(promptLabel);
-
-                    const promptTextDisplay = document.createElement('div');
-                    promptTextDisplay.className = 'prompt-text-display';
-                    promptTextDisplay.textContent = tip.prompt;
-
-                    const copyPromptBtn = document.createElement('button');
-                    copyPromptBtn.className = 'copy-prompt-btn';
-                    copyPromptBtn.innerHTML = '<i class="fas fa-copy"></i>';
-                    copyPromptBtn.title = 'Copier le prompt';
-                    copyPromptBtn.onclick = (e) => {
-                        e.stopPropagation(); // Prevent accordion toggle
-                        document.execCommand('copy'); // Copy to clipboard
-                        showCustomAlert('Prompt copié !'); // Use custom alert
-                    };
-                    promptTextDisplay.appendChild(copyPromptBtn);
-                    infosWrapper.appendChild(promptTextDisplay);
-                }
-
-                // Metadata Section
-                const metadataSection = document.createElement('div');
-                metadataSection.className = 'metadata-section';
-
-                function appendMetadata(label, value, className = '') {
-                    if (value) {
-                        const labelSpan = document.createElement('span');
-                        labelSpan.className = 'metadata-label';
-                        labelSpan.textContent = label + ' :';
-                        metadataSection.appendChild(labelSpan);
-
-                        const valueSpan = document.createElement('span');
-                        valueSpan.className = `metadata-value ${className}`;
-                        valueSpan.textContent = value;
-                        metadataSection.appendChild(valueSpan);
-                    }
-                }
-
-                appendMetadata('Auteur', tip.auteur, 'auteur-value');
-                appendMetadata('Chaîne', tip.chaine, 'chaine-value');
-                appendMetadata('Catégorie', tip.categorie);
-                appendMetadata('Date', tip.date ? new Date(tip.date).toLocaleDateString('fr-FR') : 'Date inconnue');
-
-                infosWrapper.appendChild(metadataSection);
-                tipContent.appendChild(infosWrapper);
-                tipItem.appendChild(tipContent);
-                tipsListDiv.appendChild(tipItem);
-            });
-        }
-
-        // Filters setup
-        function setupFiltres() {
-            const searchKeywordInput = document.getElementById('search-keyword');
-            const filtreOutilSelect = document.getElementById('filtre-outil');
-            const filtreChaineSelect = document.getElementById('filtre-chaine');
-            const filtreAuteurSelect = document.getElementById('filtre-auteur');
-
-            [searchKeywordInput, filtreOutilSelect, filtreChaineSelect, filtreAuteurSelect].forEach(element => {
-                element.addEventListener('input', applyFilters);
-                element.addEventListener('change', applyFilters);
-            });
-        }
-
-        // Apply filters to tips
-        function applyFilters() {
-            const keyword = document.getElementById('search-keyword').value.toLowerCase();
-            const selectedOutil = document.getElementById('filtre-outil').value;
-            const selectedChaine = document.getElementById('filtre-chaine').value;
-            const selectedAuteur = document.getElementById('filtre-auteur').value;
-
-            const filteredTips = tousLesTips.filter(tip => {
-                const matchesKeyword = !keyword ||
-                                       (tip.auteur && tip.auteur.toLowerCase().includes(keyword)) ||
-                                       (tip.outil && tip.outil.toLowerCase().includes(keyword)) ||
-                                       (tip.description && tip.description.toLowerCase().includes(keyword)) ||
-                                       (tip.titre && tip.titre.toLowerCase().includes(keyword)) ||
-                                       (tip.prompt && tip.prompt.toLowerCase().includes(keyword));
-
-                const matchesOutil = !selectedOutil || (tip.outil === selectedOutil);
-                const matchesChaine = !selectedChaine || (tip.chaine === selectedChaine);
-                const matchesAuteur = !selectedAuteur || (tip.auteur === selectedAuteur);
-
-                return matchesKeyword && matchesOutil && matchesChaine && matchesAuteur;
-            });
-            afficherTips(filteredTips);
-        }
-
-        // Color mapping for 'chaine'
-        function getChaineColor(chaine) {
-            switch (chaine) {
-                case 'La Une': return '#E60000'; // Rouge vif
-                case 'Tipik': return '#00BFFF'; // Bleu ciel
-                case 'La Trois': return '#FFD700'; // Or
-                case 'La première': return '#800080'; // Violet
-                case 'Classic 21': return '#FFA500'; // Orange
-                case 'Vivacité': return '#32CD32'; // Vert lime
-                case 'Musiq3': return '#FF69B4'; // Rose vif
-                case 'Auvio': return '#0066CC'; // Bleu profond
-                case 'Auvio Kids': return '#FF4500'; // Orange Rouge
-                default: return '#CCCCCC'; // Gris par défaut
-            }
-        }
-
-        // --- Custom Alert/Confirm Modal ---
-        // Styles pour le modal (à ajouter à votre section <style> existante si ce n'est pas déjà fait)
-        /*
-        .custom-modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
-        .custom-modal {
-            background-color: #fff;
-            padding: 25px 35px;
-            border-radius: 10px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-            text-align: center;
-            max-width: 400px;
-            width: 90%;
-            transform: translateY(-20px);
-            opacity: 0;
-            animation: fadeInModal 0.3s forwards;
-            position: relative;
-        }
-        .custom-modal h3 {
-            margin-top: 0;
-            color: #333;
-            font-size: 1.2em;
-            margin-bottom: 20px;
-        }
-        .custom-modal-buttons {
-            margin-top: 25px;
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-        .custom-modal-buttons button {
-            padding: 10px 25px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.95em;
-            font-weight: bold;
-            transition: background-color 0.2s, transform 0.1s;
-        }
-        .custom-modal-buttons button.confirm-btn {
-            background-color: #007bff;
-            color: white;
-        }
-        .custom-modal-buttons button.confirm-btn:hover {
-            background-color: #0056b3;
-            transform: translateY(-1px);
-        }
-        .custom-modal-buttons button.cancel-btn {
-            background-color: #f0f0f0;
-            color: #333;
-        }
-        .custom-modal-buttons button.cancel-btn:hover {
-            background-color: #e0e0e0;
-            transform: translateY(-1px);
-        }
-        @keyframes fadeInModal {
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        */
-
-        // Remplace alert() et confirm() par des modales personnalisées
-        function showCustomAlert(message) {
-            return new Promise(resolve => {
-                const overlay = document.createElement('div');
-                overlay.className = 'custom-modal-overlay';
-                const modal = document.createElement('div');
-                modal.className = 'custom-modal';
-                modal.innerHTML = `<h3>${message}</h3>
-                                   <div class="custom-modal-buttons">
-                                       <button class="confirm-btn">OK</button>
-                                   </div>`;
-                overlay.appendChild(modal);
-                document.body.appendChild(overlay);
-
-                modal.querySelector('.confirm-btn').onclick = () => {
-                    document.body.removeChild(overlay);
-                    resolve(true);
-                };
-            });
-        }
-
-        function showCustomConfirm(message) {
-            return new Promise(resolve => {
-                const overlay = document.createElement('div');
-                overlay.className = 'custom-modal-overlay';
-                const modal = document.createElement('div');
-                modal.className = 'custom-modal';
-                modal.innerHTML = `<h3>${message}</h3>
-                                   <div class="custom-modal-buttons">
-                                       <button class="confirm-btn">Oui</button>
-                                       <button class="cancel-btn">Annuler</button>
-                                   </div>`;
-                overlay.appendChild(modal);
-                document.body.appendChild(overlay);
-
-                modal.querySelector('.confirm-btn').onclick = () => {
-                    document.body.removeChild(overlay);
-                    resolve(true);
-                };
-                modal.querySelector('.cancel-btn').onclick = () => {
-                    document.body.removeChild(overlay);
-                    resolve(false);
-                };
-            });
-        }
-        // --- Fin Custom Alert/Confirm Modal ---
-
-
-        // --- Tooltip pour l'exemple ---
-        function showExampleTooltip(event) {
-            const tipItem = event.currentTarget;
-            const exempleText = tipItem.dataset.exemple;
-
-            if (exempleText) {
-                exampleTooltip.innerHTML = `<strong>Exemple :</strong> ${exempleText}`;
-                exampleTooltip.style.visibility = 'visible';
-                exampleTooltip.style.opacity = '1';
-
-                function moveTooltip(e) {
-                    // Positionnement du tooltip près de la souris, avec un léger décalage
-                    exampleTooltip.style.left = (e.clientX + 15) + 'px';
-                    exampleTooltip.style.top = (e.clientY + 15) + 'px';
-
-                    // Ajuster si le tooltip dépasse l'écran
-                    const rect = exampleTooltip.getBoundingClientRect();
-                    if (rect.right > window.innerWidth) {
-                        exampleTooltip.style.left = (e.clientX - rect.width - 15) + 'px';
-                    }
-                    if (rect.bottom > window.innerHeight) {
-                        exampleTooltip.style.top = (e.clientY - rect.height - 15) + 'px';
-                    }
-                }
-
-                tipItem.addEventListener('mousemove', moveTooltip);
-                // Stocker la fonction pour la supprimer lors de mouseleave
-                tipItem.dataset.moveTooltipHandler = 'true';
-            }
-        }
-
-        function hideExampleTooltip(event) {
-            const tipItem = event.currentTarget;
-            exampleTooltip.style.opacity = '0';
-            exampleTooltip.style.visibility = 'hidden';
-
-            if (tipItem.dataset.moveTooltipHandler) {
-                // Supprimer l'écouteur d'événement mousemove pour éviter les fuites de mémoire
-                tipItem.removeEventListener('mousemove', showExampleTooltip); // Attention: ceci ne supprimera pas correctement l'écouteur si moveTooltip était anonyme
-                // Meilleure approche: stocker la référence de la fonction moveTooltip dans dataset ou utiliser une fonction nommée
-                // Pour simplifier ici, on se contente de cacher et on assume que l'écouteur est géré.
-            }
-        }
-        // --- Fin Tooltip pour l'exemple ---
-
-    </script>
-</body>
-</html>
+                tipItem.datas
