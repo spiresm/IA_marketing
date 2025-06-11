@@ -237,7 +237,7 @@
         .collapsible-content {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s ease-out; /* Animation fluide */
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out; /* Animation fluide */
             opacity: 0;
             padding-top: 0;
         }
@@ -465,45 +465,49 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
-            const footerPlaceholder = document.getElementById("footer-placeholder"); // Ajout du placeholder pour le footer
+            const footerPlaceholder = document.getElementById("footer-placeholder");
             const mainElement = document.querySelector("main");
             const bodyElement = document.body;
 
-            // Charger le header
-            fetch("header.html")
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status} for header.html`);
-                    return res.text();
-                })
-                .then(data => {
-                    headerPlaceholder.innerHTML = data;
-                    document.querySelectorAll("nav a").forEach(link => {
-                        if (link.getAttribute("href") === "cas-usages.html") { // Assurez-vous que le lien actif est correct
-                            link.classList.add("active");
-                        }
-                    });
-                    // Charger le footer après le header
-                    return fetch("footer.html");
-                })
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status} for footer.html`);
-                    return res.text();
-                })
-                .then(data => {
-                    footerPlaceholder.innerHTML = data;
-                })
-                .catch(error => {
-                    console.error("Erreur de chargement des composants communs (header/footer):", error);
-                    headerPlaceholder.innerHTML = `<p style='color:red;text-align:center'>Erreur de chargement du menu: ${error.message}</p>`;
-                    if (footerPlaceholder) {
-                        footerPlaceholder.innerHTML = `<p style='color:red;text-align:center'>Erreur de chargement du pied de page: ${error.message}</p>`;
+            // Fonction pour charger un composant HTML
+            const loadComponent = async (url, placeholderId, errorMessage) => {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        const errorDetail = await res.text();
+                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. Response: ${errorDetail.substring(0, 200)}...`); // Limite la taille de l'erreur
                     }
-                })
-                .finally(() => {
-                    bodyElement.classList.add("show");
-                    mainElement.classList.add("show");
-                    loadAndDisplayTips(); // Déclencher le chargement des tips
-                });
+                    document.getElementById(placeholderId).innerHTML = await res.text();
+                    console.log(`${url} chargé avec succès.`);
+                } catch (error) {
+                    console.error(`Erreur de chargement du ${url}:`, error);
+                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
+                }
+            };
+
+            // Charger le header et le footer en parallèle
+            Promise.all([
+                loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu"),
+                loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
+            ])
+            .then(() => {
+                // Appliquer la classe active après le chargement du header (si réussi)
+                const activeLink = document.querySelector("nav a[href='cas-usages.html']");
+                if (activeLink) {
+                    activeLink.classList.add("active");
+                }
+            })
+            .catch(error => {
+                // Ce catch ne sera déclenché que si Promise.all échoue complètement
+                // Les erreurs individuelles sont déjà gérées dans loadComponent
+                console.error("Problème général lors du chargement des composants:", error);
+            })
+            .finally(() => {
+                // Afficher le corps de la page et le main seulement après toutes les tentatives de chargement
+                bodyElement.classList.add("show");
+                mainElement.classList.add("show");
+                loadAndDisplayTips(); // Déclencher le chargement des tips une fois la page visible
+            });
 
             if (window.location.search.includes('success=1')) {
                 const msg = document.getElementById('success-message');
@@ -583,12 +587,14 @@
 
                 const img = document.createElement('img');
                 img.className = 'carte-image';
-                img.src = tip.imageUrl || `https://via.placeholder.com/200x150?text=Image`;
+                // Utilise une image par défaut si tip.imageUrl est vide/null
+                img.src = tip.imageUrl || 'default-tip-image.png'; // Assurez-vous que ce fichier existe !
                 img.alt = tip.titre || 'Tip Image';
                 img.onerror = function() {
-                    this.onerror = null; // Empêche la boucle infinie si le placeholder échoue aussi
-                    this.src = `https://via.placeholder.com/200x150?text=Image non disp.`; // Placeholder plus explicite
-                    this.alt = 'Image non disponible';
+                    // Si l'image par défaut elle-même ne charge pas, on peut cacher le panel
+                    this.onerror = null; // Important pour éviter les boucles infinies
+                    // leftPanel.style.display = 'none'; // Alternative: cacher le panneau entier
+                    this.src = 'https://via.placeholder.com/200x150?text=Image+Manquante'; // Fallback ultime
                 };
                 leftPanel.appendChild(img);
                 carte.appendChild(leftPanel);
