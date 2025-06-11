@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Galerie des Tips et Prompts - iMarketing</title>
-    <link rel="stylesheet" href="style-galerie.css"> <style>
+    <style>
         /* Styles généraux pour l'opacité et les transitions, similaires à votre formulaire */
         body {
             opacity: 0;
@@ -65,18 +65,20 @@
 
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Responsive grid */
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Colonnes par défaut */
             gap: 25px;
         }
 
+        /* Styles pour la carte de tip */
         .tip-card {
             background: #fff;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
             overflow: hidden;
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            display: flex;
-            flex-direction: column;
+            display: flex; /* Utilisation de Flexbox */
+            flex-direction: column; /* Par défaut, les éléments sont empilés verticalement */
+            position: relative;
         }
 
         .tip-card:hover {
@@ -86,15 +88,16 @@
 
         .tip-card-image {
             width: 100%;
-            height: 200px; /* Hauteur fixe pour les images */
+            height: 200px; /* Hauteur fixe pour les images en mode vertical */
             object-fit: cover;
             border-bottom: 1px solid #eee;
-            background-color: #f9fafb; /* Couleur de fond si pas d'image */
+            background-color: #f9fafb;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #888;
             font-style: italic;
+            flex-shrink: 0; /* Empêche l'image de rétrécir */
         }
 
         .tip-card-content {
@@ -122,7 +125,7 @@
             color: #444;
             line-height: 1.5;
             margin-bottom: 15px;
-            flex-grow: 1; /* Permet à la description de prendre l'espace disponible */
+            flex-grow: 1;
         }
         
         .tip-card-prompt {
@@ -132,9 +135,9 @@
             margin-top: 10px;
             font-family: monospace;
             font-size: 0.9em;
-            white-space: pre-wrap; /* Conserve les sauts de ligne du prompt */
-            max-height: 150px; /* Limite la hauteur du prompt */
-            overflow-y: auto; /* Ajoute un scroll si le prompt est trop long */
+            white-space: pre-wrap;
+            max-height: 150px;
+            overflow-y: auto;
             border-radius: 0 5px 5px 0;
         }
 
@@ -147,9 +150,8 @@
         }
         
         .tip-card-footer span {
-            display: block; /* Chaque info sur une nouvelle ligne */
+            display: block;
         }
-
 
         .loader {
             display: block;
@@ -185,7 +187,7 @@
             width: fit-content;
             margin: 30px auto 0;
             padding: 12px 25px;
-            background: #28a745; /* Green button for adding tips */
+            background: #28a745;
             color: #fff;
             border: none;
             border-radius: 8px;
@@ -198,6 +200,53 @@
         .add-tip-button:hover {
             background: #218838;
         }
+
+        .delete-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 1.2em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .delete-button:hover {
+            background-color: #c82333;
+            transform: scale(1.05);
+        }
+
+        /* --- NOUVEAUX STYLES POUR CARTES HORIZONTALES / ADAPTATIVES --- */
+        @media (min-width: 768px) {
+            .tip-card.horizontal { /* Ajoutez cette classe pour forcer l'horizontal */
+                flex-direction: row; /* Disposition horizontale */
+                min-height: 250px; /* Hauteur minimale pour les cartes horizontales */
+            }
+
+            .tip-card.horizontal .tip-card-image {
+                width: 35%; /* L'image prend 35% de la largeur */
+                height: auto; /* La hauteur s'ajuste */
+                max-height: 100%; /* Limite la hauteur de l'image au conteneur */
+                border-bottom: none;
+                border-right: 1px solid #eee; /* Bordure entre image et contenu */
+            }
+
+            .tip-card.horizontal .tip-card-content {
+                width: 65%; /* Le contenu prend 65% de la largeur */
+                padding: 20px;
+            }
+        }
+        /* --- FIN NOUVEAUX STYLES --- */
 
         @media (max-width: 768px) {
             .gallery-grid {
@@ -233,7 +282,8 @@
     <script>
         const { ref, createApp, onMounted, computed } = Vue;
 
-        const GET_TIPS_URL = "/.netlify/functions/get-tips"; // L'URL de votre fonction Netlify
+        const GET_TIPS_URL = "/.netlify/functions/get-tips";
+        const DELETE_TIP_URL = "/.netlify/functions/delete-tip";
 
         const GalleryApp = {
             template: `
@@ -258,6 +308,11 @@
                             <option value="">Tous les auteurs</option>
                             <option v-for="auteur in uniqueAuteurs" :key="auteur" :value="auteur">{{ auteur }}</option>
                         </select>
+                        <select v-model="cardDisplayType">
+                            <option value="auto">Affichage Adaptatif</option>
+                            <option value="vertical">Vertical</option>
+                            <option value="horizontal">Horizontal</option>
+                        </select>
                     </div>
 
                     <div v-if="isLoading" class="loader"></div>
@@ -271,7 +326,11 @@
                         <p>Soyez le premier à en <a href="/creer-tip.html">partager un</a> !</p>
                     </div>
                     <div v-else class="gallery-grid">
-                        <div class="tip-card" v-for="tip in filteredTips" :key="tip.id">
+                        <div class="tip-card" 
+                             :class="{'horizontal': shouldBeHorizontal(tip)}" 
+                             v-for="tip in filteredTips" :key="tip.id">
+                            <button @click="confirmDelete(tip.id, tip.titre)" class="delete-button" title="Supprimer ce tip">✖</button>
+                            
                             <img v-if="tip.imageUrl" :src="tip.imageUrl" :alt="tip.titre" class="tip-card-image" />
                             <div v-else class="tip-card-image">
                                 <span>Pas d'image</span>
@@ -302,8 +361,8 @@
                 const searchText = ref('');
                 const selectedCategory = ref('');
                 const selectedAuthor = ref('');
+                const cardDisplayType = ref('auto'); // 'auto', 'vertical', 'horizontal'
 
-                // Récupérer les tips depuis la fonction Netlify
                 async function fetchTips() {
                     isLoading.value = true;
                     error.value = null;
@@ -324,20 +383,72 @@
                     }
                 }
 
-                // Exécuter la récupération des tips au montage du composant
-                onMounted(fetchTips);
+                async function confirmDelete(id, title) {
+                    if (confirm(`Êtes-vous sûr de vouloir supprimer le tip "${title}" ? Cette action est irréversible.`)) {
+                        await deleteTip(id);
+                    }
+                }
 
-                // Computed property pour obtenir les auteurs uniques pour le filtre
+                async function deleteTip(id) {
+                    isLoading.value = true;
+                    try {
+                        const response = await fetch(DELETE_TIP_URL, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: id })
+                        });
+
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`Échec de la suppression du tip: ${response.status} - ${errorText}`);
+                        }
+
+                        const result = await response.json();
+                        alert(result.message);
+
+                        await fetchTips(); 
+
+                    } catch (err) {
+                        console.error('Erreur lors de la suppression du tip:', err);
+                        alert(`Échec de la suppression du tip: ${err.message}. Vérifiez la console pour plus de détails.`);
+                    } finally {
+                        isLoading.value = false;
+                    }
+                }
+
+                // Fonction pour déterminer si une carte doit être horizontale
+                const shouldBeHorizontal = (tip) => {
+                    if (cardDisplayType.value === 'horizontal') {
+                        return true;
+                    }
+                    if (cardDisplayType.value === 'vertical') {
+                        return false;
+                    }
+                    // Logique "auto" : Si le prompt ou la description est longue, passer en horizontal sur desktop
+                    const isLongContent = (tip.description && tip.description.length > 150) || 
+                                         (tip.prompt && tip.prompt.length > 100);
+                    // On rend la carte horizontale seulement si l'écran est assez large
+                    return isLongContent && window.innerWidth >= 768; // Exemple de seuil
+                };
+
+
+                onMounted(() => {
+                    fetchTips();
+                    // Ajoute un écouteur pour re-évaluer shouldBeHorizontal lors du redimensionnement
+                    window.addEventListener('resize', () => {
+                        // Forcer une mise à jour des computed properties si nécessaire
+                        // Le simple fait que window.innerWidth change suffit généralement à réévaluer
+                    });
+                });
+
                 const uniqueAuteurs = computed(() => {
                     const auteursSet = new Set(tips.value.map(tip => tip.auteur).filter(Boolean));
                     return Array.from(auteursSet).sort();
                 });
 
-                // Computed property pour filtrer les tips
                 const filteredTips = computed(() => {
                     let filtered = tips.value;
 
-                    // Filtrage par texte
                     if (searchText.value) {
                         const lowerSearchText = searchText.value.toLowerCase();
                         filtered = filtered.filter(tip =>
@@ -349,12 +460,10 @@
                         );
                     }
 
-                    // Filtrage par catégorie
                     if (selectedCategory.value) {
                         filtered = filtered.filter(tip => tip.categorie === selectedCategory.value);
                     }
 
-                    // Filtrage par auteur
                     if (selectedAuthor.value) {
                         filtered = filtered.filter(tip => tip.auteur === selectedAuthor.value);
                     }
@@ -369,9 +478,11 @@
                     searchText,
                     selectedCategory,
                     selectedAuthor,
+                    cardDisplayType, // Exposer la variable de contrôle du type d'affichage
                     uniqueAuteurs,
                     filteredTips,
-                    fetchTips // Peut être utile pour un bouton de rechargement si nécessaire
+                    confirmDelete,
+                    shouldBeHorizontal // Exposer la fonction pour le template
                 };
             }
         };
