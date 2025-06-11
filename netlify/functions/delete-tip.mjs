@@ -1,68 +1,184 @@
-// .netlify/functions/delete-tip.mjs
-import { Client, fql } from 'faunadb'; // Importe le client et FQL de FaunaDB
+// netlify/functions/delete-tip.mjs
+import fetch from 'node-fetch'; // Assurez-vous que 'node-fetch' est installé (npm install node-fetch)
 
-// Initialise le client FaunaDB.
-// La clé secrète doit être stockée dans les variables d'environnement de votre site Netlify.
-// Allez sur votre tableau de bord Netlify -> Site settings -> Build & deploy -> Environment variables.
-// Ajoutez une variable nommée FAUNADB_SECRET_KEY avec votre clé d'accès FaunaDB.
-const client = new Client({
-    secret: process.env.FAUNADB_SECRET_KEY,
-});
-
-export const handler = async (event, context) => {
+export const handler = async (event) => {
     console.log("------------------- Début de l'exécution de delete-tip.mjs -------------------");
     console.log("Méthode HTTP reçue:", event.httpMethod);
-    console.log("Corps de l'événement reçu:", event.body);
+    console.log("Corps de l'événement reçu:", event.body); // Le frontend envoie l'ID dans le body, pas la query string pour delete-tip.mjs
 
-    // S'assure que seule la méthode DELETE est acceptée pour cette fonction.
+    // Vérifier la méthode HTTP pour s'assurer que c'est un DELETE
     if (event.httpMethod !== 'DELETE') {
         return {
-            statusCode: 405, // Code pour "Méthode non autorisée"
-            body: JSON.stringify({ message: 'Méthode non autorisée. Seul DELETE est accepté.' }),
+            statusCode: 405,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ success: false, message: 'Méthode non autorisée. Utilisez DELETE.' }),
+        };
+    }
+
+    // Récupérer l'ID du tip depuis le corps de la requête (comme vos logs l'indiquent)
+    let id;
+    try {
+        const data = JSON.parse(event.body);
+        id = data.id;
+        console.log("ID extrait du corps:", id);
+    } catch (parseError) {
+        console.error("❌ delete-tip: Erreur de parsing du corps de la requête JSON:", parseError);
+        return {
+            statusCode: 400,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ success: false, message: "Format de requête invalide. Le corps doit être un JSON avec un 'id'." }),
+        };
+    }
+
+    if (!id) {
+        console.error("❌ delete-tip: ID manquant dans le corps de la requête.");
+        return {
+            statusCode: 400,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ success: false, message: "ID du tip manquant. Impossible de supprimer." }),
         };
     }
 
     try {
-        // Parse le corps de la requête pour extraire l'ID.
-        // On s'attend à recevoir un JSON comme ceci: { "id": "votre-id-du-tip" }
-        const data = JSON.parse(event.body);
-        const { id } = data;
+        // --- Variables de configuration GitHub ---
+        // Assurez-vous que ces variables d'environnement sont configurées sur Netlify
+        // GITHUB_TOKEN (avec les droits de suppression sur le dépôt)
+        // GITHUB_OWNER et GITHUB_REPO (le propriétaire et le nom de votre dépôt)
+        // TIPS_FOLDER_PATH (le dossier où vos fichiers de tips sont stockés, ex: "tips" ou "data/tips")
+        const token = process.env.GITHUB_TOKEN;
+        const repoOwner = process.env.GITHUB_OWNER || "spiresm"; // Utilisez votre propriétaire de dépôt réel
+        const repoName = process.env.GITHUB_REPO || "IA_marketing"; // Utilisez le nom de votre dépôt réel
+        const tipsFolderPath = process.env.TIPS_FOLDER_PATH || "tips"; // <--- A MODIFIER si votre dossier de tips est différent !
 
-        console.log("ID reçu pour suppression:", id);
-
-        // Vérifie si l'ID est bien présent dans la requête.
-        if (!id) {
-            console.error("Erreur: L'ID du tip est manquant dans le corps de la requête.");
+        if (!token) {
+            console.error("❌ delete-tip: GITHUB_TOKEN manquant. Veuillez le configurer.");
             return {
-                statusCode: 400, // Code pour "Mauvaise requête"
-                body: JSON.stringify({ message: 'ID du tip manquant dans la requête.' }),
+                statusCode: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ success: false, message: "GITHUB_TOKEN manquant. Impossible de supprimer le tip. Contactez l'administrateur." }),
             };
         }
 
-        // Exécute la commande de suppression dans FaunaDB.
-        // Cette ligne suppose que 'tips' est le nom de votre collection dans FaunaDB
-        // et que l'ID que vous envoyez est le Ref ID unique du document dans FaunaDB.
-        console.log(`Tentative de suppression du tip avec l'ID FaunaDB: ${id}`);
-        const result = await client.query(
-            fql`tips.byId(${id}).delete()`
-            // Si vous n'utilisez pas FQL mais l'ancienne API Query Language (q), ce serait:
-            // q.Delete(q.Ref(q.Collection('tips'), id))
-        );
+        // Reconstruire le nom du fichier complet avec l'extension
+        // Si vos IDs incluent déjà l'extension (ex: "tip-123.json"), vous pouvez laisser juste `${id}`.
+        // Sinon, ajoutez l'extension appropriée (ex: ".json" ou ".md").
+        const fileName = `${id}.json`; // <--- A MODIFIER si l'extension est différente ! (ex: `${id}.md`)
+        const filePath = `${tipsFolderPath}/${fileName}`; // Le chemin complet du fichier dans le dépôt
 
-        console.log('Suppression réussie ! Résultat de FaunaDB:', result);
+        console.log(`📡 delete-tip: Tentative de suppression du fichier ${filePath} (ID: ${id}) sur GitHub.`);
 
-        // Retourne une réponse de succès au frontend.
+        // --- Étape 1 : Obtenir le SHA actuel du fichier ---
+        // L'API GitHub DELETE requiert le SHA du fichier que vous voulez supprimer.
+        // Nous devons d'abord faire un GET sur le fichier pour récupérer son SHA.
+        const getFileUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+        console.log(`📡 delete-tip: Récupération du SHA pour ${getFileUrl}`);
+
+        const fileInfoRes = await fetch(getFileUrl, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "Netlify-Function-deleteTip" // Nom d'agent utilisateur
+            },
+        });
+
+        if (!fileInfoRes.ok) {
+            const errorText = await fileInfoRes.text();
+            let errorMessage = `Erreur GitHub lors de la récupération du SHA du fichier: ${fileInfoRes.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.message || errorMessage;
+            } catch (jsonParseError) {
+                errorMessage += ` - ${errorText.substring(0, 200)}... (non-JSON)`;
+            }
+            console.error(`❌ delete-tip: ${errorMessage}`);
+            // Gérer le cas où le fichier n'existe pas (404) comme un succès de suppression ( idempotent )
+            if (fileInfoRes.status === 404) {
+                 console.log(`✅ delete-tip: Fichier ${fileName} introuvable sur GitHub (déjà supprimé ?). Traitement comme succès.`);
+                 return {
+                    statusCode: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ success: true, message: `Tip ${id} déjà supprimé ou introuvable.` }),
+                 };
+            }
+            return {
+                statusCode: fileInfoRes.status,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ success: false, message: `Impossible de récupérer les informations du fichier (${id}) pour la suppression: ${errorMessage}` }),
+            };
+        }
+
+        const fileData = await fileInfoRes.json();
+        const fileSha = fileData.sha; // C'est le SHA dont nous avons besoin pour la suppression
+
+        if (!fileSha) {
+            console.error(`❌ delete-tip: SHA du fichier ${filePath} introuvable.`);
+            return {
+                statusCode: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ success: false, message: `SHA du fichier ${id} introuvable. Impossible de supprimer.` }),
+            };
+        }
+
+        console.log(`✅ delete-tip: SHA du fichier ${filePath} récupéré: ${fileSha}`);
+
+        // --- Étape 2 : Envoyer la requête DELETE à GitHub ---
+        const deleteApiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+        console.log(`📡 delete-tip: Envoi de la requête DELETE à ${deleteApiUrl}`);
+
+        const deleteRes = await fetch(deleteApiUrl, {
+            method: "DELETE",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Accept": "application/vnd.github.v3+json",
+                "Content-Type": "application/json", // Important pour les requêtes POST/PUT/DELETE
+                "User-Agent": "Netlify-Function-deleteTip"
+            },
+            body: JSON.stringify({
+                message: `Suppression du tip: ${fileName}`, // Message de commit sur GitHub
+                sha: fileSha, // Le SHA du fichier que nous venons de récupérer
+            }),
+        });
+
+        if (!deleteRes.ok) {
+            const errorText = await deleteRes.text();
+            let errorMessage = `Erreur GitHub lors de la suppression du fichier: ${deleteRes.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.message || errorMessage;
+            } catch (jsonParseError) {
+                errorMessage += ` - ${errorText.substring(0, 200)}... (non-JSON)`;
+            }
+            console.error(`❌ delete-tip: ${errorMessage}`);
+            return {
+                statusCode: deleteRes.status,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ success: false, message: `Erreur lors de la suppression du tip sur GitHub: ${errorMessage}` }),
+            };
+        }
+
+        console.log(`✅ delete-tip: Fichier ${fileName} supprimé avec succès sur GitHub.`);
+
         return {
-            statusCode: 200, // Code pour "OK"
-            body: JSON.stringify({ message: 'Tip supprimé avec succès!' }),
+            statusCode: 200,
+            headers: {
+                'Content-Type': 'application/json',
+                "Access-Control-Allow-Origin": "*", // Important pour les requêtes CORS depuis votre frontend
+                "Access-Control-Allow-Methods": "DELETE",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            body: JSON.stringify({ success: true, message: `Tip ${id} supprimé avec succès.` }),
         };
 
     } catch (error) {
-        // Capture et logue toute erreur survenue pendant l'exécution de la fonction.
-        console.error('Erreur lors de la suppression du tip dans la fonction Netlify:', error);
+        console.error('❌ delete-tip: Erreur générale lors de la suppression du tip :', error);
         return {
-            statusCode: 500, // Code pour "Erreur interne du serveur"
-            body: JSON.stringify({ message: `Erreur interne du serveur lors de la suppression: ${error.message}` }),
+            statusCode: 500,
+            headers: {
+                'Content-Type': 'application/json',
+                "Access-Control-Allow-Origin": "*" // CORS
+            },
+            body: JSON.stringify({ success: false, message: `Erreur interne du serveur lors de la suppression du tip: ${error.message}` }),
         };
     } finally {
         console.log("------------------- Fin de l'exécution de delete-tip.mjs -------------------");
