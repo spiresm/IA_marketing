@@ -9,19 +9,22 @@ export const handler = async (event) => {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
-    // Récupération des variables d'environnement
+    // Récupération des variables d'environnement en utilisant VOS NOMS DE VARIABLES EXISTANTS
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const OWNER = process.env.GITHUB_REPO_OWNER;
-    const REPO = process.env.GITHUB_REPO_NAME;
+    const OWNER = process.env.GITHUB_OWNER; // <-- Modifié : utilise GITHUB_OWNER
+    const REPO = process.env.GITHUB_REPO;   // <-- Modifié : utilise GITHUB_REPO
     const TIPS_FILE_PATH = process.env.TIPS_FILE_PATH || 'data/tips.json'; // Chemin par défaut si non défini
 
     // Vérification des variables d'environnement essentielles
+    // La validation se base maintenant sur les noms que vous utilisez.
     if (!GITHUB_TOKEN || !OWNER || !REPO) {
         console.error('Missing GitHub environment variables for saveTip!');
         return {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: 'Missing GitHub configuration. Please check Netlify environment variables.' }),
+            body: JSON.stringify({ 
+                message: 'Configuration GitHub manquante. Veuillez vérifier GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO dans vos variables d\'environnement Netlify.' 
+            }),
         };
     }
 
