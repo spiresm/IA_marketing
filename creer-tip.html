@@ -179,8 +179,15 @@
         const { ref, createApp, onMounted } = Vue;
 
         const PROXY_URL = "/.netlify/functions/proxy"; // Pour récupérer les profils
-        const UPLOAD_IMAGE_URL = "/.netlify/functions/uploadImage"; // Pour uploader l'image
-        const SAVE_TIP_URL = "/.netlify/functions/saveTip"; // Pour sauvegarder le tip
+        // Note: La fonction `uploadImage` est remplacée par la logique dans `save-tip.mjs`
+        // Vous n'avez plus besoin d'un UPLOAD_IMAGE_URL séparé si save-tip.mjs gère tout.
+        // Si vous avez toujours une fonction uploadImage distincte, conservez cette ligne.
+        // Sinon, vous pouvez la supprimer et adapter submitForm().
+        const UPLOAD_IMAGE_URL = "/.netlify/functions/uploadImage"; // À reconsidérer si saveTip gère tout.
+
+        // J'ai renommé saveTip en save-tip pour suivre la convention de nommage recommandée par Netlify.
+        // Assurez-vous que le fichier de votre fonction s'appelle bien netlify/functions/save-tip.mjs (ou .js)
+        const SAVE_TIP_URL = "/.netlify/functions/save-tip"; 
 
         const TipForm = {
             template: `
@@ -214,14 +221,38 @@
                             <option>Réseaux Sociaux</option>
                             <option>SEO</option>
                             <option>Contenu</option>
-                            <option>Publicité</option>                            
+                            <option>Publicité</option>
                             <option>Outils IA</option>
                             <option>Stratégie</option>
                             <option>Autre</option>
                         </select>
 
-                        <label for="plateforme">Plateforme / Outil (si applicable)</label>
-                        <input type="text" id="plateforme" v-model="plateforme" placeholder="Ex: Google Ads, Canva, ChatGPT" />
+                        <label for="outil">Plateforme / Outil (si applicable)</label>
+                        <input type="text" id="outil" v-model="outil" placeholder="Ex: Google Ads, Canva, ChatGPT" />
+
+                        <label for="chaine">Chaîne (si applicable)</label>
+                        <select id="chaine" v-model="chaine">
+                            <option value="">Sélectionnez une chaîne</option>
+                            <option>La Une</option>
+                            <option>Play Media</option>
+                            <option>Tipik</option>
+                            <option>RTL</option>
+                            <option>LN24</option>
+                            <option>BX1</option>
+                            <option>TV Lux</option>
+                            <option>Antenne Centre</option>
+                            <option>Canal C</option>
+                            <option>Matélé</option>
+                            <option>RTC Télé Liège</option>
+                            <option>TV Com</option>
+                            <option>Védia</option>
+                            <option>WapTv</option>
+                            <option>Autre</option>
+                        </select>
+
+                        <label for="exemple">Exemple d'utilisation (si applicable)</label>
+                        <textarea id="exemple" v-model="exempleText" rows="3" placeholder="Donnez un exemple concret d'utilisation du prompt ou du tip..."></textarea>
+
 
                         <label>Image d'illustration (optionnel)</label>
                         <div id="drop-zone"
@@ -244,6 +275,8 @@
                         <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
                         <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
                         <p v-if="confirmationPromptText" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
+                        <p v-if="confirmationChaine" style="white-space: pre-wrap;">**Chaîne:** {{ confirmationChaine }}</p>
+                        <p v-if="confirmationExempleText" style="white-space: pre-wrap;">**Exemple:** {{ confirmationExempleText }}</p>
                         <p style="margin-top: 15px; color: #0077b6;">Redirection vers les cas d'usages dans 5 secondes...</p>
                     </div>
                 </div>
@@ -254,7 +287,9 @@
                 const description = ref('');
                 const promptText = ref('');
                 const categorie = ref('Marketing Digital');
-                const plateforme = ref('');
+                const outil = ref(''); // CORRIGÉ: Renommé de 'plateforme' à 'outil'
+                const chaine = ref(''); // AJOUTÉ
+                const exempleText = ref(''); // AJOUTÉ
                 const fileInput = ref(null);
                 const imagePreviewUrl = ref('');
                 const confirmationVisible = ref(false);
@@ -262,6 +297,8 @@
                 const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
                 const confirmationPromptText = ref('');
+                const confirmationChaine = ref(''); // AJOUTÉ pour confirmation
+                const confirmationExempleText = ref(''); // AJOUTÉ pour confirmation
                 const isLoading = ref(false);
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
@@ -275,7 +312,6 @@
                             throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
                         }
                         const data = await response.json();
-                        // Nettoyage pour s'assurer que data est un tableau de noms ou d'objets avec un champ 'name'
                         const profilsList = Array.isArray(data) ? data : (data.profils || []);
                         const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
@@ -326,6 +362,7 @@
                 function handleFile(file) {
                     const reader = new FileReader();
                     reader.onload = () => { imagePreviewUrl.value = reader.result; };
+                    reader.onerror = (error) => console.error("Erreur lecture fichier:", error);
                     reader.readAsDataURL(file);
                 }
 
@@ -356,40 +393,33 @@
                     isLoading.value = true;
 
                     let imageUrl = '';
+                    let imageData = null;
+                    let imageFileName = null;
                     const file = fileInput.value?.files?.[0];
 
                     try {
-                        // 1. Upload de l'image (si présente)
+                        // Préparer les données de l'image si un fichier est sélectionné
                         if (file) {
-                            const base64 = await getBase64(file);
-                            const payload = { fileBase64: base64, fileName: file.name };
-                            const resp = await fetch(UPLOAD_IMAGE_URL, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
-                            });
-
-                            if (!resp.ok) {
-                                const errorText = await resp.text();
-                                throw new Error(`Échec de l'upload de l'image: ${resp.status} - ${errorText}`);
-                            }
-                            const data = await resp.json();
-                            imageUrl = data.url;
-                            console.log("Image uploadée avec succès:", imageUrl);
+                            imageData = await getBase64(file);
+                            imageFileName = file.name;
                         }
 
-                        // 2. Enregistrement du tip (avec l'URL de l'image si uploadée)
+                        // Envoyer toutes les données (y compris image data si présente) à save-tip.mjs
                         const tipResp = await fetch(SAVE_TIP_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
+                                id: `tip-${Date.now()}`, // Générer un ID unique ici pour un nouveau tip
                                 auteur: auteur.value,
                                 titre: titre.value,
                                 description: description.value,
                                 prompt: promptText.value,
                                 categorie: categorie.value,
-                                plateforme: plateforme.value,
-                                imageUrl: imageUrl
+                                outil: outil.value, // CORRIGÉ: S'assurer que c'est 'outil' ici
+                                chaine: chaine.value, // AJOUTÉ
+                                exemple: exempleText.value, // AJOUTÉ
+                                imageData: imageData,       // AJOUTÉ: données brutes de l'image
+                                imageFileName: imageFileName // AJOUTÉ: nom du fichier image
                             })
                         });
 
@@ -398,11 +428,17 @@
                             throw new Error(`Échec de l'enregistrement du tip: ${tipResp.status} - ${errorText}`);
                         }
 
+                        const result = await tipResp.json();
+                        // L'URL de l'image retournée par la fonction save-tip.mjs
+                        imageUrl = result.imageUrl || (imagePreviewUrl.value ? imagePreviewUrl.value : '');
+
                         // Confirmation et redirection
                         confirmationImageUrl.value = imageUrl;
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
                         confirmationPromptText.value = promptText.value;
+                        confirmationChaine.value = chaine.value; // Pour confirmation
+                        confirmationExempleText.value = exempleText.value; // Pour confirmation
                         confirmationVisible.value = true;
 
                         setTimeout(() => {
@@ -415,12 +451,14 @@
                         description.value = '';
                         promptText.value = '';
                         categorie.value = 'Marketing Digital';
-                        plateforme.value = '';
+                        outil.value = '';
+                        chaine.value = ''; // Réinitialiser
+                        exempleText.value = ''; // Réinitialiser
                         imagePreviewUrl.value = '';
                         if (fileInput.value) {
-                            fileInput.value.value = null;
+                            fileInput.value.value = null; // Réinitialiser le champ input type="file"
                         }
-                        fetchProfils();
+                        fetchProfils(); // Recharger les profils si nécessaire
                     } catch (err) {
                         console.error('Erreur lors de l\'envoi du tip:', err);
                         alert(`Échec de l'envoi du tip: ${err.message || err}. Vérifiez la console pour plus de détails.`);
@@ -430,9 +468,10 @@
                 }
 
                 return {
-                    auteur, titre, description, promptText, categorie, plateforme, fileInput,
+                    auteur, titre, description, promptText, categorie, outil, chaine, exempleText, fileInput, // Ajouté 'outil', 'chaine', 'exempleText'
                     imagePreviewUrl, confirmationVisible,
                     confirmationImageUrl, confirmationTitre, confirmationDescription, confirmationPromptText,
+                    confirmationChaine, confirmationExempleText, // Ajouté pour confirmation
                     isLoading, profilsAuteurs, isLoadingProfils,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
                 };
