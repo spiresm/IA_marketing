@@ -2,6 +2,7 @@
 import { Octokit } from "@octokit/core";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Buffer } from 'buffer';
+import fetch from 'node-fetch'; // <--- NOUVEL IMPORT NÉCESSAIRE
 
 const MyOctokit = Octokit.plugin(restEndpointMethods);
 
@@ -13,7 +14,7 @@ export const handler = async (event, context) => {
     const TIPS_FILE_PATH = process.env.TIPS_FILE_PATH || 'data/all-tips.json';
 
     if (!GITHUB_TOKEN || !OWNER || !REPO) {
-        console.error('❌ get-tips: Configuration de l\'API GitHub (TOKEN, OWNER, REPO) manquante. Veuillez vérifier vos variables d\'environnement Netlify.');
+        console.error('❌ get-tips: Configuration de l\'API GitHub (TOKEN, OWNER, REPO) manquante.');
         return {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
@@ -24,36 +25,41 @@ export const handler = async (event, context) => {
     const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
 
     try {
-        console.log(`📡 get-tips: Tentative de récupération du fichier: ${TIPS_FILE_PATH} depuis <span class="math-inline">\{OWNER\}/</span>{REPO}`);
-        const response = await octokit.rest.repos.getContent({ // CHANGÉ : capture la réponse complète
+        console.log(`📡 get-tips: Tentative de récupération des métadonnées du fichier: ${TIPS_FILE_PATH} depuis ${OWNER}/${REPO}`);
+        const response = await octokit.rest.repos.getContent({
             owner: OWNER,
             repo: REPO,
             path: TIPS_FILE_PATH,
             ref: 'main',
         });
 
-        // --- NOUVEAU LOG CLÉ ---
-        console.log('✅ get-tips: Réponse complète de GitHub (data):', JSON.stringify(response.data, null, 2));
-        // --- FIN NOUVEAU LOG CLÉ ---
+        const fileMetadata = response.data; // Ceci contient les infos sur le fichier, pas le contenu s'il est trop gros
 
-        const fileData = response.data; // Utilisez cette variable pour plus de clarté
+        console.log('✅ get-tips: Métadonnées du fichier récupérées de GitHub.');
+        console.log('📡 get-tips: Réponse complète de GitHub (métadonnées):', JSON.stringify(fileMetadata, null, 2)); // Gardons ce log pour référence
 
-        // Vérifiez si data.content existe et n'est pas vide
-        if (!fileData || !fileData.content) {
-            console.error('❌ get-tips: data.content est manquant ou vide dans la réponse GitHub.');
-            return {
-                statusCode: 500,
-                headers: { 'Content-Type': 'application/json', "Access-Control-Allow-Origin": "*" },
-                body: JSON.stringify({ success: false, message: `Erreur interne du serveur: Le contenu du fichier tips n'a pas été trouvé dans la réponse de GitHub.` }),
-            };
+        // Vérifier si le contenu est directement présent ou si nous devons utiliser download_url
+        let content;
+        if (fileMetadata.content && fileMetadata.encoding === 'base64') {
+            console.log('📡 get-tips: Contenu directement présent (taille < 1MB).');
+            content = Buffer.from(fileMetadata.content, 'base64').toString('utf8');
+        } else if (fileMetadata.download_url) {
+            console.log(`📡 get-tips: Contenu non direct (taille >= 1MB ou encodage "none"). Utilisation de download_url: ${fileMetadata.download_url}`);
+            // Faire une nouvelle requête pour récupérer le contenu brut
+            const rawResponse = await fetch(fileMetadata.download_url);
+            if (!rawResponse.ok) {
+                throw new Error(`Failed to download raw content: ${rawResponse.statusText}`);
+            }
+            content = await rawResponse.text(); // Le contenu est directement le texte du fichier
+            console.log(`✅ get-tips: Contenu téléchargé via download_url. Longueur: ${content.length}`);
+        } else {
+            // Cas inattendu : ni content ni download_url
+            console.error('❌ get-tips: Réponse GitHub inattendue, ni content ni download_url disponibles.');
+            throw new Error('Impossible de récupérer le contenu du fichier tips: Format de réponse GitHub inattendu.');
         }
 
-        const contentBase64 = fileData.content;
-        console.log(`📡 get-tips: Longueur du contenu encodé en base64 reçu: ${contentBase64.length}`); // Plus de N/A ici si le check passe
-
-        const content = Buffer.from(contentBase64, 'base64').toString('utf8');
-        console.log(`📡 get-tips: Longueur du contenu décodé: ${content.length}`); // Plus de N/A ici si le check passe
-        // console.log('📡 get-tips: Contenu décodé (début):', content.substring(0, 500)); // Décommentez si vous voulez voir un extrait
+        console.log(`📡 get-tips: Longueur du contenu décodé (final): ${content ? content.length : 'N/A'}`);
+        // console.log('📡 get-tips: Contenu décodé (début):', content.substring(0, 500)); // Décommentez pour un aperçu
 
         const tips = JSON.parse(content);
         console.log(`✅ get-tips: JSON parsé avec succès. ${tips.length} tips trouvés.`);
@@ -86,7 +92,7 @@ export const handler = async (event, context) => {
                 body: JSON.stringify([]),
             };
         }
-
+        
         console.error('❌ get-tips: Erreur inattendue:', error);
         return {
             statusCode: 500,
