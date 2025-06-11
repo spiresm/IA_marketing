@@ -338,13 +338,17 @@
                         <option>Auvio</option>
                         <option>Auvio Kids</option>
                     </select>
-                    <select id="filtre-categorie"> <option value="">Toutes les catégories</option>
+                    <select id="filtre-categorie">
+                        <option value="">Toutes les catégories</option>
                         <option>Texte</option>
                         <option>Image</option>
                         <option>Vidéo</option>
                         <option>Audio</option>
                         <option>Développement</option>
                         <option>Autre</option>
+                    </select>
+                    <select id="filtre-auteur">
+                        <option value="">Tous les auteurs</option>
                     </select>
                     <select id="filtre-tri">
                         <option value="recent">Plus récent</option>
@@ -368,7 +372,8 @@
 
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
-        let tousLesTips = []; // Variable renommée
+        const PROXY_URL = "/.netlify/functions/proxy"; // Ajoutez cette ligne
+        let tousLesTips = [];
 
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
@@ -380,7 +385,6 @@
                 .then(data => {
                     headerPlaceholder.innerHTML = data;
                     document.querySelectorAll("nav a").forEach(link => {
-                        // Mettre à jour la classe active pour cas-usages.html
                         if (link.getAttribute("href") === "cas-usages.html") {
                             link.classList.add("active");
                         }
@@ -393,70 +397,96 @@
                 .finally(() => {
                     bodyElement.classList.add("show");
                     mainElement.classList.add("show");
-                    chargerEtAfficherTips(); // Appel à la fonction mise à jour
+                    chargerEtAfficherTips();
+                    chargerAuteursPourFiltre(); // Charge les auteurs pour le filtre
                 });
 
-            // Gérer le message de succès après redirection depuis creer-tip.html
             if (window.location.search.includes('success=1')) {
                 const msg = document.getElementById('success-message');
-                msg.textContent = '✅ Tip ajouté avec succès !'; // Message mis à jour
+                msg.textContent = '✅ Tip ajouté avec succès !';
                 msg.style.opacity = '1';
                 setTimeout(() => msg.style.opacity = '0', 2000);
                 setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
             }
         });
 
-        async function chargerEtAfficherTips() { // Fonction renommée
-            const tipsListDiv = document.getElementById('tips-list'); // ID mis à jour
-            tipsListDiv.innerHTML = '<p>Chargement des tips...</p>'; // Message mis à jour
+        async function chargerEtAfficherTips() {
+            const tipsListDiv = document.getElementById('tips-list');
+            tipsListDiv.innerHTML = '<p>Chargement des tips...</p>';
 
             try {
-                const response = await fetch(`${apiBase}get-tips`); // Correction du nom de la fonction
+                const response = await fetch(`${apiBase}get-tips`);
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
                 }
-                const tips = await response.json(); // Variable renommée
-                tousLesTips = tips; // Variable renommée
-                console.log("Tips récupérés :", tips); // Message mis à jour
+                const tips = await response.json();
+                tousLesTips = tips;
+                console.log("Tips récupérés :", tips);
 
                 if (tips.length === 0) {
-                    tipsListDiv.innerHTML = '<p>Aucun tip trouvé pour le moment.</p>'; // Message mis à jour
+                    tipsListDiv.innerHTML = '<p>Aucun tip trouvé pour le moment.</p>';
                 } else {
-                    afficherTips(tips); // Appel à la fonction mise à jour
+                    afficherTips(tips);
                     setupFiltres();
                 }
             } catch (error) {
-                console.error("Erreur lors du chargement des tips:", error); // Message mis à jour
-                tipsListDiv.innerHTML = `<p style="color:red;">Erreur lors du chargement des tips : ${error.message}</p>`; // Message mis à jour
+                console.error("Erreur lors du chargement des tips:", error);
+                tipsListDiv.innerHTML = `<p style="color:red;">Erreur lors du chargement des tips : ${error.message}</p>`;
             }
         }
 
-        function afficherTips(tips) { // Fonction renommée
-            const tipsListDiv = document.getElementById('tips-list'); // ID mis à jour
+        async function chargerAuteursPourFiltre() {
+            const filtreAuteurSelect = document.getElementById('filtre-auteur');
+            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>'; // Réinitialise les options
+
+            try {
+                const response = await fetch(`${PROXY_URL}?action=getProfils`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                const data = await response.json();
+                const profilsList = Array.isArray(data) ? data : (data.profils || []);
+                // Utilisez un Set pour obtenir des noms uniques, puis triez-les
+                const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
+
+                if (names.length > 0) {
+                    names.forEach(nom => {
+                        const option = document.createElement('option');
+                        option.value = nom;
+                        option.textContent = nom;
+                        filtreAuteurSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error("Erreur lors du chargement des profils pour le filtre auteur :", error);
+                // Optionnellement, vous pouvez ajouter un message à l'utilisateur ici
+            }
+        }
+
+        function afficherTips(tips) {
+            const tipsListDiv = document.getElementById('tips-list');
             tipsListDiv.innerHTML = '';
 
             if (tips.length === 0) {
-                tipsListDiv.innerHTML = '<p>Aucun tip ne correspond aux filtres.</p>'; // Message mis à jour
+                tipsListDiv.innerHTML = '<p>Aucun tip ne correspond aux filtres.</p>';
                 return;
             }
 
-            tips.forEach(tip => { // Variable renommée
+            tips.forEach(tip => {
                 const carte = document.createElement('div');
                 carte.className = 'carte';
-                const tipId = tip.id || `temp-id-${Math.random().toString(36).substring(2, 9)}`; // `tip.id` doit venir de votre base de données
-                carte.dataset.tipId = tipId; // dataset mis à jour
+                const tipId = tip.id || `temp-id-${Math.random().toString(36).substring(2, 9)}`;
+                carte.dataset.tipId = tipId;
 
                 const chaineColor = getChaineColor(tip.chaine);
                 carte.style.borderLeftColor = chaineColor;
 
-                // Panneau gauche (pour l'image)
                 const leftPanel = document.createElement('div');
                 leftPanel.className = 'left-panel';
 
                 const img = document.createElement('img');
                 img.className = 'carte-image';
-                // Assurez-vous que tip.imageUrl contient l'URL complète de l'image (par ex: /images/monimage.jpeg)
                 img.src = tip.imageUrl || `https://via.placeholder.com/200x150?text=Image+N/A`;
                 img.alt = tip.titre || 'Tip Image';
                 img.onerror = function() {
@@ -466,29 +496,24 @@
                 leftPanel.appendChild(img);
                 carte.appendChild(leftPanel);
 
-                // Conteneur pour toutes les informations textuelles (à droite de l'image)
                 const infosWrapper = document.createElement('div');
                 infosWrapper.className = 'infos-wrapper';
 
-                // Badge pour l'outil
                 const outilBadge = document.createElement('div');
                 outilBadge.className = 'outil-badge';
                 outilBadge.textContent = tip.outil || 'Outil N/A';
                 infosWrapper.appendChild(outilBadge);
 
-                // Titre du Tip
                 const tipTitle = document.createElement('h2');
                 tipTitle.className = 'tip-title';
                 tipTitle.textContent = tip.titre || 'Titre du Tip';
                 infosWrapper.appendChild(tipTitle);
 
-                // Description du Tip
                 const tipDescription = document.createElement('p');
                 tipDescription.className = 'tip-description';
                 tipDescription.textContent = tip.description || 'Pas de description fournie.';
                 infosWrapper.appendChild(tipDescription);
 
-                // Section des métadonnées (Auteur, Chaîne, Catégorie, Date)
                 const metadataSection = document.createElement('div');
                 metadataSection.className = 'metadata-section';
                 metadataSection.innerHTML = `
@@ -503,7 +528,6 @@
                 `;
                 infosWrapper.appendChild(metadataSection);
 
-                // Prompt (facultatif, si vous voulez l'afficher pour les tips)
                 if (tip.prompt && tip.prompt.trim() !== '') {
                     const promptTextDisplay = document.createElement('p');
                     promptTextDisplay.className = 'prompt-text-display';
@@ -524,16 +548,13 @@
                         });
                     };
                     cardActions.appendChild(copierBtn);
-                    infosWrapper.appendChild(cardActions); // Ajoutez les actions DANS infosWrapper
+                    infosWrapper.appendChild(cardActions);
                 } else {
-                    // Si pas de prompt, assurez-vous que card-actions est toujours là pour le bouton supprimer
                     const cardActions = document.createElement('div');
                     cardActions.className = 'card-actions';
                     infosWrapper.appendChild(cardActions);
                 }
 
-
-                // Bouton Supprimer
                 const supprimerBtn = document.createElement('button');
                 supprimerBtn.className = 'supprimer-btn';
                 supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
@@ -546,15 +567,12 @@
                                 alert("Impossible de supprimer : ID de tip temporaire/invalide. Veuillez recharger la page ou contacter l'administrateur.");
                                 return;
                             }
-
-                            // CORRECTION ICI : Changement de 'deleteTip' à 'delete-tip'
-                            const deleteResponse = await fetch(`${apiBase}delete-tip?id=${tipId}`, { // <-- CORRIGÉ
+                            const deleteResponse = await fetch(`${apiBase}delete-tip?id=${tipId}`, {
                                 method: 'DELETE'
                             });
                             if (deleteResponse.ok) {
                                 alert('Tip supprimé avec succès !');
                                 carte.remove();
-                                // Mettre à jour 'tousLesTips' pour qu'il reflète la suppression
                                 tousLesTips = tousLesTips.filter(t => t.id !== tipId);
                                 if (tousLesTips.length === 0) {
                                     tipsListDiv.innerHTML = '<p>Aucun tip trouvé pour le moment.</p>';
@@ -569,12 +587,11 @@
                         }
                     }
                 };
-                infosWrapper.querySelector('.card-actions').appendChild(supprimerBtn); // Ajout du bouton supprimer dans cardActions
+                infosWrapper.querySelector('.card-actions').appendChild(supprimerBtn);
 
                 carte.appendChild(infosWrapper);
                 tipsListDiv.appendChild(carte);
 
-                // Ajuster la hauteur du left-panel après l'ajout des éléments d'infosWrapper
                 setTimeout(() => {
                     const infoWrapperHeight = infosWrapper.offsetHeight;
                     leftPanel.style.height = `${infoWrapperHeight}px`;
@@ -592,25 +609,26 @@
                 case 'Auvio': return 'black';
                 case 'vivacité': return 'orange';
                 case 'Musiq3': return 'hotpink';
-                default: return '#6c757d'; // Couleur par défaut
+                default: return '#6c757d';
             }
         }
 
-        function filtrerEtTrierPrompts() { // Fonction conservée mais qui va filtrer les tips
+        function filtrerEtTrierPrompts() {
             const searchKeyword = document.getElementById('search-keyword').value.toLowerCase();
             const filtreOutil = document.getElementById('filtre-outil').value;
             const filtreChaine = document.getElementById('filtre-chaine').value;
-            const filtreCategorie = document.getElementById('filtre-categorie').value; // NOUVEAU
+            const filtreCategorie = document.getElementById('filtre-categorie').value;
+            const filtreAuteur = document.getElementById('filtre-auteur').value; // NOUVEAU
             const filtreTri = document.getElementById('filtre-tri').value;
 
-            let tipsFiltres = [...tousLesTips]; // Variable renommée
+            let tipsFiltres = [...tousLesTips];
 
             if (searchKeyword) {
-                tipsFiltres = tipsFiltres.filter(tip => { // Variable renommée
-                    const titre = (tip.titre || '').toLowerCase(); // Ajout du titre
+                tipsFiltres = tipsFiltres.filter(tip => {
+                    const titre = (tip.titre || '').toLowerCase();
                     const auteur = (tip.auteur || '').toLowerCase();
-                    const description = (tip.description || '').toLowerCase(); // Ajout de la description
-                    const promptText = (tip.prompt || '').toLowerCase(); // Pour la recherche dans le prompt
+                    const description = (tip.description || '').toLowerCase();
+                    const promptText = (tip.prompt || '').toLowerCase();
 
                     return titre.includes(searchKeyword) ||
                            auteur.includes(searchKeyword) ||
@@ -625,41 +643,40 @@
             if (filtreChaine) {
                 tipsFiltres = tipsFiltres.filter(tip => tip.chaine === filtreChaine);
             }
-            if (filtreCategorie) { // NOUVEAU FILTRE
+            if (filtreCategorie) {
                 tipsFiltres = tipsFiltres.filter(tip => tip.categorie === filtreCategorie);
+            }
+            if (filtreAuteur) { // NOUVEAU FILTRE PAR AUTEUR
+                tipsFiltres = tipsFiltres.filter(tip => tip.auteur === filtreAuteur);
             }
 
             tipsFiltres.sort((a, b) => {
                 const dateA = a.date ? new Date(a.date) : new Date(0);
                 const dateB = b.date ? new Date(b.date) : new Date(0);
 
-                // Tri par date (plus récent) ou par auteur
                 if (filtreTri === 'recent') {
                     return dateB - dateA;
                 } else if (filtreTri === 'auteur-az') {
-                    // Tri par auteur A-Z (sens croissant)
                     const auteurA = (a.auteur || '').toLowerCase();
                     const auteurB = (b.auteur || '').toLowerCase();
                     return auteurA.localeCompare(auteurB);
                 } else if (filtreTri === 'auteur-za') {
-                    // Tri par auteur Z-A (sens décroissant)
                     const auteurA = (a.auteur || '').toLowerCase();
                     const auteurB = (b.auteur || '').toLowerCase();
                     return auteurB.localeCompare(auteurA);
                 }
-                // Si aucune option de tri spécifique n'est sélectionnée (ex: 'recent' est le défaut),
-                // le tri par défaut sera par date récente.
                 return dateB - dateA;
             });
 
-            afficherTips(tipsFiltres); // Appel à la fonction mise à jour
+            afficherTips(tipsFiltres);
         }
 
         function setupFiltres() {
             document.getElementById('search-keyword').addEventListener('input', filtrerEtTrierPrompts);
             document.getElementById('filtre-outil').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-chaine').addEventListener('change', filtrerEtTrierPrompts);
-            document.getElementById('filtre-categorie').addEventListener('change', filtrerEtTrierPrompts); // NOUVEAU
+            document.getElementById('filtre-categorie').addEventListener('change', filtrerEtTrierPrompts);
+            document.getElementById('filtre-auteur').addEventListener('change', filtrerEtTrierPrompts); // NOUVEAU
             document.getElementById('filtre-tri').addEventListener('change', filtrerEtTrierPrompts);
         }
     </script>
