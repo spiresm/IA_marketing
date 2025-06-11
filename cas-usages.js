@@ -7,8 +7,8 @@ let votesData = JSON.parse(localStorage.getItem('votesData') || '[]');
 
 async function loadTips() {
     try {
-        // Appel à la nouvelle fonction Netlify qui lit all-tips.json
-        const response = await fetch('/.netlify/functions/get-tips');
+        // Appel à la fonction Netlify qui lit all-tips.json
+        const response = await fetch('/.netlify/functions/get-tips'); // Assurez-vous que le nom correspond à votre fichier get-tips.js
 
         if (!response.ok) {
             throw new Error(`Erreur HTTP! Statut: ${response.status}`);
@@ -41,7 +41,7 @@ function initFilters() {
     const outils = [...new Set(tipsData.map(t => t.outil))].sort();
     outilSelect.innerHTML = '<option value="">Tous les outils</option>' + outils.map(o => `<option>${o}</option>`).join('');
 
-    // Remplir le filtre catégorie (si vous avez un élément avec l'ID 'filtre-categorie')
+    // Remplir le filtre catégorie (si vous avez un élément avec l'ID 'filtre-categorie' dans votre HTML)
     const categorieSelect = document.getElementById("filtre-categorie");
     if (categorieSelect) {
         const categories = [...new Set(tipsData.map(t => t.categorie))].sort();
@@ -57,6 +57,7 @@ function renderTips() {
     container.innerHTML = '';
 
     tipsData.forEach((tip, i) => {
+        // Incluez l'auteur dans la recherche si désiré
         const haystack = (tip.titre + tip.description + tip.prompt + tip.auteur + tip.outil + tip.categorie).toLowerCase();
         if ((search && !haystack.includes(search)) || (outilFilter && tip.outil !== outilFilter) || (catFilter && tip.categorie !== catFilter)) {
             return;
