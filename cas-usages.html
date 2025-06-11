@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Galerie des Tips et Prompts - iMarketing</title>
     <style>
-        /* Styles généraux pour l'opacité et les transitions, similaires à votre formulaire */
+        /* Styles généraux pour l'opacité et les transitions */
         body {
             opacity: 0;
             transition: opacity 0.5s ease;
@@ -29,7 +29,7 @@
         }
 
         .container-galerie {
-            max-width: 1200px; /* Adaptez la largeur selon votre design */
+            max-width: 1200px;
             margin: 0 auto;
             padding: 30px;
             background: #fff;
@@ -65,7 +65,7 @@
 
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Colonnes par défaut */
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* Par défaut, cartes verticales */
             gap: 25px;
         }
 
@@ -76,8 +76,8 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
             overflow: hidden;
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            display: flex; /* Utilisation de Flexbox */
-            flex-direction: column; /* Par défaut, les éléments sont empilés verticalement */
+            display: flex;
+            flex-direction: column; /* Par défaut, éléments empilés verticalement */
             position: relative;
         }
 
@@ -226,19 +226,19 @@
             transform: scale(1.05);
         }
 
-        /* --- NOUVEAUX STYLES POUR CARTES HORIZONTALES / ADAPTATIVES --- */
+        /* Styles pour les cartes horizontales (sur écrans plus larges) */
         @media (min-width: 768px) {
-            .tip-card.horizontal { /* Ajoutez cette classe pour forcer l'horizontal */
+            .tip-card.horizontal {
                 flex-direction: row; /* Disposition horizontale */
                 min-height: 250px; /* Hauteur minimale pour les cartes horizontales */
             }
 
             .tip-card.horizontal .tip-card-image {
                 width: 35%; /* L'image prend 35% de la largeur */
-                height: auto; /* La hauteur s'ajuste */
+                height: auto; /* La hauteur s'ajuste au contenu */
                 max-height: 100%; /* Limite la hauteur de l'image au conteneur */
-                border-bottom: none;
-                border-right: 1px solid #eee; /* Bordure entre image et contenu */
+                border-bottom: none; /* Supprime la bordure du bas */
+                border-right: 1px solid #eee; /* Ajoute une bordure à droite */
             }
 
             .tip-card.horizontal .tip-card-content {
@@ -246,8 +246,7 @@
                 padding: 20px;
             }
         }
-        /* --- FIN NOUVEAUX STYLES --- */
-
+        /* Media query pour les petits écrans */
         @media (max-width: 768px) {
             .gallery-grid {
                 grid-template-columns: 1fr; /* Une seule colonne sur petits écrans */
@@ -267,11 +266,12 @@
     </main>
 
     <script>
-        // Chargement du header
+        // Chargement du header HTML (assurez-vous d'avoir un fichier header.html)
         fetch("header.html")
             .then(r => r.text())
             .then(html => {
                 document.getElementById("header-placeholder").innerHTML = html;
+                // Afficher le corps et la main après le chargement du header
                 document.body.classList.add("show");
                 document.querySelector("main").classList.add("show");
             })
@@ -282,6 +282,7 @@
     <script>
         const { ref, createApp, onMounted, computed } = Vue;
 
+        // URLs de vos fonctions Netlify
         const GET_TIPS_URL = "/.netlify/functions/get-tips";
         const DELETE_TIP_URL = "/.netlify/functions/delete-tip";
 
@@ -363,6 +364,7 @@
                 const selectedAuthor = ref('');
                 const cardDisplayType = ref('auto'); // 'auto', 'vertical', 'horizontal'
 
+                // Fonction pour récupérer les tips depuis Netlify
                 async function fetchTips() {
                     isLoading.value = true;
                     error.value = null;
@@ -383,19 +385,21 @@
                     }
                 }
 
+                // Demande de confirmation avant suppression
                 async function confirmDelete(id, title) {
                     if (confirm(`Êtes-vous sûr de vouloir supprimer le tip "${title}" ? Cette action est irréversible.`)) {
                         await deleteTip(id);
                     }
                 }
 
+                // Fonction pour supprimer un tip via la fonction Netlify
                 async function deleteTip(id) {
-                    isLoading.value = true;
+                    isLoading.value = true; // Afficher le loader pendant la suppression
                     try {
                         const response = await fetch(DELETE_TIP_URL, {
                             method: 'DELETE',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: id })
+                            body: JSON.stringify({ id: id }) // Envoyer l'ID dans le corps de la requête
                         });
 
                         if (!response.ok) {
@@ -404,19 +408,20 @@
                         }
 
                         const result = await response.json();
-                        alert(result.message);
+                        alert(result.message); // Afficher un message de succès
 
+                        // Recharger les tips après la suppression réussie
                         await fetchTips(); 
 
                     } catch (err) {
                         console.error('Erreur lors de la suppression du tip:', err);
                         alert(`Échec de la suppression du tip: ${err.message}. Vérifiez la console pour plus de détails.`);
                     } finally {
-                        isLoading.value = false;
+                        isLoading.value = false; // Cacher le loader
                     }
                 }
 
-                // Fonction pour déterminer si une carte doit être horizontale
+                // Détermine si une carte doit s'afficher en mode horizontal
                 const shouldBeHorizontal = (tip) => {
                     if (cardDisplayType.value === 'horizontal') {
                         return true;
@@ -428,24 +433,24 @@
                     const isLongContent = (tip.description && tip.description.length > 150) || 
                                          (tip.prompt && tip.prompt.length > 100);
                     // On rend la carte horizontale seulement si l'écran est assez large
-                    return isLongContent && window.innerWidth >= 768; // Exemple de seuil
+                    return isLongContent && window.innerWidth >= 768; // Seuil desktop
                 };
 
-
+                // Exécuter fetchTips au montage du composant
                 onMounted(() => {
                     fetchTips();
                     // Ajoute un écouteur pour re-évaluer shouldBeHorizontal lors du redimensionnement
-                    window.addEventListener('resize', () => {
-                        // Forcer une mise à jour des computed properties si nécessaire
-                        // Le simple fait que window.innerWidth change suffit généralement à réévaluer
-                    });
+                    // (Le simple fait que window.innerWidth change suffit généralement à réévaluer les computed properties)
+                    window.addEventListener('resize', () => { /* Déclencheur pour re-render si nécessaire */ });
                 });
 
+                // Propriété calculée pour obtenir les auteurs uniques pour le filtre
                 const uniqueAuteurs = computed(() => {
                     const auteursSet = new Set(tips.value.map(tip => tip.auteur).filter(Boolean));
                     return Array.from(auteursSet).sort();
                 });
 
+                // Propriété calculée pour filtrer les tips en fonction des critères de recherche
                 const filteredTips = computed(() => {
                     let filtered = tips.value;
 
@@ -471,6 +476,7 @@
                     return filtered;
                 });
 
+                // Retourne les propriétés et méthodes pour le template Vue
                 return {
                     tips,
                     isLoading,
@@ -487,6 +493,7 @@
             }
         };
 
+        // Monte l'application Vue sur l'élément avec l'ID 'app-galerie'
         createApp(GalleryApp).mount('#app-galerie');
     </script>
 </body>
