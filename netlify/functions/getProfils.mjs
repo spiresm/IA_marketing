@@ -2,10 +2,15 @@
 
 exports.handler = async (event, context) => {
     try {
-        // C'EST CETTE LIGNE QUI DOIT ÊTRE MODIFIÉE !
-        // AVANT : const { Octokit } = require("@octokit/rest");
-        // APRÈS :
+        // --- C'EST ICI LA MODIFICATION CLÉ ! ---
+        // L'importation dynamique retourne un module. Nous devons accéder à la propriété 'Octokit' de ce module.
         const { Octokit } = await import("@octokit/rest");
+
+        // Assurez-vous que Octokit est bien la classe attendue.
+        // Si l'erreur persiste, vous pourriez avoir besoin de :
+        // const Octokit = (await import("@octokit/rest")).Octokit;
+        // Ou, dans de rares cas où il y a un wrapper inattendu :
+        // const Octokit = (await import("@octokit/rest")).default.Octokit;
 
         const octokit = new Octokit({
             auth: process.env.GITHUB_TOKEN,
