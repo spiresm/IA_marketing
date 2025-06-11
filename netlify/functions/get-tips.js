@@ -1,9 +1,8 @@
-// netlify/functions/get-tips.mjs
-import { Octokit } from "@octokit/core"; // Corrected import
+import { Octokit } from "@octokit/core";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Buffer } from 'buffer';
 
-const MyOctokit = Octokit.plugin(rest); // Create an Octokit instance with the rest plugin
+const MyOctokit = Octokit.plugin(restEndpointMethods); // ✅ Corrigé ici
 
 export const handler = async (event, context) => {
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -18,24 +17,24 @@ export const handler = async (event, context) => {
         };
     }
 
-    const octokit = new MyOctokit({ auth: GITHUB_TOKEN }); // Use MyOctokit here
+    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
 
     try {
-        const response = await octokit.repos.getContent({
+        const { data } = await octokit.rest.repos.getContent({
             owner: OWNER,
             repo: REPO,
             path: TIPS_FILE_PATH,
-            ref: 'main', 
+            ref: 'main',
         });
 
-        const content = Buffer.from(response.data.content, 'base64').toString('utf8');
+        const content = Buffer.from(data.content, 'base64').toString('utf8');
         const tips = JSON.parse(content);
 
         return {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*", 
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
