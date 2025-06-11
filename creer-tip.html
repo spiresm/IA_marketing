@@ -192,7 +192,7 @@
         const TipForm = {
             template: `
                 <div class="container">
-                    <a href="tips.html" class="retour-lien">← Retour aux Tips</a>
+                    <a href="cas-usages.html" class="retour-lien">← Retour aux Tips</a>
                     <h2 style="text-align:center; color:#0077b6;">Partager un Tip</h2>
 
                     <form @submit.prevent="validerTip">
@@ -300,6 +300,11 @@
                 function handleFile(file) {
                     const reader = new FileReader();
                     reader.onload = () => { imagePreviewUrl.value = reader.result; };
+                    reader.onerror = (error) => {
+                        console.error("Erreur de lecture du fichier:", error);
+                        errorMessage.value = "Erreur lors de la lecture de l'image. Veuillez réessayer.";
+                        messageErrorVisible.value = true;
+                    };
                     reader.readAsDataURL(file);
                 }
                 function getBase64(file) {
@@ -326,7 +331,10 @@
                         const file = fileInput.value?.files?.[0];
                         if (file) {
                             const base64 = await getBase64(file);
-                            const payload = { fileBase64: base64, fileName: file.name };
+                            // Nettoyage du nom de fichier pour éviter les caractères problématiques sur Netlify
+                            const cleanedFileName = file.name.replace(/[#?]/g, '-'); 
+                            const payload = { fileBase64: base64, fileName: cleanedFileName };
+
                             const resp = await fetch('/.netlify/functions/uploadImage', { // Appel DIRECT à uploadImage
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -348,7 +356,7 @@
                             titre: titre.value,
                             auteur: auteur.value,
                             prompt: prompt.value, // Le contenu du tip est stocké dans 'prompt'
-                            imageUrl: imageUrl,   // L'URL de l'image (peut être vide si aucune image)
+                            imageUrl: imageUrl,    // L'URL de l'image (peut être vide si aucune image)
                             date: new Date().toISOString().split('T')[0] // Date du jour au format YYYY-MM-DD
                         };
 
@@ -371,7 +379,7 @@
                         confirmationVisible.value = true;
 
                         setTimeout(() => {
-                            window.location.href = "/tips.html"; // Redirection vers la page des tips
+                            window.location.href = "/cas-usages.html"; // Redirection vers la page des tips
                         }, 5000);
 
                         // 5. Réinitialiser le formulaire après succès
