@@ -1,6 +1,12 @@
 // netlify/functions/save-tip.mjs
 import { Octokit } from '@octokit/rest';
-import { Buffer } from 'buffer'; // Nécessaire pour Buffer en environnement Node.js
+// 'buffer' est une dépendance Node.js native, pas besoin de l'installer via npm
+// Si vous rencontrez des problèmes avec 'Buffer' dans Netlify Functions,
+// cela peut être dû à un environnement Node.js obsolète ou à un problème de polyfill.
+// Souvent, la version Node.js par défaut de Netlify est suffisante.
+// Si vraiment nécessaire, on pourrait implémenter un encodage Base64 manuel ou chercher une autre lib.
+// Pour l'instant, partons du principe que 'Buffer' est disponible.
+import { Buffer } from 'buffer';
 
 export const handler = async (event) => {
     // S'assure que seule la méthode POST est acceptée pour cette fonction
@@ -10,19 +16,19 @@ export const handler = async (event) => {
 
     // Récupération des variables d'environnement
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const OWNER = process.env.GITHUB_OWNER;
-    const REPO = process.env.GITHUB_REPO;
-    const TIPS_FILE_PATH = process.env.TIPS_FILE_PATH || 'data/all-tips.json'; // Chemin par défaut du fichier de tips
+    const OWNER = process.env.GITHUB_OWNER; // Nom d'utilisateur/organisation GitHub
+    const REPO = process.env.GITHUB_REPO;   // Nom du dépôt GitHub
+    const TIPS_FILE_PATH = process.env.TIPS_FILE_PATH || 'data/all-tips.json'; // Chemin du fichier JSON
     const NETLIFY_BUILD_HOOK_URL = process.env.NETLIFY_BUILD_HOOK_URL; // URL du Build Hook pour déclencher un déploiement
 
     // Vérification des variables d'environnement essentielles
     if (!GITHUB_TOKEN || !OWNER || !REPO) {
-        console.error('Missing GitHub environment variables for save-tip!');
+        console.error('Erreur: Variables d\'environnement GitHub manquantes pour save-tip.');
         return {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                message: 'Configuration GitHub manquante. Veuillez vérifier GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO dans vos variables d\'environnement Netlify.'
+                message: 'Configuration GitHub manquante. Vérifiez GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO dans Netlify.'
             }),
         };
     }
@@ -32,18 +38,18 @@ export const handler = async (event) => {
     try {
         const newTip = JSON.parse(event.body); // Parse le corps de la requête (le tip)
 
-        // Validation simple des données du tip (ajoutez 'auteur' ici si votre formulaire l'envoie)
-        if (!newTip || !newTip.titre || !newTip.description || !newTip.prompt || !newTip.outil || !newTip.categorie) {
-            console.error('Invalid or missing tip data:', newTip);
+        // Validation des données du tip (ajoutez/supprimez des champs selon votre formulaire)
+        if (!newTip || !newTip.titre || !newTip.description || !newTip.prompt || !newTip.outil || !newTip.categorie || !newTip.auteur) {
+            console.error('Données de tip invalides ou manquantes:', newTip);
             return {
                 statusCode: 400,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: 'Données de tip invalides ou manquantes. Veuillez remplir tous les champs.' }),
+                body: JSON.stringify({ message: 'Données de tip invalides ou manquantes. Veuillez remplir tous les champs (titre, description, prompt, outil, catégorie, auteur).' }),
             };
         }
 
         let existingTips = [];
-        let sha = null; // SHA du fichier pour les mises à jour
+        let sha = null; // SHA du fichier pour les mises à jour (important pour l'API GitHub)
 
         try {
             // Tente de récupérer le contenu actuel du fichier de tips
@@ -51,6 +57,7 @@ export const handler = async (event) => {
                 owner: OWNER,
                 repo: REPO,
                 path: TIPS_FILE_PATH,
+                ref: 'main' // Spécifiez la branche pour être sûr
             });
             // Décode le contenu Base64 en UTF-8 et le parse en JSON
             const content = Buffer.from(data.content, 'base64').toString('utf8');
@@ -59,15 +66,14 @@ export const handler = async (event) => {
         } catch (error) {
             // Si le fichier n'existe pas (status 404), on l'ignore et le créera
             if (error.status === 404) {
-                console.log(`Tips file not found at ${TIPS_FILE_PATH}, creating new one.`);
-                // Si le fichier n'existe pas, existingTips reste un tableau vide [] et sha est null
+                console.log(`Le fichier de tips n'existe pas encore à ${TIPS_FILE_PATH}, il sera créé.`);
             } else {
                 // Pour toute autre erreur que 404, propagez l'erreur
-                console.error('Error fetching existing tips file:', error);
+                console.error('Erreur lors de la récupération du fichier de tips existant:', error);
                 return {
                     statusCode: 500,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: `Failed to fetch existing tips file: ${error.message}` }),
+                    body: JSON.stringify({ message: `Échec de la récupération du fichier de tips existant: ${error.message}` }),
                 };
             }
         }
@@ -82,20 +88,20 @@ export const handler = async (event) => {
             owner: OWNER,
             repo: REPO,
             path: TIPS_FILE_PATH,
-            message: `Ajout du tip: "${newTip.titre}"`, // Message de commit
+            message: `Ajout du tip: "${newTip.titre}" par ${newTip.auteur}`, // Message de commit
             content: Buffer.from(updatedContent).toString('base64'), // Contenu encodé en Base64
             sha: sha, // SHA requis pour les mises à jour (sera null si le fichier est nouveau)
-            branch: 'main' // Assurez-vous que c'est votre branche par défaut (souvent 'main' ou 'master')
+            branch: 'main' // Assurez-vous que c'est votre branche de déploiement par défaut
         });
 
         // --- Déclenchement du Build Hook Netlify ---
         if (NETLIFY_BUILD_HOOK_URL) {
-            console.log('Attempting to trigger Netlify build hook...');
+            console.log('Tentative de déclenchement du Build Hook Netlify...');
             const buildHookResponse = await fetch(NETLIFY_BUILD_HOOK_URL, { method: 'POST' });
             if (!buildHookResponse.ok) {
-                console.error('Failed to trigger Netlify build hook:', buildHookResponse.status, buildHookResponse.statusText);
+                console.error('Échec du déclenchement du Build Hook Netlify:', buildHookResponse.status, buildHookResponse.statusText);
             } else {
-                console.log('Netlify build hook triggered successfully.');
+                console.log('Build Hook Netlify déclenché avec succès.');
             }
         } else {
             console.warn('NETLIFY_BUILD_HOOK_URL est manquant. Le déploiement automatique ne sera pas déclenché.');
@@ -116,7 +122,7 @@ export const handler = async (event) => {
 
     } catch (error) {
         // Gestion des erreurs internes de la fonction
-        console.error('Error in save-tip function:', error);
+        console.error('Erreur interne dans la fonction save-tip:', error);
         return {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
