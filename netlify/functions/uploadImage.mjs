@@ -59,7 +59,7 @@ export async function handler(event, context) {
         }
 
         // Créer ou mettre à jour le fichier
-        await octokit.rest.repos.createOrUpdateFileContents({
+        const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
             owner: OWNER,
             repo: REPO,
             path: filePath,
@@ -69,6 +69,9 @@ export async function handler(event, context) {
             branch: 'main',
         });
 
+        // La réponse de GitHub contient l'URL de téléchargement (download_url)
+        const imageUrl = uploadResponse.data.content.download_url;
+
         return {
             statusCode: 200,
             headers: {
@@ -77,7 +80,11 @@ export async function handler(event, context) {
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
-            body: JSON.stringify({ message: `Fichier ${fileName} uploadé avec succès sur GitHub !` }),
+            // MODIFICATION ICI: Ajout de la propriété 'url' dans la réponse
+            body: JSON.stringify({
+                message: `Fichier ${fileName} uploadé avec succès sur GitHub !`,
+                url: imageUrl
+            }),
         };
 
     } catch (error) {
