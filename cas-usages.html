@@ -22,10 +22,9 @@
         }
         main {
             opacity: 0;
-            transition: opacity 0.5s ease-in;
+            transition: opacity 0.5s ease-in; /* Retired margin-right transition */
             padding: 40px 20px;
             flex-grow: 1; /* Permet au main de prendre l'espace disponible, poussant le footer vers le bas */
-            transition: margin-right 0.3s ease-in-out; /* Add transition for margin change */
         }
         main.show {
             opacity: 1;
@@ -396,10 +395,18 @@
             margin-top: 5px;
         }
 
-        /* Adjust main content when preview panel is open */
-        body.preview-open main {
-            margin-right: 380px; /* Make space for the panel */
+        .preview-panel-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
+
+        /* REMOVED: Adjust main content when preview panel is open */
+        /* body.preview-open main {
+            margin-right: 380px;
+        } */
 
         /* Media queries pour la responsivité */
         @media (max-width: 992px) {
@@ -410,9 +417,10 @@
             .preview-panel.open {
                 right: 0;
             }
-            body.preview-open main {
-                margin-right: 0; /* No margin on main if panel is full width */
-            }
+            /* REMOVED: No margin on main if panel is full width on smaller screens */
+            /* body.preview-open main {
+                margin-right: 0;
+            } */
         }
         @media (max-width: 768px) {
             .filters-header {
@@ -620,6 +628,13 @@
             previewPanelTitle.textContent = `Aperçu : ${tip.titre || 'Sans titre'}`;
             previewPanelContent.innerHTML = ''; // Clear previous content
 
+            if (tip.imageUrl) {
+                const img = document.createElement('img');
+                img.src = tip.imageUrl;
+                img.alt = `Image pour ${tip.titre || 'ce tip'}`;
+                previewPanelContent.appendChild(img);
+            }
+
             if (tip.previewText) {
                 const previewHtml = document.createElement('p');
                 previewHtml.innerHTML = `<strong>Texte de prévisualisation :</strong>`;
@@ -657,13 +672,24 @@
             }
 
             previewPanel.classList.add('open');
-            bodyElement.classList.add('preview-open'); // Add class to body to push main content
+            // We DO NOT add bodyElement.classList.add('preview-open'); here to prevent content shifting
         }
 
         // Function to close the preview panel
-        closePreviewBtn.addEventListener('click', () => {
+        function closePreviewPanel() {
             previewPanel.classList.remove('open');
-            bodyElement.classList.remove('preview-open'); // Remove class from body
+            // We DO NOT remove bodyElement.classList.remove('preview-open'); here
+        }
+
+        closePreviewBtn.addEventListener('click', closePreviewPanel);
+
+        // Close preview panel when clicking outside of it
+        document.addEventListener('click', (event) => {
+            if (previewPanel.classList.contains('open') &&
+                !previewPanel.contains(event.target) &&
+                !event.target.closest('.carte')) { // Exclude clicks originating from within a card (which might open the panel)
+                closePreviewPanel();
+            }
         });
 
 
@@ -768,7 +794,7 @@
                 cardActions.className = 'card-actions';
 
                 // "Preview" button
-                if (tip.previewText || tip.description || tip.prompt || tip.exemple) {
+                if (tip.previewText || tip.description || tip.prompt || tip.exemple || tip.imageUrl) { // Check for imageUrl for preview
                     const previewBtn = document.createElement('button');
                     previewBtn.className = 'toggle-content-btn';
                     previewBtn.textContent = 'Prévisualiser';
