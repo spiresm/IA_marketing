@@ -225,7 +225,7 @@
             align-self: flex-start;
         }
 
-        /* Section des métadonnées (Auteur, Chaîne) */
+        /* Section des métadonnées (Auteur, Catégorie) */
         .metadata-section {
             display: grid;
             grid-template-columns: auto 1fr;
@@ -270,12 +270,18 @@
         /* Boutons d'action sur la carte */
         .card-actions {
             display: flex;
-            /* Utilisation de space-between pour pousser "Copier" à droite et inclure la corbeille */
-            justify-content: space-between;
-            align-items: center; /* Pour aligner verticalement les boutons et l'icône */
-            gap: 10px; /* Espace entre les deux premiers boutons */
+            justify-content: space-between; /* Pour espacer "Aperçu/Corbeille" du "Copier" */
+            align-items: flex-end; /* Aligner les groupes de boutons en bas */
             margin-top: auto;
             padding-top: 5px;
+            width: 100%; /* Assure que le flex prend toute la largeur disponible */
+        }
+
+        .left-actions-group {
+            display: flex;
+            flex-direction: column; /* Pour empiler Aperçu et Corbeille */
+            align-items: flex-start; /* Aligner Aperçu et Corbeille à gauche de leur groupe */
+            gap: 5px; /* Petit espacement entre Aperçu et Corbeille */
         }
 
         /* Styles spécifiques pour le bouton "Copier le prompt" */
@@ -326,7 +332,7 @@
             cursor: pointer;
             transition: color 0.2s, transform 0.1s;
             padding: 0 5px; /* Petit padding pour cliquer plus facilement */
-            margin-left: auto; /* Pousse le bouton supprimer à l'extrême droite */
+            /* Removed margin-left: auto; as it's now in a column flex */
         }
 
         .supprimer-btn:hover {
@@ -513,16 +519,20 @@
             }
             .card-actions {
                 flex-wrap: wrap;
-                justify-content: space-between; /* Ajuste l'alignement pour la responsivité */
+                justify-content: center; /* Centrer les éléments pour la responsivité */
             }
-            .copier-btn, .toggle-content-btn {
-                width: auto; /* Permet aux boutons de ne pas prendre toute la largeur */
+            .left-actions-group {
+                flex-direction: row; /* En ligne sur petits écrans pour garder la compacité */
+                gap: 10px;
+                width: 100%; /* Prend toute la largeur disponible */
+                justify-content: center;
+                margin-bottom: 10px; /* Espace sous le groupe */
+            }
+            .copier-btn {
+                width: 100%; /* Prend toute la largeur disponible sur petits écrans */
+            }
+            .toggle-content-btn, .supprimer-btn {
                 flex-grow: 1; /* Permet aux boutons de se répartir l'espace */
-            }
-            .supprimer-btn {
-                width: auto;
-                align-self: center; /* Centre l'icône verticalement */
-                margin-left: 0; /* Réinitialise le margin-left pour petits écrans */
             }
             .create-tip-button-container {
                 margin-top: 15px;
@@ -588,7 +598,7 @@
                         <option>ChatGPT</option>
                         <option>Autre</option>
                     </select>
-                    </div>
+                </div>
                 <div class="action-buttons">
                 </div>
             </div>
@@ -624,7 +634,6 @@
         const filtreAuteurSelect = document.getElementById('filtre-auteur');
         const filtreCategorieSelect = document.getElementById('filtre-categorie');
         const filtreOutilSelect = document.getElementById('filtre-outil');
-        // const filtreChaineSelect = document.getElementById('filtre-chaine'); // Commenté ou retiré
 
         const previewTextInput = document.getElementById('preview-text');
 
@@ -793,23 +802,6 @@
             });
         }
 
-        // Cette fonction n'est plus utilisée pour la bordure de la carte car la "chaîne" a été retirée.
-        // Elle peut être retirée si vous n'en avez plus besoin du tout.
-        function getChaineColor(chaine) {
-            switch(chaine) {
-                case 'La Une': return '#E50000'; // Rouge
-                case 'Tipik': return '#00BFFF'; // Bleu clair
-                case 'La Trois': return '#008000'; // Vert
-                case 'La première': return '#FF4500'; // Orange Red
-                case 'Classic 21': return '#800080'; // Violet
-                case 'vivacité': return '#FFD700'; // Or
-                case 'Musiq3': return '#FF69B4'; // Rose
-                case 'Auvio': return '#1E90FF'; // Dodger Blue
-                case 'Auvio Kids': return '#32CD32'; // Lime Green
-                default: return '#555'; // Gris par défaut
-            }
-        }
-
         function filterAndSortTips() {
             let filteredTips = [...allTips];
 
@@ -817,7 +809,6 @@
             const categorie = filtreCategorieSelect.value;
             const auteur = filtreAuteurSelect.value;
             const outil = filtreOutilSelect.value;
-            // const chaine = filtreChaineSelect.value; // Retiré
 
             if (previewText) {
                 filteredTips = filteredTips.filter(tip =>
@@ -833,12 +824,7 @@
             if (outil) {
                 filteredTips = filteredTips.filter(tip => tip.outil === outil);
             }
-            // La logique de filtrage par chaîne a été retirée
-            // if (chaine) {
-            //     filteredTips = filteredTips.filter(tip => tip.chaine === chaine);
-            // }
 
-            // Tri par date de création (du plus récent au plus ancien)
             filteredTips.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
             displayTips(filteredTips);
@@ -885,10 +871,6 @@
                 const tipId = tip.id || `temp-id-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
                 carte.dataset.tipId = tipId;
 
-                // La couleur de la bordure latérale est laissée transparente car la "chaîne" a été retirée.
-                // Si vous voulez une bordure colorée basée sur une autre propriété, il faudra l'ajouter ici.
-                // carte.style.borderLeftColor = '#0077b6'; // Exemple: bordure bleue uniforme
-
                 const leftPanel = document.createElement('div');
                 leftPanel.className = 'left-panel';
 
@@ -923,10 +905,9 @@
                     <span class="metadata-value auteur-value">${tip.auteur || 'Inconnu'}</span>
                     <span class="metadata-label">Catégorie :</span>
                     <span class="metadata-value">${tip.categorie || 'Non spécifiée'}</span>
-                    `;
+                `;
                 infosWrapper.appendChild(metadataSection);
 
-                // Add the "post-it" element here
                 if (tip.previewText) {
                     const previewPostIt = document.createElement('div');
                     previewPostIt.className = 'preview-post-it';
@@ -937,12 +918,29 @@
                 const cardActions = document.createElement('div');
                 cardActions.className = 'card-actions';
 
+                // Groupe des boutons Aperçu et Corbeille (empilés)
+                const leftActionsGroup = document.createElement('div');
+                leftActionsGroup.className = 'left-actions-group';
+
                 const previewBtn = document.createElement('button');
                 previewBtn.className = 'toggle-content-btn';
                 previewBtn.textContent = 'Aperçu';
                 previewBtn.addEventListener('click', () => openPreviewPanel(tip));
-                cardActions.appendChild(previewBtn);
+                leftActionsGroup.appendChild(previewBtn);
 
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'supprimer-btn';
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Icône Font Awesome
+                deleteBtn.title = 'Supprimer ce tip'; // Infobulle
+                deleteBtn.addEventListener('click', (event) => {
+                    event.stopPropagation(); // Empêche l'ouverture du panneau de prévisualisation si cliqué sur la carte
+                    deleteTip(tipId);
+                });
+                leftActionsGroup.appendChild(deleteBtn);
+
+                cardActions.appendChild(leftActionsGroup);
+
+                // Bouton Copier (aligné à droite)
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copier-btn';
                 copyBtn.textContent = 'Copier le prompt';
@@ -955,17 +953,6 @@
                     });
                 });
                 cardActions.appendChild(copyBtn);
-
-                // Bouton Supprimer (corbeille)
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'supprimer-btn';
-                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Icône Font Awesome
-                deleteBtn.title = 'Supprimer ce tip'; // Infobulle
-                deleteBtn.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Empêche l'ouverture du panneau de prévisualisation si cliqué sur la carte
-                    deleteTip(tipId);
-                });
-                cardActions.appendChild(deleteBtn);
 
                 infosWrapper.appendChild(cardActions);
                 carte.appendChild(infosWrapper);
@@ -985,8 +972,11 @@
             const msg = document.getElementById('success-message');
             msg.textContent = message;
             msg.style.opacity = '1';
-            setTimeout(() => msg.style.opacity = '0', 2000);
-            setTimeout(() => msg.style.display = 'none', 2500); // Masquer après l'animation
+            msg.style.display = 'block'; /* Assure que le message est visible */
+            setTimeout(() => {
+                msg.style.opacity = '0';
+                setTimeout(() => msg.style.display = 'none', 500); // Masquer après l'animation de fade-out
+            }, 2000);
         }
 
         function showErrorMessage(message) {
