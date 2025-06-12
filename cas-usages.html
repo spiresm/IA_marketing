@@ -515,6 +515,7 @@
                     </select>
                     <select id="filtre-tri">
                         <option value="ancien">Plus ancien</option>
+                        <option value="recent">Plus récent</option>
                     </select>
                 </div>
                 <div class="action-buttons">
@@ -547,6 +548,12 @@
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
         const filtreAuteurSelect = document.getElementById('filtre-auteur');
+        const filtreCategorieSelect = document.getElementById('filtre-categorie');
+        const filtreOutilSelect = document.getElementById('filtre-outil');
+        const filtreChaineSelect = document.getElementById('filtre-chaine');
+        const filtreTriSelect = document.getElementById('filtre-tri');
+        const previewTextInput = document.getElementById('preview-text');
+
 
         const previewPanel = document.getElementById('previewPanel');
         const previewPanelTitle = document.getElementById('previewPanelTitle');
@@ -583,7 +590,7 @@
             ])
             .then(() => {
                 // Appliquer la classe active après le chargement du header (si réussi)
-                const activeLink = document.querySelector("nav a[href='cas-usages.html']"); // Or 'galerie.html' if that's your actual file name
+                const activeLink = document.querySelector("nav a[href='galerie.html']"); 
                 if (activeLink) {
                     activeLink.classList.add("active");
                 }
@@ -801,7 +808,7 @@
                     };
                     cardActions.appendChild(copierBtn);
                 } else if (tip.description) { // If no prompt, maybe copy description
-                     const copierBtn = document.createElement('button');
+                    const copierBtn = document.createElement('button');
                     copierBtn.className = 'copier-btn';
                     copierBtn.textContent = 'Copier la Description';
                     copierBtn.onclick = () => {
@@ -815,114 +822,79 @@
                     cardActions.appendChild(copierBtn);
                 }
 
-
                 const supprimerBtn = document.createElement('button');
                 supprimerBtn.className = 'supprimer-btn';
                 supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-                supprimerBtn.title = "Supprimer ce tip";
-                supprimerBtn.onclick = async (e) => {
-                    e.stopPropagation();
-                    if (confirm(`Êtes-vous sûr de vouloir supprimer le tip "${tip.titre}" ? Cette action est irréversible.`)) {
-                        try {
-                            if (!tipId || tipId.startsWith('temp-id-')) {
-                                alert("Impossible de supprimer : ID de tip temporaire/invalide. Veuillez recharger la page ou contacter l'administrateur.");
-                                return;
-                            }
-
-                            const deleteResponse = await fetch(`${apiBase}delete-tip`, {
-                                method: 'DELETE',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ id: tipId })
-                            });
-
-                            if (deleteResponse.ok) {
-                                alert('Tip supprimé avec succès !');
-                                carte.remove();
-                                allTips = allTips.filter(t => t.id !== tipId);
-                                if (allTips.length === 0) {
-                                    galerieDiv.innerHTML = '<p style="text-align: center;">Aucun tip ou prompt trouvé pour le moment.</p>';
-                                } else {
-                                    filterAndSortTips();
-                                }
-                            } else {
-                                const errorData = await deleteResponse.json();
-                                alert(`Échec de la suppression: ${errorData.message || 'Une erreur inconnue est survenue.'}`);
-                            }
-                        } catch (delError) {
-                            console.error("Erreur lors de la suppression:", delError);
-                            alert("Erreur réseau ou interne lors de la tentative de suppression.");
-                        }
+                supprimerBtn.title = 'Supprimer le tip';
+                supprimerBtn.onclick = (event) => {
+                    event.stopPropagation(); // Prevent card click when deleting
+                    if (confirm('Êtes-vous sûr de vouloir supprimer ce tip ?')) {
+                        deleteTip(tipId);
                     }
                 };
                 cardActions.appendChild(supprimerBtn);
+                
                 infosWrapper.appendChild(cardActions);
-
                 carte.appendChild(infosWrapper);
                 galerieDiv.appendChild(carte);
-
-                setTimeout(() => {
-                    const infoWrapperHeight = infosWrapper.offsetHeight;
-                    leftPanel.style.height = `${infoWrapperHeight}px`;
-                }, 0);
             });
         }
 
         function setupFilters() {
-            // Removed: const searchKeyword = document.getElementById('search-keyword');
-            const previewTextFilter = document.getElementById('preview-text');
-            const filtreCategorie = document.getElementById('filtre-categorie');
-            const filtreOutil = document.getElementById('filtre-outil');
-            const filtreChaine = document.getElementById('filtre-chaine');
-            const filtreTri = document.getElementById('filtre-tri');
-
-            const filters = [
-                previewTextFilter, // Only this keyword filter remains
-                filtreCategorie,
-                filtreAuteurSelect,
-                filtreOutil,
-                filtreChaine,
-                filtreTri
-            ];
-
-            filters.forEach(filter => {
-                filter.addEventListener('input', filterAndSortTips);
-                filter.addEventListener('change', filterAndSortTips);
-            });
+            previewTextInput.addEventListener('input', filterAndSortTips);
+            filtreCategorieSelect.addEventListener('change', filterAndSortTips);
+            filtreAuteurSelect.addEventListener('change', filterAndSortTips);
+            filtreOutilSelect.addEventListener('change', filterAndSortTips);
+            filtreChaineSelect.addEventListener('change', filterAndSortTips);
+            filtreTriSelect.addEventListener('change', filterAndSortTips);
         }
 
         function filterAndSortTips() {
-            // Removed: const searchKeyword = document.getElementById('search-keyword').value.toLowerCase();
-            const previewTextFilter = document.getElementById('preview-text').value.toLowerCase();
-            const filtreCategorie = document.getElementById('filtre-categorie').value.toLowerCase();
-            const filtreAuteur = document.getElementById('filtre-auteur').value.toLowerCase();
-            const filtreOutil = document.getElementById('filtre-outil').value.toLowerCase();
-            const filtreChaine = document.getElementById('filtre-chaine').value.toLowerCase();
-            const filtreTri = document.getElementById('filtre-tri').value;
+            let filteredTips = [...allTips];
 
-            let filteredTips = allTips.filter(tip => {
-                // The searchKeyword variable is removed, so 'matchesKeyword' logic is simplified
-                // It will now only check against previewTextFilter if search-keyword was previously also checking it.
-                // Assuming 'preview-text' is now the primary text search field.
-                const matchesPreviewText = (tip.previewText && tip.previewText.toLowerCase().includes(previewTextFilter)) ||
-                                           (tip.titre && tip.titre.toLowerCase().includes(previewTextFilter)) || // Added titre back into general text search
-                                           (tip.description && tip.description.toLowerCase().includes(previewTextFilter)) ||
-                                           (tip.auteur && tip.auteur.toLowerCase().includes(previewTextFilter)); // Added auteur back into general text search
+            // Filter by preview text
+            const previewTextValue = previewTextInput.value.toLowerCase().trim();
+            if (previewTextValue) {
+                filteredTips = filteredTips.filter(tip => 
+                    (tip.previewText && tip.previewText.toLowerCase().includes(previewTextValue)) ||
+                    (tip.titre && tip.titre.toLowerCase().includes(previewTextValue)) ||
+                    (tip.description && tip.description.toLowerCase().includes(previewTextValue)) ||
+                    (tip.prompt && tip.prompt.toLowerCase().includes(previewTextValue))
+                );
+            }
 
+            // Filter by category
+            const categorie = filtreCategorieSelect.value;
+            if (categorie) {
+                filteredTips = filteredTips.filter(tip => tip.categorie === categorie);
+            }
 
-                const matchesCategory = filtreCategorie === '' || (tip.categorie && tip.categorie.toLowerCase() === filtreCategorie);
-                const matchesAuthor = filtreAuteur === '' || (tip.auteur && tip.auteur.toLowerCase() === filtreAuteur);
-                const matchesTool = filtreOutil === '' || (tip.outil && tip.outil.toLowerCase() === filtreOutil);
-                const matchesChannel = filtreChaine === '' || (tip.chaine && tip.chaine.toLowerCase() === filtreChaine);
+            // Filter by author
+            const auteur = filtreAuteurSelect.value;
+            if (auteur) {
+                filteredTips = filteredTips.filter(tip => tip.auteur === auteur);
+            }
 
-                return matchesPreviewText && matchesCategory && matchesAuthor && matchesTool && matchesChannel;
-            });
+            // Filter by tool
+            const outil = filtreOutilSelect.value;
+            if (outil) {
+                filteredTips = filteredTips.filter(tip => tip.outil === outil);
+            }
 
+            // Filter by chaine
+            const chaine = filtreChaineSelect.value;
+            if (chaine) {
+                filteredTips = filteredTips.filter(tip => tip.chaine === chaine);
+            }
+
+            // Sort
+            const tri = filtreTriSelect.value;
             filteredTips.sort((a, b) => {
-                const dateA = new Date(a.dateCreation || '1970-01-01');
-                const dateB = new Date(b.dateCreation || '1970-01-01');
-                if (filtreTri === 'recent') { // This condition will now always be false as 'recent' option is removed
+                const dateA = new Date(a.dateAdded);
+                const dateB = new Date(b.dateAdded);
+                if (tri === 'recent') {
                     return dateB - dateA;
-                } else { // 'ancien' is the only option left
+                } else { // 'ancien'
                     return dateA - dateB;
                 }
             });
@@ -930,18 +902,45 @@
             displayTips(filteredTips);
         }
 
+        async function deleteTip(tipId) {
+            try {
+                const response = await fetch(`${apiBase}delete-tip`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ id: tipId }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log(result.message);
+                alert('Tip supprimé avec succès !');
+                // Reload tips after deletion
+                loadAndDisplayTips(); 
+
+            } catch (error) {
+                console.error("Erreur lors de la suppression du tip:", error);
+                alert(`Erreur lors de la suppression du tip: ${error.message}`);
+            }
+        }
+
         function getChaineColor(chaine) {
             switch (chaine) {
-                case 'Classic 21': return 'purple';
-                case 'La Une': return '#0077b6'; /* Default blue for La Une, or any specific color */
-                case 'Tipik': return '#ff6b6b';
-                case 'La Trois': return '#2a9d8f';
-                case 'La première': return '#f4a261';
-                case 'vivacité': return '#e76f51';
-                case 'Musiq3': return '#588b8b';
-                case 'Auvio': return '#1a535c';
-                case 'Auvio Kids': return '#83c5be';
-                default: return '#cccccc'; // Default color for unknown chains
+                case 'La Une': return '#0077B6';
+                case 'Tipik': return '#00B4D8';
+                case 'La Trois': return '#48CAE4';
+                case 'La première': return '#03045E';
+                case 'Classic 21': return '#001D3D';
+                case 'vivacité': return '#003566';
+                case 'Musiq3': return '#000814';
+                case 'Auvio': return '#A51C30';
+                case 'Auvio Kids': return '#FFC300';
+                default: return '#cccccc'; // Couleur par défaut
             }
         }
     </script>
