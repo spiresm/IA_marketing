@@ -270,18 +270,18 @@
         /* Boutons d'action sur la carte */
         .card-actions {
             display: flex;
-            justify-content: space-between; /* Pour espacer "Aperçu/Corbeille" du "Copier" */
-            align-items: flex-end; /* Aligner les groupes de boutons en bas */
+            flex-direction: column; /* Empile le groupe de boutons et la corbeille */
+            align-items: flex-start; /* Aligne tout le contenu de card-actions à gauche */
             margin-top: auto;
             padding-top: 5px;
-            width: 100%; /* Assure que le flex prend toute la largeur disponible */
+            width: 100%;
         }
 
-        .left-actions-group {
+        .top-buttons-group {
             display: flex;
-            flex-direction: column; /* Pour empiler Aperçu et Corbeille */
-            align-items: flex-start; /* Aligner Aperçu et Corbeille à gauche de leur groupe */
-            gap: 5px; /* Petit espacement entre Aperçu et Corbeille */
+            gap: 10px; /* Espace entre Aperçu et Copier */
+            margin-bottom: 5px; /* Petit espace entre la ligne des boutons et la corbeille */
+            align-items: center; /* Aligne les boutons verticalement */
         }
 
         /* Styles spécifiques pour le bouton "Copier le prompt" */
@@ -333,6 +333,7 @@
             transition: color 0.2s, transform 0.1s;
             padding: 0 5px; /* Petit padding pour cliquer plus facilement */
             /* Removed margin-left: auto; as it's now in a column flex */
+            align-self: flex-start; /* Aligne la corbeille sous les boutons, à gauche */
         }
 
         .supprimer-btn:hover {
@@ -518,21 +519,23 @@
                 gap: 5px;
             }
             .card-actions {
-                flex-wrap: wrap;
-                justify-content: center; /* Centrer les éléments pour la responsivité */
+                /* Ajuste l'alignement pour la responsivité */
+                align-items: center; /* Centre les éléments */
             }
-            .left-actions-group {
-                flex-direction: row; /* En ligne sur petits écrans pour garder la compacité */
-                gap: 10px;
-                width: 100%; /* Prend toute la largeur disponible */
+            .top-buttons-group {
+                flex-direction: column; /* Revenir en colonne sur petits écrans pour économiser la largeur */
+                gap: 5px;
+                width: 100%;
                 justify-content: center;
-                margin-bottom: 10px; /* Espace sous le groupe */
+                margin-bottom: 5px;
             }
-            .copier-btn {
-                width: 100%; /* Prend toute la largeur disponible sur petits écrans */
+            .toggle-content-btn, .copier-btn {
+                width: 100%; /* Les boutons prennent toute la largeur sur petits écrans */
+                text-align: center;
             }
-            .toggle-content-btn, .supprimer-btn {
-                flex-grow: 1; /* Permet aux boutons de se répartir l'espace */
+            .supprimer-btn {
+                width: auto; /* La corbeille ne prend pas toute la largeur */
+                align-self: center; /* Centre l'icône verticalement et horizontalement */
             }
             .create-tip-button-container {
                 margin-top: 15px;
@@ -918,29 +921,16 @@
                 const cardActions = document.createElement('div');
                 cardActions.className = 'card-actions';
 
-                // Groupe des boutons Aperçu et Corbeille (empilés)
-                const leftActionsGroup = document.createElement('div');
-                leftActionsGroup.className = 'left-actions-group';
+                // Nouveau groupe pour "Aperçu" et "Copier" (en ligne)
+                const topButtonsGroup = document.createElement('div');
+                topButtonsGroup.className = 'top-buttons-group';
 
                 const previewBtn = document.createElement('button');
                 previewBtn.className = 'toggle-content-btn';
                 previewBtn.textContent = 'Aperçu';
                 previewBtn.addEventListener('click', () => openPreviewPanel(tip));
-                leftActionsGroup.appendChild(previewBtn);
+                topButtonsGroup.appendChild(previewBtn);
 
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'supprimer-btn';
-                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Icône Font Awesome
-                deleteBtn.title = 'Supprimer ce tip'; // Infobulle
-                deleteBtn.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Empêche l'ouverture du panneau de prévisualisation si cliqué sur la carte
-                    deleteTip(tipId);
-                });
-                leftActionsGroup.appendChild(deleteBtn);
-
-                cardActions.appendChild(leftActionsGroup);
-
-                // Bouton Copier (aligné à droite)
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'copier-btn';
                 copyBtn.textContent = 'Copier le prompt';
@@ -952,7 +942,20 @@
                         showErrorMessage('Erreur lors de la copie.');
                     });
                 });
-                cardActions.appendChild(copyBtn);
+                topButtonsGroup.appendChild(copyBtn);
+
+                cardActions.appendChild(topButtonsGroup);
+
+                // Bouton Supprimer (en dessous, aligné à gauche)
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'supprimer-btn';
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Icône Font Awesome
+                deleteBtn.title = 'Supprimer ce tip'; // Infobulle
+                deleteBtn.addEventListener('click', (event) => {
+                    event.stopPropagation(); // Empêche l'ouverture du panneau de prévisualisation si cliqué sur la carte
+                    deleteTip(tipId);
+                });
+                cardActions.appendChild(deleteBtn); // Ajout direct à cardActions
 
                 infosWrapper.appendChild(cardActions);
                 carte.appendChild(infosWrapper);
