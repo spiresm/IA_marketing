@@ -12,7 +12,13 @@ export async function handler(event, context) {
     const REPO = process.env.GITHUB_REPO;
     const UPLOAD_DIR = process.env.UPLOAD_DIR || 'uploads/'; // Dossier où les images seront stockées dans le repo GitHub
 
+    // --- Ajout des console.log pour le débogage ---
+    console.log("Received event body length:", event.body ? event.body.length : 'null');
+    console.log("Received event body (first 200 chars):", event.body ? event.body.substring(0, 200) : 'null');
+    // --- Fin des console.log ---
+
     if (!GITHUB_TOKEN || !OWNER || !REPO) {
+        console.error("Configuration de l'API GitHub manquante (token, owner, repo).");
         return {
             statusCode: 500,
             body: JSON.stringify({ message: 'Configuration de l\'API GitHub manquante.' }),
@@ -24,16 +30,22 @@ export async function handler(event, context) {
     }
 
     let fileName;
-    let fileContentBase64;
+    let fileBase64Content; // Renommé pour correspondre au frontend
     try {
         const body = JSON.parse(event.body);
+        // --- Ajout des console.log pour le débogage ---
+        console.log("Parsed body object:", body);
+        // --- Fin des console.log ---
         fileName = body.fileName;
-        fileContentBase64 = body.fileContent; // Contenu du fichier en base64
+        fileBase64Content = body.fileBase64; // <-- CORRECTION ICI : Utilisez 'fileBase64'
     } catch (e) {
+        console.error("Erreur de parsing JSON du body de la requête:", e);
         return { statusCode: 400, body: JSON.stringify({ message: 'Corps de la requête invalide.' }) };
     }
 
-    if (!fileName || !fileContentBase64) {
+    // La validation utilise la nouvelle variable
+    if (!fileName || !fileBase64Content) {
+        console.error(`Validation échouée: fileName=${fileName}, fileBase64Content=${fileBase64Content ? 'présent' : 'absent'}`);
         return { statusCode: 400, body: JSON.stringify({ message: 'Nom de fichier ou contenu manquant.' }) };
     }
 
@@ -41,7 +53,6 @@ export async function handler(event, context) {
     const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
 
     try {
-        // Vérifier si le fichier existe déjà pour obtenir son SHA si nécessaire (pour updateFile)
         let sha = undefined;
         try {
             const { data } = await octokit.rest.repos.getContent({
@@ -51,36 +62,39 @@ export async function handler(event, context) {
                 ref: 'main',
             });
             sha = data.sha;
+            console.log(`Fichier existant trouvé: ${filePath}, SHA: ${sha}`);
         } catch (error) {
-            // Si le fichier n'existe pas (404), c'est normal, sha reste undefined pour createOrUpdateFileContents
             if (error.status !== 404) {
-                throw error; // Lancer d'autres erreurs inattendues
+                console.error(`Erreur lors de la récupération du fichier ${filePath}:`, error);
+                throw error;
             }
+            console.log(`Fichier non trouvé: ${filePath}, sera créé.`);
         }
 
-        // Créer ou mettre à jour le fichier
+        // Le contenu doit être le Base64 pur. Le frontend envoie le Base64 pur (après split(',')[1])
+        // Assurez-vous que fileBase64Content ne contient PAS le préfixe "data:image/png;base64,"
+        // Votre frontend getBase64 fait déjà le split, donc c'est bon.
         const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
             owner: OWNER,
             repo: REPO,
             path: filePath,
             message: `Upload de ${fileName}`,
-            content: fileContentBase64, // Le contenu est déjà en base64
-            sha: sha, // SHA est nécessaire si vous mettez à jour un fichier existant
+            content: fileBase64Content, // Utilise la variable corrigée
+            sha: sha,
             branch: 'main',
         });
 
-        // La réponse de GitHub contient l'URL de téléchargement (download_url)
         const imageUrl = uploadResponse.data.content.download_url;
+        console.log(`Fichier ${fileName} uploadé sur GitHub. URL: ${imageUrl}`);
 
         return {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*", // IMPORTANT pour le CORS
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
-            // MODIFICATION ICI: Ajout de la propriété 'url' dans la réponse
             body: JSON.stringify({
                 message: `Fichier ${fileName} uploadé avec succès sur GitHub !`,
                 url: imageUrl
@@ -88,7 +102,7 @@ export async function handler(event, context) {
         };
 
     } catch (error) {
-        console.error('Erreur lors de l\'upload de l\'image:', error);
+        console.error('Erreur lors de l\'upload de l\'image vers GitHub:', error);
         return {
             statusCode: 500,
             body: JSON.stringify({ message: `Erreur interne du serveur: ${error.message}` }),
