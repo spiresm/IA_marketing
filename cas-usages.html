@@ -25,6 +25,7 @@
             transition: opacity 0.5s ease-in;
             padding: 40px 20px;
             flex-grow: 1; /* Permet au main de prendre l'espace disponible, poussant le footer vers le bas */
+            transition: margin-right 0.3s ease-in-out; /* Add transition for margin change */
         }
         main.show {
             opacity: 1;
@@ -238,21 +239,6 @@
             white-space: pre-wrap; /* Préserve les retours à la ligne */
             word-break: break-word; /* Casse les mots longs pour éviter les débordements */
         }
-
-        /* Styles pour le contenu dépliable */
-        .collapsible-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out, opacity 0.3s ease-out; /* Animation fluide */
-            opacity: 0;
-            padding-top: 0;
-        }
-
-        .collapsible-content.show {
-            max-height: 500px; /* Grande valeur pour couvrir la plupart des contenus, à ajuster si besoin */
-            opacity: 1;
-            padding-top: 10px; /* Espacement après le dépliage */
-        }
         
         /* Boutons d'action sur la carte */
         .card-actions {
@@ -337,7 +323,97 @@
             border-radius: 8px;
         }
 
+        /* Styles for the new right-side preview panel */
+        .preview-panel {
+            position: fixed; /* Fixed position relative to the viewport */
+            top: 0;
+            right: -400px; /* Start off-screen to the right */
+            width: 380px; /* Width of the panel */
+            height: 100%;
+            background-color: #fff;
+            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s ease-in-out; /* Smooth transition for sliding in/out */
+            z-index: 1000; /* Ensure it's above other content */
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto; /* Enable scrolling for long content */
+        }
+
+        .preview-panel.open {
+            right: 0; /* Slide into view */
+        }
+
+        .preview-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .preview-panel-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1.2em;
+        }
+
+        .close-preview-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #888;
+            transition: color 0.2s;
+        }
+
+        .close-preview-btn:hover {
+            color: #333;
+        }
+
+        .preview-panel-content {
+            flex-grow: 1; /* Allows content to take up remaining space */
+            font-size: 0.95em;
+            line-height: 1.6;
+            color: #444;
+        }
+
+        .preview-panel-content strong {
+            color: #333;
+        }
+
+        .preview-panel-content pre {
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        /* Adjust main content when preview panel is open */
+        body.preview-open main {
+            margin-right: 380px; /* Make space for the panel */
+        }
+
         /* Media queries pour la responsivité */
+        @media (max-width: 992px) {
+            .preview-panel {
+                width: 100%; /* Full width on smaller screens */
+                right: -100%;
+            }
+            .preview-panel.open {
+                right: 0;
+            }
+            body.preview-open main {
+                margin-right: 0; /* No margin on main if panel is full width */
+            }
+        }
         @media (max-width: 768px) {
             .filters-header {
                 flex-direction: column;
@@ -418,7 +494,7 @@
                     </select>
                     <select id="filtre-auteur">
                         <option value="">Tous les auteurs</option>
-                        </select>
+                    </select>
                     <select id="filtre-outil"> <option value="">Tous les outils</option>
                         <option>Midjourney</option>
                         <option>DALL·E</option>
@@ -463,6 +539,14 @@
 
     <div id="footer-placeholder"></div>
 
+    <div id="previewPanel" class="preview-panel">
+        <div class="preview-panel-header">
+            <h3 id="previewPanelTitle">Aperçu du contenu</h3>
+            <button class="close-preview-btn" id="closePreviewBtn"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="previewPanelContent" class="preview-panel-content">
+            </div>
+    </div>
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = []; // Renommée pour être plus générique pour les tips
@@ -470,12 +554,17 @@
         const errorDisplay = document.getElementById('error-display');
         const filtreAuteurSelect = document.getElementById('filtre-auteur');
 
+        const previewPanel = document.getElementById('previewPanel');
+        const previewPanelTitle = document.getElementById('previewPanelTitle');
+        const previewPanelContent = document.getElementById('previewPanelContent');
+        const closePreviewBtn = document.getElementById('closePreviewBtn');
+        const bodyElement = document.body;
+
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
             const footerPlaceholder = document.getElementById("footer-placeholder");
             const mainElement = document.querySelector("main");
-            const bodyElement = document.body;
-
+            
             // Fonction pour charger un composant HTML
             const loadComponent = async (url, placeholderId, errorMessage) => {
                 console.log(`Attempting to load ${url} into #${placeholderId}`);
@@ -483,7 +572,7 @@
                     const res = await fetch(url);
                     if (!res.ok) {
                         const errorDetail = await res.text();
-                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`); 
+                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
                     }
                     document.getElementById(placeholderId).innerHTML = await res.text();
                     console.log(`${url} loaded successfully.`);
@@ -525,6 +614,58 @@
             // Configuration des écouteurs d'événements pour les filtres
             setupFilters();
         });
+
+        // Function to open the preview panel and populate it
+        function openPreviewPanel(tip) {
+            previewPanelTitle.textContent = `Aperçu : ${tip.titre || 'Sans titre'}`;
+            previewPanelContent.innerHTML = ''; // Clear previous content
+
+            if (tip.previewText) {
+                const previewHtml = document.createElement('p');
+                previewHtml.innerHTML = `<strong>Texte de prévisualisation :</strong>`;
+                previewPanelContent.appendChild(previewHtml);
+                const previewPre = document.createElement('pre');
+                previewPre.textContent = tip.previewText;
+                previewPanelContent.appendChild(previewPre);
+            }
+
+            if (tip.description) {
+                const descriptionHtml = document.createElement('p');
+                descriptionHtml.innerHTML = `<strong>Description :</strong>`;
+                previewPanelContent.appendChild(descriptionHtml);
+                const descriptionPre = document.createElement('pre');
+                descriptionPre.textContent = tip.description;
+                previewPanelContent.appendChild(descriptionPre);
+            }
+
+            if (tip.prompt) {
+                const promptHtml = document.createElement('p');
+                promptHtml.innerHTML = `<strong>Prompt :</strong>`;
+                previewPanelContent.appendChild(promptHtml);
+                const promptPre = document.createElement('pre');
+                promptPre.textContent = tip.prompt;
+                previewPanelContent.appendChild(promptPre);
+            }
+
+            if (tip.exemple) {
+                const exempleHtml = document.createElement('p');
+                exempleHtml.innerHTML = `<strong>Exemple :</strong>`;
+                previewPanelContent.appendChild(exempleHtml);
+                const exemplePre = document.createElement('pre');
+                exemplePre.textContent = tip.exemple;
+                previewPanelContent.appendChild(exemplePre);
+            }
+
+            previewPanel.classList.add('open');
+            bodyElement.classList.add('preview-open'); // Add class to body to push main content
+        }
+
+        // Function to close the preview panel
+        closePreviewBtn.addEventListener('click', () => {
+            previewPanel.classList.remove('open');
+            bodyElement.classList.remove('preview-open'); // Remove class from body
+        });
+
 
         async function loadAndDisplayTips() {
             galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
@@ -582,7 +723,7 @@
                 const carte = document.createElement('div');
                 carte.className = 'carte';
                 const tipId = tip.id || `temp-id-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-                carte.dataset.tipId = tipId; // Utiliser tipId au lieu de promptId
+                carte.dataset.tipId = tipId;
 
                 const chaineColor = getChaineColor(tip.chaine);
                 carte.style.borderLeftColor = chaineColor;
@@ -592,14 +733,11 @@
 
                 const img = document.createElement('img');
                 img.className = 'carte-image';
-                // Utilise une image par défaut si tip.imageUrl est vide/null
-                img.src = tip.imageUrl || 'default-tip-image.png'; // Assurez-vous que ce fichier existe !
+                img.src = tip.imageUrl || 'default-tip-image.png';
                 img.alt = tip.titre || 'Tip Image';
                 img.onerror = function() {
-                    // Si l'image par défaut elle-même ne charge pas, on peut cacher le panel
-                    this.onerror = null; // Important pour éviter les boucles infinies
-                    // leftPanel.style.display = 'none'; // Alternative: cacher le panneau entier
-                    this.src = 'https://via.placeholder.com/200x150?text=Image+Manquante'; // Fallback ultime
+                    this.onerror = null;
+                    this.src = 'https://via.placeholder.com/200x150?text=Image+Manquante';
                 };
                 leftPanel.appendChild(img);
                 carte.appendChild(leftPanel);
@@ -625,78 +763,48 @@
                     <span class="metadata-value chaine-value" style="color: ${chaineColor};">${tip.chaine || 'Chaîne N/A'}</span>
                 `;
                 infosWrapper.appendChild(metadataSection);
-
-                // Nouvelle section pour le texte de prévisualisation
-                if (tip.previewText) {
-                    const previewTextDisplay = document.createElement('p');
-                    previewTextDisplay.className = 'text-display'; // Utilise la classe générique
-                    previewTextDisplay.innerHTML = `<strong>Prévisualisation :</strong> ${tip.previewText}`;
-                    infosWrapper.appendChild(previewTextDisplay);
-                }
-
-
-                // Contenu dépliable
-                const collapsibleContent = document.createElement('div');
-                collapsibleContent.className = 'collapsible-content';
-
-                const descriptionText = document.createElement('p');
-                descriptionText.className = 'text-display'; // Réutiliser la classe pour le style
-                descriptionText.innerHTML = `<strong>Description :</strong> ${tip.description || 'Aucune description fournie.'}`;
-                collapsibleContent.appendChild(descriptionText);
-
-                if (tip.prompt) {
-                    const promptTitle = document.createElement('p');
-                    promptTitle.innerHTML = '<strong>Prompt :</strong>';
-                    collapsibleContent.appendChild(promptTitle);
-
-                    const promptContent = document.createElement('pre');
-                    promptContent.className = 'text-display'; // Utilise la classe générique
-                    promptContent.textContent = tip.prompt;
-                    collapsibleContent.appendChild(promptContent);
-                }
-
-                if (tip.exemple) {
-                    const exempleTitle = document.createElement('p');
-                    exempleTitle.innerHTML = '<strong>Exemple :</strong>';
-                    collapsibleContent.appendChild(exempleTitle);
-
-                    const exempleContent = document.createElement('pre');
-                    exempleContent.className = 'text-display'; // Utilise la classe générique
-                    exempleContent.textContent = tip.exemple;
-                    collapsibleContent.appendChild(exempleContent);
-                }
-                infosWrapper.appendChild(collapsibleContent);
-
+                
                 const cardActions = document.createElement('div');
                 cardActions.className = 'card-actions';
 
-                // Bouton "Voir plus/moins"
-                const toggleBtn = document.createElement('button');
-                toggleBtn.className = 'toggle-content-btn';
-                toggleBtn.textContent = 'Voir plus';
-                toggleBtn.onclick = function() {
-                    collapsibleContent.classList.toggle('show');
-                    this.textContent = collapsibleContent.classList.contains('show') ? 'Voir moins' : 'Voir plus';
-                    // Réajuster la hauteur de l'image si le contenu dépliable affecte la hauteur de infosWrapper
-                    setTimeout(() => {
-                        const infoWrapperHeight = infosWrapper.offsetHeight;
-                        leftPanel.style.height = `${infoWrapperHeight}px`;
-                    }, 300); // Délai pour laisser l'animation CSS se faire
-                };
-                cardActions.appendChild(toggleBtn);
+                // "Preview" button
+                if (tip.previewText || tip.description || tip.prompt || tip.exemple) {
+                    const previewBtn = document.createElement('button');
+                    previewBtn.className = 'toggle-content-btn';
+                    previewBtn.textContent = 'Prévisualiser';
+                    previewBtn.onclick = () => openPreviewPanel(tip);
+                    cardActions.appendChild(previewBtn);
+                }
 
+                // "Copy Prompt" button
+                if (tip.prompt) {
+                    const copierBtn = document.createElement('button');
+                    copierBtn.className = 'copier-btn';
+                    copierBtn.textContent = 'Copier le Prompt';
+                    copierBtn.onclick = () => {
+                        navigator.clipboard.writeText(tip.prompt).then(() => {
+                            alert('Prompt copié !');
+                        }).catch(err => {
+                            console.error('Erreur de copie:', err);
+                            alert('Échec de la copie du prompt.');
+                        });
+                    };
+                    cardActions.appendChild(copierBtn);
+                } else if (tip.description) { // If no prompt, maybe copy description
+                     const copierBtn = document.createElement('button');
+                    copierBtn.className = 'copier-btn';
+                    copierBtn.textContent = 'Copier la Description';
+                    copierBtn.onclick = () => {
+                        navigator.clipboard.writeText(tip.description).then(() => {
+                            alert('Description copiée !');
+                        }).catch(err => {
+                            console.error('Erreur de copie:', err);
+                            alert('Échec de la copie de la description.');
+                        });
+                    };
+                    cardActions.appendChild(copierBtn);
+                }
 
-                const copierBtn = document.createElement('button');
-                copierBtn.className = 'copier-btn';
-                copierBtn.textContent = 'Copier le prompt'; // Plus explicite
-                copierBtn.onclick = () => {
-                    navigator.clipboard.writeText(tip.prompt || tip.description || '').then(() => { // Copie le prompt ou la description
-                        alert('Texte copié !');
-                    }).catch(err => {
-                        console.error('Erreur de copie:', err);
-                    });
-                };
-                cardActions.appendChild(copierBtn);
 
                 const supprimerBtn = document.createElement('button');
                 supprimerBtn.className = 'supprimer-btn';
@@ -711,7 +819,7 @@
                                 return;
                             }
 
-                            const deleteResponse = await fetch(`${apiBase}delete-tip`, { // Utilisation de delete-tip
+                            const deleteResponse = await fetch(`${apiBase}delete-tip`, {
                                 method: 'DELETE',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ id: tipId })
@@ -719,13 +827,11 @@
 
                             if (deleteResponse.ok) {
                                 alert('Tip supprimé avec succès !');
-                                carte.remove(); // Supprimer la carte directement du DOM
-                                // Mettre à jour 'allTips' pour qu'il reflète la suppression sans recharger tout
+                                carte.remove();
                                 allTips = allTips.filter(t => t.id !== tipId);
                                 if (allTips.length === 0) {
                                     galerieDiv.innerHTML = '<p style="text-align: center;">Aucun tip ou prompt trouvé pour le moment.</p>';
                                 } else {
-                                    // S'assurer que les filtres reflètent la nouvelle liste
                                     filterAndSortTips();
                                 }
                             } else {
@@ -744,9 +850,6 @@
                 carte.appendChild(infosWrapper);
                 galerieDiv.appendChild(carte);
 
-                // Assurez-vous que la hauteur du left-panel est ajustée après l'ajout des éléments
-                // Cela est important pour que l'image puisse remplir toute la hauteur
-                // UTILISEZ setTimeout pour que le calcul de offsetHeight se fasse après le rendu initial du infosWrapper
                 setTimeout(() => {
                     const infoWrapperHeight = infosWrapper.offsetHeight;
                     leftPanel.style.height = `${infoWrapperHeight}px`;
@@ -754,74 +857,57 @@
             });
         }
 
-        function getChaineColor(chaine) {
-            switch (chaine) {
-                case 'Classic 21': return 'purple';
-                case 'La Une': return 'red';
-                case 'Tipik': return 'green';
-                case 'La Trois': return 'mediumorchid';
-                case 'La première': return 'blue';
-                case 'Auvio': return 'black';
-                case 'vivacité': return 'orange';
-                case 'Musiq3': return 'hotpink';
-                case 'Auvio Kids': return 'lightblue'; // Ajouté pour Kids
-                default: return '#6c757d'; // Couleur par défaut
-            }
+        function setupFilters() {
+            const searchKeyword = document.getElementById('search-keyword');
+            const previewTextFilter = document.getElementById('preview-text');
+            const filtreCategorie = document.getElementById('filtre-categorie');
+            const filtreOutil = document.getElementById('filtre-outil');
+            const filtreChaine = document.getElementById('filtre-chaine');
+            const filtreTri = document.getElementById('filtre-tri');
+
+            const filters = [
+                searchKeyword,
+                previewTextFilter,
+                filtreCategorie,
+                filtreAuteurSelect,
+                filtreOutil,
+                filtreChaine,
+                filtreTri
+            ];
+
+            filters.forEach(filter => {
+                filter.addEventListener('input', filterAndSortTips);
+                filter.addEventListener('change', filterAndSortTips);
+            });
         }
 
         function filterAndSortTips() {
             const searchKeyword = document.getElementById('search-keyword').value.toLowerCase();
-            const previewText = document.getElementById('preview-text').value.toLowerCase(); // New preview text filter
-            const filtreCategorie = document.getElementById('filtre-categorie').value;
-            const filtreAuteur = document.getElementById('filtre-auteur').value;
-            const filtreOutil = document.getElementById('filtre-outil').value; // Renamed from plateforme
-            const filtreChaine = document.getElementById('filtre-chaine').value;
+            const previewTextFilter = document.getElementById('preview-text').value.toLowerCase();
+            const filtreCategorie = document.getElementById('filtre-categorie').value.toLowerCase();
+            const filtreAuteur = document.getElementById('filtre-auteur').value.toLowerCase();
+            const filtreOutil = document.getElementById('filtre-outil').value.toLowerCase();
+            const filtreChaine = document.getElementById('filtre-chaine').value.toLowerCase();
             const filtreTri = document.getElementById('filtre-tri').value;
 
-            let filteredTips = [...allTips];
+            let filteredTips = allTips.filter(tip => {
+                const matchesKeyword = (tip.titre && tip.titre.toLowerCase().includes(searchKeyword)) ||
+                                       (tip.description && tip.description.toLowerCase().includes(searchKeyword)) ||
+                                       (tip.auteur && tip.auteur.toLowerCase().includes(searchKeyword));
+                
+                const matchesPreviewText = (tip.previewText && tip.previewText.toLowerCase().includes(previewTextFilter));
 
-            if (searchKeyword) {
-                filteredTips = filteredTips.filter(tip => {
-                    const titre = (tip.titre || '').toLowerCase();
-                    const description = (tip.description || '').toLowerCase();
-                    const prompt = (tip.prompt || '').toLowerCase();
-                    const auteur = (tip.auteur || '').toLowerCase();
-                    const outil = (tip.outil || '').toLowerCase(); // Use 'outil'
-                    const chaine = (tip.chaine || '').toLowerCase();
-                    return titre.includes(searchKeyword) ||
-                           description.includes(searchKeyword) ||
-                           prompt.includes(searchKeyword) ||
-                           auteur.includes(searchKeyword) ||
-                           outil.includes(searchKeyword) ||
-                           chaine.includes(searchKeyword);
-                });
-            }
+                const matchesCategory = filtreCategorie === '' || (tip.categorie && tip.categorie.toLowerCase() === filtreCategorie);
+                const matchesAuthor = filtreAuteur === '' || (tip.auteur && tip.auteur.toLowerCase() === filtreAuteur);
+                const matchesTool = filtreOutil === '' || (tip.outil && tip.outil.toLowerCase() === filtreOutil);
+                const matchesChannel = filtreChaine === '' || (tip.chaine && tip.chaine.toLowerCase() === filtreChaine);
 
-            if (previewText) { // Apply preview text filter
-                filteredTips = filteredTips.filter(tip => {
-                    const tipPreviewText = (tip.previewText || '').toLowerCase();
-                    return tipPreviewText.includes(previewText);
-                });
-            }
-
-
-            if (filtreCategorie) {
-                filteredTips = filteredTips.filter(tip => tip.categorie === filtreCategorie);
-            }
-            if (filtreAuteur) {
-                filteredTips = filteredTips.filter(tip => tip.auteur === filtreAuteur);
-            }
-            if (filtreOutil) {
-                filteredTips = filteredTips.filter(tip => tip.outil === filtreOutil);
-            }
-            if (filtreChaine) {
-                filteredTips = filteredTips.filter(tip => tip.chaine === filtreChaine);
-            }
+                return matchesKeyword && matchesPreviewText && matchesCategory && matchesAuthor && matchesTool && matchesChannel;
+            });
 
             filteredTips.sort((a, b) => {
-                const dateA = a.date ? new Date(a.date) : new Date(0);
-                const dateB = b.date ? new Date(b.date) : new Date(0);
-
+                const dateA = new Date(a.dateCreation || '1970-01-01');
+                const dateB = new Date(b.dateCreation || '1970-01-01');
                 if (filtreTri === 'recent') {
                     return dateB - dateA;
                 } else {
@@ -832,14 +918,19 @@
             displayTips(filteredTips);
         }
 
-        function setupFilters() {
-            document.getElementById('search-keyword').addEventListener('input', filterAndSortTips);
-            document.getElementById('preview-text').addEventListener('input', filterAndSortTips); // Add event listener for new input
-            document.getElementById('filtre-categorie').addEventListener('change', filterAndSortTips);
-            document.getElementById('filtre-auteur').addEventListener('change', filterAndSortTips);
-            document.getElementById('filtre-outil').addEventListener('change', filterAndSortTips);
-            document.getElementById('filtre-chaine').addEventListener('change', filterAndSortTips);
-            document.getElementById('filtre-tri').addEventListener('change', filterAndSortTips);
+        function getChaineColor(chaine) {
+            switch (chaine) {
+                case 'Classic 21': return 'purple';
+                case 'La Une': return '#0077b6'; /* Default blue for La Une, or any specific color */
+                case 'Tipik': return '#ff6b6b';
+                case 'La Trois': return '#2a9d8f';
+                case 'La première': return '#f4a261';
+                case 'vivacité': return '#e76f51';
+                case 'Musiq3': return '#588b8b';
+                case 'Auvio': return '#1a535c';
+                case 'Auvio Kids': return '#83c5be';
+                default: return '#cccccc'; // Default color for unknown chains
+            }
         }
     </script>
 </body>
