@@ -79,10 +79,7 @@
             flex: 1;
             min-width: 120px;
         }
-        #search-keyword {
-            min-width: 180px;
-            max-width: 250px;
-        }
+        /* Removed #search-keyword styling as the field is removed */
         #preview-text { /* Style for the new preview text input */
             min-width: 180px;
             max-width: 250px;
@@ -326,8 +323,9 @@
         .preview-panel {
             position: fixed; /* Fixed position relative to the viewport */
             top: 0;
-            right: -400px; /* Start off-screen to the right */
-            width: 380px; /* Width of the panel */
+            right: -760px; /* Start off-screen to the right (2 * 380px) */
+            width: 740px; /* Doubled width of the panel (2 * 370px, adjusted for padding/shadow) */
+            max-width: 90%; /* Ensure it doesn't overflow on very small screens */
             height: 100%;
             background-color: #fff;
             box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
@@ -404,10 +402,6 @@
         }
 
         /* REMOVED: Adjust main content when preview panel is open */
-        /* body.preview-open main {
-            margin-right: 380px;
-        } */
-
         /* Media queries pour la responsivité */
         @media (max-width: 992px) {
             .preview-panel {
@@ -417,10 +411,6 @@
             .preview-panel.open {
                 right: 0;
             }
-            /* REMOVED: No margin on main if panel is full width on smaller screens */
-            /* body.preview-open main {
-                margin-right: 0;
-            } */
         }
         @media (max-width: 768px) {
             .filters-header {
@@ -487,7 +477,6 @@
         <div class="header-controls-container">
             <div class="filters-header">
                 <div id="filters">
-                    <input type="text" id="search-keyword" placeholder="Rechercher par titre, description, auteur..." />
                     <input type="text" id="preview-text" placeholder="Rechercher dans le texte de prévisualisation..." />
                     <select id="filtre-categorie">
                         <option value="">Toutes les catégories</option>
@@ -525,14 +514,11 @@
                         <option>Auvio Kids</option>
                     </select>
                     <select id="filtre-tri">
-                        <option value="recent">Plus récent</option>
                         <option value="ancien">Plus ancien</option>
                     </select>
                 </div>
                 <div class="action-buttons">
-                    <a href="/creer-tip.html">➕ Partager un Tip</a>
-                    <a href="compresseur.html">✂️ Compresser une image</a>
-                </div>
+                    </div>
             </div>
         </div>
 
@@ -672,13 +658,11 @@
             }
 
             previewPanel.classList.add('open');
-            // We DO NOT add bodyElement.classList.add('preview-open'); here to prevent content shifting
         }
 
         // Function to close the preview panel
         function closePreviewPanel() {
             previewPanel.classList.remove('open');
-            // We DO NOT remove bodyElement.classList.remove('preview-open'); here
         }
 
         closePreviewBtn.addEventListener('click', closePreviewPanel);
@@ -884,7 +868,7 @@
         }
 
         function setupFilters() {
-            const searchKeyword = document.getElementById('search-keyword');
+            // Removed: const searchKeyword = document.getElementById('search-keyword');
             const previewTextFilter = document.getElementById('preview-text');
             const filtreCategorie = document.getElementById('filtre-categorie');
             const filtreOutil = document.getElementById('filtre-outil');
@@ -892,8 +876,7 @@
             const filtreTri = document.getElementById('filtre-tri');
 
             const filters = [
-                searchKeyword,
-                previewTextFilter,
+                previewTextFilter, // Only this keyword filter remains
                 filtreCategorie,
                 filtreAuteurSelect,
                 filtreOutil,
@@ -908,7 +891,7 @@
         }
 
         function filterAndSortTips() {
-            const searchKeyword = document.getElementById('search-keyword').value.toLowerCase();
+            // Removed: const searchKeyword = document.getElementById('search-keyword').value.toLowerCase();
             const previewTextFilter = document.getElementById('preview-text').value.toLowerCase();
             const filtreCategorie = document.getElementById('filtre-categorie').value.toLowerCase();
             const filtreAuteur = document.getElementById('filtre-auteur').value.toLowerCase();
@@ -917,26 +900,29 @@
             const filtreTri = document.getElementById('filtre-tri').value;
 
             let filteredTips = allTips.filter(tip => {
-                const matchesKeyword = (tip.titre && tip.titre.toLowerCase().includes(searchKeyword)) ||
-                                       (tip.description && tip.description.toLowerCase().includes(searchKeyword)) ||
-                                       (tip.auteur && tip.auteur.toLowerCase().includes(searchKeyword));
-                
-                const matchesPreviewText = (tip.previewText && tip.previewText.toLowerCase().includes(previewTextFilter));
+                // The searchKeyword variable is removed, so 'matchesKeyword' logic is simplified
+                // It will now only check against previewTextFilter if search-keyword was previously also checking it.
+                // Assuming 'preview-text' is now the primary text search field.
+                const matchesPreviewText = (tip.previewText && tip.previewText.toLowerCase().includes(previewTextFilter)) ||
+                                           (tip.titre && tip.titre.toLowerCase().includes(previewTextFilter)) || // Added titre back into general text search
+                                           (tip.description && tip.description.toLowerCase().includes(previewTextFilter)) ||
+                                           (tip.auteur && tip.auteur.toLowerCase().includes(previewTextFilter)); // Added auteur back into general text search
+
 
                 const matchesCategory = filtreCategorie === '' || (tip.categorie && tip.categorie.toLowerCase() === filtreCategorie);
                 const matchesAuthor = filtreAuteur === '' || (tip.auteur && tip.auteur.toLowerCase() === filtreAuteur);
                 const matchesTool = filtreOutil === '' || (tip.outil && tip.outil.toLowerCase() === filtreOutil);
                 const matchesChannel = filtreChaine === '' || (tip.chaine && tip.chaine.toLowerCase() === filtreChaine);
 
-                return matchesKeyword && matchesPreviewText && matchesCategory && matchesAuthor && matchesTool && matchesChannel;
+                return matchesPreviewText && matchesCategory && matchesAuthor && matchesTool && matchesChannel;
             });
 
             filteredTips.sort((a, b) => {
                 const dateA = new Date(a.dateCreation || '1970-01-01');
                 const dateB = new Date(b.dateCreation || '1970-01-01');
-                if (filtreTri === 'recent') {
+                if (filtreTri === 'recent') { // This condition will now always be false as 'recent' option is removed
                     return dateB - dateA;
-                } else {
+                } else { // 'ancien' is the only option left
                     return dateA - dateB;
                 }
             });
