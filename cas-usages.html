@@ -270,7 +270,7 @@
             white-space: pre-wrap; /* Préserve les retours à la ligne */
             word-break: break-word; /* Casse les mots longs pour éviter les débordements */
         }
-        
+
         /* Boutons d'action sur la carte */
         .card-actions {
             display: flex;
@@ -509,6 +509,24 @@
                 margin-bottom: 20px;
             }
         }
+
+        /* Styles for the "post-it" preview text */
+        .preview-post-it {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #ffeb3b; /* Yellow */
+            padding: 8px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            font-size: 0.8em;
+            font-weight: bold;
+            z-index: 2;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-width: 150px;
+        }
+
     </style>
 </head>
 <body>
@@ -608,7 +626,7 @@
             
             // Fonction pour charger un composant HTML
             const loadComponent = async (url, placeholderId, errorMessage) => {
-                console.log(`Attempting to load ${url} into #${placeholderId}`);
+                console.log(`Attempting to load <span class="math-inline">\{url\} into \#</span>{placeholderId}`);
                 try {
                     const res = await fetch(url);
                     if (!res.ok) {
@@ -779,7 +797,7 @@
             tipsToDisplay.forEach(tip => {
                 const carte = document.createElement('div');
                 carte.className = 'carte';
-                const tipId = tip.id || `temp-id-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                const tipId = tip.id || `temp-id-<span class="math-inline">\{Date\.now\(\)\}\-</span>{Math.random().toString(36).substring(2, 9)}`;
                 carte.dataset.tipId = tipId;
 
                 const chaineColor = getChaineColor(tip.chaine);
@@ -810,178 +828,4 @@
 
 
                 const outilBadge = document.createElement('div');
-                outilBadge.className = 'outil-badge';
-                outilBadge.textContent = tip.outil || 'Outil N/A';
-                infosWrapper.appendChild(outilBadge);
-
-                const metadataSection = document.createElement('div');
-                metadataSection.className = 'metadata-section';
-                metadataSection.innerHTML = `
-                    <span class="metadata-label">Auteur :</span>
-                    <span class="metadata-value auteur-value">${tip.auteur || 'Inconnu'}</span>
-                    <span class="metadata-label">Catégorie :</span>
-                    <span class="metadata-value">${tip.categorie || 'Non spécifiée'}</span>
-                    <span class="metadata-label">Chaîne :</span>
-                    <span class="metadata-value chaine-value" style="color: ${chaineColor};">${tip.chaine || 'Chaîne N/A'}</span>
-                `;
-                infosWrapper.appendChild(metadataSection);
-                
-                const cardActions = document.createElement('div');
-                cardActions.className = 'card-actions';
-
-                // "Preview" button
-                if (tip.previewText || tip.description || tip.prompt || tip.exemple || tip.imageUrl) { // Check for imageUrl for preview
-                    const previewBtn = document.createElement('button');
-                    previewBtn.className = 'toggle-content-btn';
-                    previewBtn.textContent = 'Prévisualiser';
-                    previewBtn.onclick = () => openPreviewPanel(tip);
-                    cardActions.appendChild(previewBtn);
-                }
-
-                // "Copy Prompt" button
-                if (tip.prompt) {
-                    const copierBtn = document.createElement('button');
-                    copierBtn.className = 'copier-btn';
-                    copierBtn.textContent = 'Copier le Prompt';
-                    copierBtn.onclick = () => {
-                        navigator.clipboard.writeText(tip.prompt).then(() => {
-                            alert('Prompt copié !');
-                        }).catch(err => {
-                            console.error('Erreur de copie:', err);
-                            alert('Échec de la copie du prompt.');
-                        });
-                    };
-                    cardActions.appendChild(copierBtn);
-                } else if (tip.description) { // If no prompt, maybe copy description
-                    const copierBtn = document.createElement('button');
-                    copierBtn.className = 'copier-btn';
-                    copierBtn.textContent = 'Copier la Description';
-                    copierBtn.onclick = () => {
-                        navigator.clipboard.writeText(tip.description).then(() => {
-                            alert('Description copiée !');
-                        }).catch(err => {
-                            console.error('Erreur de copie:', err);
-                            alert('Échec de la copie de la description.');
-                        });
-                    };
-                    cardActions.appendChild(copierBtn);
-                }
-
-                const supprimerBtn = document.createElement('button');
-                supprimerBtn.className = 'supprimer-btn';
-                supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-                supprimerBtn.title = 'Supprimer le tip';
-                supprimerBtn.onclick = (event) => {
-                    event.stopPropagation(); // Prevent card click when deleting
-                    if (confirm('Êtes-vous sûr de vouloir supprimer ce tip ?')) {
-                        deleteTip(tipId);
-                    }
-                };
-                cardActions.appendChild(supprimerBtn);
-                
-                infosWrapper.appendChild(cardActions);
-                carte.appendChild(infosWrapper);
-                galerieDiv.appendChild(carte);
-            });
-        }
-
-        function setupFilters() {
-            previewTextInput.addEventListener('input', filterAndSortTips);
-            filtreCategorieSelect.addEventListener('change', filterAndSortTips);
-            filtreAuteurSelect.addEventListener('change', filterAndSortTips);
-            filtreOutilSelect.addEventListener('change', filterAndSortTips);
-            filtreChaineSelect.addEventListener('change', filterAndSortTips);
-        }
-
-        function filterAndSortTips() {
-            let filteredTips = [...allTips];
-
-            // Filter by preview text
-            const previewTextValue = previewTextInput.value.toLowerCase().trim();
-            if (previewTextValue) {
-                filteredTips = filteredTips.filter(tip => 
-                    (tip.previewText && tip.previewText.toLowerCase().includes(previewTextValue)) ||
-                    (tip.titre && tip.titre.toLowerCase().includes(previewTextValue)) ||
-                    (tip.description && tip.description.toLowerCase().includes(previewTextValue)) ||
-                    (tip.prompt && tip.prompt.toLowerCase().includes(previewTextValue))
-                );
-            }
-
-            // Filter by category
-            const categorie = filtreCategorieSelect.value;
-            if (categorie) {
-                filteredTips = filteredTips.filter(tip => tip.categorie === categorie);
-            }
-
-            // Filter by author
-            const auteur = filtreAuteurSelect.value;
-            if (auteur) {
-                filteredTips = filteredTips.filter(tip => tip.auteur === auteur);
-            }
-
-            // Filter by tool
-            const outil = filtreOutilSelect.value;
-            if (outil) {
-                filteredTips = filteredTips.filter(tip => tip.outil === outil);
-            }
-
-            // Filter by chaine
-            const chaine = filtreChaineSelect.value;
-            if (chaine) {
-                filteredTips = filteredTips.filter(tip => tip.chaine === chaine);
-            }
-
-            // Sort (default to most recent if no explicit sort filter)
-            filteredTips.sort((a, b) => {
-                const dateA = new Date(a.dateAdded);
-                const dateB = new Date(b.dateAdded);
-                return dateB - dateA; // Always sort by most recent
-            });
-
-            displayTips(filteredTips);
-        }
-
-        async function deleteTip(tipId) {
-            try {
-                const response = await fetch(`${apiBase}delete-tip`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ id: tipId }),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
-                }
-
-                const result = await response.json();
-                console.log(result.message);
-                alert('Tip supprimé avec succès !');
-                // Reload tips after deletion
-                loadAndDisplayTips(); 
-
-            } catch (error) {
-                console.error("Erreur lors de la suppression du tip:", error);
-                alert(`Erreur lors de la suppression du tip: ${error.message}`);
-            }
-        }
-
-        function getChaineColor(chaine) {
-            switch (chaine) {
-                case 'La Une': return '#0077B6';
-                case 'Tipik': return '#00B4D8';
-                case 'La Trois': return '#48CAE4';
-                case 'La première': return '#03045E';
-                case 'Classic 21': return '#001D3D';
-                case 'vivacité': return '#003566';
-                case 'Musiq3': return '#000814';
-                case 'Auvio': return '#A51C30';
-                case 'Auvio Kids': return '#FFC300';
-                default: return '#cccccc'; // Couleur par défaut
-            }
-        }
-    </script>
-</body>
-</html>
+                outilBadge
