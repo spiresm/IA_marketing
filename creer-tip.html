@@ -209,6 +209,9 @@
                         <label for="description">Description</label>
                         <textarea id="description" v-model="description" rows="4" required></textarea>
 
+                        <label for="previewText">Texte de prévisualisation (optionnel)</label>
+                        <textarea id="previewText" v-model="previewText" rows="2" placeholder="Un court extrait ou un résumé pour la prévisualisation dans la galerie."></textarea>
+
                         <label for="prompt">Prompt</label>
                         <textarea id="prompt" v-model="promptText" rows="6" placeholder="Collez le prompt exact ici si c'est un prompt"></textarea>
 
@@ -224,7 +227,7 @@
                             <option>Autre</option>
                         </select>
 
-                        <label for="outil">Plateforme</label>
+                        <label for="outil">Plateforme / Outil</label>
                         <input type="text" id="outil" v-model="outil" placeholder="Ex: Google Ads, Canva, ChatGPT" />
 
                         <label>Images / Documents (optionnel)</label>
@@ -250,6 +253,7 @@
                         <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
                         <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
                         <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
+                        <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
                         <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
                         <p style="margin-top: 15px; color: #0077b6;">Redirection vers les cas d'usages dans 5 secondes...</p>
                     </div>
@@ -259,16 +263,18 @@
                 const auteur = ref('');
                 const titre = ref('');
                 const description = ref('');
+                const previewText = ref(''); // New reactive variable for preview text
                 const promptText = ref('');
                 const categorie = ref('Marketing Digital');
                 const outil = ref('');
                 const fileInput = ref(null);
-                const selectedFiles = ref([]); // Store selected files
-                const filePreviewUrls = ref([]); // Store URLs for previews
+                const selectedFiles = ref([]);
+                const filePreviewUrls = ref([]);
                 const confirmationVisible = ref(false);
-                const confirmationImageUrl = ref(''); // Still used for a single image in confirmation (you might adjust this)
+                const confirmationImageUrl = ref('');
                 const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
+                const confirmationPreviewText = ref(''); // New for confirmation
                 const confirmationPromptText = ref('');
                 const isLoading = ref(false);
                 const profilsAuteurs = ref([]);
@@ -333,8 +339,8 @@
                 }
 
                 function handleFiles(files) {
-                    selectedFiles.value = Array.from(files); // Store File objects
-                    filePreviewUrls.value = []; // Clear previous previews
+                    selectedFiles.value = Array.from(files);
+                    filePreviewUrls.value = [];
 
                     selectedFiles.value.forEach(file => {
                         if (file.type.startsWith('image/')) {
@@ -377,7 +383,6 @@
                     let uploadedFilesData = [];
 
                     try {
-                        // Prepare data for multiple files
                         for (const file of selectedFiles.value) {
                             const data = await getBase64(file);
                             uploadedFilesData.push({
@@ -387,7 +392,6 @@
                             });
                         }
 
-                        // Send all data (including files data) to save-tip.mjs
                         const tipResp = await fetch(SAVE_TIP_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -396,10 +400,11 @@
                                 auteur: auteur.value,
                                 titre: titre.value,
                                 description: description.value,
+                                previewText: previewText.value, // Include previewText here
                                 prompt: promptText.value,
                                 categorie: categorie.value,
                                 outil: outil.value,
-                                filesData: uploadedFilesData // Send an array of file data
+                                filesData: uploadedFilesData
                             })
                         });
 
@@ -409,22 +414,23 @@
                         }
 
                         const result = await tipResp.json();
-                        // For confirmation, you might want to show the first image if multiple were uploaded
                         confirmationImageUrl.value = result.imageUrls?.[0] || '';
 
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
+                        confirmationPreviewText.value = previewText.value; // Assign to confirmation
                         confirmationPromptText.value = promptText.value;
                         confirmationVisible.value = true;
 
                         setTimeout(() => {
-                            window.location.href = "https://iamarketing.netlify.app/cas-usages.html";
+                            window.location.href = "https://iamarketing.netlify.app/cas-usages.html?success=1"; // Add success param for gallery confirmation
                         }, 5000);
 
                         // Reset the form
                         auteur.value = '';
                         titre.value = '';
                         description.value = '';
+                        previewText.value = ''; // Reset preview text
                         promptText.value = '';
                         categorie.value = 'Marketing Digital';
                         outil.value = '';
@@ -443,9 +449,9 @@
                 }
 
                 return {
-                    auteur, titre, description, promptText, categorie, outil, fileInput,
+                    auteur, titre, description, previewText, promptText, categorie, outil, fileInput,
                     filePreviewUrls, confirmationVisible,
-                    confirmationImageUrl, confirmationTitre, confirmationDescription, confirmationPromptText,
+                    confirmationImageUrl, confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
                 };
