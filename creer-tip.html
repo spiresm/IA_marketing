@@ -175,6 +175,7 @@
                 document.getElementById("header-placeholder").innerHTML = html;
                 document.body.classList.add("show");
                 document.querySelector("main").classList.add("show");
+                console.log("Header chargé et animations démarrées.");
             })
             .catch(error => console.error("Erreur lors du chargement du header:", error));
     </script>
@@ -263,7 +264,7 @@
                 const auteur = ref('');
                 const titre = ref('');
                 const description = ref('');
-                const previewText = ref(''); // New reactive variable for preview text
+                const previewText = ref('');
                 const promptText = ref('');
                 const categorie = ref('Marketing Digital');
                 const outil = ref('');
@@ -274,82 +275,112 @@
                 const confirmationImageUrl = ref('');
                 const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
-                const confirmationPreviewText = ref(''); // New for confirmation
+                const confirmationPreviewText = ref('');
                 const confirmationPromptText = ref('');
                 const isLoading = ref(false);
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
                 async function fetchProfils() {
+                    console.log("Début du chargement des profils...");
                     isLoadingProfils.value = true;
                     try {
                         const response = await fetch(`${PROXY_URL}?action=getProfils`);
+                        console.log("Réponse de la fonction proxy pour les profils:", response);
                         if (!response.ok) {
                             const errorText = await response.text();
                             throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
                         }
                         const data = await response.json();
+                        console.log("Données brutes des profils reçues:", data);
                         const profilsList = Array.isArray(data) ? data : (data.profils || []);
                         const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
 
                         if (names.length === 1) {
                             auteur.value = names[0];
+                            console.log("Un seul profil trouvé, auteur auto-sélectionné:", auteur.value);
+                        } else if (names.length > 1) {
+                            auteur.value = ''; // Laisser vide pour sélection manuelle
+                            console.log("Plusieurs profils trouvés, veuillez sélectionner un auteur.");
                         } else {
                             auteur.value = '';
+                            console.log("Aucun profil d'auteur trouvé.");
                         }
-                        console.log("Noms de profils chargés:", profilsAuteurs.value);
+                        console.log("Noms de profils chargés et triés:", profilsAuteurs.value);
 
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
                         alert(`Impossible de charger la liste des auteurs. Vérifiez la console et les logs de votre fonction proxy Netlify pour plus de détails. Erreur: ${error.message}`);
                     } finally {
                         isLoadingProfils.value = false;
+                        console.log("Fin du chargement des profils.");
                     }
                 }
 
-                onMounted(fetchProfils);
+                onMounted(() => {
+                    console.log("Composant TipForm monté.");
+                    fetchProfils();
+                });
 
                 function triggerFile() {
+                    console.log("Clic sur la drop-zone, déclenchement de l'input fichier.");
                     fileInput.value?.click();
                 }
 
                 function onDragOver(e) {
+                    console.log("Événement dragover détecté.");
                     e.currentTarget.classList.add('dragover');
                 }
 
                 function onDragLeave(e) {
+                    console.log("Événement dragleave détecté.");
                     e.currentTarget.classList.remove('dragover');
                 }
 
                 function onDrop(e) {
+                    console.log("Événement drop détecté.");
                     e.currentTarget.classList.remove('dragover');
                     const files = e.dataTransfer.files;
                     if (files.length) {
-                        fileInput.value.files = files;
+                        console.log("Fichiers déposés:", files);
+                        fileInput.value.files = files; // Assigne les fichiers déposés à l'input caché
                         handleFiles(files);
+                    } else {
+                        console.log("Aucun fichier déposé.");
                     }
                 }
 
                 function onFileChange(e) {
                     const files = e.target.files;
                     if (files) {
+                        console.log("Fichiers sélectionnés via l'input:", files);
                         handleFiles(files);
+                    } else {
+                        console.log("Aucun fichier sélectionné via l'input.");
                     }
                 }
 
                 function handleFiles(files) {
                     selectedFiles.value = Array.from(files);
                     filePreviewUrls.value = [];
+                    console.log("Fichiers à traiter dans handleFiles:", selectedFiles.value);
 
                     selectedFiles.value.forEach(file => {
+                        console.log(`Traitement du fichier: ${file.name}, Type: ${file.type}, Taille: ${file.size} octets`);
                         if (file.type.startsWith('image/')) {
                             const reader = new FileReader();
                             reader.onload = (e) => {
                                 filePreviewUrls.value.push(e.target.result);
+                                console.log(`Aperçu image généré pour ${file.name}`);
                             };
-                            reader.onerror = (error) => console.error("Erreur lecture fichier:", error);
+                            reader.onerror = (error) => {
+                                console.error(`Erreur lecture fichier ${file.name}:`, error);
+                                alert(`Erreur lors de la lecture de l'image ${file.name}.`);
+                            };
                             reader.readAsDataURL(file);
+                        } else {
+                            console.log(`Le fichier ${file.name} n'est pas une image, pas d'aperçu généré.`);
                         }
                     });
                 }
@@ -357,94 +388,128 @@
                 function getBase64(file) {
                     return new Promise((resolve, reject) => {
                         const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result.split(',')[1]);
-                        reader.onerror = (error) => reject(error);
+                        reader.onload = () => {
+                            // Supprime le préfixe "data:image/png;base64," etc.
+                            const base64String = reader.result.split(',')[1];
+                            console.log(`Fichier ${file.name} converti en Base64. Taille Base64: ${base64String.length} caractères.`);
+                            resolve(base64String);
+                        };
+                        reader.onerror = (error) => {
+                            console.error(`Erreur lors de la conversion de ${file.name} en Base64:`, error);
+                            reject(error);
+                        };
                         reader.readAsDataURL(file);
                     });
                 }
 
                 async function submitForm() {
+                    console.log("Soumission du formulaire...");
                     if (!auteur.value) {
                         alert("Veuillez sélectionner un auteur.");
+                        console.warn("Soumission bloquée: Auteur manquant.");
                         return;
                     }
                     if (!titre.value.trim()) {
                         alert("Veuillez entrer le titre du tip.");
+                        console.warn("Soumission bloquée: Titre manquant.");
                         return;
                     }
                     if (!description.value.trim()) {
                         alert("Veuillez entrer la description du tip.");
+                        console.warn("Soumission bloquée: Description manquante.");
                         return;
                     }
 
                     confirmationVisible.value = false;
                     isLoading.value = true;
+                    console.log("Formulaire en cours de traitement (isLoading = true).");
 
                     let uploadedFilesData = [];
 
                     try {
+                        console.log(`Préparation de ${selectedFiles.value.length} fichier(s) pour l'upload.`);
                         for (const file of selectedFiles.value) {
-                            const data = await getBase64(file);
-                            uploadedFilesData.push({
-                                data: data,
-                                fileName: file.name,
-                                fileType: file.type
-                            });
+                            try {
+                                const data = await getBase64(file);
+                                uploadedFilesData.push({
+                                    data: data,
+                                    fileName: file.name,
+                                    fileType: file.type
+                                });
+                                console.log(`Fichier ${file.name} prêt pour l'upload.`);
+                            } catch (fileError) {
+                                console.error(`Échec de la préparation du fichier ${file.name}:`, fileError);
+                                alert(`Impossible de traiter le fichier ${file.name}. Il sera ignoré.`);
+                                // Décider si vous voulez continuer ou arrêter la soumission ici
+                            }
                         }
+                        console.log("Tous les fichiers préparés. Données des fichiers à envoyer:", uploadedFilesData);
+
+                        const payload = {
+                            id: `tip-${Date.now()}`,
+                            auteur: auteur.value,
+                            titre: titre.value,
+                            description: description.value,
+                            previewText: previewText.value,
+                            prompt: promptText.value,
+                            categorie: categorie.value,
+                            outil: outil.value,
+                            filesData: uploadedFilesData
+                        };
+
+                        console.log("Payload complet envoyé à save-tip:", JSON.stringify(payload, null, 2));
 
                         const tipResp = await fetch(SAVE_TIP_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                id: `tip-${Date.now()}`,
-                                auteur: auteur.value,
-                                titre: titre.value,
-                                description: description.value,
-                                previewText: previewText.value, // Include previewText here
-                                prompt: promptText.value,
-                                categorie: categorie.value,
-                                outil: outil.value,
-                                filesData: uploadedFilesData
-                            })
+                            body: JSON.stringify(payload)
                         });
+
+                        console.log("Réponse de la fonction save-tip:", tipResp);
 
                         if (!tipResp.ok) {
                             const errorText = await tipResp.text();
+                            console.error(`Erreur HTTP lors de l'enregistrement du tip: ${tipResp.status} - ${errorText}`);
                             throw new Error(`Échec de l'enregistrement du tip: ${tipResp.status} - ${errorText}`);
                         }
 
                         const result = await tipResp.json();
-                        confirmationImageUrl.value = result.imageUrls?.[0] || '';
+                        console.log("Résultat de l'enregistrement du tip:", result);
+                        confirmationImageUrl.value = result.imageUrls?.[0] || ''; // Prend la première URL si plusieurs
 
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
-                        confirmationPreviewText.value = previewText.value; // Assign to confirmation
+                        confirmationPreviewText.value = previewText.value;
                         confirmationPromptText.value = promptText.value;
                         confirmationVisible.value = true;
+                        console.log("Confirmation affichée. Redirection dans 5 secondes...");
 
                         setTimeout(() => {
-                            window.location.href = "https://iamarketing.netlify.app/cas-usages.html?success=1"; // Add success param for gallery confirmation
+                            window.location.href = "https://iamarketing.netlify.app/cas-usages.html?success=1";
                         }, 5000);
 
                         // Reset the form
                         auteur.value = '';
                         titre.value = '';
                         description.value = '';
-                        previewText.value = ''; // Reset preview text
+                        previewText.value = '';
                         promptText.value = '';
                         categorie.value = 'Marketing Digital';
                         outil.value = '';
                         selectedFiles.value = [];
                         filePreviewUrls.value = [];
                         if (fileInput.value) {
-                            fileInput.value.value = null;
+                            fileInput.value.value = null; // Réinitialise l'input file pour permettre la resélection du même fichier
                         }
-                        fetchProfils();
+                        fetchProfils(); // Recharge les profils au cas où
+                        console.log("Formulaire réinitialisé.");
+
                     } catch (err) {
-                        console.error('Erreur lors de l\'envoi du tip:', err);
+                        console.error('Erreur irrécupérable lors de l\'envoi du tip:', err);
                         alert(`Échec de l'envoi du tip: ${err.message || err}. Vérifiez la console pour plus de détails.`);
                     } finally {
                         isLoading.value = false;
+                        console.log("Fin du traitement du formulaire (isLoading = false).");
                     }
                 }
 
