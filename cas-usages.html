@@ -83,12 +83,17 @@
             min-width: 180px;
             max-width: 250px;
         }
+        #preview-text { /* Style for the new preview text input */
+            min-width: 180px;
+            max-width: 250px;
+        }
 
         .action-buttons {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-            justify-content: flex-end; /* ALIGNEMENT VERS LA DROITE */
+            justify-content: flex-end; /* ALIGNMENT VERS LA DROITE par défaut */
+            align-items: center; /* Alignement vertical */
         }
 
         .action-buttons a {
@@ -220,8 +225,8 @@
             font-weight: bold;
         }
 
-        /* Texte du prompt */
-        .prompt-text-display {
+        /* Texte du prompt et description */
+        .text-display { /* Renommé pour être plus générique */
             font-size: 0.9em;
             color: #444;
             line-height: 1.4;
@@ -399,6 +404,7 @@
             <div class="filters-header">
                 <div id="filters">
                     <input type="text" id="search-keyword" placeholder="Rechercher par titre, description, auteur..." />
+                    <input type="text" id="preview-text" placeholder="Rechercher dans le texte de prévisualisation..." />
                     <select id="filtre-categorie">
                         <option value="">Toutes les catégories</option>
                         <option>Marketing Digital</option>
@@ -413,8 +419,7 @@
                     <select id="filtre-auteur">
                         <option value="">Tous les auteurs</option>
                         </select>
-                    <select id="filtre-outil">
-                        <option value="">Tous les outils</option>
+                    <select id="filtre-outil"> <option value="">Tous les outils</option>
                         <option>Midjourney</option>
                         <option>DALL·E</option>
                         <option>Stable Diffusion</option>
@@ -621,13 +626,22 @@
                 `;
                 infosWrapper.appendChild(metadataSection);
 
+                // Nouvelle section pour le texte de prévisualisation
+                if (tip.previewText) {
+                    const previewTextDisplay = document.createElement('p');
+                    previewTextDisplay.className = 'text-display'; // Utilise la classe générique
+                    previewTextDisplay.innerHTML = `<strong>Prévisualisation :</strong> ${tip.previewText}`;
+                    infosWrapper.appendChild(previewTextDisplay);
+                }
+
+
                 // Contenu dépliable
                 const collapsibleContent = document.createElement('div');
                 collapsibleContent.className = 'collapsible-content';
 
                 const descriptionText = document.createElement('p');
-                descriptionText.className = 'prompt-text-display'; // Réutiliser la classe pour le style
-                descriptionText.textContent = tip.description || 'Aucune description fournie.';
+                descriptionText.className = 'text-display'; // Réutiliser la classe pour le style
+                descriptionText.innerHTML = `<strong>Description :</strong> ${tip.description || 'Aucune description fournie.'}`;
                 collapsibleContent.appendChild(descriptionText);
 
                 if (tip.prompt) {
@@ -636,7 +650,7 @@
                     collapsibleContent.appendChild(promptTitle);
 
                     const promptContent = document.createElement('pre');
-                    promptContent.className = 'prompt-text-display';
+                    promptContent.className = 'text-display'; // Utilise la classe générique
                     promptContent.textContent = tip.prompt;
                     collapsibleContent.appendChild(promptContent);
                 }
@@ -647,7 +661,7 @@
                     collapsibleContent.appendChild(exempleTitle);
 
                     const exempleContent = document.createElement('pre');
-                    exempleContent.className = 'prompt-text-display';
+                    exempleContent.className = 'text-display'; // Utilise la classe générique
                     exempleContent.textContent = tip.exemple;
                     collapsibleContent.appendChild(exempleContent);
                 }
@@ -757,9 +771,10 @@
 
         function filterAndSortTips() {
             const searchKeyword = document.getElementById('search-keyword').value.toLowerCase();
+            const previewText = document.getElementById('preview-text').value.toLowerCase(); // New preview text filter
             const filtreCategorie = document.getElementById('filtre-categorie').value;
             const filtreAuteur = document.getElementById('filtre-auteur').value;
-            const filtreOutil = document.getElementById('filtre-outil').value;
+            const filtreOutil = document.getElementById('filtre-outil').value; // Renamed from plateforme
             const filtreChaine = document.getElementById('filtre-chaine').value;
             const filtreTri = document.getElementById('filtre-tri').value;
 
@@ -771,7 +786,7 @@
                     const description = (tip.description || '').toLowerCase();
                     const prompt = (tip.prompt || '').toLowerCase();
                     const auteur = (tip.auteur || '').toLowerCase();
-                    const outil = (tip.outil || '').toLowerCase();
+                    const outil = (tip.outil || '').toLowerCase(); // Use 'outil'
                     const chaine = (tip.chaine || '').toLowerCase();
                     return titre.includes(searchKeyword) ||
                            description.includes(searchKeyword) ||
@@ -781,6 +796,14 @@
                            chaine.includes(searchKeyword);
                 });
             }
+
+            if (previewText) { // Apply preview text filter
+                filteredTips = filteredTips.filter(tip => {
+                    const tipPreviewText = (tip.previewText || '').toLowerCase();
+                    return tipPreviewText.includes(previewText);
+                });
+            }
+
 
             if (filtreCategorie) {
                 filteredTips = filteredTips.filter(tip => tip.categorie === filtreCategorie);
@@ -811,6 +834,7 @@
 
         function setupFilters() {
             document.getElementById('search-keyword').addEventListener('input', filterAndSortTips);
+            document.getElementById('preview-text').addEventListener('input', filterAndSortTips); // Add event listener for new input
             document.getElementById('filtre-categorie').addEventListener('change', filterAndSortTips);
             document.getElementById('filtre-auteur').addEventListener('change', filterAndSortTips);
             document.getElementById('filtre-outil').addEventListener('change', filterAndSortTips);
