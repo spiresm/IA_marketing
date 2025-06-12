@@ -1,472 +1,81 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Galerie des Tips et Prompts - iMarketing</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veille IA Marketing</title>
+    <link rel="stylesheet" href="style.css" />
     <style>
-        /* Styles généraux pour l'animation d'apparition de la page */
         body {
             opacity: 0;
-            transition: opacity 0.5s ease-in;
+            transition: opacity 0.3s ease-in;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #f0f2f5;
-            min-height: 100vh; /* Permet le défilement si le contenu dépasse la hauteur de la fenêtre */
-            display: flex;
-            flex-direction: column; /* Aide à la mise en page de l'en-tête, du contenu principal et du pied de page */
-        }
-        body.show {
-            opacity: 1;
+            background: #f0f4f8;
         }
         main {
-            opacity: 0;
-            transition: opacity 0.5s ease-in; /* Retired margin-right transition */
-            padding: 40px 20px;
-            flex-grow: 1; /* Permet au main de prendre l'espace disponible, poussant le footer vers le bas */
+            display: none; /* Main caché au début, sera affiché par le script */
         }
-        main.show {
-            opacity: 1;
-        }
-
-        #header-placeholder {
-            width: 100%;
-        }
-
-        /* Conteneur des contrôles en haut (filtres et boutons) */
-        .header-controls-container {
-            max-width: 960px;
-            margin: 20px auto 25px auto;
-            padding: 0 20px;
-            box-sizing: border-box;
-        }
-
-        /* Conteneur principal de la galerie (la "box" blanche) */
-        .galerie-container {
-            max-width: 960px;
-            margin: 0px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Conteneur des filtres et boutons d'action */
-        .filters-header {
-            display: flex;
-            justify-content: space-between; /* This pushes filters to left, buttons to right */
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px; /* Ajout d'une marge pour séparer les filtres de la galerie */
-        }
-
-        #filters {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            flex-grow: 1;
-            min-width: 0;
-        }
-
-        #filters input[type="text"],
-        #filters select {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 0.9em;
-            flex: 1;
-            min-width: 120px;
-        }
-        /* Removed #search-keyword styling as the field is removed */
-        #preview-text { /* Style for the new preview text input */
-            min-width: 180px;
-            max-width: 250px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end; /* ALIGNMENT VERS LA DROITE par défaut */
-            align-items: center; /* Alignement vertical */
-        }
-
-        .action-buttons a {
-            background: #0077b6;
-            color: white;
-            text-decoration: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: background 0.3s ease;
-        }
-
-        .action-buttons a:hover {
-            background: #005f8a;
-        }
-
-        /* Galerie en colonne */
-        #galerie {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            padding: 20px 0;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ************************************************* */
-        /* STYLES POUR CHAQUE PLAQUE (CARTE) */
-        /* ************************************************* */
-        .carte {
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
             background: #fff;
-            border-left: 5px solid transparent; /* Couleur définie par JS */
-            border-radius: 12px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .filters {
             display: flex;
-            align-items: flex-start; /* Alignement au début */
-            padding: 0; /* Pas de padding pour la carte, l'image remplit */
-            position: relative;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
-            box-sizing: border-box;
-            width: 100%;
-            z-index: 1;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
         }
-
-        .carte:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            z-index: 100;
-        }
-
-        /* Conteneur pour l'image (panneau gauche de la carte) */
-        .left-panel {
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            margin-right: 0; /* Pas de marge ici, l'image remplit la zone */
-            width: 200px; /* Largeur fixe pour le panneau gauche */
-            overflow: hidden; /* Pour s'assurer que l'image ne déborde pas du left-panel si elle est plus large */
-            border-top-left-radius: 12px; /* Assure que le coin est rond */
-            border-bottom-left-radius: 12px; /* Assure que le coin est rond */
-        }
-
-        .carte-image {
-            width: 100%; /* L'image remplit la largeur du left-panel */
-            height: 100%; /* L'image remplit la hauteur du left-panel */
-            object-fit: cover; /* IMPORTANT pour couvrir la zone sans déformer */
-            display: block;
-            border-radius: 0; /* Retirer le border-radius de l'image elle-même */
-            box-shadow: none; /* Pas d'ombre sur l'image seule */
-            transition: transform 0.3s ease;
-        }
-
-        .carte:hover .carte-image {
-            transform: scale(1.05);
-        }
-
-        /* Conteneur pour toutes les informations textuelles (à droite de l'image) */
-        .infos-wrapper {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            min-width: 0;
-            padding: 15px; /* Padding ajouté ici au lieu de la carte */
-        }
-
-        /* Badge pour l'outil (dans infos-wrapper) */
-        .outil-badge {
-            background-color: #e0f2f7;
-            color: #0077b6;
-            font-size: 0.85em;
-            font-weight: bold;
-            padding: 4px 8px;
-            border-radius: 4px;
-            margin-bottom: 4px;
-            white-space: nowrap;
-            text-transform: uppercase;
-            align-self: flex-start;
-        }
-
-        /* Section des métadonnées (Auteur, Chaîne) */
-        .metadata-section {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 2px 10px;
-            font-size: 0.9em;
-            color: #555;
-            margin-bottom: 4px;
-            padding-bottom: 2px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .metadata-label {
-            font-weight: bold;
-            color: #333;
-            white-space: nowrap;
-        }
-
-        .metadata-value {
-            color: #666;
-            word-break: break-word;
-        }
-        .metadata-value.auteur-value {
-            font-size: 1em;
-            color: #444;
-            font-weight: normal;
-        }
-        .metadata-value.chaine-value {
-            font-weight: bold;
-        }
-
-        /* Texte du prompt et description */
-        .text-display { /* Renommé pour être plus générique */
-            font-size: 0.9em;
-            color: #444;
-            line-height: 1.4;
-            background-color: #f9f9f9;
-            border: 1px solid #eee;
-            border-radius: 5px;
-            padding: 6px;
-            margin-bottom: 4px;
-            white-space: pre-wrap; /* Préserve les retours à la ligne */
-            word-break: break-word; /* Casse les mots longs pour éviter les débordements */
-        }
-        
-        /* Boutons d'action sur la carte */
-        .card-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: auto;
-            justify-content: flex-start;
-            padding-top: 5px;
-            align-items: center; /* Alignement vertical */
-        }
-
-        .copier-btn, .toggle-content-btn {
-            background-color: #0077b6;
-            color: white;
-            border: none;
-            padding: 7px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85em;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
-
-        .copier-btn:hover, .toggle-content-btn:hover {
-            background-color: #005f8a;
-            transform: translateY(-1px);
-        }
-
-        .supprimer-btn {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 1.3em;
-            cursor: pointer;
-            transition: color 0.2s, transform 0.1s;
-            padding: 0 5px;
-        }
-
-        .supprimer-btn:hover {
-            color: #555;
-            transform: translateY(-1px);
-        }
-
-        #success-message {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-            padding: 10px 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 20px;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-        }
-
-        /* Styles pour le loader */
-        .loader {
-            border: 4px solid #f3f3f3; /* Light grey */
-            border-top: 4px solid #3498db; /* Blue */
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 50px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Message d'erreur */
-        .error-message {
-            text-align: center;
-            color: #dc3545;
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            border-radius: 8px;
-        }
-
-        /* Styles for the new right-side preview panel */
-        .preview-panel {
-            position: fixed; /* Fixed position relative to the viewport */
-            top: 0;
-            right: -760px; /* Start off-screen to the right (2 * 380px) */
-            width: 740px; /* Doubled width of the panel (2 * 370px, adjusted for padding/shadow) */
-            max-width: 90%; /* Ensure it doesn't overflow on very small screens */
-            height: 100%;
-            background-color: #fff;
-            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
-            transition: right 0.3s ease-in-out; /* Smooth transition for sliding in/out */
-            z-index: 1000; /* Ensure it's above other content */
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            box-sizing: border-box;
-            overflow-y: auto; /* Enable scrolling for long content */
-        }
-
-        .preview-panel.open {
-            right: 0; /* Slide into view */
-        }
-
-        .preview-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .preview-panel-header h3 {
-            margin: 0;
-            color: #333;
-            font-size: 1.2em;
-        }
-
-        .close-preview-btn {
-            background: none;
-            border: none;
-            font-size: 1.5em;
-            cursor: pointer;
-            color: #888;
-            transition: color 0.2s;
-        }
-
-        .close-preview-btn:hover {
-            color: #333;
-        }
-
-        .preview-panel-content {
-            flex-grow: 1; /* Allows content to take up remaining space */
-            font-size: 0.95em;
-            line-height: 1.6;
-            color: #444;
-        }
-
-        .preview-panel-content strong {
-            color: #333;
-        }
-
-        .preview-panel-content pre {
-            background-color: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+        .filters input,
+        .filters select {
             padding: 10px;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.9em;
-            margin-top: 5px;
-        }
-
-        .preview-panel-content img {
-            max-width: 100%;
-            height: auto;
             border-radius: 8px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+            min-width: 200px;
         }
-
-        /* REMOVED: Adjust main content when preview panel is open */
-        /* Media queries pour la responsivité */
-        @media (max-width: 992px) {
-            .preview-panel {
-                width: 100%; /* Full width on smaller screens */
-                right: -100%;
-            }
-            .preview-panel.open {
-                right: 0;
-            }
+        .card {
+            background: #e3f2fd;
+            border-left: 5px solid #0077b6;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
         }
-        @media (max-width: 768px) {
-            .filters-header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            #filters {
-                flex-direction: column;
-                gap: 15px;
-            }
-            #filters input, #filters select {
-                min-width: unset;
-                max-width: unset;
-                width: 100%;
-            }
-            .action-buttons {
-                flex-direction: column;
-                width: 100%;
-                justify-content: center; /* Center buttons when stacked on small screens */
-            }
-            .action-buttons a {
-                width: 100%;
-                text-align: center;
-            }
-            .carte {
-                flex-direction: column; /* Empile l'image et le contenu textuel sur les petits écrans */
-            }
-            .left-panel {
-                width: 100%; /* L'image prend toute la largeur */
-                height: 200px; /* Hauteur fixe pour l'image sur mobile */
-                border-top-left-radius: 12px;
-                border-top-right-radius: 12px;
-                border-bottom-left-radius: 0;
-            }
-            .carte-image {
-                border-radius: 0;
-            }
-            .infos-wrapper {
-                padding: 15px;
-                width: auto;
-            }
-            .metadata-section {
-                grid-template-columns: 1fr; /* Les labels et valeurs s'empilent */
-                gap: 5px;
-            }
-            .card-actions {
-                flex-wrap: wrap; /* Permet aux boutons de passer à la ligne */
-            }
-            .copier-btn, .toggle-content-btn {
-                width: 100%; /* Boutons prennent toute la largeur sur mobile */
-                text-align: center;
-            }
-            .supprimer-btn {
-                width: auto; /* Bouton poubelle reste compact */
-                align-self: flex-end; /* Aligner à la fin */
-            }
+        .card h2 {
+            margin: 0 0 10px;
+            color: #005f8a;
+        }
+        .tag {
+            background: #b3e0ff;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            display: inline-block;
+        }
+        .source {
+            font-size: 0.8rem;
+            color: #555;
+            margin-top: 0.5rem;
+        }
+        a {
+            color: #007acc;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        footer {
+            text-align: center;
+            margin-top: 4rem;
+            font-size: 0.9rem;
+            color: #888;
+            padding-bottom: 20px; /* Ajouté pour un peu d'espace */
         }
     </style>
 </head>
@@ -474,475 +83,181 @@
     <div id="header-placeholder"></div>
 
     <main>
-        <div class="header-controls-container">
-            <div class="filters-header">
-                <div id="filters">
-                    <input type="text" id="preview-text" placeholder="Rechercher dans le texte de prévisualisation..." />
-                    <select id="filtre-categorie">
-                        <option value="">Toutes les catégories</option>
-                        <option>Marketing Digital</option>
-                        <option>Réseaux Sociaux</option>
-                        <option>SEO</option>
-                        <option>Contenu</option>
-                        <option>Publicité</option>
-                        <option>Outils IA</option>
-                        <option>Stratégie</option>
-                        <option>Autre</option>
-                    </select>
-                    <select id="filtre-auteur">
-                        <option value="">Tous les auteurs</option>
-                    </select>
-                    <select id="filtre-outil"> <option value="">Tous les outils</option>
-                        <option>Midjourney</option>
-                        <option>DALL·E</option>
-                        <option>Stable Diffusion</option>
-                        <option>Adobe Firefly</option>
-                        <option>Runway</option>
-                        <option>ChatGPT</option>
-                        <option>Autre</option>
-                    </select>
-                    <select id="filtre-chaine">
-                        <option value="">Toutes les chaînes</option>
-                        <option>La Une</option>
-                        <option>Tipik</option>
-                        <option>La Trois</option>
-                        <option>La première</option>
-                        <option>Classic 21</option>
-                        <option>vivacité</option>
-                        <option>Musiq3</option>
-                        <option>Auvio</option>
-                        <option>Auvio Kids</option>
-                    </select>
-                    <select id="filtre-tri">
-                        <option value="ancien">Plus ancien</option>
-                        <option value="recent">Plus récent</option>
-                    </select>
-                </div>
-                <div class="action-buttons">
-                    </div>
+        <div class="container">
+            <div class="filters">
+                <input type="search" id="search" placeholder="Rechercher un article..." oninput="filtrerArticles()">
+                <select id="filtre-tag" onchange="filtrerArticles()">
+                    <option value="">Tous les tags</option>
+                    <option value="Marketing Video">Marketing Video</option>
+                    <option value="Comportement des consommateurs">Comportement des consommateurs</option>
+                    <option value="Analyse de marché">Analyse de marché</option>
+                    <option value="Personnalisation">Personnalisation</option>
+                    <option value="Création de contenu">Création de contenu</option>
+                </select>
             </div>
-        </div>
-
-        <div class="galerie-container">
-            <div id="success-message"></div>
-            <div id="galerie">
-                <div class="loader"></div> <p style="text-align: center;">Chargement des tips...</p>
-            </div>
-            <div id="error-display" class="error-message" style="display: none;"></div>
+            <div id="articles"></div>
         </div>
     </main>
 
-    <div id="footer-placeholder"></div>
+    <footer>Mis à jour automatiquement le 2025-06-09</footer>
 
-    <div id="previewPanel" class="preview-panel">
-        <div class="preview-panel-header">
-            <h3 id="previewPanelTitle">Aperçu du contenu</h3>
-            <button class="close-preview-btn" id="closePreviewBtn"><i class="fas fa-times"></i></button>
-        </div>
-        <div id="previewPanelContent" class="preview-panel-content">
-            </div>
-    </div>
     <script>
-        const apiBase = window.location.origin + '/.netlify/functions/';
-        let allTips = []; // Renommée pour être plus générique pour les tips
-        const galerieDiv = document.getElementById('galerie');
-        const errorDisplay = document.getElementById('error-display');
-        const filtreAuteurSelect = document.getElementById('filtre-auteur');
-        const filtreCategorieSelect = document.getElementById('filtre-categorie');
-        const filtreOutilSelect = document.getElementById('filtre-outil');
-        const filtreChaineSelect = document.getElementById('filtre-chaine');
-        const filtreTriSelect = document.getElementById('filtre-tri');
-        const previewTextInput = document.getElementById('preview-text');
+        const PROXY_URL = "/.netlify/functions/proxy"; // Adaptez si nécessaire
 
-
-        const previewPanel = document.getElementById('previewPanel');
-        const previewPanelTitle = document.getElementById('previewPanelTitle');
-        const previewPanelContent = document.getElementById('previewPanelContent');
-        const closePreviewBtn = document.getElementById('closePreviewBtn');
-        const bodyElement = document.body;
-
-        document.addEventListener("DOMContentLoaded", () => {
-            const headerPlaceholder = document.getElementById("header-placeholder");
-            const footerPlaceholder = document.getElementById("footer-placeholder");
-            const mainElement = document.querySelector("main");
-            
-            // Fonction pour charger un composant HTML
-            const loadComponent = async (url, placeholderId, errorMessage) => {
-                console.log(`Attempting to load ${url} into #${placeholderId}`);
-                try {
-                    const res = await fetch(url);
-                    if (!res.ok) {
-                        const errorDetail = await res.text();
-                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
-                    }
-                    document.getElementById(placeholderId).innerHTML = await res.text();
-                    console.log(`${url} loaded successfully.`);
-                } catch (error) {
-                    console.error(`Error loading ${url}:`, error);
-                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
-                }
-            };
-
-            // Charger le header et le footer en parallèle
-            Promise.all([
-                loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu"),
-                loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
-            ])
-            .then(() => {
-                // Appliquer la classe active après le chargement du header (si réussi)
-                const activeLink = document.querySelector("nav a[href='galerie.html']"); 
-                if (activeLink) {
-                    activeLink.classList.add("active");
-                }
-            })
-            .catch(error => {
-                console.error("General issue loading components:", error);
-            })
-            .finally(() => {
-                bodyElement.classList.add("show");
-                mainElement.classList.add("show");
-                loadAndDisplayTips(); // Déclencher le chargement des tips une fois la page visible
-            });
-
-            if (window.location.search.includes('success=1')) {
-                const msg = document.getElementById('success-message');
-                msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
-                msg.style.opacity = '1';
-                setTimeout(() => msg.style.opacity = '0', 2000);
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+        const articles = [
+            {
+                titre: "Midjourney lance un outil vidéo",
+                date: "2025-06-01",
+                tag: "Marketing Video",
+                resume: "Midjourney lance un outil d'IA vidéo pour optimiser les campagnes marketing.",
+                lien: "https://www.midjourney.com/press/video-tool",
+                source: "Midjourney Press Release"
+            },
+            {
+                titre: "OpenAI annonce un nouveau modèle",
+                date: "2025-06-01",
+                tag: "Comportement des consommateurs",
+                resume: "OpenAI présente un nouveau modèle d'IA pour améliorer les prédictions de comportement des consommateurs.",
+                lien: "https://www.openai.com/new-model",
+                source: "OpenAI Official Announcement"
+            },
+            {
+                titre: "Mistral publie un modèle open-source",
+                date: "2025-05-30",
+                tag: "Analyse de marché",
+                resume: "Mistral publie un nouveau modèle open-source d'IA pour aider les entreprises à comprendre les tendances du marché.",
+                lien: "https://www.mistral.ai/news/open-source-model", /* Correction possible de lien s'il est faux */
+                source: "Mistral Blog"
+            },
+            {
+                titre: "Meta open-source un modèle IA",
+                date: "2025-05-28",
+                tag: "Personnalisation",
+                resume: "Meta rend un modèle d'IA open-source pour aider les spécialistes du marketing à personnaliser les expériences utilisateur.",
+                lien: "https://about.fb.com/news/ai-model", /* Correction possible de lien s'il est faux */
+                source: "Meta Official Announcement"
+            },
+            {
+                titre: "Runway améliore la génération vidéo",
+                date: "2025-05-25",
+                tag: "Création de contenu",
+                resume: "Runway lance une mise à jour de son outil de génération vidéo basé sur l'IA pour une création de contenu plus efficace.",
+                lien: "https://www.runwayml.com/updates/video-generator-update", /* Correction possible de lien s'il est faux */
+                source: "Runway Press Release"
             }
+        ];
 
-            // Configuration des écouteurs d'événements pour les filtres
-            setupFilters();
-        });
-
-        // Function to open the preview panel and populate it
-        function openPreviewPanel(tip) {
-            previewPanelTitle.textContent = `Aperçu : ${tip.titre || 'Sans titre'}`;
-            previewPanelContent.innerHTML = ''; // Clear previous content
-
-            if (tip.imageUrl) {
-                const img = document.createElement('img');
-                img.src = tip.imageUrl;
-                img.alt = `Image pour ${tip.titre || 'ce tip'}`;
-                previewPanelContent.appendChild(img);
+        function renderArticles(liste) {
+            console.log("Veille: Rendu des articles. Nombre:", liste.length);
+            const container = document.getElementById('articles');
+            container.innerHTML = '';
+            if (liste.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">Aucun article ne correspond à vos filtres.</p>';
             }
-
-            if (tip.previewText) {
-                const previewHtml = document.createElement('p');
-                previewHtml.innerHTML = `<strong>Texte de prévisualisation :</strong>`;
-                previewPanelContent.appendChild(previewHtml);
-                const previewPre = document.createElement('pre');
-                previewPre.textContent = tip.previewText;
-                previewPanelContent.appendChild(previewPre);
-            }
-
-            if (tip.description) {
-                const descriptionHtml = document.createElement('p');
-                descriptionHtml.innerHTML = `<strong>Description :</strong>`;
-                previewPanelContent.appendChild(descriptionHtml);
-                const descriptionPre = document.createElement('pre');
-                descriptionPre.textContent = tip.description;
-                previewPanelContent.appendChild(descriptionPre);
-            }
-
-            if (tip.prompt) {
-                const promptHtml = document.createElement('p');
-                promptHtml.innerHTML = `<strong>Prompt :</strong>`;
-                previewPanelContent.appendChild(promptHtml);
-                const promptPre = document.createElement('pre');
-                promptPre.textContent = tip.prompt;
-                previewPanelContent.appendChild(promptPre);
-            }
-
-            if (tip.exemple) {
-                const exempleHtml = document.createElement('p');
-                exempleHtml.innerHTML = `<strong>Exemple :</strong>`;
-                previewPanelContent.appendChild(exempleHtml);
-                const exemplePre = document.createElement('pre');
-                exemplePre.textContent = tip.exemple;
-                previewPanelContent.appendChild(exemplePre);
-            }
-
-            previewPanel.classList.add('open');
-        }
-
-        // Function to close the preview panel
-        function closePreviewPanel() {
-            previewPanel.classList.remove('open');
-        }
-
-        closePreviewBtn.addEventListener('click', closePreviewPanel);
-
-        // Close preview panel when clicking outside of it
-        document.addEventListener('click', (event) => {
-            if (previewPanel.classList.contains('open') &&
-                !previewPanel.contains(event.target) &&
-                !event.target.closest('.carte')) { // Exclude clicks originating from within a card (which might open the panel)
-                closePreviewPanel();
-            }
-        });
-
-
-        async function loadAndDisplayTips() {
-            galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
-            errorDisplay.style.display = 'none';
-
-            try {
-                const response = await fetch(`${apiBase}get-tips`); // Utilisation de get-tips
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
-                }
-                const tips = await response.json();
-                allTips = tips;
-                console.log("Tips récupérés :", tips);
-
-                if (tips.length === 0) {
-                    galerieDiv.innerHTML = '<p style="text-align: center;">Aucun tip ou prompt trouvé pour le moment. Soyez le premier à en <a href="/creer-tip.html">partager un</a> !</p>';
-                } else {
-                    populateAuthorFilter(tips);
-                    filterAndSortTips(); // Afficher les tips après les avoir récupérés
-                }
-            } catch (error) {
-                console.error("Erreur lors du chargement des tips de la galerie:", error);
-                galerieDiv.innerHTML = ''; // Nettoyer le loader
-                errorDisplay.textContent = `Erreur lors du chargement des tips : ${error.message}`;
-                errorDisplay.style.display = 'block';
-            }
-        }
-
-        function populateAuthorFilter(tips) {
-            const uniqueAuthors = new Set();
-            tips.forEach(tip => {
-                if (tip.auteur) {
-                    uniqueAuthors.add(tip.auteur);
-                }
-            });
-            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
-            Array.from(uniqueAuthors).sort().forEach(auteur => {
-                const option = document.createElement('option');
-                option.value = auteur;
-                option.textContent = auteur;
-                filtreAuteurSelect.appendChild(option);
+            liste.forEach(article => {
+                const el = document.createElement('div');
+                el.className = 'card';
+                el.innerHTML = `
+                    <h2>${article.titre}</h2>
+                    <p><strong>${new Date(article.date).toLocaleDateString('fr-BE')}</strong> – <span class="tag">${article.tag}</span></p>
+                    <p>${article.resume}</p>
+                    <a href="${article.lien}" target="_blank">Lire l’article →</a>
+                    <p class="source">Source : ${article.source}</p>
+                `;
+                container.appendChild(el);
             });
         }
 
-        function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = ''; // Nettoyer le contenu actuel
+        function filtrerArticles() {
+            console.log("Veille: Application des filtres...");
+            const search = document.getElementById('search').value.toLowerCase();
+            const tag = document.getElementById('filtre-tag').value;
+            const filtres = articles.filter(a =>
+                (!search || a.titre.toLowerCase().includes(search) || a.resume.toLowerCase().includes(search)) &&
+                (!tag || a.tag === tag)
+            );
+            renderArticles(filtres);
+            console.log(`Veille: Filtres appliqués. ${filtres.length} articles trouvés.`);
+        }
 
-            if (tipsToDisplay.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center;">Aucun tip ou prompt ne correspond aux filtres actuels.</p>';
+        // Fonction pour mettre à jour la bulle de notification (identique aux autres pages)
+        async function mettreAJourBulleDemandes() {
+            const notif = document.getElementById("notif-count");
+            if (!notif) {
+                console.warn("Veille: L'élément 'notif-count' n'a pas été trouvé dans le header.");
                 return;
             }
-
-            tipsToDisplay.forEach(tip => {
-                const carte = document.createElement('div');
-                carte.className = 'carte';
-                const tipId = tip.id || `temp-id-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-                carte.dataset.tipId = tipId;
-
-                const chaineColor = getChaineColor(tip.chaine);
-                carte.style.borderLeftColor = chaineColor;
-
-                const leftPanel = document.createElement('div');
-                leftPanel.className = 'left-panel';
-
-                const img = document.createElement('img');
-                img.className = 'carte-image';
-                img.src = tip.imageUrl || 'default-tip-image.png';
-                img.alt = tip.titre || 'Tip Image';
-                img.onerror = function() {
-                    this.onerror = null;
-                    this.src = 'https://via.placeholder.com/200x150?text=Image+Manquante';
-                };
-                leftPanel.appendChild(img);
-                carte.appendChild(leftPanel);
-
-                const infosWrapper = document.createElement('div');
-                infosWrapper.className = 'infos-wrapper';
-
-                const outilBadge = document.createElement('div');
-                outilBadge.className = 'outil-badge';
-                outilBadge.textContent = tip.outil || 'Outil N/A';
-                infosWrapper.appendChild(outilBadge);
-
-                const metadataSection = document.createElement('div');
-                metadataSection.className = 'metadata-section';
-                metadataSection.innerHTML = `
-                    <span class="metadata-label">Titre :</span>
-                    <span class="metadata-value auteur-value">${tip.titre || 'Sans titre'}</span>
-                    <span class="metadata-label">Auteur :</span>
-                    <span class="metadata-value auteur-value">${tip.auteur || 'Inconnu'}</span>
-                    <span class="metadata-label">Catégorie :</span>
-                    <span class="metadata-value">${tip.categorie || 'Non spécifiée'}</span>
-                    <span class="metadata-label">Chaîne :</span>
-                    <span class="metadata-value chaine-value" style="color: ${chaineColor};">${tip.chaine || 'Chaîne N/A'}</span>
-                `;
-                infosWrapper.appendChild(metadataSection);
-                
-                const cardActions = document.createElement('div');
-                cardActions.className = 'card-actions';
-
-                // "Preview" button
-                if (tip.previewText || tip.description || tip.prompt || tip.exemple || tip.imageUrl) { // Check for imageUrl for preview
-                    const previewBtn = document.createElement('button');
-                    previewBtn.className = 'toggle-content-btn';
-                    previewBtn.textContent = 'Prévisualiser';
-                    previewBtn.onclick = () => openPreviewPanel(tip);
-                    cardActions.appendChild(previewBtn);
-                }
-
-                // "Copy Prompt" button
-                if (tip.prompt) {
-                    const copierBtn = document.createElement('button');
-                    copierBtn.className = 'copier-btn';
-                    copierBtn.textContent = 'Copier le Prompt';
-                    copierBtn.onclick = () => {
-                        navigator.clipboard.writeText(tip.prompt).then(() => {
-                            alert('Prompt copié !');
-                        }).catch(err => {
-                            console.error('Erreur de copie:', err);
-                            alert('Échec de la copie du prompt.');
-                        });
-                    };
-                    cardActions.appendChild(copierBtn);
-                } else if (tip.description) { // If no prompt, maybe copy description
-                    const copierBtn = document.createElement('button');
-                    copierBtn.className = 'copier-btn';
-                    copierBtn.textContent = 'Copier la Description';
-                    copierBtn.onclick = () => {
-                        navigator.clipboard.writeText(tip.description).then(() => {
-                            alert('Description copiée !');
-                        }).catch(err => {
-                            console.error('Erreur de copie:', err);
-                            alert('Échec de la copie de la description.');
-                        });
-                    };
-                    cardActions.appendChild(copierBtn);
-                }
-
-                const supprimerBtn = document.createElement('button');
-                supprimerBtn.className = 'supprimer-btn';
-                supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-                supprimerBtn.title = 'Supprimer le tip';
-                supprimerBtn.onclick = (event) => {
-                    event.stopPropagation(); // Prevent card click when deleting
-                    if (confirm('Êtes-vous sûr de vouloir supprimer ce tip ?')) {
-                        deleteTip(tipId);
-                    }
-                };
-                cardActions.appendChild(supprimerBtn);
-                
-                infosWrapper.appendChild(cardActions);
-                carte.appendChild(infosWrapper);
-                galerieDiv.appendChild(carte);
-            });
-        }
-
-        function setupFilters() {
-            previewTextInput.addEventListener('input', filterAndSortTips);
-            filtreCategorieSelect.addEventListener('change', filterAndSortTips);
-            filtreAuteurSelect.addEventListener('change', filterAndSortTips);
-            filtreOutilSelect.addEventListener('change', filterAndSortTips);
-            filtreChaineSelect.addEventListener('change', filterAndSortTips);
-            filtreTriSelect.addEventListener('change', filterAndSortTips);
-        }
-
-        function filterAndSortTips() {
-            let filteredTips = [...allTips];
-
-            // Filter by preview text
-            const previewTextValue = previewTextInput.value.toLowerCase().trim();
-            if (previewTextValue) {
-                filteredTips = filteredTips.filter(tip => 
-                    (tip.previewText && tip.previewText.toLowerCase().includes(previewTextValue)) ||
-                    (tip.titre && tip.titre.toLowerCase().includes(previewTextValue)) ||
-                    (tip.description && tip.description.toLowerCase().includes(previewTextValue)) ||
-                    (tip.prompt && tip.prompt.toLowerCase().includes(previewTextValue))
-                );
-            }
-
-            // Filter by category
-            const categorie = filtreCategorieSelect.value;
-            if (categorie) {
-                filteredTips = filteredTips.filter(tip => tip.categorie === categorie);
-            }
-
-            // Filter by author
-            const auteur = filtreAuteurSelect.value;
-            if (auteur) {
-                filteredTips = filteredTips.filter(tip => tip.auteur === auteur);
-            }
-
-            // Filter by tool
-            const outil = filtreOutilSelect.value;
-            if (outil) {
-                filteredTips = filteredTips.filter(tip => tip.outil === outil);
-            }
-
-            // Filter by chaine
-            const chaine = filtreChaineSelect.value;
-            if (chaine) {
-                filteredTips = filteredTips.filter(tip => tip.chaine === chaine);
-            }
-
-            // Sort
-            const tri = filtreTriSelect.value;
-            filteredTips.sort((a, b) => {
-                const dateA = new Date(a.dateAdded);
-                const dateB = new Date(b.dateAdded);
-                if (tri === 'recent') {
-                    return dateB - dateA;
-                } else { // 'ancien'
-                    return dateA - dateB;
-                }
-            });
-
-            displayTips(filteredTips);
-        }
-
-        async function deleteTip(tipId) {
             try {
-                const response = await fetch(`${apiBase}delete-tip`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ id: tipId }),
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+                console.log("Veille: Tentative de récupération des demandes pour la bulle...");
+                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                if (!res.ok) {
+                    console.error(`Veille: Erreur HTTP lors de la récupération des demandes: ${res.status}`);
+                    throw new Error(`Erreur HTTP: ${res.status}`);
                 }
-
-                const result = await response.json();
-                console.log(result.message);
-                alert('Tip supprimé avec succès !');
-                // Reload tips after deletion
-                loadAndDisplayTips(); 
-
-            } catch (error) {
-                console.error("Erreur lors de la suppression du tip:", error);
-                alert(`Erreur lors de la suppression du tip: ${error.message}`);
+                const demandes = await res.json();
+                console.log("Veille: Demandes récupérées pour la bulle:", demandes);
+                notif.textContent = demandes.length;
+                notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+            } catch (e) {
+                console.error("Veille: Erreur mise à jour compteur de demandes :", e);
+                notif.style.display = "none";
             }
         }
 
-        function getChaineColor(chaine) {
-            switch (chaine) {
-                case 'La Une': return '#0077B6';
-                case 'Tipik': return '#00B4D8';
-                case 'La Trois': return '#48CAE4';
-                case 'La première': return '#03045E';
-                case 'Classic 21': return '#001D3D';
-                case 'vivacité': return '#003566';
-                case 'Musiq3': return '#000814';
-                case 'Auvio': return '#A51C30';
-                case 'Auvio Kids': return '#FFC300';
-                default: return '#cccccc'; // Couleur par défaut
-            }
-        }
+        // Exécution principale à l'initialisation de la page
+        document.addEventListener("DOMContentLoaded", () => {
+            console.log("Veille: DOM entièrement chargé. Début de l'initialisation de veille.html...");
+            fetch("header.html")
+                .then(response => {
+                    console.log("Veille: Réponse de fetch('header.html') reçue.");
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP lors du chargement du header pour Veille: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log("Veille: Header HTML récupéré. Injection dans le placeholder.");
+                    document.getElementById("header-placeholder").innerHTML = data;
+
+                    console.log("Veille: Rendre le body et le main visibles.");
+                    document.body.style.opacity = "1";
+                    const mainElement = document.querySelector("main");
+                    if (mainElement) {
+                        mainElement.style.display = "block";
+                    }
+
+                    console.log("Veille: Mise à jour de la bulle de notification.");
+                    mettreAJourBulleDemandes();
+
+                    console.log("Veille: Gestion des liens actifs du menu.");
+                    const path = location.pathname.split("/").pop();
+                    const links = document.querySelectorAll("nav a");
+                    links.forEach(link => {
+                        if (link.getAttribute("href") === path) {
+                            link.classList.add("active");
+                        }
+                    });
+
+                    // Initialiser l'affichage des articles et attacher les écouteurs d'événements
+                    renderArticles(articles); // Affiche tous les articles au chargement
+                    console.log("Veille: Articles initiaux rendus.");
+
+                    // Les écouteurs oninput/onchange sont déjà dans le HTML, mais c'est une bonne pratique de les attacher ici aussi si besoin.
+                    // document.getElementById('search').addEventListener('input', filtrerArticles);
+                    // document.getElementById('filtre-tag').addEventListener('change', filtrerArticles);
+
+                })
+                .catch(error => {
+                    console.error("Veille: Erreur critique lors du chargement du header ou initialisation de Veille:", error);
+                    document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
+                    // Rendre visible même en cas d'erreur du header pour ne pas laisser une page blanche
+                    document.body.style.opacity = "1";
+                    const mainElement = document.querySelector("main");
+                    if (mainElement) {
+                        mainElement.style.display = "block";
+                    }
+                });
+        });
     </script>
 </body>
 </html>
