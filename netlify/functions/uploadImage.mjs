@@ -30,22 +30,22 @@ export async function handler(event, context) {
     }
 
     let fileName;
-    let fileBase64Content; // Renommé pour correspondre au frontend
+    let fileContent; // <--- MODIFICATION ICI : Renommé la variable pour correspondre au frontend
     try {
         const body = JSON.parse(event.body);
         // --- Ajout des console.log pour le débogage ---
         console.log("Parsed body object:", body);
         // --- Fin des console.log ---
         fileName = body.fileName;
-        fileBase64Content = body.fileBase64; // <-- CORRECTION ICI : Utilisez 'fileBase64'
+        fileContent = body.fileContent; // <--- MODIFICATION ICI : Utilisez 'fileContent'
     } catch (e) {
         console.error("Erreur de parsing JSON du body de la requête:", e);
         return { statusCode: 400, body: JSON.stringify({ message: 'Corps de la requête invalide.' }) };
     }
 
     // La validation utilise la nouvelle variable
-    if (!fileName || !fileBase64Content) {
-        console.error(`Validation échouée: fileName=${fileName}, fileBase64Content=${fileBase64Content ? 'présent' : 'absent'}`);
+    if (!fileName || !fileContent) { // <--- MODIFICATION ICI : Utilisez 'fileContent'
+        console.error(`Validation échouée: fileName=${fileName}, fileContent=${fileContent ? 'présent' : 'absent'}`); // <--- MODIFICATION ICI pour les logs
         return { statusCode: 400, body: JSON.stringify({ message: 'Nom de fichier ou contenu manquant.' }) };
     }
 
@@ -72,14 +72,14 @@ export async function handler(event, context) {
         }
 
         // Le contenu doit être le Base64 pur. Le frontend envoie le Base64 pur (après split(',')[1])
-        // Assurez-vous que fileBase64Content ne contient PAS le préfixe "data:image/png;base64,"
+        // Assurez-vous que fileContent ne contient PAS le préfixe "data:image/png;base64,"
         // Votre frontend getBase64 fait déjà le split, donc c'est bon.
         const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
             owner: OWNER,
             repo: REPO,
             path: filePath,
             message: `Upload de ${fileName}`,
-            content: fileBase64Content, // Utilise la variable corrigée
+            content: fileContent, // <--- MODIFICATION ICI : Utilise la variable corrigée
             sha: sha,
             branch: 'main',
         });
