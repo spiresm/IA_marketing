@@ -1,23 +1,8 @@
 // .netlify/functions/proxy.js
 
 exports.handler = async (event, context) => {
-    // --- C'est ici que la définition de 'headers' doit être ! ---
-    const headers = {
-        'Access-Control-Allow-Origin': '*', // À ajuster pour la production
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Content-Type': 'application/json'
-    };
-    // -----------------------------------------------------------
-
-    // Handle OPTIONS preflight requests (ce bloc est bon s'il est au début)
-    if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 204,
-            headers: headers, // Maintenant 'headers' est défini ici
-            body: ''
-        };
-    }
+    // ... (vos en-têtes CORS et gestion OPTIONS) ...
+    const headers = { /* ... */ };
 
     console.log('Méthode HTTP entrante:', event.httpMethod);
     console.log('Paramètres de requête entrants (GET):', event.queryStringParameters);
@@ -30,84 +15,73 @@ exports.handler = async (event, context) => {
             console.log('Corps de la requête entrant (parsé):', bodyParsed);
         } catch (e) {
             console.error('Erreur lors de l\'analyse du corps JSON:', e);
-            return {
-                statusCode: 400,
-                headers: headers, // Et ici
-                body: JSON.stringify({ success: false, message: "JSON invalide dans le corps de la requête." })
-            };
+            return { statusCode: 400, headers: headers, body: JSON.stringify({ success: false, message: "JSON invalide..." }) };
         }
     }
 
     const { action, id, ...formData } = bodyParsed;
     console.log('Action extraite:', action);
 
-    // --- Le reste de votre logique (Google Sheets, etc.) ---
     try {
-        // ... Votre code pour GoogleSpreadsheet (doc, sheet, etc.) ...
-        // Assurez-vous que doc et sheet sont bien définis avant d'être utilisés
+        console.log("Tentative de connexion à Google Sheets...");
+        const doc = new GoogleSpreadsheet(SPREADSHEET_ID);
+        await doc.useServiceAccountAuth(credentials);
+        await doc.loadInfo();
+        console.log("Connexion à Google Sheets réussie.");
+
+        console.log("Tentative d'accès à la feuille:", SHEET_TITLE);
+        const sheet = doc.sheetsByTitle[SHEET_TITLE];
+        console.log("Feuille récupérée:", sheet);
+
+        if (!sheet) {
+            console.error(`Feuille avec le titre "${SHEET_TITLE}" non trouvée.`);
+            return { statusCode: 500, headers: headers, body: JSON.stringify({ success: false, message: `Feuille "${SHEET_TITLE}" non trouvée.` }) };
+        }
 
         if (event.httpMethod === "GET") {
-            const queryParams = event.queryStringParameters || {};
-            if (queryParams.action === "getDemandesIA") {
-                // ... votre logique GET ...
+            if (event.queryStringParameters?.action === "getDemandesIA") {
+                console.log("Requête GET pour getDemandesIA.");
+                console.log("Avant de récupérer les lignes.");
                 const rows = await sheet.getRows();
-                const demands = rows.map(row => ({
-                    id: row.id,
-                    // ... autres champs ...
-                    traite: row.traite === 'TRUE' || row.traite === 'true'
-                }));
-                return {
-                    statusCode: 200,
-                    headers: headers, // Ici aussi
-                    body: JSON.stringify(demands)
-                };
+                console.log("Lignes récupérées:", rows);
+                const demands = rows.map(row => ({ /* ... */ }));
+                return { statusCode: 200, headers: headers, body: JSON.stringify(demands) };
             }
         } else if (event.httpMethod === "POST") {
             if (action === "sendDemandeIA") {
-                // ... votre logique sendDemandeIA ...
-                return {
-                    statusCode: 200,
-                    headers: headers, // Ici aussi
-                    body: JSON.stringify({ success: true, message: "Demande ajoutée..." })
-                };
+                console.log("Requête POST pour sendDemandeIA.");
+                console.log("Données à ajouter:", formData);
+                const newRow = { /* ... */ };
+                await sheet.addRow(newRow);
+                return { statusCode: 200, headers: headers, body: JSON.stringify({ success: true, message: "Demande ajoutée..." }) };
             } else if (action === "deleteDemandeIA") {
-                // ... votre logique deleteDemandeIA ...
-                return {
-                    statusCode: 200,
-                    headers: headers, // Ici aussi
-                    body: JSON.stringify({ success: true, message: `Demande avec l'ID ${id} supprimée.` })
-                };
+                console.log("Requête POST pour deleteDemandeIA, id:", id);
+                const rows = await sheet.getRows();
+                const rowToDelete = rows.find(row => row.id === id);
+                if (rowToDelete) {
+                    await rowToDelete.delete();
+                    return { statusCode: 200, headers: headers, body: JSON.stringify({ success: true, message: `Demande ${id} supprimée.` }) };
+                } else {
+                    return { statusCode: 404, headers: headers, body: JSON.stringify({ success: false, message: `Demande ${id} non trouvée.` }) };
+                }
             } else if (action === "markDemandeIAAsTreated") {
-                // ... votre logique markDemandeIAAsTreated ...
-                return {
-                    statusCode: 200,
-                    headers: headers, // Ici aussi
-                    body: JSON.stringify({ success: true, message: `Demande avec l'ID ${id} marquée comme traitée.` })
-                };
-            } else {
-                console.warn("Requête POST reçue avec une action non reconnue:", action);
-                return {
-                    statusCode: 400,
-                    headers: headers, // Ici aussi
-                    body: JSON.stringify({ success: false, message: `Action non reconnue: ${action}` })
-                };
+                console.log("Requête POST pour markDemandeIAAsTreated, id:", id);
+                const rows = await sheet.getRows();
+                const rowToUpdate = rows.find(row => row.id === id);
+                if (rowToUpdate) {
+                    rowToUpdate.traite = 'TRUE';
+                    await rowToUpdate.save();
+                    return { statusCode: 200, headers: headers, body: JSON.stringify({ success: true, message: `Demande ${id} marquée comme traitée.` }) };
+                } else {
+                    return { statusCode: 404, headers: headers, body: JSON.stringify({ success: false, message: `Demande ${id} non trouvée.` }) };
+                }
             }
         }
 
-        // Cas de secours si aucune condition n'est remplie (ni GET, ni POST avec action reconnue)
-        console.warn("Requête non gérée:", event.httpMethod, event.queryStringParameters, bodyParsed);
-        return {
-            statusCode: 400,
-            headers: headers, // Et ici
-            body: JSON.stringify({ success: false, message: "Requête non gérée ou action manquante." })
-        };
+        // ... (votre logique de secours) ...
 
     } catch (error) {
-        console.error("Erreur dans la fonction Netlify:", error);
-        return {
-            statusCode: 500,
-            headers: headers, // Ici aussi pour les erreurs
-            body: JSON.stringify({ success: false, message: `Erreur interne du serveur: ${error.message}` })
-        };
+        console.error("Erreur lors de l'interaction avec Google Sheets:", error);
+        return { statusCode: 500, headers: headers, body: JSON.stringify({ success: false, message: `Erreur Google Sheets: ${error.message || error}` }) };
     }
 };
