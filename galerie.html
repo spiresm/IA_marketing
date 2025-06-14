@@ -446,26 +446,22 @@
             const infoBubbleOverlay = document.getElementById("info-bubble-overlay");
             const infoBubbleCloseBtn = document.getElementById("info-bubble-close-btn");
 
-            // Pour que la bulle apparaisse à chaque rechargement de page,
-            // nous affichons simplement la bulle sans vérifier sessionStorage.
+            // La bulle s'affiche à chaque rechargement de page.
             infoBubbleOverlay.classList.add('visible');
 
             infoBubbleCloseBtn.addEventListener('click', () => {
                 infoBubbleOverlay.classList.remove('visible');
-                // Ne plus marquer la bulle comme vue pour cette session
-                // sessionStorage.setItem('hasSeenGalerieInfoBubble', 'true');
             });
 
             // Optionnel: fermer la bulle si l'utilisateur clique en dehors d'elle
             infoBubbleOverlay.addEventListener('click', (event) => {
                 if (event.target === infoBubbleOverlay) {
                     infoBubbleOverlay.classList.remove('visible');
-                    // Ne plus marquer la bulle comme vue pour cette session
-                    // sessionStorage.setItem('hasSeenGalerieInfoBubble', 'true');
                 }
             });
             // --- Fin de la logique de la bulle d'information ---
 
+            // **MODIFICATION ICI : Appeler chargerPrompts() APRES l'affichage du header et du main**
             fetch("header.html")
                 .then(res => res.ok ? res.text() : Promise.reject(res))
                 .then(data => {
@@ -481,12 +477,14 @@
                     headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 })
                 .finally(() => {
+                    // S'assurer que le body et le main sont visibles
                     bodyElement.classList.add("show");
-                    mainElement.classList.add("show"); // Rendre le main visible après chargement
+                    mainElement.classList.add("show");
 
-                    // Appel chargerPrompts() après que le DOM est prêt et visible
+                    // Déclencher le chargement des prompts juste après que le contenu principal soit rendu visible
                     chargerPrompts();
                 });
+
 
             // Fonctions de la galerie
             const searchKeywordInput = document.getElementById('search-keyword');
@@ -570,10 +568,17 @@
                     }
                     carteDiv.style.borderLeftColor = borderColor;
 
+                    // Assurez-vous que prompt.imageUrl est toujours une chaîne valide,
+                    // même si elle est vide (afin d'éviter ERR_INVALID_URL si elle était undefined/null)
+                    // Si vous avez une image placeholder qui existait déjà et que vous voulez réutiliser:
+                    const imageUrl = prompt.imageUrl || ''; // S'assure que c'est au moins une chaîne vide
+                                                          // Si vous avez une image placeholder, utilisez:
+                                                          // const imageUrl = prompt.imageUrl && prompt.imageUrl !== '' ? prompt.imageUrl : 'chemin/vers/votre/placeholder.png';
+
 
                     carteDiv.innerHTML = `
                         <div class="left-panel">
-                            <img src="${prompt.imageUrl}" alt="${prompt.auteur}" class="carte-image">
+                            <img src="${imageUrl}" alt="${prompt.auteur}" class="carte-image">
                         </div>
                         <div class="infos-wrapper">
                             <span class="outil-badge">${prompt.outil}</span>
@@ -642,7 +647,7 @@
                     appliquerFiltres(); // Appliquer les filtres initiaux (ex: tri par défaut)
                 } catch (error) {
                     console.error("Erreur lors du chargement des prompts:", error);
-                    document.getElementById('galerie').innerHTML = '<p style="color:red;">Erreur lors du chargement des prompts.</p>';
+                    document.getElementById('galerie').innerHTML = '<p style="color:red;">Erreur lors du chargement des prompts. Veuillez vérifier la console pour plus de détails.</p>';
                 }
             }
 
