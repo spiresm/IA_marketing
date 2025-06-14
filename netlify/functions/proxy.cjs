@@ -1,7 +1,3 @@
-Jun 15, 12:42:58 AM: b4e30ee9 INFO   Proxy.cjs envoie vers : https://script.google.com/macros/s/AKfycbyoDFofm25-QcQdli_bx4Odkl-xDw7501CbadTf3k85dWPx_gTq_oPVuHo7s3Mk7Q/exec?action=getDemandesIA
-Jun 15, 12:42:58 AM: b4e30ee9 INFO   Options fetch : { method: 'GET', headers: {} }
-Jun 15, 12:43:00 AM: b4e30ee9 IN// netlify/functions/proxy.cjs
-
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 export const handler = async (event) => {
