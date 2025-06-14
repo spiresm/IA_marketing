@@ -6,15 +6,12 @@ export const handler = async (event) => {
   const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbyoDFofm25-QcQdli_bx4Odkl-xDw7501CbadTf3k85dWPx_gTq_oPVuHo7s3Mk7Q/exec';
 
   try {
-    // Récupère l'action depuis les paramètres de requête URL (GET)
     let action = event.queryStringParameters?.action;
-    let requestBody = {}; // Initialise un objet pour le corps de la requête
+    let requestBody = {}; 
 
-    // Si la méthode est POST, tente de parser le corps pour récupérer l'action et les données
     if (event.httpMethod === "POST" && event.body) {
       try {
         requestBody = JSON.parse(event.body);
-        // Priorise l'action si elle est dans le corps pour les requêtes POST
         if (requestBody.action) {
           action = requestBody.action;
         }
@@ -29,7 +26,6 @@ export const handler = async (event) => {
 
     let targetUrl = '';
     let fetchMethod = event.httpMethod;
-    // Utilisez le corps de la requête parsé pour le fetchOptions.body
     let fetchBody = event.body; 
     let isLocalFunctionCall = false;
 
@@ -47,15 +43,22 @@ export const handler = async (event) => {
         targetUrl = '/.netlify/functions/updateProfil';
         isLocalFunctionCall = true;
         break;
-
+        
       // NOUVEAU: Ajoutez ce case pour 'deleteDemande'
       case 'deleteDemande':
-        targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action; // Passe l'action en paramètre d'URL pour le Apps Script
-        fetchMethod = 'POST'; // La méthode doit être POST pour envoyer le corps
-        fetchBody = JSON.stringify(requestBody); // Utilise le corps parsé de l'événement
+        targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
+        fetchMethod = 'POST';
+        fetchBody = JSON.stringify(requestBody);
         break;
         
-      case 'sendRequest': // J'ajoute ce cas au cas où vous l'utilisez aussi pour une requête POST
+      // NOUVEAU: Ajoutez ce case pour 'updateDemandeIA'
+      case 'updateDemandeIA': // <-- AJOUTEZ CE BLOC
+        targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action; // Passe l'action en paramètre d'URL pour le Apps Script
+        fetchMethod = 'POST'; // C'est une requête POST
+        fetchBody = JSON.stringify(requestBody); // Utilisez le corps parsé qui contient les données à mettre à jour
+        break;
+
+      case 'sendRequest': 
         targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
         fetchMethod = 'POST';
         fetchBody = JSON.stringify(requestBody);
