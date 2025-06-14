@@ -1,15 +1,15 @@
-// netlify/functions/proxy.js
+// netlify/functions/proxy.cjs
 
-// --- 1. Importations nécessaires (syntaxe ESM) ---
-import { GoogleSpreadsheet } from 'google-spreadsheet'; // Utilisez import au lieu de require
+// --- 1. Importations nécessaires (syntaxe CommonJS) ---
+const { GoogleSpreadsheet } = require('google-spreadsheet');
 
 // --- 2. Variables d'environnement (à configurer dans Netlify) ---
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 const SHEET_TITLE = process.env.SHEET_TITLE;
 const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
 
-// Utilisez export const pour la fonction handler (syntaxe ESM)
-export const handler = async (event, context) => {
+// Utilisez exports.handler pour la fonction handler (syntaxe CommonJS)
+exports.handler = async (event, context) => {
     // --- 3. Gestion des en-têtes CORS ---
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -121,7 +121,7 @@ export const handler = async (event, context) => {
                     rowToUpdate.traite = 'TRUE';
                     await rowToUpdate.save();
                     console.log(`Demande ${id} marquée comme traitée.`);
-                    return { statusCode: 200, headers: headers, body: JSON.stringify({ success: true, message: `Demande ${id} marquée comme traitée.` }) => {};
+                    return { statusCode: 200, headers: headers, body: JSON.stringify({ success: true, message: `Demande ${id} marquée comme traitée.` }) };
                 } else {
                     console.warn(`Demande ${id} non trouvée pour la mise à jour du statut.`);
                     return { statusCode: 404, headers: headers, body: JSON.stringify({ success: false, message: `Demande ${id} non trouvée pour mise à jour.` }) };
