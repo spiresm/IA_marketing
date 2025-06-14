@@ -611,9 +611,102 @@
             transform: rotate(2deg); /* Slightly rotate for a "post-it" feel */
         }
 
+        /* Styles pour la bulle d'information */
+        .info-bubble-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Fond semi-transparent */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000; /* Assure que la bulle est au-dessus de tout le reste */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .info-bubble-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            text-align: center;
+            position: relative;
+            transform: translateY(20px); /* Légère animation d'apparition */
+            transition: transform 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible .info-bubble-content {
+            transform: translateY(0);
+        }
+
+        .info-bubble-content h3 {
+            color: #003366;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .info-bubble-content p {
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .info-bubble-content button {
+            background-color: #0077b6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .info-bubble-content button:hover {
+            background-color: #005f8a;
+        }
+
+        /* Styles spécifiques pour les petites écrans */
+        @media (max-width: 768px) {
+            .info-bubble-content {
+                margin: 20px;
+                padding: 20px;
+            }
+            .info-bubble-content h3 {
+                font-size: 1.3em;
+            }
+            .info-bubble-content p {
+                font-size: 0.9em;
+            }
+            .info-bubble-content button {
+                font-size: 1em;
+                padding: 10px 20px;
+            }
+        }
     </style>
 </head>
 <body>
+    <div id="info-bubble-overlay" class="info-bubble-overlay">
+        <div class="info-bubble-content">
+            <h3>Bienvenue dans la Galerie des Tips et Prompts !</h3>
+            <p>
+                Explorez une collection de tips et de prompts IA partagés par la communauté. Utilisez les filtres pour affiner votre recherche par **catégorie**, **auteur**, ou **outil IA**. Chaque carte affiche un aperçu rapide, et vous pouvez cliquer sur "Aperçu" pour voir tous les détails et copier facilement les prompts.
+            </p>
+            <button id="info-bubble-close-btn">Compris !</button>
+        </div>
+    </div>
+
     <div id="header-placeholder"></div>
 
     <main>
@@ -738,6 +831,31 @@
             }
 
             setupFilters();
+
+            // --- Logique d'affichage de la bulle d'information (forcée à chaque chargement) ---
+            const infoBubbleOverlay = document.getElementById("info-bubble-overlay");
+            const infoBubbleCloseBtn = document.getElementById("info-bubble-close-btn");
+            
+            // Force la bulle à apparaître à chaque chargement pour le développement
+            const hasSeenInfoBubble = false; 
+
+            if (!hasSeenInfoBubble) {
+                infoBubbleOverlay.classList.add('visible');
+            }
+
+            infoBubbleCloseBtn.addEventListener('click', () => {
+                infoBubbleOverlay.classList.remove('visible');
+                // localStorage.setItem('hasSeenGalerieInfoBubble', 'true'); // Commenté pour réapparition constante
+            });
+
+            // Optionnel: fermer la bulle si l'utilisateur clique en dehors d'elle
+            infoBubbleOverlay.addEventListener('click', (event) => {
+                if (event.target === infoBubbleOverlay) {
+                    infoBubbleOverlay.classList.remove('visible');
+                    // localStorage.setItem('hasSeenGalerieInfoBubble', 'true'); // Également commenté
+                }
+            });
+            // --- Fin de la logique de la bulle d'information ---
         });
 
         function openPreviewPanel(tip) {
@@ -865,6 +983,13 @@
             });
         }
 
+        function setupFilters() {
+            previewTextInput.addEventListener('input', filterAndSortTips);
+            filtreCategorieSelect.addEventListener('change', filterAndSortTips);
+            filtreAuteurSelect.addEventListener('change', filterAndSortTips);
+            filtreOutilSelect.addEventListener('change', filterAndSortTips);
+        }
+
         function filterAndSortTips() {
             let filteredTips = [...allTips];
 
@@ -888,13 +1013,88 @@
                 filteredTips = filteredTips.filter(tip => tip.outil === outil);
             }
 
-            filteredTips.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-            displayTips(filteredTips);
+            renderTips(filteredTips); // Appeler la fonction pour rendre les tips filtrés
         }
 
-        async function deleteTip(tipId) {
-            if (!confirm('Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.')) {
+        function renderTips(tipsToRender) {
+            galerieDiv.innerHTML = ''; // Vide la galerie actuelle
+
+            if (tipsToRender.length === 0) {
+                galerieDiv.innerHTML = '<p style="text-align: center;">Aucun tip ou prompt ne correspond à vos filtres.</p>';
+                return;
+            }
+
+            tipsToRender.forEach(tip => {
+                const carte = document.createElement('div');
+                carte.className = 'carte';
+                carte.style.borderLeftColor = getColorForCategory(tip.categorie); // Définit la couleur de la bordure gauche
+
+                carte.innerHTML = `
+                    <div class="left-panel">
+                        <img src="${tip.imageUrl || 'https://via.placeholder.com/200x150?text=Image+Tip'}" alt="Image pour ${tip.titre}" class="carte-image">
+                    </div>
+                    <div class="infos-wrapper">
+                        ${tip.outil ? `<span class="outil-badge">${tip.outil}</span>` : ''}
+                        <h2 class="tip-title">${tip.titre || 'Tip sans titre'}</h2>
+                        <div class="metadata-section">
+                            <span class="metadata-label">Auteur:</span><span class="metadata-value auteur-value">${tip.auteur || 'Inconnu'}</span>
+                            <span class="metadata-label">Catégorie:</span><span class="metadata-value">${tip.categorie || 'Non classé'}</span>
+                        </div>
+                        <p class="text-display">${tip.previewText || 'Pas de texte de prévisualisation.'}</p>
+                        <div class="card-actions">
+                            <div class="top-buttons-group">
+                                <button class="toggle-content-btn" data-tip-id="${tip.id}">Aperçu</button>
+                                <button class="copier-btn" data-copy-text="${tip.prompt || ''}">Copier le prompt</button>
+                            </div>
+                            <button class="supprimer-btn" data-delete-id="${tip.id}"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                        ${tip.previewText ? `<div class="preview-post-it">${tip.previewText}</div>` : ''}
+                    </div>
+                `;
+
+                galerieDiv.appendChild(carte);
+
+                // Ajoutez les écouteurs d'événements après que la carte soit ajoutée au DOM
+                const toggleBtn = carte.querySelector('.toggle-content-btn');
+                toggleBtn.addEventListener('click', () => openPreviewPanel(tip));
+
+                const copyBtn = carte.querySelector('.copier-btn');
+                copyBtn.addEventListener('click', (e) => {
+                    const textToCopy = e.target.dataset.copyText;
+                    if (textToCopy) {
+                        navigator.clipboard.writeText(textToCopy).then(() => {
+                            showSuccessMessage('Prompt copié !');
+                        }).catch(err => {
+                            console.error('Erreur lors de la copie du prompt:', err);
+                            showErrorMessage('Erreur lors de la copie.');
+                        });
+                    } else {
+                        showErrorMessage('Rien à copier.');
+                    }
+                });
+
+                const deleteBtn = carte.querySelector('.supprimer-btn');
+                deleteBtn.addEventListener('click', () => deleteTip(tip.id, carte));
+            });
+        }
+
+        // Fonction pour obtenir une couleur basée sur la catégorie
+        function getColorForCategory(category) {
+            switch (category) {
+                case 'Marketing Digital': return '#28a745'; // Vert
+                case 'Réseaux Sociaux': return '#17a2b8'; // Cyan
+                case 'SEO': return '#ffc107'; // Jaune
+                case 'Contenu': return '#fd7e14'; // Orange
+                case 'Publicité': return '#dc3545'; // Rouge
+                case 'Outils IA': return '#6f42c1'; // Violet
+                case 'Stratégie': return '#007bff'; // Bleu
+                case 'Autre': return '#6c757d'; // Gris
+                default: return '#e9ecef'; // Couleur par défaut
+            }
+        }
+
+        async function deleteTip(tipId, cardElement) {
+            if (!confirm("Êtes-vous sûr de vouloir supprimer ce tip/prompt ? Cette action est irréversible.")) {
                 return;
             }
 
@@ -912,142 +1112,30 @@
                     throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
                 }
 
-                showSuccessMessage('Tip supprimé avec succès !');
-                loadAndDisplayTips(); // Recharger les tips après suppression
+                showSuccessMessage('Tip/Prompt supprimé avec succès !');
+                cardElement.remove(); // Supprime la carte du DOM
+                // Optionnel: Mettre à jour allTips en retirant l'élément supprimé
+                allTips = allTips.filter(tip => tip.id !== tipId);
+                populateAuthorFilter(allTips); // Rafraîchir les filtres si un auteur a disparu
+                filterAndSortTips(); // Rafraîchir la galerie
             } catch (error) {
                 console.error("Erreur lors de la suppression du tip:", error);
-                showErrorMessage(`Erreur lors de la suppression : ${error.message}`);
+                showErrorMessage(`Erreur lors de la suppression: ${error.message}`);
             }
-        }
-
-        function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = '';
-
-            if (tipsToDisplay.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center;">Aucun tip ou prompt ne correspond aux filtres actuels.</p>';
-                return;
-            }
-
-            tipsToDisplay.forEach(tip => {
-                const carte = document.createElement('div');
-                carte.className = 'carte';
-                const tipId = tip.id || `temp-id-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-                carte.dataset.tipId = tipId;
-
-                const leftPanel = document.createElement('div');
-                leftPanel.className = 'left-panel';
-
-                const img = document.createElement('img');
-                img.className = 'carte-image';
-                img.src = tip.imageUrl || 'default-tip-image.png';
-                img.alt = tip.titre || 'Tip Image';
-                img.onerror = function() {
-                    this.onerror = null;
-                    this.src = 'https://via.placeholder.com/200x150?text=Image+Manquante';
-                };
-                leftPanel.appendChild(img);
-                carte.appendChild(leftPanel);
-
-                const infosWrapper = document.createElement('div');
-                infosWrapper.className = 'infos-wrapper';
-
-                const tipTitleElement = document.createElement('div');
-                tipTitleElement.className = 'tip-title';
-                tipTitleElement.textContent = tip.titre || 'Sans titre';
-                infosWrapper.appendChild(tipTitleElement);
-
-                const outilBadge = document.createElement('div');
-                outilBadge.className = 'outil-badge';
-                outilBadge.textContent = tip.outil || 'Outil N/A';
-                infosWrapper.appendChild(outilBadge);
-
-                const metadataSection = document.createElement('div');
-                metadataSection.className = 'metadata-section';
-                metadataSection.innerHTML = `
-                    <span class="metadata-label">Auteur :</span>
-                    <span class="metadata-value auteur-value">${tip.auteur || 'Inconnu'}</span>
-                    <span class="metadata-label">Catégorie :</span>
-                    <span class="metadata-value">${tip.categorie || 'Non spécifiée'}</span>
-                `;
-                infosWrapper.appendChild(metadataSection);
-
-                // Assurez-vous que le post-it sur la carte utilise les styles du post-it
-                if (tip.previewText) {
-                    const previewPostIt = document.createElement('div');
-                    previewPostIt.className = 'preview-post-it';
-                    previewPostIt.textContent = tip.previewText;
-                    carte.appendChild(previewPostIt);
-                }
-
-                const cardActions = document.createElement('div');
-                cardActions.className = 'card-actions';
-
-                // Nouveau groupe pour "Aperçu" et "Copier" (en ligne)
-                const topButtonsGroup = document.createElement('div');
-                topButtonsGroup.className = 'top-buttons-group';
-
-                const previewBtn = document.createElement('button');
-                previewBtn.className = 'toggle-content-btn';
-                previewBtn.textContent = 'Aperçu';
-                previewBtn.addEventListener('click', () => openPreviewPanel(tip));
-                topButtonsGroup.appendChild(previewBtn);
-
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copier-btn';
-                copyBtn.textContent = 'Copier le prompt';
-                copyBtn.addEventListener('click', () => {
-                    navigator.clipboard.writeText(tip.prompt).then(() => {
-                        showSuccessMessage('Prompt copié !');
-                    }).catch(err => {
-                        console.error('Erreur lors de la copie du prompt:', err);
-                        showErrorMessage('Erreur lors de la copie.');
-                    });
-                });
-                topButtonsGroup.appendChild(copyBtn);
-
-                cardActions.appendChild(topButtonsGroup);
-
-                // Bouton Supprimer (en dessous, aligné à gauche)
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'supprimer-btn';
-                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Icône Font Awesome
-                deleteBtn.title = 'Supprimer ce tip'; // Infobulle
-                deleteBtn.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Empêche l'ouverture du panneau de prévisualisation si cliqué sur la carte
-                    deleteTip(tipId);
-                });
-                cardActions.appendChild(deleteBtn); // Ajout direct à cardActions
-
-                infosWrapper.appendChild(cardActions);
-                carte.appendChild(infosWrapper);
-
-                galerieDiv.appendChild(carte);
-            });
-        }
-
-        function setupFilters() {
-            filtreCategorieSelect.addEventListener('change', filterAndSortTips);
-            filtreAuteurSelect.addEventListener('change', filterAndSortTips);
-            filtreOutilSelect.addEventListener('change', filterAndSortTips);
-            previewTextInput.addEventListener('input', filterAndSortTips);
         }
 
         function showSuccessMessage(message) {
             const msg = document.getElementById('success-message');
-            msg.textContent = message;
+            msg.textContent = `✅ ${message}`;
             msg.style.opacity = '1';
-            msg.style.display = 'block'; /* Assure que le message est visible */
-            setTimeout(() => {
-                msg.style.opacity = '0';
-                setTimeout(() => msg.style.display = 'none', 500); // Masquer après l'animation de fade-out
-            }, 2000);
+            setTimeout(() => msg.style.opacity = '0', 2000);
         }
 
         function showErrorMessage(message) {
-            const msg = document.getElementById('error-display');
-            msg.textContent = message;
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 3000);
+            const err = document.getElementById('error-display');
+            err.textContent = `❌ ${message}`;
+            err.style.display = 'block';
+            setTimeout(() => err.style.display = 'none', 3000);
         }
     </script>
 </body>
