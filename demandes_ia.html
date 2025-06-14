@@ -257,7 +257,9 @@
                     <option value="Auvio">Auvio</option>
                 </select>
                 
-                <input type="text" id="filtreAuteur" placeholder="Filtrer par auteur" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;" />
+                <select id="filtreAuteur" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <option value="">Filtrer par auteur</option>
+                    </select>
                 
                 <div id="recapList"></div>
             </div>
@@ -312,29 +314,64 @@
             }
         }
 
+        // Fonction pour remplir le sélecteur d'auteurs dynamiquement depuis les données
+        async function remplirFiltreAuteur() {
+            const filtreAuteurSelect = document.getElementById("filtreAuteur");
+            // Sauvegarde la valeur sélectionnée actuelle pour la restaurer après le rechargement
+            const selectedValue = filtreAuteurSelect.value; 
+
+            // Réinitialise les options du sélecteur
+            filtreAuteurSelect.innerHTML = '<option value="">Filtrer par auteur</option>';
+            
+            let demandes = [];
+            try {
+                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                const data = await res.json();
+                demandes = Array.isArray(data) ? data : []; 
+            } catch (err) {
+                console.error("Erreur lors de la récupération des demandes pour les auteurs :", err);
+                return; // Quitte si les données ne peuvent pas être récupérées
+            }
+
+            // Extrait les noms d'auteurs uniques et les trie alphabétiquement
+            // filter(Boolean) est utilisé pour exclure les valeurs nulles, undefined, ou chaînes vides
+            const auteurs = [...new Set(demandes.map(d => d.nom).filter(Boolean))].sort(); 
+
+            auteurs.forEach(auteur => {
+                const option = document.createElement("option");
+                option.value = auteur;
+                option.textContent = auteur;
+                filtreAuteurSelect.appendChild(option);
+            });
+
+            // Restaure la sélection précédente, si elle existe et est toujours une option valide
+            if (selectedValue && [...auteurs, ''].includes(selectedValue)) { 
+                filtreAuteurSelect.value = selectedValue;
+            }
+        }
+
         // Affiche les demandes dans le panneau de récapitulatif, en appliquant les filtres
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            const filtreChaine = document.getElementById("filtreChaine").value; // Récupère la valeur du filtre "Chaîne"
-            const filtreAuteur = document.getElementById("filtreAuteur").value.toLowerCase(); // Récupère la valeur du filtre "Auteur"
+            const filtreChaine = document.getElementById("filtreChaine").value;
+            const filtreAuteur = document.getElementById("filtreAuteur").value; // La valeur vient directement du select
 
             let demandes = [];
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 const data = await res.json();
-                demandes = Array.isArray(data) ? data : []; // S'assure que 'demandes' est un tableau
+                demandes = Array.isArray(data) ? data : []; 
             } catch (err) {
                 console.error("Erreur lors de la récupération des demandes :", err);
-                demandes = []; // En cas d'erreur, initialise un tableau vide
+                demandes = []; 
             }
 
             // Application des filtres
             if (filtreChaine) {
                 demandes = demandes.filter(d => d.chaine === filtreChaine);
             }
-            if (filtreAuteur) {
-                // Vérifie que d.nom existe avant d'appeler toLowerCase()
-                demandes = demandes.filter(d => d.nom && d.nom.toLowerCase().includes(filtreAuteur));
+            if (filtreAuteur) { // Le filtrage est une correspondance exacte avec le nom de l'auteur
+                demandes = demandes.filter(d => d.nom === filtreAuteur);
             }
             
             recapList.innerHTML = ""; // Vide la liste avant de la remplir avec les éléments filtrés
@@ -427,6 +464,7 @@ ${d.description}`;
                 console.log("Demande supprimée avec succès, rafraîchissement..."); 
                 afficherDemandes(); // Rafraîchit la liste des demandes
                 mettreAJourBulleDemandes(); // Met à jour le compteur
+                remplirFiltreAuteur(); // Met à jour le filtre auteur au cas où un auteur a été supprimé
             } catch (e) {
                 console.error("Erreur lors de la suppression de la demande :", e);
                 alert("Une erreur est survenue lors de la suppression. Vérifiez la console pour plus de détails.");
@@ -458,6 +496,7 @@ ${d.description}`;
                 console.log("Demande marquée comme traitée avec succès, rafraîchissement..."); 
                 afficherDemandes(); // Rafraîchit la liste des demandes
                 mettreAJourBulleDemandes(); // Met à jour le compteur
+                // Pas besoin de remplirFiltreAuteur() ici, car le statut ne change pas les noms d'auteur.
             } catch (e) {
                 console.error("Erreur lors du marquage comme traité :", e);
                 alert("Une erreur est survenue lors du changement de statut. Vérifiez la console pour plus de détails.");
@@ -490,6 +529,7 @@ ${d.description}`;
 
                     // Étape 3: Initialiser le reste des fonctionnalités de la page, maintenant que le DOM est prêt.
                     mettreAJourBulleDemandes(); // Met à jour le compteur de notifications
+                    remplirFiltreAuteur(); // IMPORTANT: Remplit le filtre auteur dès le chargement de la page
                     afficherDemandes(); // Affiche la liste initiale des demandes
 
                     // Initialisation du sélecteur de durée pour le formulaire de demande
@@ -540,6 +580,7 @@ ${d.description}`;
                                 e.target.reset(); // Réinitialise le formulaire
                                 afficherDemandes(); // Rafraîchit le récapitulatif des demandes
                                 mettreAJourBulleDemandes(); // Met à jour le compteur de notifications
+                                remplirFiltreAuteur(); // IMPORTANT: Met à jour le filtre auteur si un nouvel auteur a été ajouté
                             } else {
                                 console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
                                 alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
@@ -550,9 +591,9 @@ ${d.description}`;
                         }
                     });
 
-                    // Écouteurs d'événements pour les nouveaux filtres
+                    // Écouteurs d'événements pour les nouveaux filtres (maintenant tous des 'change' pour les selects)
                     document.getElementById("filtreChaine").addEventListener("change", afficherDemandes);
-                    document.getElementById("filtreAuteur").addEventListener("input", afficherDemandes);
+                    document.getElementById("filtreAuteur").addEventListener("change", afficherDemandes); 
 
                     // Écouteurs d'événements pour la gestion du modal (pop-up)
                     document.querySelector(".close-modal").addEventListener("click", () => {
