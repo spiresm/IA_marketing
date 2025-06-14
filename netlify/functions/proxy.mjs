@@ -6,7 +6,7 @@ const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fet
 export const handler = async (event) => {
     // URL du Google Apps Script pour les demandes.
     // Il est fortement recommandé d'utiliser process.env. pour la sécurité et la flexibilité.
-    const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbyoDFofm25-QcQdli_bx4Odkl-xDw7501CbadTf3k85dWPx_gTq_oPVuHo7s3Mk7Q/exec';
+    const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbxZuIatCEVwllJkrn5AQqPlczpJcb2WIlB9WzzhYXkSoMZuQ858bb6--cm759Rs58d9/exec';
 
     // Les chemins des fonctions Netlify locales
     const LOCAL_FUNCTIONS = {
