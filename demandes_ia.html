@@ -16,7 +16,7 @@
             font-size: 0.95em; /* Taille de police de base du corps */
         }
         main {
-            display: none;
+            display: none; /* Toujours masqué initialement */
         }
         .flex-wrapper {
             display: flex;
@@ -107,7 +107,7 @@
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.6); /* Utilise la même opacité que la bulle d'outils.html */
-            display: none;
+            display: none; /* Sera flex seulement si la classe 'visible' est ajoutée */
             justify-content: center;
             align-items: center;
             z-index: 2000; /* Assure qu'il est au-dessus de tout le reste */
@@ -119,18 +119,18 @@
         #modal.visible { /* Nouvelle classe pour afficher le modal avec transition */
             opacity: 1;
             visibility: visible;
+            display: flex; /* Active le flexbox seulement quand il est visible */
         }
 
         .modal-content {
             background: white;
-            border-radius: 15px; /* Légèrement plus grand pour correspondre à outils.html */
-            padding: 30px; /* Plus grand pour correspondre à outils.html */
-            width: 90%;
-            max-width: 500px; /* Ajusté à 500px pour correspondre à outils.html */
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            text-align: center;
             position: relative;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.3); /* Ombre plus prononcée pour correspondre à outils.html */
-            text-align: center; /* Centrage du texte comme la plaque d'info */
-            transform: translateY(20px); /* Légère animation d'apparition */
+            transform: translateY(20px);
             transition: transform 0.3s ease;
         }
 
@@ -144,9 +144,9 @@
             right: 15px;
             background: none;
             border: none;
-            font-size: 2em; /* Rend le "X" plus grand et visible */
+            font-size: 2em;
             cursor: pointer;
-            color: #555; /* Couleur du bouton de fermeture */
+            color: #555;
             transition: color 0.2s ease;
         }
         .close-modal:hover {
@@ -155,19 +155,18 @@
 
         /* Styles pour le contenu texte du modal */
         #modal-body {
-            /* Ces styles s'appliquent au texte affiché dans le modal, comme dans la plaque d'outils.html */
             display: block;
             font-family: Arial, sans-serif;
-            line-height: 25.6px; /* Ajusté en pixels */
+            line-height: 25.6px;
             margin-top: 16px;
             margin-bottom: 25px;
             margin-left: 0px;
             margin-right: 0px;
             text-align: center;
-            color: #444; /* Conserve la couleur du texte des descriptions de cartes */
-            font-size: 0.95em; /* Aligné sur la taille de base du corps ou des descriptions de cartes */
-            white-space: pre-wrap; /* Pour conserver les sauts de ligne du textearea */
-            word-wrap: break-word; /* Pour les longs mots sans espace */
+            color: #444;
+            font-size: 0.95em;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
         
         /* Media queries pour la réactivité, comme dans outils.html */
@@ -177,9 +176,9 @@
                 padding: 20px;
             }
             #modal-body {
-                font-size: 0.9em; /* Légèrement plus petit sur mobile */
-                line-height: 1.5; /* Revenir à un line-height relatif pour meilleure flexibilité */
-                width: auto; /* Permet au paragraphe de s'adapter à la largeur du parent */
+                font-size: 0.9em;
+                line-height: 1.5;
+                width: auto;
             }
         }
     </style>
@@ -301,9 +300,17 @@
             .then(data => {
                 document.getElementById("header-placeholder").innerHTML = data;
                 ensureNotifParentPosition();
+                // --- Début du déplacement des lignes importantes ---
                 document.body.style.opacity = "1";
                 document.querySelector("main").style.display = "block";
+                // --- Fin du déplacement des lignes importantes ---
                 mettreAJourBulleDemandes(); // Appelé au chargement initial
+            })
+            .catch(error => { // Ajout d'un catch pour les erreurs de chargement du header
+                console.error("Erreur lors du chargement de header.html:", error);
+                // Assurez-vous que la page est visible même si le header ne charge pas
+                document.body.style.opacity = "1";
+                document.querySelector("main").style.display = "block";
             });
 
         const couleursParChaine = {
@@ -393,7 +400,9 @@
                 div.addEventListener("click", () => {
                     const modal = document.getElementById("modal");
                     const modalBody = document.getElementById("modal-body");
-                    modalBody.textContent = `Nom: ${d.nom}
+                    // Formatage du texte pour le modal - amélioration pour la lisibilité
+                    modalBody.textContent = `
+Nom: ${d.nom}
 Email: ${d.email}
 Type: ${d.type}
 Support: ${d.support}
@@ -531,7 +540,7 @@ ${d.description}`;
             });
             document.getElementById("modal").addEventListener("click", e => {
                 if (e.target.id === "modal") {
-                    e.target.classList.remove('visible'); // Utilisez la nouvelle classe pour cacher
+                    document.getElementById("modal").classList.remove('visible'); // Utilisez la nouvelle classe pour cacher
                 }
             });
 
