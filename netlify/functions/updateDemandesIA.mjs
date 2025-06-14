@@ -3,7 +3,7 @@
 exports.handler = async (event) => {
     // URL de votre script Google Apps. C'est l'URL qui se termine par /exec.
     // REMPLACEZ CETTE URL par la vôtre, si ce n'est pas déjà fait !
-    const googleAppsScriptUrl = "https://script.google.com/macros/s/AKfycbyoDFofm25-QcQdli_bx4Odkl-xDw7501CbadTf3k85dWPx_gTq_oPVuHo7s3Mk7Q/exec";
+    const googleAppsScriptUrl = "https://script.google.com/macros/s/AKfycbxZuIatCEVwllJkrn5AQqPlczpJcb2WIlB9WzzhYXkSoMZuQ858bb6--cm759Rs58d9/exec";
 
     console.log(`Requête reçue par Netlify: Méthode ${event.httpMethod}, Chemin ${event.path}`);
 
