@@ -8,12 +8,12 @@
     <style>
         /* ton CSS inchangé */
         body {
-            opacity: 0;
+            opacity: 0; /* Toujours commencer masqué */
             margin: 0;
-            font-family: Arial, sans-serif; /* Assure Arial ou sans-serif pour tout le corps */
+            font-family: Arial, sans-serif;
             background-color: #f0f2f5;
             transition: opacity 0.3s ease-in;
-            font-size: 0.95em; /* Taille de police de base du corps */
+            font-size: 0.95em;
         }
         main {
             display: none; /* Toujours masqué initialement */
@@ -106,20 +106,19 @@
         #modal {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.6); /* Utilise la même opacité que la bulle d'outils.html */
-            display: none; /* Sera flex seulement si la classe 'visible' est ajoutée */
+            background: rgba(0,0,0,0.6);
+            display: flex; /* Toujours flex, mais contrôlé par opacity/visibility */
             justify-content: center;
             align-items: center;
-            z-index: 2000; /* Assure qu'il est au-dessus de tout le reste */
-            opacity: 0; /* Ajouté pour la transition */
-            visibility: hidden; /* Ajouté pour la transition */
-            transition: opacity 0.3s ease, visibility 0.3s ease; /* Ajouté pour la transition */
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
         }
 
-        #modal.visible { /* Nouvelle classe pour afficher le modal avec transition */
+        #modal.visible {
             opacity: 1;
             visibility: visible;
-            display: flex; /* Active le flexbox seulement quand il est visible */
         }
 
         .modal-content {
@@ -276,13 +275,7 @@
     </div>
 
     <script>
-        // REMARQUE : L'ID du Google Apps Script n'est PLUS nécessaire ici car toutes les requêtes passent par Netlify Functions.
-        // const SCRIPT_ID = 'AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8';
-
-        // Définitions des URL pour les fonctions Netlify
-        // PROXY_URL gère les GET pour la lecture de la feuille et les POST pour les actions "updateDemandeIA" (suppression/marquage traité)
         const PROXY_URL = "/.netlify/functions/proxy";
-        // SEND_REQUEST_URL est la fonction unique qui gère l'envoi du formulaire (mail + ajout à la feuille)
         const SEND_REQUEST_URL = "/.netlify/functions/sendrequest";
 
         function ensureNotifParentPosition() {
@@ -295,23 +288,99 @@
             }
         }
 
-        fetch("header.html")
-            .then(res => res.text())
-            .then(data => {
-                document.getElementById("header-placeholder").innerHTML = data;
-                ensureNotifParentPosition();
-                // --- Début du déplacement des lignes importantes ---
-                document.body.style.opacity = "1";
-                document.querySelector("main").style.display = "block";
-                // --- Fin du déplacement des lignes importantes ---
-                mettreAJourBulleDemandes(); // Appelé au chargement initial
-            })
-            .catch(error => { // Ajout d'un catch pour les erreurs de chargement du header
-                console.error("Erreur lors du chargement de header.html:", error);
-                // Assurez-vous que la page est visible même si le header ne charge pas
-                document.body.style.opacity = "1";
-                document.querySelector("main").style.display = "block";
-            });
+        // Attend que le DOM soit complètement chargé
+        document.addEventListener("DOMContentLoaded", () => {
+            // Charge le header en premier
+            fetch("header.html")
+                .then(res => res.text())
+                .then(data => {
+                    document.getElementById("header-placeholder").innerHTML = data;
+                    ensureNotifParentPosition();
+                    
+                    // Une fois le header chargé et inséré, affiche le corps et le main
+                    document.body.style.opacity = "1";
+                    document.querySelector("main").style.display = "block";
+
+                    // Initialise les autres fonctionnalités dépendantes du DOM et du header
+                    mettreAJourBulleDemandes(); 
+                    afficherDemandes(); // Appel initial pour afficher les demandes
+
+                    const dureeSelect = document.getElementById("duree");
+                    for (let i = 0; i <= 60; i++) {
+                        const opt = document.createElement("option");
+                        opt.value = `${i} sec`;
+                        opt.textContent = `${i} sec`;
+                        dureeSelect.appendChild(opt);
+                    }
+
+                    document.getElementById("demandeIA").addEventListener("submit", async e => {
+                        e.preventDefault();
+                        const data = new FormData(e.target);
+                        const demande = {
+                            id: "_" + Math.random().toString(36).substr(2, 9),
+                            nom: data.get("nom"),
+                            email: `${data.get("emailPrefix")}@rtbf.be`,
+                            type: data.get("type"),
+                            support: data.get("support"),
+                            duree: data.get("duree"),
+                            date: data.get("date"),
+                            description: data.get("description"),
+                            chaine: data.get("chaine"),
+                            traite: false
+                        };
+
+                        try {
+                            const response = await fetch(SEND_REQUEST_URL, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(demande)
+                            });
+
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
+                                alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 200)}... (voir console pour plus)`);
+                                return;
+                            }
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                alert(result.message || "Demande envoyée avec succès et mail transmis !");
+                                e.target.reset();
+                                afficherDemandes();
+                                mettreAJourBulleDemandes();
+                            } else {
+                                console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
+                                alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
+                            }
+                        } catch (err) {
+                            console.error("Erreur d'envoi du formulaire côté client :", err);
+                            alert("Une erreur inattendue est survenue lors de l'envoi du formulaire. Vérifiez la console.");
+                        }
+                    });
+
+                    document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
+                    document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
+                    document.getElementById("filtreDuree").addEventListener("change", afficherDemandes);
+
+                    document.querySelector(".close-modal").addEventListener("click", () => {
+                        document.getElementById("modal").classList.remove('visible');
+                    });
+                    document.getElementById("modal").addEventListener("click", e => {
+                        if (e.target.id === "modal") {
+                            document.getElementById("modal").classList.remove('visible');
+                        }
+                    });
+
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement de header.html:", error);
+                    // Si le header ne charge pas, assurez-vous que le reste de la page est visible quand même
+                    document.body.style.opacity = "1";
+                    document.querySelector("main").style.display = "block";
+                });
+        });
 
         const couleursParChaine = {
             'Classic 21': 'purple',
@@ -328,7 +397,6 @@
             const notif = document.getElementById("notif-count");
             if (!notif) return;
             try {
-                // Utilise le PROXY pour la lecture des demandes existantes
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 const demandes = await res.json();
                 notif.textContent = demandes.length;
@@ -346,7 +414,6 @@
 
             let demandes = [];
             try {
-                // Utilise le PROXY pour la lecture des demandes existantes
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 demandes = await res.json();
             } catch (err) {
@@ -356,10 +423,10 @@
 
             demandes = demandes.filter(d => d.nom.toLowerCase().includes(filtreNom));
             if (filtreDuree) demandes = demandes.filter(d => d.duree === filtreDuree);
-            if (filtreDate === "asc") demandes.sort((a,b) => new Date(a.date) - new Date(b.date));
-            else if (filtreDate === "desc") demandes.sort((a,b) => new Date(b.date) - new Date(a.date));
+            if (filtreDate === "asc") demandes.sort((a, b) => new Date(a.date) - new Date(b.date));
+            else if (filtreDate === "desc") demandes.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            recapList.innerHTML = ""; // Ceci est nécessaire avant d'ajouter les éléments
+            recapList.innerHTML = "";
 
             demandes.forEach(d => {
                 const couleur = couleursParChaine[d.chaine] || "#0077b6";
@@ -400,7 +467,6 @@
                 div.addEventListener("click", () => {
                     const modal = document.getElementById("modal");
                     const modalBody = document.getElementById("modal-body");
-                    // Formatage du texte pour le modal - amélioration pour la lisibilité
                     modalBody.textContent = `
 Nom: ${d.nom}
 Email: ${d.email}
@@ -412,7 +478,7 @@ Date: ${d.date}
 
 Briefing:
 ${d.description}`;
-                    modal.classList.add('visible'); // Utilisez la nouvelle classe pour afficher le modal
+                    modal.classList.add('visible');
                 });
 
                 recapList.appendChild(div);
@@ -421,20 +487,16 @@ ${d.description}`;
 
         async function supprimerDemande(id) {
             try {
-                // Récupérer toutes les demandes (via PROXY)
                 let demandes = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
                 demandes = demandes.filter(d => d.id !== id);
-
-                // Envoyer la mise à jour (via PROXY, qui reliera à GAS)
                 await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "updateDemandeIA", demandes })
                 });
-
                 afficherDemandes();
                 mettreAJourBulleDemandes();
-            } catch(e) {
+            } catch (e) {
                 console.error("Erreur suppression :", e);
             }
         }
@@ -445,120 +507,17 @@ ${d.description}`;
                 const demande = demandes.find(d => d.id === id);
                 if (!demande) return;
                 demande.traite = true;
-
-                // Envoyer la mise à jour (via PROXY, qui reliera à GAS)
                 await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "updateDemandeIA", demandes })
                 });
-
                 afficherDemandes();
                 mettreAJourBulleDemandes();
-            } catch(e) {
+            } catch (e) {
                 console.error("Erreur marquer traité :", e);
             }
         }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            const dureeSelect = document.getElementById("duree");
-            for (let i=0; i<=60; i++) {
-                const opt = document.createElement("option");
-                opt.value = `${i} sec`;
-                opt.textContent = `${i} sec`;
-                dureeSelect.appendChild(opt);
-            }
-
-            document.getElementById("demandeIA").addEventListener("submit", async e => {
-                e.preventDefault();
-                const data = new FormData(e.target);
-                const demande = {
-                    id: "_" + Math.random().toString(36).substr(2, 9),
-                    nom: data.get("nom"),
-                    email: `${data.get("emailPrefix")}@rtbf.be`,
-                    type: data.get("type"),
-                    support: data.get("support"),
-                    duree: data.get("duree"),
-                    date: data.get("date"),
-                    description: data.get("description"),
-                    chaine: data.get("chaine"),
-                    traite: false
-                };
-
-                // Vous avez commenté le champ d'upload, donc j'assume qu'il n'y a pas d'images à traiter pour l'instant.
-                // Si vous le décommentez, il faudra implémenter la lecture des fichiers ici.
-                // if (document.getElementById('imageUpload')?.files.length > 0) {
-                //      const files = Array.from(document.getElementById('imageUpload').files);
-                //      demande.images = [];
-                //      for (const file of files) {
-                //          demande.images.push(await readFileAsBase64(file));
-                //      }
-                // }
-
-                try {
-                    // C'EST ICI LA MODIFICATION MAJEURE POUR ENVOYER LE FORMULAIRE VIA sendrequest
-                    const response = await fetch(SEND_REQUEST_URL, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(demande) // Envoyez l'objet 'demande' tel quel à sendrequest.js
-                    });
-
-                    // Vérifiez la réponse HTTP avant de tenter de la parser en JSON
-                    if (!response.ok) {
-                        // Si la réponse n'est pas OK (e.g., 404, 500), elle ne contiendra peut-être pas de JSON valide.
-                        // Lisez le texte de la réponse pour obtenir plus d'informations.
-                        const errorText = await response.text();
-                        console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
-                        alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 200)}... (voir console pour plus)`);
-                        return; // Arrête l'exécution ici
-                    }
-
-                    // Seulement si la réponse est OK, essayez de la parser en JSON
-                    const result = await response.json();
-
-                    if (result.success) { // Vérifie la propriété 'success' de la réponse JSON de Netlify Function
-                        alert(result.message || "Demande envoyée avec succès et mail transmis !");
-                        e.target.reset();
-                        afficherDemandes(); // Rafraîchit le récapitulatif
-                        mettreAJourBulleDemandes(); // Met à jour le compteur
-                    } else {
-                        console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
-                        alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
-                    }
-                } catch (err) {
-                    console.error("Erreur d'envoi du formulaire côté client :", err);
-                    alert("Une erreur inattendue est survenue lors de l'envoi du formulaire. Vérifiez la console.");
-                }
-            });
-
-            document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
-            document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
-            document.getElementById("filtreDuree").addEventListener("change", afficherDemandes);
-
-            document.querySelector(".close-modal").addEventListener("click", () => {
-                document.getElementById("modal").classList.remove('visible'); // Utilisez la nouvelle classe pour cacher
-            });
-            document.getElementById("modal").addEventListener("click", e => {
-                if (e.target.id === "modal") {
-                    document.getElementById("modal").classList.remove('visible'); // Utilisez la nouvelle classe pour cacher
-                }
-            });
-
-            afficherDemandes(); // Appelé au chargement initial pour afficher les demandes
-            mettreAJourBulleDemandes(); // Appelé au chargement initial pour la bulle
-        });
-
-        // Fonction utilitaire pour lire un fichier en Base64 (si vous réactivez l'upload d'images)
-        /*
-        function readFileAsBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-                reader.readAsDataURL(file);
-            });
-        }
-        */
     </script>
 </body>
 </html>
