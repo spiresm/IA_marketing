@@ -6,18 +6,19 @@
     <title>Demande IA - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
     <style>
-        /* ton CSS inchangé */
+        /* CSS INITIAL POUR MASQUER LE CONTENU AU CHARGEMENT */
         body {
-            opacity: 0; /* Toujours commencer masqué */
+            opacity: 0; /* Commence masqué */
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f0f2f5;
-            transition: opacity 0.3s ease-in;
+            transition: opacity 0.3s ease-in; /* Transition douce pour l'apparition */
             font-size: 0.95em;
         }
         main {
-            display: none; /* Toujours masqué initialement */
+            display: none; /* Masqué par défaut */
         }
+        /* ... Le reste de votre CSS reste inchangé ... */
         .flex-wrapper {
             display: flex;
             justify-content: center;
@@ -107,7 +108,7 @@
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.6);
-            display: flex; /* Toujours flex, mais contrôlé par opacity/visibility */
+            display: flex;
             justify-content: center;
             align-items: center;
             z-index: 2000;
@@ -152,7 +153,6 @@
             color: #000;
         }
 
-        /* Styles pour le contenu texte du modal */
         #modal-body {
             display: block;
             font-family: Arial, sans-serif;
@@ -168,7 +168,6 @@
             word-wrap: break-word;
         }
         
-        /* Media queries pour la réactivité, comme dans outils.html */
         @media (max-width: 768px) {
             .modal-content {
                 margin: 20px;
@@ -288,100 +287,6 @@
             }
         }
 
-        // Attend que le DOM soit complètement chargé
-        document.addEventListener("DOMContentLoaded", () => {
-            // Charge le header en premier
-            fetch("header.html")
-                .then(res => res.text())
-                .then(data => {
-                    document.getElementById("header-placeholder").innerHTML = data;
-                    ensureNotifParentPosition();
-                    
-                    // Une fois le header chargé et inséré, affiche le corps et le main
-                    document.body.style.opacity = "1";
-                    document.querySelector("main").style.display = "block";
-
-                    // Initialise les autres fonctionnalités dépendantes du DOM et du header
-                    mettreAJourBulleDemandes(); 
-                    afficherDemandes(); // Appel initial pour afficher les demandes
-
-                    const dureeSelect = document.getElementById("duree");
-                    for (let i = 0; i <= 60; i++) {
-                        const opt = document.createElement("option");
-                        opt.value = `${i} sec`;
-                        opt.textContent = `${i} sec`;
-                        dureeSelect.appendChild(opt);
-                    }
-
-                    document.getElementById("demandeIA").addEventListener("submit", async e => {
-                        e.preventDefault();
-                        const data = new FormData(e.target);
-                        const demande = {
-                            id: "_" + Math.random().toString(36).substr(2, 9),
-                            nom: data.get("nom"),
-                            email: `${data.get("emailPrefix")}@rtbf.be`,
-                            type: data.get("type"),
-                            support: data.get("support"),
-                            duree: data.get("duree"),
-                            date: data.get("date"),
-                            description: data.get("description"),
-                            chaine: data.get("chaine"),
-                            traite: false
-                        };
-
-                        try {
-                            const response = await fetch(SEND_REQUEST_URL, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(demande)
-                            });
-
-                            if (!response.ok) {
-                                const errorText = await response.text();
-                                console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
-                                alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 200)}... (voir console pour plus)`);
-                                return;
-                            }
-
-                            const result = await response.json();
-
-                            if (result.success) {
-                                alert(result.message || "Demande envoyée avec succès et mail transmis !");
-                                e.target.reset();
-                                afficherDemandes();
-                                mettreAJourBulleDemandes();
-                            } else {
-                                console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
-                                alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
-                            }
-                        } catch (err) {
-                            console.error("Erreur d'envoi du formulaire côté client :", err);
-                            alert("Une erreur inattendue est survenue lors de l'envoi du formulaire. Vérifiez la console.");
-                        }
-                    });
-
-                    document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
-                    document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
-                    document.getElementById("filtreDuree").addEventListener("change", afficherDemandes);
-
-                    document.querySelector(".close-modal").addEventListener("click", () => {
-                        document.getElementById("modal").classList.remove('visible');
-                    });
-                    document.getElementById("modal").addEventListener("click", e => {
-                        if (e.target.id === "modal") {
-                            document.getElementById("modal").classList.remove('visible');
-                        }
-                    });
-
-                })
-                .catch(error => {
-                    console.error("Erreur lors du chargement de header.html:", error);
-                    // Si le header ne charge pas, assurez-vous que le reste de la page est visible quand même
-                    document.body.style.opacity = "1";
-                    document.querySelector("main").style.display = "block";
-                });
-        });
-
         const couleursParChaine = {
             'Classic 21': 'purple',
             'La Une': 'red',
@@ -437,87 +342,4 @@
                     <div style="display:flex; justify-content: space-between; align-items:center">
                         <span><strong>${d.nom}</strong></span>
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="font-size:1.1em; font-weight: bold;">${d.type}</span>
-                            <span>${d.duree}</span>
-                        </div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                        <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
-                        <small style="color:#666;">📅 ${d.date}</small>
-                    </div>
-                    <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-                        <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
-                        <div>
-                            ${d.traite ? '' : `<button title="Marquer comme traité" data-id="${d.id}" class="btn-traite" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">✔️</button>`}
-                            <button title="Supprimer" data-id="${d.id}" class="btn-supprimer" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">🗑️</button>
-                        </div>
-                    </div>
-                `;
-
-                div.querySelector(".btn-supprimer")?.addEventListener("click", async e => {
-                    e.stopPropagation();
-                    await supprimerDemande(d.id);
-                });
-
-                div.querySelector(".btn-traite")?.addEventListener("click", async e => {
-                    e.stopPropagation();
-                    await marquerTraite(d.id);
-                });
-
-                div.addEventListener("click", () => {
-                    const modal = document.getElementById("modal");
-                    const modalBody = document.getElementById("modal-body");
-                    modalBody.textContent = `
-Nom: ${d.nom}
-Email: ${d.email}
-Type: ${d.type}
-Support: ${d.support}
-Chaîne: ${d.chaine}
-Durée: ${d.duree}
-Date: ${d.date}
-
-Briefing:
-${d.description}`;
-                    modal.classList.add('visible');
-                });
-
-                recapList.appendChild(div);
-            });
-        }
-
-        async function supprimerDemande(id) {
-            try {
-                let demandes = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
-                demandes = demandes.filter(d => d.id !== id);
-                await fetch(PROXY_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "updateDemandeIA", demandes })
-                });
-                afficherDemandes();
-                mettreAJourBulleDemandes();
-            } catch (e) {
-                console.error("Erreur suppression :", e);
-            }
-        }
-
-        async function marquerTraite(id) {
-            try {
-                let demandes = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
-                const demande = demandes.find(d => d.id === id);
-                if (!demande) return;
-                demande.traite = true;
-                await fetch(PROXY_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "updateDemandeIA", demandes })
-                });
-                afficherDemandes();
-                mettreAJourBulleDemandes();
-            } catch (e) {
-                console.error("Erreur marquer traité :", e);
-            }
-        }
-    </script>
-</body>
-</html>
+                            <span style="font-size:1.1em; font-weight:
