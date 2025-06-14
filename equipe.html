@@ -463,7 +463,7 @@
         <div class="info-bubble-content">
             <h3>Bienvenue dans l'Équipe !</h3>
             <p>
-                Découvrez les différents membres de l'équipe et leurs spécialités. 
+                Découvrez les différents membres de l'équipe et leurs spécialités.
                 Cliquez sur un profil pour voir leurs outils IA préférés et les derniers prompts qu'ils ont partagés !
                 Vous pouvez également filtrer et rechercher des membres par pôle ou par outil.
             </p>
@@ -508,22 +508,68 @@
         const sidePanel = document.getElementById("side-panel");
         const panelContent = document.getElementById("panel-content");
         const closePanelBtn = document.querySelector(".close-panel");
+        const mainElement = document.querySelector('main'); // Ajout de la référence à l'élément main
 
         // Références aux éléments de la bulle d'information
         const infoBubbleOverlay = document.getElementById("info-bubble-overlay");
         const infoBubbleCloseBtn = document.getElementById("info-bubble-close-btn");
 
-
+        // --- Fonctions utilitaires ---
         function normalizeString(str) {
             if (typeof str !== 'string') return '';
             return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+        }
+
+        // --- Fonctions de Rendu et de Chargement ---
+        async function fetchProfils() {
+            console.log("Équipe: Récupération des profils...");
+            try {
+                const response = await fetch(`${PROXY_URL}?action=getProfils`);
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+                }
+                const data = await response.json();
+                console.log("Équipe: Profils chargés :", data);
+                if (data.success && Array.isArray(data.data)) {
+                    profils = data.data;
+                } else {
+                    console.error("Équipe: Données de profils invalides reçues:", data);
+                    profils = []; // Assurez-vous que profils est vide en cas d'erreur
+                }
+            } catch (error) {
+                console.error("Équipe: Erreur lors de la récupération des profils:", error);
+                profils = []; // Vider les profils en cas d'erreur de chargement
+                // Optionnel: Afficher un message d'erreur à l'utilisateur
+                // listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Impossible de charger les profils. Veuillez réessayer plus tard.</p>';
+            }
+        }
+
+        async function fetchGalleryPrompts() {
+            console.log("Équipe: Récupération des prompts de la galerie...");
+            try {
+                const response = await fetch(`${PROXY_URL}?action=getGalleryPrompts`);
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+                }
+                const data = await response.json();
+                console.log("Équipe: Prompts de la galerie chargés :", data);
+                if (data.success && Array.isArray(data.data)) {
+                    galleryPrompts = data.data;
+                } else {
+                    console.error("Équipe: Données de prompts de la galerie invalides reçues:", data);
+                    galleryPrompts = [];
+                }
+            } catch (error) {
+                console.error("Équipe: Erreur lors de la récupération des prompts de la galerie:", error);
+                galleryPrompts = [];
+            }
         }
 
         function renderProfils() {
             console.log("Équipe: Début du rendu des profils...");
             const selectedPole = normalizeString(filterPole.value);
             const searchQuery = normalizeString(searchInput.value);
-            listContainer.innerHTML = "";
+            listContainer.innerHTML = ""; // Vider le conteneur avant de rendre
 
             const filteredProfils = profils.filter(p => {
                 const poleNormalized = normalizeString(p.pole || '');
@@ -537,308 +583,266 @@
 
             if (filteredProfils.length === 0) {
                 listContainer.innerHTML = '<p style="text-align: center; color: #666; width: 100%;">Aucun profil ne correspond à vos critères.</p>';
-            }
+                console.log("Équipe: Aucun profil ne correspond aux filtres.");
+            } else {
+                filteredProfils.forEach((p) => {
+                    const div = document.createElement("div");
+                    div.className = "vignette";
+                    div.dataset.id = p.id;
 
-            filteredProfils.forEach((p) => {
-                const div = document.createElement("div");
-                div.className = "vignette";
-                div.dataset.id = p.id;
+                    const hasNote = (p.note || '').trim() !== '';
 
-                const hasNote = (p.note || '').trim() !== '';
-
-                div.innerHTML = `
-                    <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}" title="Note personnelle">Note</span>
-                    <img src="${p.photo || 'https://via.placeholder.com/90x90?text=Profil'}" alt="${p.name || 'Profil'}" />
-                    <h3>${p.name || 'Nom Inconnu'}</h3>
-                    <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
-                    <div class="icon-bar">
-                        <button class="btn-note" title="Ajouter/Modifier une note">🗒️</button>
-                        <button class="btn-edit" title="Éditer le profil">✏️</button>
-                        <button class="btn-delete" title="Supprimer le profil">🗑️</button>
-                    </div>
-                    <div class="note-editor">
-                        <textarea>${p.note || ''}</textarea>
-                        <div class="actions">
-                            <button class="save-note">Enregistrer</button>
-                            <button class="clear-note">Effacer</button>
-                            <button class="close-note">Retour</button>
+                    div.innerHTML = `
+                        <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}" title="Note personnelle">Note</span>
+                        <img src="${p.photo || 'https://via.placeholder.com/90x90?text=Profil'}" alt="${p.name || 'Profil'}" />
+                        <h3>${p.name || 'Nom Inconnu'}</h3>
+                        <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
+                        <div class="icon-bar">
+                            <button class="btn-note" title="Ajouter/Modifier une note">🗒️</button>
+                            <button class="btn-edit" title="Éditer le profil">✏️</button>
+                            <button class="btn-delete" title="Supprimer le profil">🗑️</button>
                         </div>
-                    </div>
-                `;
-                const noteBadge = div.querySelector(".note-badge");
-                const noteEditor = div.querySelector(".note-editor");
-                const textarea = noteEditor.querySelector("textarea");
+                        <div class="note-editor">
+                            <textarea>${p.note || ''}</textarea>
+                            <div class="actions">
+                                <button class="save-note">Enregistrer</button>
+                                <button class="clear-note">Effacer</button>
+                                <button class="close-note">Retour</button>
+                            </div>
+                        </div>
+                    `;
+                    const noteBadge = div.querySelector(".note-badge");
+                    const noteEditor = div.querySelector(".note-editor");
+                    const textarea = noteEditor.querySelector("textarea");
 
-                div.querySelector(".btn-note").addEventListener("click", e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Note' pour", p.name);
-                    document.querySelectorAll(".note-editor.open").forEach(el => {
-                        if (el !== noteEditor) {
-                            el.classList.remove("open");
-                        }
+                    // Empêcher la propagation des clics sur les boutons pour ne pas ouvrir le panneau latéral
+                    div.querySelector(".btn-note").addEventListener("click", e => {
+                        e.stopPropagation();
+                        console.log("Équipe: Clic sur 'Note' pour", p.name);
+                        document.querySelectorAll(".note-editor.open").forEach(el => {
+                            if (el !== noteEditor) {
+                                el.classList.remove("open");
+                            }
+                        });
+                        noteEditor.classList.toggle("open");
                     });
-                    noteEditor.classList.toggle("open");
-                });
 
-                div.querySelector(".save-note").addEventListener("click", async e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Enregistrer note' pour", p.name);
-                    const content = textarea.value.trim();
-                    try {
-                        const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: p.id, note: content })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            console.log("Équipe: Note enregistrée avec succès pour", p.name);
-                            p.note = content;
-                            noteBadge.style.display = content ? 'inline-block' : 'none';
-                            noteEditor.classList.remove("open");
-                        } else {
-                            console.error("Équipe: Erreur lors de l'enregistrement de la note:", data.message);
-                            alert("Erreur lors de l'enregistrement de la note : " + data.message);
-                        }
-                    } catch (error) {
-                        console.error("Équipe: Erreur réseau/serveur lors de l'enregistrement de la note:", error);
-                        alert("Erreur réseau/serveur lors de l'enregistrement de la note.");
-                    }
-                });
-
-                div.querySelector(".clear-note").addEventListener("click", async e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Effacer note' pour", p.name);
-                    textarea.value = "";
-                    try {
-                        const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: p.id, note: "" })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            console.log("Équipe: Note effacée avec succès pour", p.name);
-                            p.note = "";
-                            noteBadge.style.display = 'none';
-                            noteEditor.classList.remove("open");
-                        } else {
-                            console.error("Équipe: Erreur lors de l'effacement de la note:", data.message);
-                            alert("Erreur lors de l'effacement de la note : " + data.message);
-                        }
-                    } catch (error) {
-                        console.error("Équipe: Erreur réseau/serveur lors de l'effacement de la note:", error);
-                        alert("Erreur réseau/serveur lors de l'effacement de la note.");
-                    }
-                });
-
-                div.querySelector(".close-note").addEventListener("click", e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Retour note' pour", p.name);
-                    textarea.value = p.note || '';
-                    noteEditor.classList.remove("open");
-                });
-
-                div.querySelector(".btn-edit").addEventListener("click", e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Éditer' pour", p.name);
-                    window.location.href = `profil.html?edit=${encodeURIComponent(p.id)}`;
-                });
-
-                div.querySelector(".btn-delete").addEventListener("click", async e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Supprimer' pour", p.name);
-                    if (confirm(`Supprimer définitivement ${p.name} ?`)) {
+                    div.querySelector(".save-note").addEventListener("click", async e => {
+                        e.stopPropagation();
+                        console.log("Équipe: Clic sur 'Enregistrer note' pour", p.name);
+                        const content = textarea.value.trim();
                         try {
-                            const res = await fetch(`${PROXY_URL}?action=deleteProfil`, {
+                            const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ id: p.id })
+                                body: JSON.stringify({ id: p.id, note: content })
                             });
                             const data = await res.json();
                             if (data.success) {
-                                console.log("Équipe: Profil supprimé avec succès:", p.name);
-                                profils = profils.filter(profile => profile.id !== p.id);
-                                // Re-charger les prompts pour s'assurer que les images sont à jour si le profil est supprimé
-                                initPageData(); // Appel de la fonction globale d'initialisation
+                                console.log("Équipe: Note enregistrée avec succès pour", p.name);
+                                p.note = content;
+                                noteBadge.style.display = content ? 'inline-block' : 'none';
+                                noteEditor.classList.remove("open");
                             } else {
-                                console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
-                                alert("Erreur lors de la suppression du profil : " + data.message);
+                                console.error("Équipe: Erreur lors de l'enregistrement de la note:", data.message);
+                                alert("Erreur lors de l'enregistrement de la note : " + data.message);
                             }
                         } catch (error) {
-                            console.error("Équipe: Erreur réseau/serveur lors de la suppression du profil:", error);
-                            alert("Erreur réseau/serveur lors de la suppression du profil.");
+                            console.error("Équipe: Erreur réseau/serveur lors de l'enregistrement de la note:", error);
+                            alert("Erreur réseau/serveur lors de l'enregistrement de la note.");
                         }
-                    }
-                });
+                    });
 
-                // Écouteur pour ouvrir le panneau latéral (détails du profil)
-                div.addEventListener("click", e => {
-                    if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
-                        console.log("Équipe: Ouverture du panneau latéral pour", p.name);
-                        
-                        let gallerySection = '';
-                        const profilNameNormalized = normalizeString(p.name || '');
+                    div.querySelector(".clear-note").addEventListener("click", async e => {
+                        e.stopPropagation();
+                        console.log("Équipe: Clic sur 'Effacer note' pour", p.name);
+                        textarea.value = "";
+                        try {
+                            const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ id: p.id, note: "" })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                console.log("Équipe: Note effacée avec succès pour", p.name);
+                                p.note = "";
+                                noteBadge.style.display = 'none';
+                                noteEditor.classList.remove("open");
+                            } else {
+                                console.error("Équipe: Erreur lors de l'effacement de la note:", data.message);
+                                alert("Erreur lors de l'effacement de la note : " + data.message);
+                            }
+                        } catch (error) {
+                            console.error("Équipe: Erreur réseau/serveur lors de l'effacement de la note:", error);
+                            alert("Erreur réseau/serveur lors de l'effacement de la note.");
+                        }
+                    });
 
-                        // Filtrer les prompts de la galerie par l'auteur (nom du profil)
-                        // Nous nous basons sur galleryPrompts qui est déjà chargé.
-                        const imagesByAuthor = galleryPrompts.filter(prompt => {
-                            // Assurez-vous que prompt.auteur existe et est comparable
-                            return normalizeString(prompt.auteur || '') === profilNameNormalized;
-                        }).map(prompt => prompt.imageUrl).filter(Boolean); // Extrait seulement les URLs non vides
+                    div.querySelector(".close-note").addEventListener("click", e => {
+                        e.stopPropagation();
+                        console.log("Équipe: Clic sur 'Retour note' pour", p.name);
+                        textarea.value = p.note || '';
+                        noteEditor.classList.remove("open");
+                    });
 
-                        console.log(`DEBUG: Images de galerie trouvées pour "${p.name}" :`, imagesByAuthor);
+                    div.querySelector(".btn-edit").addEventListener("click", e => {
+                        e.stopPropagation();
+                        console.log("Équipe: Clic sur 'Éditer' pour", p.name);
+                        window.location.href = `profil.html?edit=${encodeURIComponent(p.id)}`;
+                    });
 
-                        if (imagesByAuthor.length > 0) {
-                            // Nous allons montrer les 2 dernières images publiées par cet auteur.
-                            // Trier par date si disponible ou par ordre d'ajout, sinon slice(-2) prend les dernières du tableau
-                            const sortedImages = imagesByAuthor.slice().sort((a, b) => {
-                                // Supposons que galleryPrompts a un champ 'date' pour le tri
-                                // Si non, l'ordre d'arrivée (slice(-2)) est le meilleur par défaut
-                                const promptA = galleryPrompts.find(gp => gp.imageUrl === a);
-                                const promptB = galleryPrompts.find(gp => gp.imageUrl === b);
-                                return new Date(promptB?.date || 0) - new Date(promptA?.date || 0);
+                    div.querySelector(".btn-delete").addEventListener("click", async e => {
+                        e.stopPropagation();
+                        console.log("Équipe: Clic sur 'Supprimer' pour", p.name);
+                        if (confirm(`Supprimer définitivement ${p.name} ?`)) {
+                            try {
+                                const res = await fetch(`${PROXY_URL}?action=deleteProfil`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ id: p.id })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                    console.log("Équipe: Profil supprimé avec succès:", p.name);
+                                    // Pas besoin de recharger toutes les données, juste mettre à jour le tableau profils
+                                    profils = profils.filter(profile => profile.id !== p.id);
+                                    renderProfils(); // Re-rendre les profils pour mettre à jour l'affichage
+                                } else {
+                                    console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
+                                    alert("Erreur lors de la suppression du profil : " + data.message);
+                                }
+                            } catch (error) {
+                                console.error("Équipe: Erreur réseau/serveur lors de la suppression du profil:", error);
+                                alert("Erreur réseau/serveur lors de la suppression du profil.");
+                            }
+                        }
+                    });
+
+                    // Écouteur pour ouvrir le panneau latéral (détails du profil)
+                    div.addEventListener("click", e => {
+                        if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
+                            console.log("Équipe: Ouverture du panneau latéral pour", p.name);
+
+                            let gallerySection = '';
+                            const profilNameNormalized = normalizeString(p.name || '');
+
+                            const imagesByAuthor = galleryPrompts.filter(prompt => {
+                                return normalizeString(prompt.auteur || '') === profilNameNormalized;
                             });
 
-                            const lastTwoImages = sortedImages.slice(0, 2); // Prendre les 2 plus récentes
-                            console.log("DEBUG: Les 2 dernières images sélectionnées pour l'affichage:", lastTwoImages);
-                            
-                            const imagesHtml = lastTwoImages.map(imgSrc => {
-                                if (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) {
-                                    // Make images clickable
-                                    return `<a href="galerie.html?imageUrl=${encodeURIComponent(imgSrc)}" target="_blank"><img src="${imgSrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x100?text=Erreur+image';" title="Image: ${imgSrc}"></a>`;
-                                } else {
-                                    console.warn("DEBUG: URL d'image de galerie invalide détectée:", imgSrc);
-                                    return `<img src="https://via.placeholder.com/150x100?text=Image+Invalide" alt="Image invalide" title="URL invalide: ${imgSrc}">`;
-                                }
-                            }).join('');
+                            if (imagesByAuthor.length > 0) {
+                                // Tri des prompts par date pour obtenir les 2 plus récents
+                                const sortedPrompts = imagesByAuthor.sort((a, b) => {
+                                    const dateA = new Date(a.date || 0); // Supposons que 'date' est le champ de date
+                                    const dateB = new Date(b.date || 0);
+                                    return dateB.getTime() - dateA.getTime(); // Du plus récent au plus ancien
+                                });
 
-                            gallerySection = `
-                                <div class="gallery-section">
-                                    <h3>Derniers prompts partagés</h3>
-                                    <div class="gallery-images-container">
-                                        ${imagesHtml}
+                                const lastTwoPrompts = sortedPrompts.slice(0, 2); // Prendre les 2 plus récents
+
+                                const imagesHtml = lastTwoPrompts.map(prompt => {
+                                    const imgSrc = prompt.imageUrl;
+                                    if (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) {
+                                        return `<a href="galerie.html?imageUrl=${encodeURIComponent(imgSrc)}&promptId=${encodeURIComponent(prompt.id)}" target="_blank" title="${prompt.title || 'Voir le prompt'}">
+                                                    <img src="${imgSrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x100?text=Erreur+image';" />
+                                                </a>`;
+                                    } else {
+                                        console.warn("DEBUG: URL d'image de galerie invalide détectée:", imgSrc);
+                                        return `<img src="https://via.placeholder.com/150x100?text=Image+Invalide" alt="Image invalide" title="URL invalide: ${imgSrc}">`;
+                                    }
+                                }).join('');
+
+                                gallerySection = `
+                                    <div class="gallery-section">
+                                        <h3>Derniers prompts partagés</h3>
+                                        <div class="gallery-images-container">
+                                            ${imagesHtml}
+                                        </div>
+                                        <p class="no-image-placeholder">
+                                            <a href="galerie.html">Voir toute la galerie</a>
+                                        </p>
                                     </div>
-                                    <p class="no-image-placeholder">
-                                        <a href="galerie.html">Voir toute la galerie</a>
-                                    </p>
-                                </div>
-                            `;                             } else {
-                            console.log("DEBUG: Aucune image de galerie trouvée pour l'auteur :", p.name);
-                            gallerySection = `
-                                <div class="gallery-section">
-                                    <h3>Derniers prompts partagés</h3>
-                                    <p class="no-image-placeholder">Aucun prompt partagé par ${p.name} n'a été trouvé.</p>
-                                    <p class="no-image-placeholder">
-                                        <a href="prompt.html">Partager un prompt maintenant !</a>
-                                    </p>
-                                </div>
-                            `;                             }
+                                `;
+                            } else {
+                                console.log("DEBUG: Aucune image de galerie trouvée pour l'auteur :", p.name);
+                                gallerySection = `
+                                    <div class="gallery-section">
+                                        <h3>Derniers prompts partagés</h3>
+                                        <p class="no-image-placeholder">Aucun prompt partagé par ${p.name} n'a été trouvé.</p>
+                                        <p class="no-image-placeholder">
+                                            <a href="prompt.html">Partager un prompt maintenant !</a>
+                                        </p>
+                                    </div>
+                                `;
+                            }
 
-                        const toolsList = (Array.isArray(p.tools) ? p.tools : []).map(t => `<li>${t}</li>`).join('');
+                            const toolsList = (Array.isArray(p.tools) ? p.tools : []).map(t => `<li>${t}</li>`).join('');
 
-                        panelContent.innerHTML = `
-                            <h2>${p.name || 'Nom Inconnu'}</h2>
-                            <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
-                            <p><strong>Outils IA :</strong></p>
-                            <ul>${toolsList}</ul>
-                            ${p.note ? `<div class="note-content"><strong>Ma note :</strong><p>${p.note}</p></div>` : ''}
-                            ${gallerySection}
-                        `;
-                        sidePanel.classList.add("show");
-                    }
+                            panelContent.innerHTML = `
+                                <h2>${p.name || 'Nom Inconnu'}</h2>
+                                <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
+                                <p><strong>Outils IA préférés :</strong></p>
+                                ${toolsList ? `<ul>${toolsList}</ul>` : '<p>Aucun outil préféré listé.</p>'}
+                                ${p.note ? `<p class="note-content"><strong>Note personnelle :</strong><br>${p.note}</p>` : ''}
+                                ${gallerySection}
+                            `;
+                            sidePanel.classList.add("show");
+                        }
+                    });
+                    listContainer.appendChild(div); // Ajout de la vignette au conteneur
                 });
-                listContainer.appendChild(div);
-            });
-            console.log("Équipe: Rendu des profils terminé.");
-        }
-
-        async function fetchAllProfils() {
-            try {
-                console.log("Équipe: Récupération de tous les profils...");
-                const res = await fetch(`${PROXY_URL}?action=getAllProfils`);
-                if (!res.ok) {
-                    throw new Error(`Erreur HTTP: ${res.status}`);
-                }
-                const data = await res.json();
-                console.log("Équipe: Données des profils reçues:", data);
-                return data.profils || [];
-            } catch (error) {
-                console.error("Équipe: Erreur lors de la récupération des profils:", error);
-                return [];
             }
         }
 
-        async function fetchAllPrompts() {
-            try {
-                console.log("Équipe: Récupération de tous les prompts pour la galerie...");
-                const res = await fetch(`${PROXY_URL}?action=getAllPrompts`);
-                if (!res.ok) {
-                    throw new Error(`Erreur HTTP: ${res.status}`);
-                }
-                const data = await res.json();
-                console.log("Équipe: Données des prompts reçues:", data);
-                return data.prompts || [];
-            } catch (error) {
-                console.error("Équipe: Erreur lors de la récupération des prompts:", error);
-                return [];
-            }
-        }
-
+        // --- Initialisation et Événements ---
         async function initPageData() {
-            [profils, galleryPrompts] = await Promise.all([
-                fetchAllProfils(),
-                fetchAllPrompts()
-            ]);
-            renderProfils();
+            console.log("Équipe: Initialisation des données de la page...");
+            await fetchProfils(); // Attendre que les profils soient chargés
+            await fetchGalleryPrompts(); // Attendre que les prompts soient chargés
+            renderProfils(); // Rendre les profils une fois que les données sont prêtes
+            mainElement.classList.add('show'); // Afficher le main
+            document.body.classList.add('show'); // Afficher le body avec transition
         }
-
-        async function loadHeader() {
-            try {
-                const response = await fetch('header.html');
-                const headerHtml = await response.text();
-                document.getElementById('header-placeholder').innerHTML = headerHtml;
-            } catch (error) {
-                console.error('Erreur lors du chargement de l\'en-tête:', error);
-            }
-        }
-
-        // Gestionnaire d'événement pour la bulle d'information
-        infoBubbleCloseBtn.addEventListener("click", () => {
-            infoBubbleOverlay.classList.remove("visible");
-            localStorage.setItem("teamPageInfoBubbleShown", "true"); // Marquer comme montré
-        });
-
-        // Afficher la bulle d'information si ce n'est pas déjà fait
-        function showInfoBubbleOnce() {
-            if (!localStorage.getItem("teamPageInfoBubbleShown")) {
-                infoBubbleOverlay.classList.add("visible");
-            }
-        }
-
-        document.addEventListener("DOMContentLoaded", async () => {
-            await loadHeader();
-            await initPageData();
-            document.body.classList.add("show");
-            document.querySelector("main").classList.add("show");
-            showInfoBubbleOnce(); // Afficher la bulle d'information
-        });
 
         filterPole.addEventListener("change", renderProfils);
         searchInput.addEventListener("input", renderProfils);
-        closePanelBtn.addEventListener("click", () => sidePanel.classList.remove("show"));
 
-        // Fermer le panneau latéral si on clique en dehors
-        document.addEventListener('click', (event) => {
-            if (sidePanel.classList.contains('show') && !sidePanel.contains(event.target) && !event.target.closest('.vignette')) {
-                sidePanel.classList.remove('show');
+        closePanelBtn.addEventListener("click", () => {
+            sidePanel.classList.remove("show");
+        });
+
+        // Gestion de la bulle d'information
+        infoBubbleCloseBtn.addEventListener("click", () => {
+            infoBubbleOverlay.classList.remove("visible");
+            localStorage.setItem('equipeInfoBubbleShown', 'true');
+        });
+
+        // Afficher la bulle d'information si elle n'a pas été vue
+        document.addEventListener('DOMContentLoaded', () => {
+            const hasShownBubble = localStorage.getItem('equipeInfoBubbleShown');
+            if (!hasShownBubble) {
+                infoBubbleOverlay.classList.add('visible');
             }
+            initPageData(); // Appel de l'initialisation des données
         });
 
-        // Empêcher la fermeture du panneau si on clique à l'intérieur
-        sidePanel.addEventListener('click', (event) => {
-            event.stopPropagation();
-        });
+        // Inclusion de l'en-tête (si vous avez un fichier header.html)
+        fetch('header.html')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                return response.text();
+            })
+            .then(html => {
+                document.getElementById('header-placeholder').innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Erreur de chargement de l\'en-tête:', error);
+                document.getElementById('header-placeholder').innerHTML = '';
+            });
+
     </script>
 </body>
 </html>
