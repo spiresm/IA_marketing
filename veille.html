@@ -1,84 +1,379 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Veille IA Marketing</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 2rem; background: #f9f9f9; }
-    h1 { text-align: center; margin-bottom: 2rem; }
-    .filters, .pagination, .sort { margin-bottom: 1.5rem; text-align: center; }
-    .card { background: white; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); padding: 1rem 1.5rem; margin-bottom: 1.5rem; }
-    .card h2 { margin: 0.2rem 0; }
-    .tag { background: #e0e0e0; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.8rem; }
-    .source { font-size: 0.8rem; color: #555; margin-top: 0.5rem; }
-    a { color: #007acc; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veille IA Marketing</title>
+    <link rel="stylesheet" href="style.css" /> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Styles généraux pour l'animation d'apparition de la page */
+        body {
+            opacity: 0;
+            transition: opacity 0.5s ease-in; /* Transition plus douce */
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f0f4f8; /* Couleur de fond plus moderne */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        body.show {
+            opacity: 1;
+        }
+        main {
+            display: none; /* Main caché au début, sera affiché par le script */
+            flex-grow: 1; /* Permet au main de prendre l'espace disponible */
+        }
+        main.show {
+             display: block; /* S'assure que main devient visible */
+        }
+        #header-placeholder, #footer-placeholder {
+            width: 100%;
+        }
+
+        /* Conteneur principal de la veille */
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        /* Filtres */
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .filters input,
+        .filters select {
+            padding: 12px 15px; /* Padding ajusté */
+            border-radius: 10px; /* Bordures plus arrondies */
+            border: 1px solid #ddd; /* Couleur de bordure plus douce */
+            background: #fdfdfd;
+            min-width: 200px;
+            font-size: 1em; /* Taille de police plus lisible */
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); /* Ombre intérieure légère */
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .filters input:focus,
+        .filters select:focus {
+            border-color: #0077b6;
+            box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.2);
+            outline: none;
+        }
+
+        /* Styles des cartes d'articles */
+        .card {
+            background: #ffffff; /* Fond blanc pour les cartes */
+            border-left: 5px solid #0077b6; /* Bordure bleue distinctive */
+            border-radius: 12px; /* Coins plus arrondis */
+            padding: 20px 25px; /* Padding ajusté */
+            margin-bottom: 20px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.08); /* Ombre plus prononcée */
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+        }
+        .card h2 {
+            margin: 0 0 10px;
+            color: #005f8a; /* Titre bleu foncé */
+            font-size: 1.6em; /* Taille de titre plus grande */
+        }
+        .card p {
+            margin: 5px 0;
+            color: #444; /* Texte principal plus foncé */
+            line-height: 1.5;
+        }
+        .card strong {
+            color: #222; /* Dates en gras plus foncées */
+        }
+        .tag {
+            background: #e0f2f7; /* Fond de tag bleu clair */
+            color: #0077b6; /* Texte de tag bleu */
+            padding: 5px 10px; /* Padding ajusté */
+            border-radius: 8px; /* Coins plus arrondis pour les tags */
+            font-size: 0.85em; /* Taille de tag légèrement plus grande */
+            font-weight: bold;
+            display: inline-block;
+            margin-left: 10px; /* Espace entre la date et le tag */
+        }
+        .source {
+            font-size: 0.8em;
+            color: #777; /* Source en gris plus clair */
+            margin-top: 10px; /* Plus d'espace au-dessus de la source */
+        }
+        a {
+            color: #0077b6; /* Liens bleus */
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.2s ease;
+        }
+        a:hover {
+            color: #005f8a; /* Liens bleu foncé au survol */
+            text-decoration: underline;
+        }
+        footer {
+            text-align: center;
+            margin-top: 50px; /* Plus d'espace au-dessus du footer */
+            font-size: 0.85em;
+            color: #999;
+            padding-bottom: 20px;
+        }
+
+        /* Media Queries pour la responsivité */
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px auto;
+                padding: 20px;
+            }
+            .filters {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .filters input,
+            .filters select {
+                min-width: unset;
+                width: 100%;
+            }
+            .card {
+                padding: 15px;
+            }
+            .card h2 {
+                font-size: 1.4em;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h1>📰 Veille IA & Marketing</h1>
+    <div id="header-placeholder"></div>
 
-  <div class="filters">
-    <!-- futurs filtres ici -->
-  </div>
+    <main>
+        <div class="container">
+            <h1>📰 Veille IA & Marketing</h1>
+            <div class="filters">
+                <input type="search" id="search" placeholder="Rechercher un article..." oninput="filtrerArticles()">
+                <select id="filtre-tag" onchange="filtrerArticles()">
+                    <option value="">Tous les tags</option>
+                    <option value="Marketing Video">Marketing Vidéo</option>
+                    <option value="Comportement des consommateurs">Comportement des consommateurs</option>
+                    <option value="Analyse de marché">Analyse de marché</option>
+                    <option value="Personnalisation">Personnalisation</option>
+                    <option value="Création de contenu">Création de contenu</option>
+                    <option value="Intelligence Artificielle">Intelligence Artificielle</option> <option value="Design">Design</option> <option value="Animation">Animation</option> </select>
+            </div>
+            <div id="articles"></div>
+        </div>
+    </main>
 
-  <div class="sort">
-    <!-- futur tri ici -->
-  </div>
+    <div id="footer-placeholder"></div>
 
-  
-  <div class="card">
-    <h2>Google DeepMind explore l’AGI</h2>
-    <p><strong>2021-09-29</strong> – <em>Google DeepMind</em> – <span class="tag">Intelligence Artificielle</span></p>
-    <p>Google DeepMind travaille sur l'intelligence générale artificielle pour améliorer les algorithmes de marketing.</p>
-    <a href="http://googleblog.com/deepmind_ia_marketing" target="_blank">Lire l’article →</a>
-    <p class="source">Source : Google Blog</p>
-  </div>
+    <script>
+        // Chemin vers votre fonction Netlify 'proxy'
+        const PROXY_URL = "/.netlify/functions/proxy"; 
 
+        // Données d'articles (peut être remplacé par un fetch API si nécessaire plus tard)
+        const articles = [
+            {
+                titre: "Google DeepMind explore l’AGI",
+                date: "2024-09-29", // Date ajustée pour être plus récente
+                tag: "Intelligence Artificielle",
+                resume: "Google DeepMind travaille sur l'intelligence générale artificielle pour améliorer les algorithmes de marketing.",
+                lien: "http://googleblog.com/deepmind_ia_marketing",
+                source: "Google Blog"
+            },
+            {
+                titre: "OpenAI annonce un nouveau modèle",
+                date: "2024-09-29",
+                tag: "Intelligence Artificielle",
+                resume: "OpenAI a annoncé un nouveau modèle d'IA qui va transformer la stratégie marketing des entreprises.",
+                lien: "http://openai.com/blog/nouveau_modele",
+                source: "OpenAI Blog"
+            },
+            {
+                titre: "Adobe Firefly s’intègre à Photoshop",
+                date: "2024-09-29",
+                tag: "Design",
+                resume: "Adobe Firefly, outil d'IA, s'intègre à Photoshop pour améliorer les outils de design dans le marketing.",
+                lien: "http://adobe.com/blog/firefly_photoshop",
+                source: "Adobe Blog"
+            },
+            {
+                titre: "Lumiere AI révolutionne les animations",
+                date: "2024-09-29",
+                tag: "Animation",
+                resume: "Lumiere AI, une startup, utilise l'IA pour rendre les animations plus réalistes et engageantes pour le marketing.",
+                lien: "http://techcrunch.com/lumiere_ai_animation",
+                source: "TechCrunch"
+            },
+            {
+                titre: "Mistral publie un modèle open-source",
+                date: "2024-09-29",
+                tag: "Intelligence Artificielle",
+                resume: "Mistral a publié un nouveau modèle d'IA open-source qui pourrait être utilisé pour l'analyse de données marketing.",
+                lien: "http://mistral.ai/blog/modele_open_source",
+                source: "Mistral Blog"
+            },
+            {
+                titre: "Midjourney lance un outil vidéo",
+                date: "2025-06-01",
+                tag: "Marketing Vidéo", // Changé pour correspondre à l'option du select
+                resume: "Midjourney lance un outil d'IA vidéo pour optimiser les campagnes marketing.",
+                lien: "https://www.midjourney.com/press/video-tool",
+                source: "Midjourney Press Release"
+            },
+            {
+                titre: "OpenAI annonce un nouveau modèle",
+                date: "2025-06-01",
+                tag: "Comportement des consommateurs",
+                resume: "OpenAI présente un nouveau modèle d'IA pour améliorer les prédictions de comportement des consommateurs.",
+                lien: "https://www.openai.com/new-model",
+                source: "OpenAI Official Announcement"
+            },
+            {
+                titre: "Mistral publie un modèle open-source",
+                date: "2025-05-30",
+                tag: "Analyse de marché",
+                resume: "Mistral publie un nouveau modèle open-source d'IA pour aider les entreprises à comprendre les tendances du marché.",
+                lien: "https://www.mistral.ai/news/open-source-model",
+                source: "Mistral Blog"
+            },
+            {
+                titre: "Meta open-source un modèle IA",
+                date: "2025-05-28",
+                tag: "Personnalisation",
+                resume: "Meta rend un modèle d'IA open-source pour aider les spécialistes du marketing à personnaliser les expériences utilisateur.",
+                lien: "https://about.fb.com/news/ai-model",
+                source: "Meta Official Announcement"
+            },
+            {
+                titre: "Runway améliore la génération vidéo",
+                date: "2025-05-25",
+                tag: "Création de contenu",
+                resume: "Runway lance une mise à jour de son outil de génération vidéo basé sur l'IA pour une création de contenu plus efficace.",
+                lien: "https://www.runwayml.com/updates/video-generator-update",
+                source: "Runway Press Release"
+            }
+        ];
 
-  <div class="card">
-    <h2>OpenAI annonce un nouveau modèle</h2>
-    <p><strong>2021-09-29</strong> – <em>OpenAI</em> – <span class="tag">Intelligence Artificielle</span></p>
-    <p>OpenAI a annoncé un nouveau modèle d'IA qui va transformer la stratégie marketing des entreprises.</p>
-    <a href="http://openai.com/blog/nouveau_modele" target="_blank">Lire l’article →</a>
-    <p class="source">Source : OpenAI Blog</p>
-  </div>
+        function renderArticles(liste) {
+            const container = document.getElementById('articles');
+            container.innerHTML = '';
+            if (liste.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Aucun article ne correspond à vos filtres.</p>';
+            }
+            liste.sort((a, b) => new Date(b.date) - new Date(a.date)); // Trie par date décroissante
+            liste.forEach(article => {
+                const el = document.createElement('div');
+                el.className = 'card';
+                el.innerHTML = `
+                    <h2>${article.titre}</h2>
+                    <p><strong>${new Date(article.date).toLocaleDateString('fr-BE', { year: 'numeric', month: 'long', day: 'numeric' })}</strong> – <span class="tag">${article.tag}</span></p>
+                    <p>${article.resume}</p>
+                    <a href="${article.lien}" target="_blank">Lire l’article →</a>
+                    <p class="source">Source : ${article.source}</p>
+                `;
+                container.appendChild(el);
+            });
+        }
 
+        function filtrerArticles() {
+            const search = document.getElementById('search').value.toLowerCase();
+            const tag = document.getElementById('filtre-tag').value;
+            const filtres = articles.filter(a =>
+                (!search || a.titre.toLowerCase().includes(search) || a.resume.toLowerCase().includes(search)) &&
+                (!tag || a.tag === tag)
+            );
+            renderArticles(filtres);
+        }
 
-  <div class="card">
-    <h2>Adobe Firefly s’intègre à Photoshop</h2>
-    <p><strong>2021-09-29</strong> – <em>Adobe Firefly</em> – <span class="tag">Design</span></p>
-    <p>Adobe Firefly, outil d'IA, s'intègre à Photoshop pour améliorer les outils de design dans le marketing.</p>
-    <a href="http://adobe.com/blog/firefly_photoshop" target="_blank">Lire l’article →</a>
-    <p class="source">Source : Adobe Blog</p>
-  </div>
+        // Fonction pour mettre à jour la bulle de notification (identique aux autres pages)
+        async function mettreAJourBulleDemandes() {
+            const notif = document.getElementById("notif-count");
+            if (!notif) {
+                console.warn("L'élément 'notif-count' n'a pas été trouvé dans le header.");
+                return;
+            }
+            try {
+                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                if (!res.ok) {
+                    console.error(`Erreur HTTP lors de la récupération des demandes: ${res.status}`);
+                    throw new Error(`Erreur HTTP: ${res.status}`);
+                }
+                const demandes = await res.json();
+                notif.textContent = demandes.length;
+                notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+            } catch (e) {
+                console.error("Erreur mise à jour compteur de demandes :", e);
+                notif.style.display = "none";
+            }
+        }
 
+        // Exécution principale à l'initialisation de la page
+        document.addEventListener("DOMContentLoaded", () => {
+            // Charger le header
+            fetch("header.html")
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP lors du chargement du header: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    document.getElementById("header-placeholder").innerHTML = data;
+                    // Rendre le body et le main visibles après le chargement du header
+                    document.body.classList.add("show");
+                    const mainElement = document.querySelector("main");
+                    if (mainElement) {
+                        mainElement.classList.add("show"); // Ajout de la classe show pour main
+                    }
+                    mettreAJourBulleDemandes(); // Met à jour la bulle après que le header soit chargé
+                    // Gérer les liens actifs du menu (s'il y en a dans header.html)
+                    const path = location.pathname.split("/").pop();
+                    const links = document.querySelectorAll("#header-placeholder nav a");
+                    links.forEach(link => {
+                        if (link.getAttribute("href") === path) {
+                            link.classList.add("active");
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error("Erreur de chargement du header:", error);
+                    document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                    // Rendre visible même en cas d'erreur du header
+                    document.body.classList.add("show");
+                    const mainElement = document.querySelector("main");
+                    if (mainElement) {
+                        mainElement.classList.add("show");
+                    }
+                });
 
-  <div class="card">
-    <h2>Lumiere AI révolutionne les animations</h2>
-    <p><strong>2021-09-29</strong> – <em>Lumiere AI</em> – <span class="tag">Animation</span></p>
-    <p>Lumiere AI, une startup, utilise l'IA pour rendre les animations plus réalistes et engageantes pour le marketing.</p>
-    <a href="http://techcrunch.com/lumiere_ai_animation" target="_blank">Lire l’article →</a>
-    <p class="source">Source : TechCrunch</p>
-  </div>
+            // Charger le footer
+            fetch("footer.html")
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP lors du chargement du footer: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    document.getElementById("footer-placeholder").innerHTML = data;
+                })
+                .catch(error => {
+                    console.error("Erreur de chargement du footer:", error);
+                    document.getElementById("footer-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du pied de page</p>";
+                });
 
-
-  <div class="card">
-    <h2>Mistral publie un modèle open-source</h2>
-    <p><strong>2021-09-29</strong> – <em>Mistral</em> – <span class="tag">Intelligence Artificielle</span></p>
-    <p>Mistral a publié un nouveau modèle d'IA open-source qui pourrait être utilisé pour l'analyse de données marketing.</p>
-    <a href="http://mistral.com/blog/modele_open_source" target="_blank">Lire l’article →</a>
-    <p class="source">Source : Mistral Blog</p>
-  </div>
-
-
-  <div class="pagination">
-    <!-- future pagination -->
-  </div>
-
-  <footer style="text-align: center; margin-top: 4rem; font-size: 0.9rem; color: #888;">
-    Mis à jour automatiquement le 2025-06-14
-  </footer>
+            // Initialiser l'affichage des articles et attacher les écouteurs d'événements
+            renderArticles(articles); // Affiche tous les articles au chargement initial
+        });
+    </script>
 </body>
 </html>
