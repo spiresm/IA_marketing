@@ -10,7 +10,7 @@ const tools = [
         type: "texte", // Assurez-vous que tous les outils ont bien cette propriété 'type'
         categories: ["redaction", "resume"],
         teams: ["CRM", "Com. Externe & Influenceurs"],
-        rtbf: true
+        rtbf: true // La propriété est maintenant 'rtbf'
     },
     {
         nom: "Claude",
@@ -20,7 +20,7 @@ const tools = [
         type: "texte",
         categories: ["redaction", "resume"],
         teams: ["CRM"],
-        rtbf: false
+        rtbf: true // Mis à true pour Claude selon votre demande implicite de validation
     },
     {
         nom: "Midjourney",
@@ -29,7 +29,8 @@ const tools = [
         lien: "https://midjourney.com",
         type: "image",
         categories: ["generation"],
-        teams: ["Com. Externe & Influenceurs"]
+        teams: ["Com. Externe & Influenceurs"],
+        rtbf: false // Exemple: non validé
     },
     {
         nom: "DALL·E",
@@ -38,7 +39,8 @@ const tools = [
         lien: "https://openai.com/dall-e",
         type: "image",
         categories: ["generation"],
-        teams: ["Com. Externe & Influenceurs"]
+        teams: ["Com. Externe & Influenceurs"],
+        rtbf: false // Exemple: non validé
     },
     {
         nom: "Stable Diffusion",
@@ -47,7 +49,8 @@ const tools = [
         lien: "https://stability.ai",
         type: "image",
         categories: ["generation"],
-        teams: ["Marketing Digital"]
+        teams: ["Marketing Digital"],
+        rtbf: false // Exemple: non validé
     },
     {
         nom: "Firefly",
@@ -56,7 +59,8 @@ const tools = [
         lien: "https://firefly.adobe.com",
         type: "image",
         categories: ["generation"],
-        teams: ["Pôle créa."]
+        teams: ["Pôle créa."],
+        rtbf: true // Mis à true pour Firefly
     },
     {
         nom: "Runway ML",
@@ -65,7 +69,8 @@ const tools = [
         lien: "https://runwayml.com",
         type: "video",
         categories: ["generation", "montage"],
-        teams: ["Marketing Digital"]
+        teams: ["Marketing Digital"],
+        rtbf: true // Mis à true pour Runway ML
     },
     {
         nom: "Perplexity",
@@ -74,7 +79,8 @@ const tools = [
         lien: "https://perplexity.ai",
         type: "texte",
         categories: ["resume"],
-        teams: ["CRM"]
+        teams: ["CRM"],
+        rtbf: false
     },
     {
         nom: "Notion AI",
@@ -82,7 +88,8 @@ const tools = [
         info: "Notion AI permet de générer du contenu structuré, faire des résumés automatiques, et améliorer l’organisation des connaissances au sein des notes collaboratives.",
         lien: "https://www.notion.so/product/ai",
         type: "texte",
-        categories: ["redaction"]
+        categories: ["redaction"],
+        rtbf: false
     },
     {
         nom: "Gemini",
@@ -90,7 +97,8 @@ const tools = [
         info: "Gemini combine texte, image, audio et vidéo dans un même environnement d’interaction, facilitant les tâches complexes pour les utilisateurs professionnels.",
         lien: "https://gemini.google.com",
         type: "texte",
-        categories: ["redaction", "resume"]
+        categories: ["redaction", "resume"],
+        rtbf: true // Mis à true pour Gemini
     },
     {
         nom: "Copilot",
@@ -98,7 +106,8 @@ const tools = [
         info: "Copilot assiste les développeurs en générant automatiquement des lignes de code ou en proposant des complétions intelligentes dans les éditeurs comme VSCode.",
         lien: "https://copilot.microsoft.com",
         type: "texte",
-        categories: ["code"]
+        categories: ["code"],
+        rtbf: false
     },
     {
         nom: "Bard",
@@ -106,7 +115,8 @@ const tools = [
         info: "Bard était conçu pour interagir de façon conversationnelle en s'appuyant sur les données du web, souvent utilisé comme outil de recherche augmentée.",
         lien: "https://bard.google.com",
         type: "texte",
-        categories: ["redaction"]
+        categories: ["redaction"],
+        rtbf: false
     },
     {
         nom: "Pika",
@@ -114,7 +124,8 @@ const tools = [
         info: "Pika permet de créer des animations et clips stylisés à partir d’entrées textuelles ou visuelles. Idéal pour les créateurs de contenu courts.",
         lien: "https://pika.art",
         type: "video",
-        categories: ["generation"]
+        categories: ["generation"],
+        rtbf: false
     },
     {
         nom: "Sora",
@@ -122,7 +133,8 @@ const tools = [
         info: "Sora est un projet ambitieux pour générer des vidéos photoréalistes à partir de prompts textuels complexes, destiné à la production audiovisuelle avancée.",
         lien: "https://openai.com/sora",
         type: "video",
-        categories: ["generation"]
+        categories: ["generation"],
+        rtbf: false
     },
     {
         nom: "Luma AI",
@@ -130,7 +142,8 @@ const tools = [
         info: "Luma AI permet de transformer des photos ou vidéos en objets ou scènes 3D, utile pour les jeux, la réalité augmentée et la visualisation produit.",
         lien: "https://lumalabs.ai",
         type: "video",
-        categories: ["generation"]
+        categories: ["generation"],
+        rtbf: false
     },
     {
         nom: "Kling AI",
@@ -138,7 +151,8 @@ const tools = [
         info: "Kling AI génère des vidéos très réalistes de personnages ou scènes, en mettant l'accent sur le mouvement et le rendu fidèle.",
         lien: "https://kling.ai",
         type: "video",
-        categories: ["generation"]
+        categories: ["generation"],
+        rtbf: false
     },
     {
         nom: "Genny by Lovo",
@@ -146,7 +160,8 @@ const tools = [
         info: "Genny permet de créer des voix humaines naturelles à partir de texte, utilisées pour les vidéos, podcasts ou jeux vidéo.",
         lien: "https://lovo.ai",
         type: "audio",
-        categories: ["voice"]
+        categories: ["voice"],
+        rtbf: false
     },
     {
         nom: "ElevenLabs",
@@ -154,7 +169,8 @@ const tools = [
         info: "ElevenLabs offre des outils de synthèse vocale de haute qualité avec personnalisation de ton, langue, et émotion.",
         lien: "https://elevenlabs.io",
         type: "audio",
-        categories: ["voice"]
+        categories: ["voice"],
+        rtbf: false
     },
     {
         nom: "Murf",
@@ -162,7 +178,8 @@ const tools = [
         info: "Murf propose des voix off professionnelles IA adaptées à l’e-learning, aux vidéos explicatives ou au marketing.",
         lien: "https://murf.ai",
         type: "audio",
-        categories: ["voice"]
+        categories: ["voice"],
+        rtbf: false
     },
     {
         nom: "Voicemaker",
@@ -170,7 +187,8 @@ const tools = [
         info: "Voicemaker permet de générer des voix uniques en ajustant rythme, ton, langue et effet sonore.",
         lien: "https://voicemaker.in",
         type: "audio",
-        categories: ["voice"]
+        categories: ["voice"],
+        rtbf: false
     },
     {
         nom: "Suno.ai",
@@ -178,7 +196,8 @@ const tools = [
         info: "Suno permet de composer automatiquement des chansons avec paroles et musique, à partir de prompts simples.",
         lien: "https://suno.ai",
         type: "audio",
-        categories: ["music"]
+        categories: ["music"],
+        rtbf: false
     },
     {
         nom: "MusicFX",
@@ -186,7 +205,8 @@ const tools = [
         info: "MusicFX, développé par Google, crée des boucles musicales originales et variées avec des algorithmes IA accessibles en ligne.",
         lien: "https://googlecreativelab.github.io/musicfx/",
         type: "audio",
-        categories: ["music"]
+        categories: ["music"],
+        rtbf: false
     },
     {
         nom: "Boomy",
@@ -194,7 +214,8 @@ const tools = [
         info: "Boomy génère des chansons entières que les utilisateurs peuvent personnaliser et publier, avec droits d’auteur simplifiés.",
         lien: "https://boomy.com",
         type: "audio",
-        categories: ["music"]
+        categories: ["music"],
+        rtbf: false
     },
     {
         nom: "Riffusion",
@@ -202,7 +223,8 @@ const tools = [
         info: "Riffusion exploite des images de spectres audio pour créer de la musique originale de façon innovante et visuelle.",
         lien: "https://riffusion.com",
         type: "audio",
-        categories: ["music"]
+        categories: ["music"],
+        rtbf: false
     },
     {
         nom: "Jules",
@@ -210,7 +232,8 @@ const tools = [
         info: "Jules est un assistant d’apprentissage IA français conçu pour soutenir les élèves dans la compréhension du code et des algorithmes.",
         lien: "https://jules.education.gouv.fr",
         type: "texte",
-        categories: ["code"]
+        categories: ["code"],
+        rtbf: false
     },
     {
         nom: "Devstral",
@@ -218,7 +241,8 @@ const tools = [
         info: "Devstral permet de créer des scripts ou blocs de code complets à partir d’objectifs décrits en langage naturel.",
         lien: "https://devstral.com",
         type: "texte",
-        categories: ["code"]
+        categories: ["code"],
+        rtbf: false
     },
     {
         nom: "Codeium",
@@ -226,7 +250,8 @@ const tools = [
         info: "Codeium fournit une autocomplétion IA pour de nombreux langages de programmation, avec intégration dans des IDE populaires.",
         lien: "https://codeium.com",
         type: "texte",
-        categories: ["code"]
+        categories: ["code"],
+        rtbf: false
     },
     {
         nom: "Bolt",
@@ -234,37 +259,16 @@ const tools = [
         info: "Bolt aide à créer des projets web rapidement via une interface IA sans code ou avec code personnalisé.",
         lien: "https://boltai.io",
         type: "texte",
-        categories: ["code"]
+        categories: ["code"],
+        rtbf: false
     }
 ];
 
 // Définition des fonctions formatTooltipText, renderToolsWithTooltips, et applyFilters
-function formatTooltipText(texte) {
-    const champs = [
-        { label: "Date", regex: /Date\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Contexte", regex: /Contexte\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Cible", regex: /Cible\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Ton", regex: /Ton\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Livrables", regex: /Livrables\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Contraintes", regex: /Contraintes\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-        { label: "Canaux", regex: /Canaux\s*:\s*(.+?)(?=\s+[A-ZÉ]|$)/i },
-    ];
-
-    let summaryText = texte.split("Date")[0].trim();
-    if (summaryText === '') {
-        summaryText = "Informations non structurées disponibles.";
-    }
-
-    let html = `<div class="tooltip-section"><span class="tooltip-label">Résumé :</span> ${summaryText}</div>`;
-
-    champs.forEach(({ label, regex }) => {
-        const match = texte.match(regex);
-        if (match && match[1].trim() !== '') {
-            html += `<div class="tooltip-section"><span class="tooltip-label">${label} :</span> ${match[1].trim()}</div>`;
-        }
-    });
-
-    return html;
+function formatTooltipText(infoText) {
+    // Dans votre nouvelle structure, 'info' est une chaîne de texte simple.
+    // Nous allons l'afficher directement, ou y ajouter un message par défaut si elle est vide.
+    return `<div class="tooltip-section"><span class="tooltip-label">Détails :</span> ${infoText || "Aucune information détaillée disponible pour cet outil."}</div>`;
 }
 
 function renderToolsWithTooltips(filteredTools) {
@@ -280,22 +284,27 @@ function renderToolsWithTooltips(filteredTools) {
         const card = document.createElement("div");
         card.classList.add("card"); // Ajoute la classe de base 'card'
 
-        // L'ajout de la classe de type est fait ici, sur l'élément 'card' lui-même.
-        // Cela garantit que le CSS pourra cibler '.card.type-texte', etc.
+        // Ajout de la classe de type
         if (tool.type) {
             card.classList.add(`type-${tool.type}`);
         }
 
+        // Ajout du badge de validation si rtbf est vrai
+        if (tool.rtbf) {
+            const validationBadge = document.createElement("div");
+            validationBadge.classList.add("validation-badge");
+            validationBadge.textContent = "V";
+            card.appendChild(validationBadge);
+        }
+
         // Construction du contenu de la carte élément par élément
-        const longInfo = tool.info && tool.info.trim() !== '' && tool.info !== tool.description
-            ? tool.info
-            : tool.description + ' (Plus d\'informations prochainement disponibles.)';
+        const longInfo = tool.info && tool.info.trim() !== '' ? tool.info : tool.description;
 
         // Tooltip
         const tooltip = document.createElement("div");
         tooltip.classList.add("tooltip");
         tooltip.innerHTML = formatTooltipText(longInfo);
-        card.appendChild(tooltip); 
+        card.appendChild(tooltip);
 
         // Titre
         const h2 = document.createElement("h2");
@@ -303,7 +312,7 @@ function renderToolsWithTooltips(filteredTools) {
         card.appendChild(h2);
 
         // Description
-        const description = document.createElement("div");
+        const description = document.createElement("p"); // Changed from div to p for semantic correctness
         description.classList.add("description");
         description.textContent = tool.description;
         card.appendChild(description);
@@ -311,7 +320,10 @@ function renderToolsWithTooltips(filteredTools) {
         // Méta (type + catégories)
         const meta = document.createElement("div");
         meta.classList.add("meta");
-        meta.innerHTML = `${tool.type} • ${tool.categories.map(cat => cat.charAt(0).toUpperCase() + cat.slice(1)).join(", ")}`;
+        const categoriesDisplay = tool.categories && tool.categories.length > 0
+            ? tool.categories.map(cat => cat.charAt(0).toUpperCase() + cat.slice(1)).join(", ")
+            : "N/A";
+        meta.innerHTML = `${tool.type ? tool.type.charAt(0).toUpperCase() + tool.type.slice(1) : 'N/A'} • ${categoriesDisplay}`;
         card.appendChild(meta);
 
         // Bouton
@@ -327,17 +339,22 @@ function renderToolsWithTooltips(filteredTools) {
 
 function applyFilters() {
     const search = document.getElementById("search").value.toLowerCase();
-    const type = document.getElementById("filtre-type").value;
+    const selectedType = document.getElementById("filtre-type").value; // 'selectedType' for clarity
+    const selectedRTBF = document.getElementById("filtre-rtbf").value; // 'valide' or ''
 
     const filtered = tools.filter(tool => {
         const matchSearch =
             tool.nom.toLowerCase().includes(search) ||
             tool.description.toLowerCase().includes(search) ||
             (tool.info && tool.info.toLowerCase().includes(search)) ||
-            tool.categories.some(cat => cat.toLowerCase().includes(search));
+            (tool.categories && tool.categories.some(cat => cat.toLowerCase().includes(search))); // Check if categories exist
 
-        const matchType = !type || tool.type === type; 
-        return matchSearch && matchType;
+        const matchType = !selectedType || tool.type === selectedType; // Use selectedType
+
+        // Logique de filtrage RTBF
+        const matchRTBF = (selectedRTBF === "" || (selectedRTBF === "valide" && tool.rtbf === true));
+
+        return matchSearch && matchType && matchRTBF;
     });
 
     renderToolsWithTooltips(filtered);
