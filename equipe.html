@@ -723,7 +723,7 @@
                                         <a href="galerie.html">Voir toute la galerie</a>
                                     </p>
                                 </div>
-                            `;                         } else {
+                            `;                             } else {
                             console.log("DEBUG: Aucune image de galerie trouvée pour l'auteur :", p.name);
                             gallerySection = `
                                 <div class="gallery-section">
@@ -733,7 +733,7 @@
                                         <a href="prompt.html">Partager un prompt maintenant !</a>
                                     </p>
                                 </div>
-                            `;                         }
+                            `;                             }
 
                         const toolsList = (Array.isArray(p.tools) ? p.tools : []).map(t => `<li>${t}</li>`).join('');
 
@@ -742,159 +742,103 @@
                             <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
                             <p><strong>Outils IA :</strong></p>
                             <ul>${toolsList}</ul>
-                            ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}
+                            ${p.note ? `<div class="note-content"><strong>Ma note :</strong><p>${p.note}</p></div>` : ''}
                             ${gallerySection}
-                        `;                         sidePanel.classList.add("show");
+                        `;
+                        sidePanel.classList.add("show");
                     }
                 });
-
                 listContainer.appendChild(div);
             });
             console.log("Équipe: Rendu des profils terminé.");
         }
 
-        closePanelBtn.addEventListener("click", () => {
-            console.log("Équipe: Clic sur le bouton de fermeture du panneau.");
-            sidePanel.classList.remove("show");
+        async function fetchAllProfils() {
+            try {
+                console.log("Équipe: Récupération de tous les profils...");
+                const res = await fetch(`${PROXY_URL}?action=getAllProfils`);
+                if (!res.ok) {
+                    throw new Error(`Erreur HTTP: ${res.status}`);
+                }
+                const data = await res.json();
+                console.log("Équipe: Données des profils reçues:", data);
+                return data.profils || [];
+            } catch (error) {
+                console.error("Équipe: Erreur lors de la récupération des profils:", error);
+                return [];
+            }
+        }
+
+        async function fetchAllPrompts() {
+            try {
+                console.log("Équipe: Récupération de tous les prompts pour la galerie...");
+                const res = await fetch(`${PROXY_URL}?action=getAllPrompts`);
+                if (!res.ok) {
+                    throw new Error(`Erreur HTTP: ${res.status}`);
+                }
+                const data = await res.json();
+                console.log("Équipe: Données des prompts reçues:", data);
+                return data.prompts || [];
+            } catch (error) {
+                console.error("Équipe: Erreur lors de la récupération des prompts:", error);
+                return [];
+            }
+        }
+
+        async function initPageData() {
+            [profils, galleryPrompts] = await Promise.all([
+                fetchAllProfils(),
+                fetchAllPrompts()
+            ]);
+            renderProfils();
+        }
+
+        async function loadHeader() {
+            try {
+                const response = await fetch('header.html');
+                const headerHtml = await response.text();
+                document.getElementById('header-placeholder').innerHTML = headerHtml;
+            } catch (error) {
+                console.error('Erreur lors du chargement de l\'en-tête:', error);
+            }
+        }
+
+        // Gestionnaire d'événement pour la bulle d'information
+        infoBubbleCloseBtn.addEventListener("click", () => {
+            infoBubbleOverlay.classList.remove("visible");
+            localStorage.setItem("teamPageInfoBubbleShown", "true"); // Marquer comme montré
         });
 
-        document.addEventListener("click", event => {
-            if (sidePanel.classList.contains("show") && !sidePanel.contains(event.target) && !event.target.closest(".vignette")) {
-                console.log("Équipe: Clic en dehors du panneau, fermeture.");
-                sidePanel.classList.remove("show");
+        // Afficher la bulle d'information si ce n'est pas déjà fait
+        function showInfoBubbleOnce() {
+            if (!localStorage.getItem("teamPageInfoBubbleShown")) {
+                infoBubbleOverlay.classList.add("visible");
             }
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            await loadHeader();
+            await initPageData();
+            document.body.classList.add("show");
+            document.querySelector("main").classList.add("show");
+            showInfoBubbleOnce(); // Afficher la bulle d'information
         });
 
         filterPole.addEventListener("change", renderProfils);
         searchInput.addEventListener("input", renderProfils);
+        closePanelBtn.addEventListener("click", () => sidePanel.classList.remove("show"));
 
-        async function mettreAJourBulleDemandes() {
-            const notif = document.getElementById("notif-count");
-            if (!notif) {
-                console.warn("Équipe: L'élément 'notif-count' n'a pas été trouvé dans le header.");
-                return;
+        // Fermer le panneau latéral si on clique en dehors
+        document.addEventListener('click', (event) => {
+            if (sidePanel.classList.contains('show') && !sidePanel.contains(event.target) && !event.target.closest('.vignette')) {
+                sidePanel.classList.remove('show');
             }
-            try {
-                console.log("Équipe: Tentative de récupération des demandes pour la bulle...");
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) {
-                    console.error(`Équipe: Erreur HTTP lors de la récupération des demandes: ${res.status}`);
-                    throw new Error(`Erreur HTTP: ${res.status}`);
-                }
-                const demandes = await res.json();
-                console.log("Équipe: Demandes récupérées pour la bulle:", demandes);
-                notif.textContent = Array.isArray(demandes) ? demandes.length : 0;
-                notif.style.display = (Array.isArray(demandes) && demandes.length > 0) ? "inline-block" : "none";
-            } catch (e) {
-                console.error("Équipe: Erreur mise à jour compteur de demandes :", e);
-                notif.style.display = "none";
-            }
-        }
+        });
 
-        // Nouvelle fonction pour charger tous les prompts de la galerie
-        async function fetchGalleryPrompts() {
-            console.log("Équipe: Tentative de récupération des prompts de la galerie...");
-            try {
-                // Assurez-vous que votre fonction Netlify 'proxy' peut gérer cette action
-                // et qu'elle renvoie un tableau d'objets avec 'auteur' et 'imageUrl'.
-                const res = await fetch(`${PROXY_URL}?action=getGalleryPrompts`);
-                if (!res.ok) {
-                    const errorText = await res.text();
-                    throw new Error(`Erreur HTTP lors de la récupération des prompts de galerie: ${res.status} - ${errorText}`);
-                }
-                const data = await res.json();
-                // Assurez-vous que 'data' est un tableau, sinon initialisez-le comme un tableau vide
-                galleryPrompts = Array.isArray(data) ? data : [];
-                console.log("Équipe: Prompts de la galerie chargés :", galleryPrompts.length, galleryPrompts);
-            } catch (error) {
-                console.error("Équipe: Erreur lors du chargement des prompts de la galerie :", error);
-                galleryPrompts = []; // S'assurer que c'est un tableau même en cas d'erreur
-            }
-        }
-
-        // Fonction d'initialisation principale qui charge toutes les données nécessaires
-        async function initPageData() {
-            try {
-                // 1. Charger le header
-                const headerResponse = await fetch("header.html");
-                if (!headerResponse.ok) {
-                    throw new Error(`Erreur HTTP lors du chargement du header pour Équipe: ${headerResponse.status}`);
-                }
-                const headerHtml = await headerResponse.text();
-                const headerPlaceholder = document.getElementById("header-placeholder");
-                if (headerPlaceholder) {
-                    headerPlaceholder.innerHTML = headerHtml;
-                } else {
-                    console.error("Équipe: L'élément #header-placeholder n'a pas été trouvé.");
-                }
-
-                // 2. Charger les profils et les prompts de la galerie en parallèle
-                // Utilisation de Promise.all pour charger les deux sets de données en même temps
-                const [profilsResponse] = await Promise.all([
-                    fetch(`${PROXY_URL}?action=getProfils`),
-                    fetchGalleryPrompts() // Cette fonction met à jour galleryPrompts
-                ]);
-
-                if (!profilsResponse.ok) {
-                    throw new Error(`Erreur HTTP lors de la récupération des profils: ${profilsResponse.status}`);
-                }
-                const profilsData = await profilsResponse.json();
-                profils = Array.isArray(profilsData) ? profilsData : (profilsData.profils || []);
-                console.log("Équipe: Profils chargés :", profils.length, profils);
-                
-                // 3. Afficher la page
-                document.body.classList.add("show"); // Utilise la classe .show
-                const mainElement = document.querySelector("main");
-                if (mainElement) {
-                    mainElement.classList.add("show"); // Utilise la classe .show
-                } else {
-                    console.error("Équipe: L'élément <main> n'a pas été trouvé.");
-                }
-
-                mettreAJourBulleDemandes();
-                
-                const path = location.pathname.split("/").pop();
-                const links = document.querySelectorAll("nav a");
-                links.forEach(link => {
-                    if (link.getAttribute("href") === path) {
-                        link.classList.add("active");
-                    }
-                });
-
-                renderProfils(); // Rendre les profils initiaux avec les données de la galerie disponibles
-
-                // --- Logique d'affichage de la bulle d'information ---
-                // Affiche toujours la bulle quand la page est chargée
-                infoBubbleOverlay.classList.add('visible');
-                
-                infoBubbleCloseBtn.addEventListener('click', () => {
-                    infoBubbleOverlay.classList.remove('visible');
-                });
-
-                // Fermer la bulle si l'utilisateur clique en dehors d'elle
-                infoBubbleOverlay.addEventListener('click', (event) => {
-                    if (event.target === infoBubbleOverlay) {
-                        infoBubbleOverlay.classList.remove('visible');
-                    }
-                });
-                // --- Fin de la logique de la bulle d'information ---
-
-            } catch (error) {
-                console.error("Équipe: Erreur critique lors de l'initialisation de la page ou chargement des données :", error);
-                document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu.</p>";
-                const mainElement = document.querySelector("main");
-                if (mainElement) {
-                    mainElement.innerHTML = `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les données : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
-                    mainElement.classList.add("show");
-                } else {
-                    document.body.innerHTML += `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les données : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
-                }
-                document.body.classList.add("show");
-            }
-        }
-
-        // Appeler la fonction d'initialisation globale au chargement du DOM
-        document.addEventListener("DOMContentLoaded", initPageData);
+        // Empêcher la fermeture du panneau si on clique à l'intérieur
+        sidePanel.addEventListener('click', (event) => {
+            event.stopPropagation();
+        });
     </script>
 </body>
 </html>
