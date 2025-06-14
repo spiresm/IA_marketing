@@ -96,10 +96,18 @@
             color: #0077b6;
             margin-bottom: 10px;
         }
-        /* Ajout d'une marge sous le filtre Auteur pour l'espace */
-        #filtreAuteur {
-            margin-bottom: 15px; /* Augmente la marge sous le filtre auteur */
+        /* Styles pour réduire la largeur des filtres du récapitulatif */
+        #filtreChaine,
+        #filtreAuteur { /* Marge sous le filtre Auteur pour l'espace */
+            margin-bottom: 15px;
         }
+        /* Les filtres du récapitulatif (sélecteurs) peuvent faire la moitié de leur largeur */
+        .recap select {
+            width: 100%; /* Par défaut à 100% */
+            max-width: 160px; /* Limite à la moitié de la largeur du parent (~320px) */
+            box-sizing: border-box; /* Inclure padding et border dans la largeur */
+        }
+
         .ticket {
             position: relative;
             background: white;
@@ -269,7 +277,7 @@
                 </select>
                 
                 <select id="filtreAuteur" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-                    <option value="">Filtrer par auteur</option>
+                    <option value="">Trier par demandeur</option>
                     </select>
                 
                 <div id="recapList"></div>
@@ -314,7 +322,7 @@
         // Met à jour le nombre dans la bulle de notification (si elle existe)
         async function mettreAJourBulleDemandes() {
             const notif = document.getElementById("notif-count");
-            if (!notif) return; // Quitte si l'élément de notification n'est pas trouvé
+            if (!notif) return; 
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 const demandes = await res.json();
@@ -328,11 +336,9 @@
         // Fonction pour remplir le sélecteur d'auteurs dynamiquement depuis les données
         async function remplirFiltreAuteur() {
             const filtreAuteurSelect = document.getElementById("filtreAuteur");
-            // Sauvegarde la valeur sélectionnée actuelle pour la restaurer après le rechargement
             const selectedValue = filtreAuteurSelect.value; 
 
-            // Réinitialise les options du sélecteur
-            filtreAuteurSelect.innerHTML = '<option value="">Filtrer par auteur</option>';
+            filtreAuteurSelect.innerHTML = '<option value="">Trier par demandeur</option>'; // Mis à jour du texte
             
             let demandes = [];
             try {
@@ -341,10 +347,9 @@
                 demandes = Array.isArray(data) ? data : []; 
             } catch (err) {
                 console.error("Erreur lors de la récupération des demandes pour les auteurs :", err);
-                return; // Quitte si les données ne peuvent pas être récupérées
+                return; 
             }
 
-            // Extrait les noms d'auteurs uniques et les trie alphabétiquement
             const auteurs = [...new Set(demandes.map(d => d.nom).filter(Boolean))].sort(); 
 
             auteurs.forEach(auteur => {
@@ -354,7 +359,6 @@
                 filtreAuteurSelect.appendChild(option);
             });
 
-            // Restaure la sélection précédente, si elle existe et est toujours une option valide
             if (selectedValue && [...auteurs, ''].includes(selectedValue)) { 
                 filtreAuteurSelect.value = selectedValue;
             }
@@ -391,7 +395,7 @@
 
             // Crée et ajoute un ticket pour chaque demande filtrée
             demandes.forEach(d => {
-                const couleur = couleursParChaine[d.chaine] || "#0077b6"; // Définit la couleur de la bordure
+                const couleur = couleursParChaine[d.chaine] || "#0077b6"; 
                 const div = document.createElement("div");
                 div.className = "ticket";
                 div.style.borderLeftColor = couleur;
@@ -460,26 +464,37 @@ ${d.description}`;
                 let demandes = await res.json();
                 
                 const initialLength = demandes.length;
-                demandes = demandes.filter(d => d.id !== id); 
+                const updatedDemandes = demandes.filter(d => d.id !== id); // Filtre la demande à supprimer
                 
-                if (demandes.length === initialLength) {
+                if (updatedDemandes.length === initialLength) {
                     console.warn("Aucune demande trouvée avec cet ID pour la suppression:", id);
                     alert("La demande n'a pas été trouvée pour la suppression.");
                     return;
                 }
 
-                await fetch(PROXY_URL, {
+                // Envoie le tableau de demandes mis à jour à votre fonction Netlify
+                const updateRes = await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "updateDemandeIA", demandes })
+                    body: JSON.stringify({ action: "updateDemandeIA", demandes: updatedDemandes })
                 });
+
+                if (!updateRes.ok) { // Vérifie la réponse de la mise à jour
+                    const errorText = await updateRes.text();
+                    throw new Error(`Erreur HTTP lors de l'envoi de la mise à jour: ${updateRes.status} ${updateRes.statusText}. Détails: ${errorText}`);
+                }
+                const updateResult = await updateRes.json();
+                if (!updateResult.success) { // Vérifie le succès renvoyé par votre fonction Netlify
+                     throw new Error(`Échec de l'opération de suppression côté serveur: ${updateResult.message || "Aucun message."}`);
+                }
+
                 console.log("Demande supprimée avec succès, rafraîchissement..."); 
                 afficherDemandes(); 
                 mettreAJourBulleDemandes(); 
-                remplirFiltreAuteur(); // Met à jour le filtre auteur au cas où un auteur a été supprimé
+                remplirFiltreAuteur(); 
             } catch (e) {
                 console.error("Erreur lors de la suppression de la demande :", e);
-                alert("Une erreur est survenue lors de la suppression. Vérifiez la console pour plus de détails.");
+                alert("Une erreur est survenue lors de la suppression. Vérifiez la console pour plus de détails. Assurez-vous que votre fonction Netlify peut supprimer des entrées.");
             }
         }
 
@@ -497,19 +512,29 @@ ${d.description}`;
                     alert("La demande n'a pas été trouvée pour le changement de statut.");
                     return;
                 }
-                demande.traite = true;
+                demande.traite = true; // Met à jour le statut
 
-                await fetch(PROXY_URL, {
+                const updateRes = await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "updateDemandeIA", demandes })
+                    body: JSON.stringify({ action: "updateDemandeIA", demandes: demandes }) // Envoie toutes les demandes avec la modification
                 });
+
+                if (!updateRes.ok) { // Vérifie la réponse de la mise à jour
+                    const errorText = await updateRes.text();
+                    throw new Error(`Erreur HTTP lors de l'envoi de la mise à jour: ${updateRes.status} ${updateRes.statusText}. Détails: ${errorText}`);
+                }
+                const updateResult = await updateRes.json();
+                if (!updateResult.success) { // Vérifie le succès renvoyé par votre fonction Netlify
+                    throw new Error(`Échec de l'opération de marquage comme traité côté serveur: ${updateResult.message || "Aucun message."}`);
+                }
+
                 console.log("Demande marquée comme traitée avec succès, rafraîchissement..."); 
                 afficherDemandes(); 
                 mettreAJourBulleDemandes(); 
             } catch (e) {
                 console.error("Erreur lors du marquage comme traité :", e);
-                alert("Une erreur est survenue lors du changement de statut. Vérifiez la console pour plus de détails.");
+                alert("Une erreur est survenue lors du changement de statut. Vérifiez la console pour plus de détails. Assurez-vous que votre fonction Netlify peut mettre à jour des entrées.");
             }
         }
 
