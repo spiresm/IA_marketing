@@ -6,12 +6,26 @@ export const handler = async (event) => {
   const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbyoDFofm25-QcQdli_bx4Odkl-xDw7501CbadTf3k85dWPx_gTq_oPVuHo7s3Mk7Q/exec';
 
   try {
-    const action = event.queryStringParameters?.action; // Récupère l'action depuis les paramètres de requête
+    let action = event.queryStringParameters?.action; // Tente de récupérer l'action des paramètres de requête (pour GET)
 
-    let targetUrl = '';
-    let fetchMethod = event.httpMethod;
-    let fetchBody = event.body;
-    let isLocalFunctionCall = false;
+    let fetchMethod = event.httpMethod;
+    let fetchBody = event.body;
+    let isLocalFunctionCall = false;
+
+    // Si c'est une requête POST et que l'action n'a pas été trouvée dans les paramètres de requête,
+    // tente de la récupérer depuis le corps de la requête.
+    if (fetchMethod === 'POST' && !action && fetchBody) {
+        try {
+            const bodyParsed = JSON.parse(fetchBody);
+            action = bodyParsed.action; // Récupère l'action du corps JSON
+        } catch (parseError) {
+            console.error("Erreur lors de l'analyse du corps JSON pour récupérer l'action:", parseError);
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: "Invalid JSON body." }),
+            };
+        }
+    }
 
     // Logique de routage basée sur l'action
     switch (action) {
@@ -39,19 +53,16 @@ export const handler = async (event) => {
         isLocalFunctionCall = true;
         break;
 
-      // --- NOUVEAU CASE POUR LA MISE À JOUR DES DEMANDES IA ---
-      case 'updateDemandeIA':
-        targetUrl = '/.netlify/functions/updateDemandesIA'; // Redirige vers une nouvelle fonction locale
+      case 'updateDemandeIA': // Ce cas est maintenant accessible pour les requêtes POST
+        targetUrl = '/.netlify/functions/updateDemandesIA';
         isLocalFunctionCall = true;
-        // Le body et la méthode (POST) seront automatiquement transmis
         break;
-      // -----------------------------------------------------
 
       default:
         console.warn(`Proxy.mjs: Action non reconnue: ${action}`);
         return {
           statusCode: 400,
-          body: JSON.stringify({ message: "Action non reconnue." }),
+          body: JSON.stringify({ message: `Action non reconnue: ${action || 'aucune action spécifiée'}.` }),
         };
     }
 
@@ -60,16 +71,11 @@ export const handler = async (event) => {
 
     const fetchOptions = {
       method: fetchMethod,
-      headers: {
-        // Important: pour les fonctions locales, le Content-Type doit être préservé.
-        // Le proxy le transmettra si `fetchBody` est présent.
-      },
+      headers: {}, // Headers initialized empty
     };
 
     if (fetchBody && fetchMethod === "POST") {
-      // Assurez-vous que le Content-Type est correctement défini pour la fonction cible
-      // Si le body est déjà une chaîne JSON, pas besoin de JSON.stringify ici.
-      fetchOptions.headers["Content-Type"] = "application/json"; 
+      fetchOptions.headers["Content-Type"] = "application/json";
       fetchOptions.body = fetchBody;
     }
 
