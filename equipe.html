@@ -742,80 +742,102 @@
         async function fetchSharedTips() {
             console.log("Équipe: Tentative de récupération des TIPS...");
             try {
-                const res = await fetch(`${PROXY_URL}?action=getSharedTips`); // Assurez-vous que c'est la bonne action pour vos TIPS
+                const res = await fetch(`${PROXY_URL}?action=getSharedTips`);
                 if (!res.ok) {
                     const errorText = await res.text();
                     throw new Error(`Erreur HTTP lors de la récupération des TIPS: ${res.status} - ${errorText}`);
                 }
                 const data = await res.json();
                 sharedTips = Array.isArray(data) ? data : [];
-                console.log("Équipe: TIPS partagés chargés :", sharedTips.length, sharedTips);
+                console.log("Équipe: TIPS chargés :", sharedTips.length, sharedTips);
             } catch (error) {
                 console.error("Équipe: Erreur lors du chargement des TIPS :", error);
                 sharedTips = [];
             }
         }
 
-        // Fonction pour charger les profils
-        async function fetchProfils() {
-            console.log("Équipe: Tentative de récupération des profils...");
+        // Fonction pour charger le contenu du header
+        async function loadHeader() {
+            console.log("Équipe: Chargement du header...");
             try {
-                const res = await fetch(`${PROXY_URL}?action=getProfils`);
-                if (!res.ok) {
-                    const errorText = await res.text();
-                    throw new Error(`Erreur HTTP lors de la récupération des profils: ${res.status} - ${errorText}`);
+                const response = await fetch("header.html");
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
                 }
-                const data = await res.json();
-                profils = Array.isArray(data) ? data : [];
-                console.log("Équipe: Profils chargés :", profils.length, profils);
+                const headerHtml = await response.text();
+                document.getElementById("header-placeholder").innerHTML = headerHtml;
+                console.log("Équipe: Header chargé avec succès.");
+                mettreAJourBulleDemandes(); // Met à jour la bulle après le chargement du header
             } catch (error) {
-                console.error("Équipe: Erreur lors du chargement des profils :", error);
-                profils = [];
+                console.error("Équipe: Erreur lors du chargement du header :", error);
+                // Optionnel: Afficher un message d'erreur ou un contenu alternatif
+                document.getElementById("header-placeholder").innerHTML = '<p style="color: red; text-align: center;">Erreur de chargement du header.</p>';
             }
         }
 
-        async function initPageData() {
-            // Afficher le loader au début du chargement des données
-            document.getElementById('loader').style.display = 'flex';
-            mainContent.style.display = 'none';
+        // Fonction principale de chargement des données
+        async function loadDataAndRender() {
+            console.log("Équipe: Début du chargement des données...");
+            try {
+                // Charger les profils
+                const profilsRes = await fetch(`${PROXY_URL}?action=getProfils`);
+                if (!profilsRes.ok) {
+                    const errorText = await profilsRes.text();
+                    throw new Error(`Erreur HTTP lors de la récupération des profils: ${profilsRes.status} - ${errorText}`);
+                }
+                const data = await profilsRes.json();
+                profils = Array.isArray(data) ? data : [];
+                console.log("Équipe: Profils chargés :", profils.length);
 
-            await Promise.all([
-                fetchProfils(),
-                fetchGalleryPrompts(),
-                fetchSharedTips()
-            ]);
+                // Charger les prompts de la galerie et les TIPS en parallèle
+                await Promise.all([
+                    fetchGalleryPrompts(),
+                    fetchSharedTips()
+                ]);
 
-            renderProfils(); // Affiche les profils une fois toutes les données chargées
+                renderProfils();
+                console.log("Équipe: Chargement initial des données et rendu terminés.");
 
-            // Masquer le loader et afficher le contenu principal
-            document.getElementById('loader').style.display = 'none';
-            mainContent.style.display = 'block';
-            bodyElement.classList.add("loaded"); // Pour l'animation body.loaded
-            mettreAJourBulleDemandes(); // Mise à jour de la bulle après le chargement du header
+                // Masquer le loader et afficher le contenu principal après un court délai
+                setTimeout(() => {
+                    const loader = document.getElementById("loader");
+                    if (loader) {
+                        loader.style.opacity = "0";
+                        loader.addEventListener("transitionend", () => {
+                            loader.style.display = "none";
+                            bodyElement.classList.add('loaded'); // Ajoute la classe 'loaded' pour afficher le main
+                            bodyElement.style.opacity = "1"; // Effet de fade-in du corps de la page
+                            console.log("Équipe: Loader masqué, contenu principal affiché.");
+                        }, { once: true });
+                    } else {
+                        // Fallback si le loader n'existe pas ou si JS est trop lent
+                        bodyElement.classList.add('loaded');
+                        bodyElement.style.opacity = "1";
+                        console.log("Équipe: Loader non trouvé ou transition ignorée, contenu principal affiché directement.");
+                    }
+                }, 300); // Court délai pour l'effet de fade-out
+            } catch (error) {
+                console.error("Équipe: Erreur critique lors du chargement des données initiales :", error);
+                document.getElementById("loader").innerHTML = '<div style="color: red; text-align: center; padding: 20px;">Erreur de chargement des données. Veuillez recharger la page.</div>';
+                // En cas d'erreur grave, assurez-vous au moins de masquer le loader pour ne pas laisser une page blanche bloquée
+                const loader = document.getElementById("loader");
+                if (loader) {
+                    loader.style.opacity = "0";
+                    loader.addEventListener("transitionend", () => {
+                        loader.style.display = "none";
+                        bodyElement.classList.add('loaded');
+                        bodyElement.style.opacity = "1";
+                    }, { once: true });
+                }
+            }
         }
 
+        // Exécution au chargement complet du DOM
         document.addEventListener("DOMContentLoaded", () => {
-            const headerPlaceholder = document.getElementById("header-placeholder");
-
-            fetch("header.html")
-                .then(res => res.ok ? res.text() : Promise.reject(res))
-                .then(data => {
-                    headerPlaceholder.innerHTML = data;
-                    document.querySelectorAll("nav a").forEach(link => {
-                        if (link.getAttribute("href") === "equipe.html") {
-                            link.classList.add("active");
-                        }
-                    });
-                })
-                .catch(error => {
-                    console.error("Erreur de chargement du menu:", error);
-                    headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
-                })
-                .finally(() => {
-                    initPageData(); // Lance le chargement des données et le rendu de la page
-                });
+            console.log("Équipe: DOMContentLoaded - Démarrage du processus de chargement.");
+            loadHeader(); // Charger le header en premier
+            loadDataAndRender(); // Puis charger les données des profils
         });
-
     </script>
 </body>
 </html>
