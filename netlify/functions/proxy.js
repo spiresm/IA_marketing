@@ -1,35 +1,22 @@
-// .netlify/functions/proxy.cjs (Anciennement proxy.js)
+// netlify/functions/proxy.js
 
-// --- 1. Importations nécessaires ---
-const { GoogleSpreadsheet } = require('google-spreadsheet');
+// --- 1. Importations nécessaires (syntaxe ESM) ---
+import { GoogleSpreadsheet } from 'google-spreadsheet'; // Utilisez import au lieu de require
 
 // --- 2. Variables d'environnement (à configurer dans Netlify) ---
-// Ces variables DOIVENT être définies dans les "Environment Variables" de votre fonction Netlify.
-// Allez dans Netlify > Votre site > Site settings > Build & deploy > Environment.
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 const SHEET_TITLE = process.env.SHEET_TITLE;
-
-// Pour les identifiants du compte de service Google, deux options :
-// OPTION A (Recommandée - plus sécurisée) : Stockez le JSON de vos identifiants
-// dans une seule variable d'environnement Netlify (ex: GOOGLE_SERVICE_ACCOUNT_KEY).
-// Le contenu doit être le JSON brut de votre fichier de clé, échappé si nécessaire.
-// Si vous avez utilisé cette méthode :
 const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
 
-// OPTION B (Moins recommandée pour le version control public) : Si vous avez un fichier
-// 'credentials.json' dans le même dossier que ce proxy.js (e.g. netlify/functions/credentials.json).
-// const credentials = require('./credentials.json');
-
-
-exports.handler = async (event, context) => {
+// Utilisez export const pour la fonction handler (syntaxe ESM)
+export const handler = async (event, context) => {
     // --- 3. Gestion des en-têtes CORS ---
     const headers = {
-        'Access-Control-Allow-Origin': '*', // À ajuster si vous avez un domaine spécifique (ex: https://votredomaine.netlify.app)
+        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     };
 
-    // Gérer les requêtes OPTIONS (pré-vol) pour CORS
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
@@ -54,13 +41,13 @@ exports.handler = async (event, context) => {
     }
 
     const { action, id, ...formData } = bodyParsed;
-    console.log('Action extraite:', action); // Sera 'undefined' pour les requêtes GET sans corps
+    console.log('Action extraite:', action);
 
     try {
         console.log("Tentative de connexion à Google Sheets...");
         const doc = new GoogleSpreadsheet(SPREADSHEET_ID);
         await doc.useServiceAccountAuth(credentials);
-        await doc.loadInfo(); // Charge les informations de la feuille de calcul
+        await doc.loadInfo();
         console.log("Connexion à Google Sheets réussie.");
 
         console.log("Tentative d'accès à la feuille:", SHEET_TITLE);
@@ -71,12 +58,10 @@ exports.handler = async (event, context) => {
         }
         console.log("Feuille récupérée:", sheet.title);
 
-        // --- 4. Gestion des requêtes GET (pour récupérer les tickets) ---
         if (event.httpMethod === "GET") {
-            // L'action est dans queryStringParameters pour les requêtes GET
             if (event.queryStringParameters?.action === "getDemandesIA") {
                 console.log("Requête GET pour getDemandesIA.");
-                const rows = await sheet.getRows(); // Récupère toutes les lignes de la feuille
+                const rows = await sheet.getRows();
                 console.log(`Lignes récupérées: ${rows.length}`);
 
                 const demands = rows.map(row => ({
@@ -89,15 +74,12 @@ exports.handler = async (event, context) => {
                     duree: row.duree,
                     date: row.date,
                     description: row.description,
-                    // Convertit la chaîne 'TRUE'/'FALSE' du Google Sheet en booléen pour le client
                     traite: row.traite === 'TRUE'
                 }));
                 console.log("Demandes formatées pour le client:", demands);
                 return { statusCode: 200, headers: headers, body: JSON.stringify(demands) };
             }
-        }
-        // --- 5. Gestion des requêtes POST (pour ajouter, supprimer, marquer) ---
-        else if (event.httpMethod === "POST") {
+        } else if (event.httpMethod === "POST") {
             if (action === "sendDemandeIA") {
                 console.log("Requête POST pour sendDemandeIA.");
                 console.log("Données à ajouter:", formData);
@@ -112,19 +94,18 @@ exports.handler = async (event, context) => {
                     duree: formData.duree,
                     date: formData.date,
                     description: formData.description,
-                    traite: 'FALSE' // Initialisé comme chaîne 'FALSE' dans le Google Sheet
+                    traite: 'FALSE'
                 };
-                await sheet.addRow(newRow); // Ajoute une nouvelle ligne à la feuille
+                await sheet.addRow(newRow);
                 console.log("Nouvelle demande ajoutée à la feuille.");
                 return { statusCode: 200, headers: headers, body: JSON.stringify({ success: true, message: "Demande ajoutée avec succès!" }) };
 
             } else if (action === "deleteDemandeIA") {
                 console.log("Requête POST pour deleteDemandeIA, id:", id);
                 const rows = await sheet.getRows();
-                // Trouve la ligne à supprimer en utilisant l'ID
                 const rowToDelete = rows.find(row => row.id === id);
                 if (rowToDelete) {
-                    await rowToDelete.delete(); // Supprime la ligne
+                    await rowToDelete.delete();
                     console.log(`Demande ${id} supprimée de la feuille.`);
                     return { statusCode: 200, headers: headers, body: JSON.stringify({ success: true, message: `Demande ${id} supprimée.` }) };
                 } else {
@@ -135,13 +116,12 @@ exports.handler = async (event, context) => {
             } else if (action === "markDemandeIAAsTreated") {
                 console.log("Requête POST pour markDemandeIAAsTreated, id:", id);
                 const rows = await sheet.getRows();
-                // Trouve la ligne à mettre à jour
                 const rowToUpdate = rows.find(row => row.id === id);
                 if (rowToUpdate) {
-                    rowToUpdate.traite = 'TRUE'; // Met à jour la colonne 'traite'
-                    await rowToUpdate.save(); // Sauvegarde les modifications
+                    rowToUpdate.traite = 'TRUE';
+                    await rowToUpdate.save();
                     console.log(`Demande ${id} marquée comme traitée.`);
-                    return { statusCode: 200, headers: headers, body: JSON.stringify({ success: true, message: `Demande ${id} marquée comme traitée.` }) };
+                    return { statusCode: 200, headers: headers, body: JSON.stringify({ success: true, message: `Demande ${id} marquée comme traitée.` }) => {};
                 } else {
                     console.warn(`Demande ${id} non trouvée pour la mise à jour du statut.`);
                     return { statusCode: 404, headers: headers, body: JSON.stringify({ success: false, message: `Demande ${id} non trouvée pour mise à jour.` }) };
@@ -149,7 +129,6 @@ exports.handler = async (event, context) => {
             }
         }
 
-        // Si l'action n'est pas reconnue ou la méthode HTTP est incorrecte
         return {
             statusCode: 400,
             headers: headers,
@@ -158,7 +137,6 @@ exports.handler = async (event, context) => {
 
     } catch (error) {
         console.error("Erreur générale de la fonction Netlify:", error);
-        // Des messages d'erreur plus spécifiques pour le débogage :
         if (error.message.includes("GoogleSpreadsheet is not defined")) {
             return {
                 statusCode: 500,
