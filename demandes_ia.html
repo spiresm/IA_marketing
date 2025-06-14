@@ -6,13 +6,13 @@
     <title>Demande IA - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
     <style>
-        /* CSS INITIAL POUR MASQUER LE CONTENU AU CHARGEMENT */
+        /* Styles pour masquer la page au démarrage */
         body {
             opacity: 0; /* Commence masqué */
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f0f2f5;
-            transition: opacity 0.3s ease-in; /* Transition douce pour l'apparition */
+            transition: opacity 0.3s ease-in; /* Transition pour une apparition douce */
             font-size: 0.95em;
         }
         main {
@@ -277,6 +277,7 @@
         const PROXY_URL = "/.netlify/functions/proxy";
         const SEND_REQUEST_URL = "/.netlify/functions/sendrequest";
 
+        // Fonction utilitaire pour assurer la position du parent de la notification
         function ensureNotifParentPosition() {
             const demandeLink = document.querySelector("a.demandes");
             if (demandeLink) {
@@ -287,6 +288,7 @@
             }
         }
 
+        // Couleurs par chaîne pour le récapitulatif
         const couleursParChaine = {
             'Classic 21': 'purple',
             'La Une': 'red',
@@ -298,6 +300,7 @@
             'Musiq3': 'hotpink'
         };
 
+        // Fonction pour mettre à jour la bulle de notification
         async function mettreAJourBulleDemandes() {
             const notif = document.getElementById("notif-count");
             if (!notif) return;
@@ -307,10 +310,11 @@
                 notif.textContent = demandes.length;
                 notif.style.display = demandes.length > 0 ? "inline-block" : "none";
             } catch (e) {
-                console.error("Erreur compteur :", e);
+                console.error("Erreur lors de la mise à jour du compteur de notifications :", e);
             }
         }
 
+        // Fonction pour afficher les demandes dans le récapitulatif
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
             const filtreNom = document.getElementById("filtreNom").value.toLowerCase();
@@ -322,7 +326,7 @@
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 demandes = await res.json();
             } catch (err) {
-                console.error("Erreur récupération :", err);
+                console.error("Erreur lors de la récupération des demandes :", err);
                 return;
             }
 
@@ -331,7 +335,7 @@
             if (filtreDate === "asc") demandes.sort((a, b) => new Date(a.date) - new Date(b.date));
             else if (filtreDate === "desc") demandes.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            recapList.innerHTML = "";
+            recapList.innerHTML = ""; // Vide la liste avant de la remplir
 
             demandes.forEach(d => {
                 const couleur = couleursParChaine[d.chaine] || "#0077b6";
@@ -342,4 +346,200 @@
                     <div style="display:flex; justify-content: space-between; align-items:center">
                         <span><strong>${d.nom}</strong></span>
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="font-size:1.1em; font-weight:
+                            <span style="font-size:1.1em; font-weight: bold;">${d.type}</span>
+                            <span>${d.duree}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                        <span style="color:${couleur}; font-weight: bold">${d.chaine}</span>
+                        <small style="color:#666;">📅 ${d.date}</small>
+                    </div>
+                    <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                        <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
+                        <div>
+                            ${d.traite ? '' : `<button title="Marquer comme traité" data-id="${d.id}" class="btn-traite" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">✔️</button>`}
+                            <button title="Supprimer" data-id="${d.id}" class="btn-supprimer" style="background:none; border:none; font-size:1.1em; cursor:pointer; padding:4px;">🗑️</button>
+                        </div>
+                    </div>
+                `;
+
+                div.querySelector(".btn-supprimer")?.addEventListener("click", async e => {
+                    e.stopPropagation();
+                    await supprimerDemande(d.id);
+                });
+
+                div.querySelector(".btn-traite")?.addEventListener("click", async e => {
+                    e.stopPropagation();
+                    await marquerTraite(d.id);
+                });
+
+                div.addEventListener("click", () => {
+                    const modal = document.getElementById("modal");
+                    const modalBody = document.getElementById("modal-body");
+                    modalBody.textContent = `
+Nom: ${d.nom}
+Email: ${d.email}
+Type: ${d.type}
+Support: ${d.support}
+Chaîne: ${d.chaine}
+Durée: ${d.duree}
+Date: ${d.date}
+
+Briefing:
+${d.description}`;
+                    modal.classList.add('visible');
+                });
+
+                recapList.appendChild(div);
+            });
+        }
+
+        async function supprimerDemande(id) {
+            try {
+                let demandes = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
+                demandes = demandes.filter(d => d.id !== id);
+                await fetch(PROXY_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "updateDemandeIA", demandes })
+                });
+                afficherDemandes();
+                mettreAJourBulleDemandes();
+            } catch (e) {
+                console.error("Erreur lors de la suppression de la demande :", e);
+            }
+        }
+
+        async function marquerTraite(id) {
+            try {
+                let demandes = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
+                const demande = demandes.find(d => d.id === id);
+                if (!demande) return;
+                demande.traite = true;
+                await fetch(PROXY_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "updateDemandeIA", demandes })
+                });
+                afficherDemandes();
+                mettreAJourBulleDemandes();
+            } catch (e) {
+                console.error("Erreur lors du marquage comme traité :", e);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // LOGIQUE CRUCIALE DE CHARGEMENT DE LA PAGE
+        // -------------------------------------------------------------
+        document.addEventListener("DOMContentLoaded", () => {
+            // Étape 1: Charger le header en premier
+            fetch("header.html")
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`Erreur HTTP: ${res.status} ${res.statusText}`);
+                    }
+                    return res.text();
+                })
+                .then(data => {
+                    document.getElementById("header-placeholder").innerHTML = data;
+                    ensureNotifParentPosition(); // Assure la position de la notification
+                    
+                    // Étape 2: Une fois le header chargé et inséré, rendre le body et main visibles
+                    document.body.style.opacity = "1";
+                    document.querySelector("main").style.display = "block";
+
+                    // Étape 3: Initialiser le reste des fonctionnalités de la page
+                    mettreAJourBulleDemandes(); 
+                    afficherDemandes(); 
+
+                    // Initialisation du sélecteur de durée
+                    const dureeSelect = document.getElementById("duree");
+                    for (let i = 0; i <= 60; i++) {
+                        const opt = document.createElement("option");
+                        opt.value = `${i} sec`;
+                        opt.textContent = `${i} sec`;
+                        dureeSelect.appendChild(opt);
+                    }
+
+                    // Écouteur d'événement pour la soumission du formulaire
+                    document.getElementById("demandeIA").addEventListener("submit", async e => {
+                        e.preventDefault();
+                        const data = new FormData(e.target);
+                        const demande = {
+                            id: "_" + Math.random().toString(36).substr(2, 9),
+                            nom: data.get("nom"),
+                            email: `${data.get("emailPrefix")}@rtbf.be`,
+                            type: data.get("type"),
+                            support: data.get("support"),
+                            duree: data.get("duree"),
+                            date: data.get("date"),
+                            description: data.get("description"),
+                            chaine: data.get("chaine"),
+                            traite: false
+                        };
+
+                        try {
+                            const response = await fetch(SEND_REQUEST_URL, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(demande)
+                            });
+
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
+                                alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 200)}... (voir console pour plus)`);
+                                return;
+                            }
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                alert(result.message || "Demande envoyée avec succès et mail transmis !");
+                                e.target.reset();
+                                afficherDemandes();
+                                mettreAJourBulleDemandes();
+                            } else {
+                                console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
+                                alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
+                            }
+                        } catch (err) {
+                            console.error("Erreur d'envoi du formulaire côté client :", err);
+                            alert("Une erreur inattendue est survenue lors de l'envoi du formulaire. Vérifiez la console.");
+                        }
+                    });
+
+                    // Écouteurs d'événements pour les filtres et le tri
+                    document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
+                    document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
+                    document.getElementById("filtreDuree").addEventListener("change", afficherDemandes);
+
+                    // Écouteurs d'événements pour le modal
+                    document.querySelector(".close-modal").addEventListener("click", () => {
+                        document.getElementById("modal").classList.remove('visible');
+                    });
+                    document.getElementById("modal").addEventListener("click", e => {
+                        if (e.target.id === "modal") {
+                            document.getElementById("modal").classList.remove('visible');
+                        }
+                    });
+
+                })
+                .catch(error => {
+                    console.error("Erreur critique lors du chargement de header.html:", error);
+                    // Si le header ne peut pas être chargé, au moins rendre la page visible
+                    // et afficher un message d'erreur si possible.
+                    document.body.style.opacity = "1";
+                    document.querySelector("main").style.display = "block";
+                    // Vous pouvez ajouter un message d'erreur visible pour l'utilisateur ici
+                    const errorDiv = document.createElement("div");
+                    errorDiv.style.color = "red";
+                    errorDiv.style.textAlign = "center";
+                    errorDiv.style.marginTop = "20px";
+                    errorDiv.textContent = "Impossible de charger l'en-tête de la page. Veuillez réessayer ou contacter l'administrateur.";
+                    document.body.prepend(errorDiv); // Ajoute le message au début du body
+                });
+        });
+    </script>
+</body>
+</html>
