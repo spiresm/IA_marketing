@@ -6,16 +6,31 @@
     <title>Équipe</title>
     <link rel="stylesheet" href="style.css" />
     <style>
+        /* Styles spécifiques à cette page */
         body {
+            /* Gardez ces styles pour l'effet de fade-in initial du contenu si vous le souhaitez */
             opacity: 0;
             transition: opacity 0.3s ease-in;
             margin: 0;
             font-family: Arial, sans-serif;
             background: #f0f4f8;
+            /* Flexbox pour le corps afin de pousser le footer vers le bas */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
+
+        /* Le main est initialement caché par défaut et est affiché par JS */
         main {
-            display: none; /* Main caché au début, sera affiché par le script */
+            display: none; /* Cache le contenu principal avant que le loader ne disparaisse */
+            flex-grow: 1; /* Permet à la section principale de prendre l'espace disponible */
         }
+
+        /* Style pour rendre le main visible après le chargement */
+        body.loaded main {
+            display: block;
+        }
+
         .container {
             max-width: 900px;
             margin: 40px auto;
@@ -324,9 +339,35 @@
             color: #888;
             padding-bottom: 20px;
         }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .filters select,
+            .filters input {
+                display: block;
+                width: calc(100% - 20px);
+                margin: 10px auto;
+            }
+            .side-panel {
+                width: 100%;
+                padding: 24px 10px;
+            }
+            .side-panel .close-panel {
+                top: 5px;
+                left: 5px;
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
 <body>
+    <div id="loader">
+        <div class="loader-content">
+            Chargement...
+            <div class="spinner"></div>
+        </div>
+    </div>
+
     <div id="header-placeholder"></div>
     <main>
         <div class="container">
@@ -365,13 +406,10 @@
         const sidePanel = document.getElementById("side-panel");
         const panelContent = document.getElementById("panel-content");
         const closePanelBtn = document.querySelector(".close-panel");
+        const mainContent = document.querySelector('main'); // Référence au main pour le masquer/afficher
 
         function normalizeString(str) {
             if (typeof str !== 'string') return '';
-            // Supprime les accents et met en minuscules pour une comparaison robuste
-            // Utilise la forme normalisée NFD pour décomposer les caractères accentués,
-            // puis supprime les marques diacritiques (accents, trémas, etc.).
-            // Enfin, convertit en minuscules.
             return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         }
 
@@ -516,7 +554,7 @@
                                 console.log("Équipe: Profil supprimé avec succès:", p.name);
                                 profils = profils.filter(profile => profile.id !== p.id);
                                 // Re-charger les prompts et TIPS pour s'assurer que les données sont à jour
-                                initPageData(); 
+                                initPageData();
                             } else {
                                 console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
                                 alert("Erreur lors de la suppression du profil : " + data.message);
@@ -532,7 +570,7 @@
                 div.addEventListener("click", e => {
                     if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
                         console.log("Équipe: Ouverture du panneau latéral pour", p.name);
-                        
+
                         let gallerySection = '';
                         let tipsSection = ''; // Variable pour la section TIPS
 
@@ -548,7 +586,7 @@
                         if (imagesByAuthor.length > 0) {
                             const lastTwoImages = imagesByAuthor.slice(-2); // Les 2 dernières images
                             console.log("DEBUG: Les 2 dernières images sélectionnées pour l'affichage:", lastTwoImages);
-                            
+
                             const imagesHtml = lastTwoImages.map(imgSrc => {
                                 if (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) {
                                     return `<a href="galerie.html?imageUrl=${encodeURIComponent(imgSrc)}" target="_blank"><img src="${imgSrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x100?text=Erreur+image';" title="Image: ${imgSrc}"></a>`;
@@ -621,7 +659,7 @@
                                 </div>
                             `;
                         }
-                        
+
                         // --- Contenu du panneau latéral ---
                         const toolsList = (Array.isArray(p.tools) ? p.tools : []).map(t => `<li>${t}</li>`).join('');
 
@@ -708,7 +746,7 @@
             try {
                 // Assurez-vous que votre fonction Netlify 'proxy' peut gérer cette action 'getSharedTips'
                 // et qu'elle renvoie un tableau d'objets avec 'auteur', 'titre', 'pageDePartage', 'datePartage'.
-                const res = await fetch(`${PROXY_URL}?action=getSharedTips`); 
+                const res = await fetch(`${PROXY_URL}?action=getSharedTips`);
                 if (!res.ok) {
                     const errorText = await res.text();
                     throw new Error(`Erreur HTTP lors de la récupération des TIPS: ${res.status} - ${errorText}`);
@@ -722,55 +760,102 @@
             }
         }
 
-        // Fonction d'initialisation principale qui charge toutes les données nécessaires
+        // Fonction d'initialisation principale
         async function initPageData() {
+            console.log("Équipe: Initialisation des données de la page...");
             try {
-                // 1. Charger le header
-                const headerResponse = await fetch("header.html");
-                if (!headerResponse.ok) {
-                    throw new Error(`Failed to load header.html: ${headerResponse.statusText}`);
+                const [profilsRes, galleryPromptsRes, sharedTipsRes] = await Promise.allSettled([
+                    fetch(`${PROXY_URL}?action=getProfils`),
+                    fetchGalleryPrompts(), // Appelle la fonction qui met à jour galleryPrompts
+                    fetchSharedTips()    // Appelle la fonction qui met à jour sharedTips
+                ]);
+
+                // Gérer les profils
+                if (profilsRes.status === 'fulfilled' && profilsRes.value.ok) {
+                    profils = await profilsRes.value.json();
+                    console.log("Équipe: Profils chargés :", profils.length, profils);
+                } else {
+                    console.error("Équipe: Erreur lors du chargement des profils:", profilsRes.reason || 'Network error');
+                    profils = [];
                 }
-                document.getElementById("header-placeholder").innerHTML = await headerResponse.text();
-                console.log("Équipe: Header chargé.");
 
-                // 2. Mettre à jour la bulle de notification *après* le chargement du header
-                // car l'élément 'notif-count' est dans le header.
-                await mettreAJourBulleDemandes();
+                // Charger le header et le script une fois que toutes les données sont chargées
+                fetch("header.html")
+                    .then(res => {
+                        if (!res.ok) {
+                            throw new Error(`Erreur HTTP ! statut : ${res.status}`);
+                        }
+                        return res.text();
+                    })
+                    .then(data => {
+                        document.getElementById("header-placeholder").innerHTML = data;
 
-                // 3. Charger les profils
-                const profilsResponse = await fetch(`${PROXY_URL}?action=getProfils`);
-                if (!profilsResponse.ok) {
-                    const errorText = await profilsResponse.text();
-                    throw new Error(`Failed to load profils: ${profilsResponse.status} - ${errorText}`);
-                }
-                const profilsData = await profilsResponse.json();
-                profils = Array.isArray(profilsData) ? profilsData : [];
-                console.log("Équipe: Profils chargés :", profils.length);
+                        const path = location.pathname.split("/").pop();
+                        const links = document.querySelectorAll("nav a");
+                        links.forEach(link => {
+                            if (link.getAttribute("href") === path) {
+                                link.classList.add("active");
+                            }
+                        });
 
-                // 4. Charger les prompts de la galerie
-                await fetchGalleryPrompts();
+                        // Mettre à jour la bulle de notification après le chargement du header
+                        mettreAJourBulleDemandes();
 
-                // 5. Charger les TIPS partagés
-                await fetchSharedTips();
+                        // Cacher le loader et rendre le corps visible APRÈS que tout est chargé
+                        const loader = document.getElementById('loader');
+                        if (loader) {
+                            loader.classList.add('hidden'); // Anime la disparition
+                            // Supprime le loader du DOM après la transition pour libérer les ressources
+                            loader.addEventListener('transitionend', () => {
+                                loader.remove();
+                                document.body.style.opacity = 1; // Rendre le body visible
+                                mainContent.style.display = 'block'; // Afficher le contenu principal
+                            }, { once: true });
+                        } else {
+                            document.body.style.opacity = 1; // Fallback si le loader n'existe pas
+                            mainContent.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Erreur lors du chargement de header.html:", error);
+                        document.getElementById("header-placeholder").innerHTML =
+                            "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                        // S'assurer que le loader disparaît même en cas d'erreur de chargement du header
+                        const loader = document.getElementById('loader');
+                        if (loader) {
+                            loader.classList.add('hidden');
+                            loader.addEventListener('transitionend', () => {
+                                loader.remove();
+                                document.body.style.opacity = 1;
+                                mainContent.style.display = 'block';
+                            }, { once: true });
+                        } else {
+                            document.body.style.opacity = 1;
+                            mainContent.style.display = 'block';
+                        }
+                    });
 
-                // 6. Rendre les profils et afficher la page
-                renderProfils();
-                document.querySelector("main").style.display = "block"; // Affiche le contenu principal
-                document.body.style.opacity = 1; // Fait apparaître la page en fondu
-                console.log("Équipe: Page initialisée et affichée.");
-
+                renderProfils(); // Premier rendu après chargement des données
             } catch (error) {
-                console.error("Équipe: Erreur critique lors de l'initialisation de la page :", error);
-                alert("Impossible de charger la page. Veuillez réessayer. Erreur: " + error.message);
-                document.body.style.opacity = 1; // Rendre la page visible même en cas d'erreur
+                console.error("Équipe: Erreur fatale lors de l'initialisation de la page:", error);
+                // S'assurer que le loader disparaît même en cas d'erreur grave
+                const loader = document.getElementById('loader');
+                if (loader) {
+                    loader.classList.add('hidden');
+                    loader.addEventListener('transitionend', () => {
+                        loader.remove();
+                        document.body.style.opacity = 1;
+                        mainContent.style.display = 'block';
+                    }, { once: true });
+                } else {
+                    document.body.style.opacity = 1;
+                    mainContent.style.display = 'block';
+                }
             }
         }
 
-        // Lance l'initialisation quand le DOM est complètement chargé
+        // Appeler la fonction d'initialisation quand le DOM est prêt
         document.addEventListener("DOMContentLoaded", initPageData);
-
-        // Optionnel : Recharger la bulle toutes les 5 minutes pour des données fraîches
-        // setInterval(mettreAJourBulleDemandes, 300000); // 5 minutes = 300000 ms
     </script>
 </body>
 </html>
