@@ -2,7 +2,7 @@ const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fet
 
 export const handler = async (event) => {
   const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL ||
-    'https://script.google.com/macros/s/AKfycbztywF0w5m1kk54Ml-mIOi_TEijQQOEWbeIMB6x7XwRS4xRu7sxM0ZFfoAs2FXoQ2z_/exec';
+    'https://script.google.com/macros/s/AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8/exec';
 
   try {
     let action = event.queryStringParameters?.action;
