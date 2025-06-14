@@ -6,7 +6,7 @@
     <title>Demande IA - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
     <style>
-        /* Styles pour masquer la page au démarrage */
+        /* Styles pour masquer la page au démarrage afin d'éviter un "flash" de contenu non stylisé */
         body {
             opacity: 0; /* Commence masqué */
             margin: 0;
@@ -18,7 +18,7 @@
         main {
             display: none; /* Masqué par défaut */
         }
-        /* ... Le reste de votre CSS reste inchangé ... */
+        /* --- Styles Généraux --- */
         .flex-wrapper {
             display: flex;
             justify-content: center;
@@ -27,6 +27,7 @@
             padding: 40px 20px;
             flex-wrap: wrap;
         }
+        /* --- Styles du Formulaire --- */
         .container {
             flex: 1 1 600px;
             max-width: 700px;
@@ -73,13 +74,14 @@
         button:hover {
             background-color: #005f8a;
         }
+        /* --- Styles du Récapitulatif et Tickets --- */
         .recap {
             flex: 0 1 320px;
             background: #e0e6ed; /* Nouvelle couleur pour plus de contraste */
             padding: 20px;
             border-radius: 14px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-            max-height: 90vh;
+            max-height: 90vh; /* Limite la hauteur et ajoute un défilement si nécessaire */
             overflow-y: auto;
         }
         .recap h3 {
@@ -92,7 +94,7 @@
             background: white;
             padding: 12px 14px;
             margin-bottom: 12px;
-            border-left: 4px solid #0077b6;
+            border-left: 4px solid #0077b6; /* Couleur de bordure par défaut */
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
             font-size: 0.95em;
@@ -104,6 +106,7 @@
             display: block;
             line-height: 1.4em;
         }
+        /* --- Styles du Modal (Pop-up) --- */
         #modal {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -116,12 +119,10 @@
             visibility: hidden;
             transition: opacity 0.3s ease, visibility 0.3s ease;
         }
-
         #modal.visible {
             opacity: 1;
             visibility: visible;
         }
-
         .modal-content {
             background: white;
             padding: 30px;
@@ -133,11 +134,9 @@
             transform: translateY(20px);
             transition: transform 0.3s ease;
         }
-
         #modal.visible .modal-content {
             transform: translateY(0);
         }
-
         .close-modal {
             position: absolute;
             top: 10px;
@@ -152,7 +151,6 @@
         .close-modal:hover {
             color: #000;
         }
-
         #modal-body {
             display: block;
             font-family: Arial, sans-serif;
@@ -164,10 +162,10 @@
             text-align: center;
             color: #444;
             font-size: 0.95em;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            white-space: pre-wrap; /* Préserve les retours à la ligne du texte */
+            word-wrap: break-word; /* Gère les mots longs */
         }
-        
+        /* --- Media Queries pour Responsivité --- */
         @media (max-width: 768px) {
             .modal-content {
                 margin: 20px;
@@ -246,21 +244,21 @@
 
             <div class="recap">
                 <h3>Récapitulatif des demandes</h3>
-                <select id="filtreDuree" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
-                    <option value="">Filtrer par durée</option>
-                    <option value="10 sec">10 sec</option>
-                    <option value="20 sec">20 sec</option>
-                    <option value="30 sec">30 sec</option>
-                    <option value="40 sec">40 sec</option>
-                    <option value="50 sec">50 sec</option>
-                    <option value="60 sec">60 sec</option>
+                
+                <select id="filtreChaine" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <option value="">Filtrer par chaîne</option>
+                    <option value="La Une">La Une</option>
+                    <option value="Tipik">Tipik</option>
+                    <option value="La Trois">La Trois</option>
+                    <option value="La première">La première</option>
+                    <option value="Classic 21">Classic 21</option>
+                    <option value="vivacité">vivacité</option>
+                    <option value="Musiq3">Musiq3</option>
+                    <option value="Auvio">Auvio</option>
                 </select>
-                <input type="text" id="filtreNom" placeholder="Filtrer par nom" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;" />
-                <select id="filtreDate" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-                    <option value="">Trier par date</option>
-                    <option value="asc">Date croissante</option>
-                    <option value="desc">Date décroissante</option>
-                </select>
+                
+                <input type="text" id="filtreAuteur" placeholder="Filtrer par auteur" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;" />
+                
                 <div id="recapList"></div>
             </div>
         </div>
@@ -274,10 +272,10 @@
     </div>
 
     <script>
-        const PROXY_URL = "/.netlify/functions/proxy";
-        const SEND_REQUEST_URL = "/.netlify/functions/sendrequest";
+        const PROXY_URL = "/.netlify/functions/proxy"; // URL de votre fonction Netlify pour la gestion des données
+        const SEND_REQUEST_URL = "/.netlify/functions/sendrequest"; // URL de votre fonction Netlify pour l'envoi d'e-mails
 
-        // Fonction utilitaire pour assurer la position du parent de la notification
+        // Fonction utilitaire pour s'assurer que l'élément parent de la notification a une position définie
         function ensureNotifParentPosition() {
             const demandeLink = document.querySelector("a.demandes");
             if (demandeLink) {
@@ -288,7 +286,7 @@
             }
         }
 
-        // Couleurs par chaîne pour le récapitulatif
+        // Mapping des couleurs par chaîne pour la bordure des tickets
         const couleursParChaine = {
             'Classic 21': 'purple',
             'La Une': 'red',
@@ -300,10 +298,10 @@
             'Musiq3': 'hotpink'
         };
 
-        // Fonction pour mettre à jour la bulle de notification
+        // Met à jour le nombre dans la bulle de notification (si elle existe)
         async function mettreAJourBulleDemandes() {
             const notif = document.getElementById("notif-count");
-            if (!notif) return;
+            if (!notif) return; // Quitte si l'élément de notification n'est pas trouvé
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 const demandes = await res.json();
@@ -314,34 +312,36 @@
             }
         }
 
-        // Fonction pour afficher les demandes dans le récapitulatif
+        // Affiche les demandes dans le panneau de récapitulatif, en appliquant les filtres
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            const filtreNom = document.getElementById("filtreNom").value.toLowerCase();
-            const filtreDate = document.getElementById("filtreDate").value;
-            const filtreDuree = document.getElementById("filtreDuree").value;
+            const filtreChaine = document.getElementById("filtreChaine").value; // Récupère la valeur du filtre "Chaîne"
+            const filtreAuteur = document.getElementById("filtreAuteur").value.toLowerCase(); // Récupère la valeur du filtre "Auteur"
 
             let demandes = [];
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 const data = await res.json();
-                // Assurez-vous que les données sont des tableaux et non des objets vides si erreur
-                demandes = Array.isArray(data) ? data : []; 
+                demandes = Array.isArray(data) ? data : []; // S'assure que 'demandes' est un tableau
             } catch (err) {
                 console.error("Erreur lors de la récupération des demandes :", err);
-                // Si une erreur se produit, assurez-vous que 'demandes' est un tableau vide pour éviter des erreurs plus loin.
-                demandes = []; 
+                demandes = []; // En cas d'erreur, initialise un tableau vide
             }
 
-            demandes = demandes.filter(d => d.nom && d.nom.toLowerCase().includes(filtreNom)); // Vérifier que d.nom existe
-            if (filtreDuree) demandes = demandes.filter(d => d.duree === filtreDuree);
-            if (filtreDate === "asc") demandes.sort((a, b) => new Date(a.date) - new Date(b.date));
-            else if (filtreDate === "desc") demandes.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Application des filtres
+            if (filtreChaine) {
+                demandes = demandes.filter(d => d.chaine === filtreChaine);
+            }
+            if (filtreAuteur) {
+                // Vérifie que d.nom existe avant d'appeler toLowerCase()
+                demandes = demandes.filter(d => d.nom && d.nom.toLowerCase().includes(filtreAuteur));
+            }
+            
+            recapList.innerHTML = ""; // Vide la liste avant de la remplir avec les éléments filtrés
 
-            recapList.innerHTML = ""; // Vide la liste avant de la remplir
-
+            // Crée et ajoute un ticket pour chaque demande filtrée
             demandes.forEach(d => {
-                const couleur = couleursParChaine[d.chaine] || "#0077b6";
+                const couleur = couleursParChaine[d.chaine] || "#0077b6"; // Définit la couleur de la bordure
                 const div = document.createElement("div");
                 div.className = "ticket";
                 div.style.borderLeftColor = couleur;
@@ -366,19 +366,20 @@
                     </div>
                 `;
 
-                // C'est ici que les écouteurs sont attachés, ce qui est correct.
+                // Attache les écouteurs d'événements aux boutons de suppression et de statut
                 div.querySelector(".btn-supprimer")?.addEventListener("click", async e => {
-                    e.stopPropagation(); // Empêche l'ouverture du modal
+                    e.stopPropagation(); // Empêche l'événement de se propager au ticket et d'ouvrir le modal
                     if (confirm("Êtes-vous sûr de vouloir supprimer cette demande ?")) {
                          await supprimerDemande(d.id);
                     }
                 });
 
                 div.querySelector(".btn-traite")?.addEventListener("click", async e => {
-                    e.stopPropagation(); // Empêche l'ouverture du modal
+                    e.stopPropagation(); // Empêche l'événement de se propager au ticket et d'ouvrir le modal
                     await marquerTraite(d.id);
                 });
 
+                // Attache l'écouteur d'événement pour ouvrir le modal au clic sur le ticket
                 div.addEventListener("click", () => {
                     const modal = document.getElementById("modal");
                     const modalBody = document.getElementById("modal-body");
@@ -400,15 +401,16 @@ ${d.description}`;
             });
         }
 
+        // Supprime une demande via l'API
         async function supprimerDemande(id) {
-            console.log("Tentative de suppression de la demande avec l'ID:", id); // Log de débogage
+            console.log("Tentative de suppression de la demande avec l'ID:", id); 
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 let demandes = await res.json();
                 
                 const initialLength = demandes.length;
-                demandes = demandes.filter(d => d.id !== id);
+                demandes = demandes.filter(d => d.id !== id); // Filtre la demande à supprimer
                 
                 if (demandes.length === initialLength) {
                     console.warn("Aucune demande trouvée avec cet ID pour la suppression:", id);
@@ -416,74 +418,81 @@ ${d.description}`;
                     return;
                 }
 
+                // Envoie le tableau de demandes mis à jour à votre fonction Netlify
                 await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "updateDemandeIA", demandes })
                 });
-                console.log("Demande supprimée avec succès, rafraîchissement..."); // Log de succès
-                afficherDemandes();
-                mettreAJourBulleDemandes();
+                console.log("Demande supprimée avec succès, rafraîchissement..."); 
+                afficherDemandes(); // Rafraîchit la liste des demandes
+                mettreAJourBulleDemandes(); // Met à jour le compteur
             } catch (e) {
                 console.error("Erreur lors de la suppression de la demande :", e);
-                alert("Une erreur est survenue lors de la suppression. Voir la console pour plus de détails.");
+                alert("Une erreur est survenue lors de la suppression. Vérifiez la console pour plus de détails.");
             }
         }
 
+        // Marque une demande comme traitée via l'API
         async function marquerTraite(id) {
-            console.log("Tentative de marquer comme traité la demande avec l'ID:", id); // Log de débogage
+            console.log("Tentative de marquer comme traité la demande avec l'ID:", id); 
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 let demandes = await res.json();
                 
-                const demande = demandes.find(d => d.id === id);
+                const demande = demandes.find(d => d.id === id); // Trouve la demande à modifier
                 if (!demande) {
                     console.warn("Aucune demande trouvée avec cet ID pour le statut:", id);
                     alert("La demande n'a pas été trouvée pour le changement de statut.");
                     return;
                 }
-                demande.traite = true;
+                demande.traite = true; // Met à jour le statut
 
+                // Envoie le tableau de demandes mis à jour à votre fonction Netlify
                 await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "updateDemandeIA", demandes })
                 });
-                console.log("Demande marquée comme traitée avec succès, rafraîchissement..."); // Log de succès
-                afficherDemandes();
-                mettreAJourBulleDemandes();
+                console.log("Demande marquée comme traitée avec succès, rafraîchissement..."); 
+                afficherDemandes(); // Rafraîchit la liste des demandes
+                mettreAJourBulleDemandes(); // Met à jour le compteur
             } catch (e) {
                 console.error("Erreur lors du marquage comme traité :", e);
-                alert("Une erreur est survenue lors du changement de statut. Voir la console pour plus de détails.");
+                alert("Une erreur est survenue lors du changement de statut. Vérifiez la console pour plus de détails.");
             }
         }
 
         // -------------------------------------------------------------
-        // LOGIQUE CRUCIALE DE CHARGEMENT DE LA PAGE
+        // LOGIQUE CRUCIALE DE CHARGEMENT ET D'INITIALISATION DE LA PAGE
+        // Cette section assure un chargement séquentiel et robuste.
         // -------------------------------------------------------------
         document.addEventListener("DOMContentLoaded", () => {
-            // Étape 1: Charger le header en premier
+            // Étape 1: Charger le header en premier. C'est asynchrone, donc on attend.
             fetch("header.html")
                 .then(res => {
+                    // Vérifie si la réponse HTTP est OK (statut 200)
                     if (!res.ok) {
                         throw new Error(`Erreur HTTP: ${res.status} ${res.statusText}`);
                     }
-                    return res.text();
+                    return res.text(); // Retourne le contenu HTML du header
                 })
                 .then(data => {
+                    // Insère le HTML du header dans le placeholder
                     document.getElementById("header-placeholder").innerHTML = data;
-                    ensureNotifParentPosition(); // Assure la position de la notification
+                    ensureNotifParentPosition(); // Appelle la fonction pour la position de la notification
                     
-                    // Étape 2: Une fois le header chargé et inséré, rendre le body et main visibles
+                    // Étape 2: Une fois le header chargé et inséré, rendre le body et le main visibles.
+                    // Cela évite que la page ne s'affiche blanche.
                     document.body.style.opacity = "1";
                     document.querySelector("main").style.display = "block";
 
-                    // Étape 3: Initialiser le reste des fonctionnalités de la page
-                    mettreAJourBulleDemandes(); 
-                    afficherDemandes(); 
+                    // Étape 3: Initialiser le reste des fonctionnalités de la page, maintenant que le DOM est prêt.
+                    mettreAJourBulleDemandes(); // Met à jour le compteur de notifications
+                    afficherDemandes(); // Affiche la liste initiale des demandes
 
-                    // Initialisation du sélecteur de durée
+                    // Initialisation du sélecteur de durée pour le formulaire de demande
                     const dureeSelect = document.getElementById("duree");
                     for (let i = 0; i <= 60; i++) {
                         const opt = document.createElement("option");
@@ -492,13 +501,13 @@ ${d.description}`;
                         dureeSelect.appendChild(opt);
                     }
 
-                    // Écouteur d'événement pour la soumission du formulaire
+                    // Écouteur d'événement pour la soumission du formulaire de demande IA
                     document.getElementById("demandeIA").addEventListener("submit", async e => {
-                        e.preventDefault();
-                        const data = new FormData(e.target);
+                        e.preventDefault(); // Empêche le rechargement de la page par défaut
+                        const data = new FormData(e.target); // Récupère les données du formulaire
                         const demande = {
-                            id: "_" + Math.random().toString(36).substr(2, 9), // Génère un ID unique
-                            nom: data.get("nom"),
+                            id: "_" + Math.random().toString(36).substr(2, 9), // Génère un ID unique pour la demande
+                            nom: data.get("nom"), // Nom de l'auteur
                             email: `${data.get("emailPrefix")}@rtbf.be`,
                             type: data.get("type"),
                             support: data.get("support"),
@@ -506,30 +515,31 @@ ${d.description}`;
                             date: data.get("date"),
                             description: data.get("description"),
                             chaine: data.get("chaine"),
-                            traite: false
+                            traite: false // Nouvelle demande n'est pas traitée par défaut
                         };
 
                         try {
                             const response = await fetch(SEND_REQUEST_URL, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(demande)
+                                body: JSON.stringify(demande) // Envoie la demande au format JSON
                             });
 
                             if (!response.ok) {
+                                // Gère les erreurs HTTP (ex: 404, 500)
                                 const errorText = await response.text();
                                 console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
                                 alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 200)}... (voir console pour plus)`);
                                 return;
                             }
 
-                            const result = await response.json();
+                            const result = await response.json(); // Parle la réponse JSON
 
                             if (result.success) {
                                 alert(result.message || "Demande envoyée avec succès et mail transmis !");
-                                e.target.reset();
-                                afficherDemandes(); // Rafraîchit le récapitulatif
-                                mettreAJourBulleDemandes(); // Met à jour le compteur
+                                e.target.reset(); // Réinitialise le formulaire
+                                afficherDemandes(); // Rafraîchit le récapitulatif des demandes
+                                mettreAJourBulleDemandes(); // Met à jour le compteur de notifications
                             } else {
                                 console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
                                 alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
@@ -540,35 +550,34 @@ ${d.description}`;
                         }
                     });
 
-                    // Écouteurs d'événements pour les filtres et le tri
-                    document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
-                    document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
-                    document.getElementById("filtreDuree").addEventListener("change", afficherDemandes);
+                    // Écouteurs d'événements pour les nouveaux filtres
+                    document.getElementById("filtreChaine").addEventListener("change", afficherDemandes);
+                    document.getElementById("filtreAuteur").addEventListener("input", afficherDemandes);
 
-                    // Écouteurs d'événements pour le modal
+                    // Écouteurs d'événements pour la gestion du modal (pop-up)
                     document.querySelector(".close-modal").addEventListener("click", () => {
                         document.getElementById("modal").classList.remove('visible');
                     });
                     document.getElementById("modal").addEventListener("click", e => {
-                        if (e.target.id === "modal") {
+                        if (e.target.id === "modal") { // Ferme le modal si on clique en dehors du contenu
                             document.getElementById("modal").classList.remove('visible');
                         }
                     });
 
                 })
                 .catch(error => {
+                    // En cas d'erreur critique lors du chargement du header (ex: fichier introuvable)
                     console.error("Erreur critique lors du chargement de header.html:", error);
-                    // Si le header ne peut pas être chargé, au moins rendre la page visible
-                    // et afficher un message d'erreur si possible.
+                    // On rend quand même la page visible pour éviter une page blanche persistante
                     document.body.style.opacity = "1";
                     document.querySelector("main").style.display = "block";
-                    // Afficher un message d'erreur pour l'utilisateur
+                    // Et on affiche un message d'erreur clair à l'utilisateur
                     const errorDiv = document.createElement("div");
                     errorDiv.style.color = "red";
                     errorDiv.style.textAlign = "center";
                     errorDiv.style.marginTop = "20px";
                     errorDiv.textContent = "Impossible de charger l'en-tête de la page. Veuillez réessayer ou contacter l'administrateur.";
-                    document.body.prepend(errorDiv); 
+                    document.body.prepend(errorDiv); // Ajoute le message au début du body
                 });
         });
     </script>
