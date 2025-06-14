@@ -443,7 +443,7 @@
                 const hasNote = (p.note || '').trim() !== '';
 
                 div.innerHTML = `
-                    <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;}">Note</span>
+                    <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
                     <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}" alt="${p.name || 'Profil'}" />
                     <h3>${p.name || 'Nom Inconnu'}</h3>
                     <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
@@ -742,17 +742,17 @@
         async function fetchSharedTips() {
             console.log("Équipe: Tentative de récupération des TIPS...");
             try {
-                const res = await fetch(`${PROXY_URL}?action=getSharedTips`); // <-- FIN DE LA LIGNE MANQUANTE
+                const res = await fetch(`${PROXY_URL}?action=getSharedTips`); // Assurez-vous que c'est la bonne action pour vos TIPS
                 if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({ message: "Erreur inconnue" }));
-                    throw new Error(`Erreur HTTP lors de la récupération des TIPS: ${res.status} - ${JSON.stringify(errorData)}`);
+                    const errorText = await res.text();
+                    throw new Error(`Erreur HTTP lors de la récupération des TIPS: ${res.status} - ${errorText}`);
                 }
                 const data = await res.json();
                 sharedTips = Array.isArray(data) ? data : [];
-                console.log("Équipe: TIPS chargés :", sharedTips.length, sharedTips);
+                console.log("Équipe: TIPS partagés chargés :", sharedTips.length, sharedTips);
             } catch (error) {
-                console.error("Équipe: Erreur lors du chargement des TIPS:", error);
-                sharedTips = []; // S'assure que la variable est un tableau même en cas d'erreur
+                console.error("Équipe: Erreur lors du chargement des TIPS :", error);
+                sharedTips = [];
             }
         }
 
@@ -766,64 +766,56 @@
                     throw new Error(`Erreur HTTP lors de la récupération des profils: ${res.status} - ${errorText}`);
                 }
                 const data = await res.json();
-                profils = Array.isArray(data) ? data : []; // S'assure que 'profils' est un tableau
+                profils = Array.isArray(data) ? data : [];
                 console.log("Équipe: Profils chargés :", profils.length, profils);
-                renderProfils(); // Rend les profils après le chargement initial
             } catch (error) {
-                console.error("Équipe: Erreur lors du chargement des profils:", error);
-                // Gérer l'affichage d'un message d'erreur à l'utilisateur ici
-                listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Erreur lors du chargement des profils. Veuillez réessayer plus tard.</p>';
+                console.error("Équipe: Erreur lors du chargement des profils :", error);
+                profils = [];
             }
         }
 
-        // Charger le header (si vous avez un header.js séparé qui gère cela)
-        // Note: Vous avez un placeholder <div id="header-placeholder"></div>
-        // Si vous utilisez un script séparé pour injecter le header, assurez-vous qu'il est chargé.
-        async function loadHeader() {
-            try {
-                const response = await fetch('header.html'); // Ou le chemin vers votre fichier header
-                if (response.ok) {
-                    document.getElementById('header-placeholder').innerHTML = await response.text();
-                } else {
-                    console.error("Failed to load header:", response.statusText);
-                }
-            } catch (error) {
-                console.error("Error loading header:", error);
-            }
-        }
-
-        // Initialisation de la page
         async function initPageData() {
-            console.log("Équipe: Initialisation de la page...");
-            await loadHeader(); // Charge le header en premier si nécessaire
-            // Lancer toutes les récupérations de données en parallèle pour plus de rapidité
+            // Afficher le loader au début du chargement des données
+            document.getElementById('loader').style.display = 'flex';
+            mainContent.style.display = 'none';
+
             await Promise.all([
                 fetchProfils(),
                 fetchGalleryPrompts(),
-                fetchSharedTips(),
-                mettreAJourBulleDemandes() // Assurez-vous que cet élément est dans le header si c'est le cas
+                fetchSharedTips()
             ]);
 
-            // Cacher le loader et afficher le contenu principal une fois tout chargé
-            const loader = document.getElementById('loader');
-            if (loader) {
-                loader.style.opacity = '0';
-                setTimeout(() => {
-                    loader.style.display = 'none';
-                    bodyElement.classList.add('loaded'); // Active l'affichage du main
-                    bodyElement.style.opacity = '1'; // Fait apparaître le body
-                }, 300); // Durée de la transition CSS
-            } else {
-                // Au cas où le loader n'existe pas, afficher directement
-                bodyElement.classList.add('loaded');
-                bodyElement.style.opacity = '1';
-            }
+            renderProfils(); // Affiche les profils une fois toutes les données chargées
 
-            console.log("Équipe: Page initialisée.");
+            // Masquer le loader et afficher le contenu principal
+            document.getElementById('loader').style.display = 'none';
+            mainContent.style.display = 'block';
+            bodyElement.classList.add("loaded"); // Pour l'animation body.loaded
+            mettreAJourBulleDemandes(); // Mise à jour de la bulle après le chargement du header
         }
 
-        // Lance l'initialisation quand le DOM est complètement chargé
-        document.addEventListener('DOMContentLoaded', initPageData);
+        document.addEventListener("DOMContentLoaded", () => {
+            const headerPlaceholder = document.getElementById("header-placeholder");
+
+            fetch("header.html")
+                .then(res => res.ok ? res.text() : Promise.reject(res))
+                .then(data => {
+                    headerPlaceholder.innerHTML = data;
+                    document.querySelectorAll("nav a").forEach(link => {
+                        if (link.getAttribute("href") === "equipe.html") {
+                            link.classList.add("active");
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error("Erreur de chargement du menu:", error);
+                    headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                })
+                .finally(() => {
+                    initPageData(); // Lance le chargement des données et le rendu de la page
+                });
+        });
+
     </script>
 </body>
 </html>
