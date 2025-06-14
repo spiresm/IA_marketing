@@ -75,7 +75,7 @@
         }
         .recap {
             flex: 0 1 320px;
-            background: #f9fafb;
+            background: #e0e6ed; /* Nouvelle couleur pour plus de contraste */
             padding: 20px;
             border-radius: 14px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
@@ -324,13 +324,16 @@
             let demandes = [];
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                demandes = await res.json();
+                const data = await res.json();
+                // Assurez-vous que les données sont des tableaux et non des objets vides si erreur
+                demandes = Array.isArray(data) ? data : []; 
             } catch (err) {
                 console.error("Erreur lors de la récupération des demandes :", err);
-                return;
+                // Si une erreur se produit, assurez-vous que 'demandes' est un tableau vide pour éviter des erreurs plus loin.
+                demandes = []; 
             }
 
-            demandes = demandes.filter(d => d.nom.toLowerCase().includes(filtreNom));
+            demandes = demandes.filter(d => d.nom && d.nom.toLowerCase().includes(filtreNom)); // Vérifier que d.nom existe
             if (filtreDuree) demandes = demandes.filter(d => d.duree === filtreDuree);
             if (filtreDate === "asc") demandes.sort((a, b) => new Date(a.date) - new Date(b.date));
             else if (filtreDate === "desc") demandes.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -363,13 +366,16 @@
                     </div>
                 `;
 
+                // C'est ici que les écouteurs sont attachés, ce qui est correct.
                 div.querySelector(".btn-supprimer")?.addEventListener("click", async e => {
-                    e.stopPropagation();
-                    await supprimerDemande(d.id);
+                    e.stopPropagation(); // Empêche l'ouverture du modal
+                    if (confirm("Êtes-vous sûr de vouloir supprimer cette demande ?")) {
+                         await supprimerDemande(d.id);
+                    }
                 });
 
                 div.querySelector(".btn-traite")?.addEventListener("click", async e => {
-                    e.stopPropagation();
+                    e.stopPropagation(); // Empêche l'ouverture du modal
                     await marquerTraite(d.id);
                 });
 
@@ -395,36 +401,61 @@ ${d.description}`;
         }
 
         async function supprimerDemande(id) {
+            console.log("Tentative de suppression de la demande avec l'ID:", id); // Log de débogage
             try {
-                let demandes = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
+                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                let demandes = await res.json();
+                
+                const initialLength = demandes.length;
                 demandes = demandes.filter(d => d.id !== id);
+                
+                if (demandes.length === initialLength) {
+                    console.warn("Aucune demande trouvée avec cet ID pour la suppression:", id);
+                    alert("La demande n'a pas été trouvée pour la suppression.");
+                    return;
+                }
+
                 await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "updateDemandeIA", demandes })
                 });
+                console.log("Demande supprimée avec succès, rafraîchissement..."); // Log de succès
                 afficherDemandes();
                 mettreAJourBulleDemandes();
             } catch (e) {
                 console.error("Erreur lors de la suppression de la demande :", e);
+                alert("Une erreur est survenue lors de la suppression. Voir la console pour plus de détails.");
             }
         }
 
         async function marquerTraite(id) {
+            console.log("Tentative de marquer comme traité la demande avec l'ID:", id); // Log de débogage
             try {
-                let demandes = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
+                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                let demandes = await res.json();
+                
                 const demande = demandes.find(d => d.id === id);
-                if (!demande) return;
+                if (!demande) {
+                    console.warn("Aucune demande trouvée avec cet ID pour le statut:", id);
+                    alert("La demande n'a pas été trouvée pour le changement de statut.");
+                    return;
+                }
                 demande.traite = true;
+
                 await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "updateDemandeIA", demandes })
                 });
+                console.log("Demande marquée comme traitée avec succès, rafraîchissement..."); // Log de succès
                 afficherDemandes();
                 mettreAJourBulleDemandes();
             } catch (e) {
                 console.error("Erreur lors du marquage comme traité :", e);
+                alert("Une erreur est survenue lors du changement de statut. Voir la console pour plus de détails.");
             }
         }
 
@@ -466,7 +497,7 @@ ${d.description}`;
                         e.preventDefault();
                         const data = new FormData(e.target);
                         const demande = {
-                            id: "_" + Math.random().toString(36).substr(2, 9),
+                            id: "_" + Math.random().toString(36).substr(2, 9), // Génère un ID unique
                             nom: data.get("nom"),
                             email: `${data.get("emailPrefix")}@rtbf.be`,
                             type: data.get("type"),
@@ -497,8 +528,8 @@ ${d.description}`;
                             if (result.success) {
                                 alert(result.message || "Demande envoyée avec succès et mail transmis !");
                                 e.target.reset();
-                                afficherDemandes();
-                                mettreAJourBulleDemandes();
+                                afficherDemandes(); // Rafraîchit le récapitulatif
+                                mettreAJourBulleDemandes(); // Met à jour le compteur
                             } else {
                                 console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
                                 alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
@@ -531,13 +562,13 @@ ${d.description}`;
                     // et afficher un message d'erreur si possible.
                     document.body.style.opacity = "1";
                     document.querySelector("main").style.display = "block";
-                    // Vous pouvez ajouter un message d'erreur visible pour l'utilisateur ici
+                    // Afficher un message d'erreur pour l'utilisateur
                     const errorDiv = document.createElement("div");
                     errorDiv.style.color = "red";
                     errorDiv.style.textAlign = "center";
                     errorDiv.style.marginTop = "20px";
                     errorDiv.textContent = "Impossible de charger l'en-tête de la page. Veuillez réessayer ou contacter l'administrateur.";
-                    document.body.prepend(errorDiv); // Ajoute le message au début du body
+                    document.body.prepend(errorDiv); 
                 });
         });
     </script>
