@@ -1,4 +1,4 @@
-// .netlify/functions/proxy.js
+// .netlify/functions/proxy.cjs (Anciennement proxy.js)
 
 // --- 1. Importations nécessaires ---
 const { GoogleSpreadsheet } = require('google-spreadsheet');
