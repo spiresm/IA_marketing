@@ -461,7 +461,6 @@
             });
             // --- Fin de la logique de la bulle d'information ---
 
-            // **MODIFICATION ICI : Appeler chargerPrompts() APRES l'affichage du header et du main**
             fetch("header.html")
                 .then(res => res.ok ? res.text() : Promise.reject(res))
                 .then(data => {
@@ -477,209 +476,235 @@
                     headerPlaceholder.innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                 })
                 .finally(() => {
-                    // S'assurer que le body et le main sont visibles
                     bodyElement.classList.add("show");
                     mainElement.classList.add("show");
-
-                    // Déclencher le chargement des prompts juste après que le contenu principal soit rendu visible
-                    chargerPrompts();
+                    chargerEtAfficherPrompts(); // Déclenche le chargement des prompts après l'affichage du header et du main
                 });
 
-
-            // Fonctions de la galerie
-            const searchKeywordInput = document.getElementById('search-keyword');
-            const filtreOutilSelect = document.getElementById('filtre-outil');
-            const filtreChaineSelect = document.getElementById('filtre-chaine');
-            const filtreTriSelect = document.getElementById('filtre-tri');
-
-            searchKeywordInput.addEventListener('input', appliquerFiltres);
-            filtreOutilSelect.addEventListener('change', appliquerFiltres);
-            filtreChaineSelect.addEventListener('change', appliquerFiltres);
-            filtreTriSelect.addEventListener('change', appliquerFiltres);
-
-            function appliquerFiltres() {
-                const keyword = searchKeywordInput.value.toLowerCase();
-                const outil = filtreOutilSelect.value;
-                const chaine = filtreChaineSelect.value;
-                const tri = filtreTriSelect.value;
-
-                let promptsFiltres = [...tousLesPrompts];
-
-                if (keyword) {
-                    promptsFiltres = promptsFiltres.filter(prompt =>
-                        prompt.auteur.toLowerCase().includes(keyword) ||
-                        prompt.promptText.toLowerCase().includes(keyword)
-                    );
-                }
-
-                if (outil) {
-                    promptsFiltres = promptsFiltres.filter(prompt => prompt.outil === outil);
-                }
-
-                if (chaine) {
-                    promptsFiltres = promptsFiltres.filter(prompt => prompt.chaine === chaine);
-                }
-
-                // Appliquer le tri
-                if (tri === 'recent') {
-                    promptsFiltres.sort((a, b) => new Date(b.date) - new Date(a.date));
-                } else if (tri === 'ancien') {
-                    promptsFiltres.sort((a, b) => new Date(a.date) - new Date(b.date));
-                }
-
-                afficherPrompts(promptsFiltres);
-            }
-
-            function afficherPrompts(prompts) {
-                const galerieDiv = document.getElementById('galerie');
-                galerieDiv.innerHTML = ''; // Nettoyer la galerie
-
-                if (prompts.length === 0) {
-                    galerieDiv.innerHTML = '<p>Aucun prompt trouvé correspondant à vos critères.</p>';
-                    return;
-                }
-
-                prompts.forEach(prompt => {
-                    const carteDiv = document.createElement('div');
-                    carteDiv.classList.add('carte');
-                    // Définir la couleur de la bordure gauche en fonction de l'outil
-                    let borderColor = '#e1e7ec'; // Couleur par défaut
-                    switch (prompt.outil) {
-                        case 'Midjourney':
-                            borderColor = '#6a0dad'; // Violet
-                            break;
-                        case 'DALL·E':
-                            borderColor = '#2c5d9a'; // Bleu foncé
-                            break;
-                        case 'Stable Diffusion':
-                            borderColor = '#ff7f50'; // Orange corail
-                            break;
-                        case 'Adobe Firefly':
-                            borderColor = '#e34234'; // Rouge
-                            break;
-                        case 'Runway':
-                            borderColor = '#00c0b6'; // Cyan
-                            break;
-                        case 'ChatGPT':
-                            borderColor = '#1e90ff'; // Bleu vif
-                            break;
-                        default:
-                            borderColor = '#6c757d'; // Gris
-                    }
-                    carteDiv.style.borderLeftColor = borderColor;
-
-                    // Assurez-vous que prompt.imageUrl est toujours une chaîne valide,
-                    // même si elle est vide (afin d'éviter ERR_INVALID_URL si elle était undefined/null)
-                    // Si vous avez une image placeholder qui existait déjà et que vous voulez réutiliser:
-                    const imageUrl = prompt.imageUrl || ''; // S'assure que c'est au moins une chaîne vide
-                                                          // Si vous avez une image placeholder, utilisez:
-                                                          // const imageUrl = prompt.imageUrl && prompt.imageUrl !== '' ? prompt.imageUrl : 'chemin/vers/votre/placeholder.png';
-
-
-                    carteDiv.innerHTML = `
-                        <div class="left-panel">
-                            <img src="${imageUrl}" alt="${prompt.auteur}" class="carte-image">
-                        </div>
-                        <div class="infos-wrapper">
-                            <span class="outil-badge">${prompt.outil}</span>
-                            <div class="metadata-section">
-                                <span class="metadata-label">Auteur:</span>
-                                <span class="metadata-value auteur-value">${prompt.auteur}</span>
-                                <span class="metadata-label">Chaîne:</span>
-                                <span class="metadata-value chaine-value">${prompt.chaine}</span>
-                            </div>
-                            <p class="prompt-text-display">${prompt.promptText}</p>
-                            <div class="card-actions">
-                                <button class="copier-btn" data-prompt="${escapeHtml(prompt.promptText)}">
-                                    <i class="fas fa-copy"></i> Copier le prompt
-                                </button>
-                                <button class="supprimer-btn" data-id="${prompt.id}" title="Supprimer ce prompt">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    galerieDiv.appendChild(carteDiv);
-                });
-
-                document.querySelectorAll('.copier-btn').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const promptText = this.dataset.prompt;
-                        navigator.clipboard.writeText(promptText).then(() => {
-                            afficherMessageSucces('Prompt copié !');
-                        }).catch(err => {
-                            console.error('Erreur lors de la copie: ', err);
-                        });
-                    });
-                });
-
-                document.querySelectorAll('.supprimer-btn').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const promptId = this.dataset.id;
-                        if (confirm('Êtes-vous sûr de vouloir supprimer ce prompt ?')) {
-                            supprimerPrompt(promptId);
-                        }
-                    });
-                });
-            }
-
-            function escapeHtml(text) {
-                var map = {
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    '"': '&quot;',
-                    "'": '&#039;'
-                };
-                return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-            }
-
-
-            async function chargerPrompts() {
-                try {
-                    document.getElementById('galerie').innerHTML = '<p>Chargement des prompts...</p>';
-                    const response = await fetch(apiBase + 'getPrompts');
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const data = await response.json();
-                    tousLesPrompts = data;
-                    appliquerFiltres(); // Appliquer les filtres initiaux (ex: tri par défaut)
-                } catch (error) {
-                    console.error("Erreur lors du chargement des prompts:", error);
-                    document.getElementById('galerie').innerHTML = '<p style="color:red;">Erreur lors du chargement des prompts. Veuillez vérifier la console pour plus de détails.</p>';
-                }
-            }
-
-            async function supprimerPrompt(id) {
-                try {
-                    const response = await fetch(apiBase + 'deletePrompt', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ id: id })
-                    });
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    afficherMessageSucces('Prompt supprimé avec succès !');
-                    chargerPrompts(); // Recharger les prompts après suppression
-                } catch (error) {
-                    console.error("Erreur lors de la suppression du prompt:", error);
-                    alert("Erreur lors de la suppression du prompt.");
-                }
-            }
-
-            function afficherMessageSucces(message) {
-                const successMessageDiv = document.getElementById('success-message');
-                successMessageDiv.textContent = message;
-                successMessageDiv.style.opacity = '1';
-                setTimeout(() => {
-                    successMessageDiv.style.opacity = '0';
-                }, 3000);
+            if (window.location.search.includes('success=1')) {
+                const msg = document.getElementById('success-message');
+                msg.textContent = '✅ Prompt partagé avec succès vers la galerie !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
             }
         });
+
+        async function chargerEtAfficherPrompts() {
+            const galerieDiv = document.getElementById('galerie');
+            galerieDiv.innerHTML = '<p>Chargement des prompts...</p>';
+
+            try {
+                const response = await fetch(`${apiBase}getGalleryPrompts`); // Assurez-vous que c'est le bon nom de fonction Netlify
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
+                }
+                const prompts = await response.json();
+                tousLesPrompts = prompts;
+                console.log("Prompts récupérés :", prompts);
+
+                if (prompts.length === 0) {
+                    galerieDiv.innerHTML = '<p>Aucun prompt trouvé pour le moment.</p>';
+                } else {
+                    afficherPrompts(prompts);
+                    setupFiltres();
+                }
+            } catch (error) {
+                console.error("Erreur lors du chargement des prompts de la galerie:", error);
+                galerieDiv.innerHTML = `<p style="color:red;">Erreur lors du chargement des prompts : ${error.message}</p>`;
+            }
+        }
+
+        function afficherPrompts(prompts) {
+            const galerieDiv = document.getElementById('galerie');
+            galerieDiv.innerHTML = '';
+
+            if (prompts.length === 0) {
+                galerieDiv.innerHTML = '<p>Aucun prompt ne correspond aux filtres.</p>';
+                return;
+            }
+
+            prompts.forEach(prompt => {
+                const carte = document.createElement('div');
+                carte.className = 'carte';
+                const promptId = prompt.id || `temp-id-${Math.random().toString(36).substring(2, 9)}`;
+                carte.dataset.promptId = promptId;
+
+                const chaineColor = getChaineColor(prompt.chaine);
+                carte.style.borderLeftColor = chaineColor;
+
+                // Panneau gauche (pour l'image)
+                const leftPanel = document.createElement('div');
+                leftPanel.className = 'left-panel';
+
+                const img = document.createElement('img');
+                img.className = 'carte-image';
+                // Utilise prompt.imageUrl ou un placeholder si absent
+                img.src = prompt.imageUrl || `https://via.placeholder.com/200x150?text=Image`;
+                img.alt = prompt.titre || 'Prompt Image';
+                // Gère les erreurs de chargement d'image
+                img.onerror = function() {
+                    this.onerror = null; // Empêche une boucle infinie d'erreurs
+                    this.src = `https://via.placeholder.com/200x150?text=Image`; // Image de remplacement finale
+                };
+                leftPanel.appendChild(img);
+
+                carte.appendChild(leftPanel);
+
+                // Conteneur pour toutes les infos textuelles (à droite de l'image)
+                const infosWrapper = document.createElement('div');
+                infosWrapper.className = 'infos-wrapper';
+
+                // Badge pour l'outil (dans infos-wrapper)
+                const outilBadge = document.createElement('div');
+                outilBadge.className = 'outil-badge';
+                outilBadge.textContent = prompt.outil || 'Outil N/A';
+                infosWrapper.appendChild(outilBadge);
+
+                // Section des métadonnées (Auteur, Chaîne)
+                const metadataSection = document.createElement('div');
+                metadataSection.className = 'metadata-section';
+                metadataSection.innerHTML = `
+                    <span class="metadata-label">Auteur :</span>
+                    <span class="metadata-value auteur-value">${prompt.auteur || 'Inconnu'}</span>
+                    <span class="metadata-label">Chaîne :</span>
+                    <span class="metadata-value chaine-value" style="color: ${chaineColor};">${prompt.chaine || 'Chaîne N/A'}</span>
+                `;
+                infosWrapper.appendChild(metadataSection);
+
+
+                const promptTextDisplay = document.createElement('p');
+                promptTextDisplay.className = 'prompt-text-display';
+                promptTextDisplay.textContent = prompt.texte || 'Aucun texte de prompt fourni.';
+                infosWrapper.appendChild(promptTextDisplay);
+
+                const cardActions = document.createElement('div');
+                cardActions.className = 'card-actions';
+
+                const copierBtn = document.createElement('button');
+                copierBtn.className = 'copier-btn';
+                copierBtn.innerHTML = '<i class="fas fa-copy"></i> Copier le prompt'; // Ajout de l'icône ici
+                copierBtn.onclick = () => {
+                    navigator.clipboard.writeText(prompt.texte || '').then(() => {
+                        alert('Prompt copié !');
+                    }).catch(err => {
+                        console.error('Erreur de copie:', err);
+                    });
+                };
+                cardActions.appendChild(copierBtn);
+
+                const supprimerBtn = document.createElement('button');
+                supprimerBtn.className = 'supprimer-btn';
+                supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                supprimerBtn.title = "Supprimer ce prompt";
+                supprimerBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    if (confirm('Êtes-vous sûr de vouloir supprimer ce prompt ? Cette action est irréversible.')) {
+                        try {
+                            if (!promptId || promptId.startsWith('temp-id-')) {
+                                alert("Impossible de supprimer : ID de prompt temporaire/invalide. Veuillez recharger la page ou contacter l'administrateur.");
+                                return;
+                            }
+
+                            const deleteResponse = await fetch(`${apiBase}deletePrompt?id=${promptId}`, {
+                                method: 'DELETE'
+                            });
+                            if (deleteResponse.ok) {
+                                alert('Prompt supprimé avec succès !');
+                                // Supprimer la carte directement du DOM
+                                carte.remove();
+                                // Mettre à jour 'tousLesPrompts' pour qu'il reflète la suppression sans recharger tout
+                                tousLesPrompts = tousLesPrompts.filter(p => p.id !== promptId);
+                                // Si la galerie devient vide, afficher un message
+                                if (tousLesPrompts.length === 0) {
+                                    galerieDiv.innerHTML = '<p>Aucun prompt trouvé pour le moment.</p>';
+                                }
+                            } else {
+                                const errorData = await deleteResponse.json();
+                                alert(`Échec de la suppression: ${errorData.message || 'Une erreur inconnue est survenue.'}`);
+                            }
+                        } catch (delError) {
+                            console.error("Erreur lors de la suppression:", delError);
+                            alert("Erreur réseau ou interne lors de la tentative de suppression.");
+                        }
+                    }
+                };
+                cardActions.appendChild(supprimerBtn);
+                infosWrapper.appendChild(cardActions);
+
+                carte.appendChild(infosWrapper);
+                galerieDiv.appendChild(carte);
+
+                // Assurez-vous que la hauteur du left-panel est ajustée après l'ajout des éléments
+                // Cela est important pour que l'image puisse remplir toute la hauteur
+                // UTILISEZ setTimeout pour que le calcul de offsetHeight se fasse après le rendu initial du infosWrapper
+                setTimeout(() => {
+                    const infoWrapperHeight = infosWrapper.offsetHeight;
+                    leftPanel.style.height = `${infoWrapperHeight}px`;
+                }, 0);
+
+            });
+        }
+
+        function getChaineColor(chaine) {
+            switch (chaine) {
+                case 'Classic 21': return 'purple';
+                case 'La Une': return 'red';
+                case 'Tipik': return 'green';
+                case 'La Trois': return 'mediumorchid';
+                case 'La première': return 'blue';
+                case 'Auvio': return 'black';
+                case 'vivacité': return 'orange';
+                case 'Musiq3': return 'hotpink';
+                case 'Auvio Kids': return 'hotpink'; // Ajoutez la couleur pour Auvio Kids si nécessaire
+                default: return '#6c757d'; // Couleur par défaut
+            }
+        }
+
+        function filtrerEtTrierPrompts() {
+            const searchKeyword = document.getElementById('search-keyword').value.toLowerCase();
+            const filtreOutil = document.getElementById('filtre-outil').value;
+            const filtreChaine = document.getElementById('filtre-chaine').value;
+            const filtreTri = document.getElementById('filtre-tri').value;
+
+            let promptsFiltres = [...tousLesPrompts];
+
+            if (searchKeyword) {
+                promptsFiltres = promptsFiltres.filter(prompt => {
+                    const auteur = (prompt.auteur || '').toLowerCase();
+                    const texte = (prompt.texte || '').toLowerCase();
+                    return auteur.includes(searchKeyword) || texte.includes(searchKeyword);
+                });
+            }
+
+            if (filtreOutil) {
+                promptsFiltres = promptsFiltres.filter(prompt => prompt.outil === filtreOutil);
+            }
+            if (filtreChaine) {
+                promptsFiltres = promptsFiltres.filter(prompt => prompt.chaine === filtreChaine);
+            }
+
+            promptsFiltres.sort((a, b) => {
+                const dateA = a.date ? new Date(a.date) : new Date(0);
+                const dateB = b.date ? new Date(b.date) : new Date(0);
+
+                if (filtreTri === 'recent') {
+                    return dateB - dateA;
+                } else {
+                    return dateA - dateB;
+                }
+            });
+
+            afficherPrompts(promptsFiltres);
+        }
+
+        function setupFiltres() {
+            document.getElementById('search-keyword').addEventListener('input', filtrerEtTrierPrompts);
+            document.getElementById('filtre-outil').addEventListener('change', filtrerEtTrierPrompts);
+            document.getElementById('filtre-chaine').addEventListener('change', filtrerEtTrierPrompts);
+            document.getElementById('filtre-tri').addEventListener('change', filtrerEtTrierPrompts);
+        }
     </script>
 </body>
 </html>
