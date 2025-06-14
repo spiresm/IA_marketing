@@ -250,14 +250,108 @@
             color: #666; /* Couleur par défaut pour le méta */
         }
         .card:not([class*="type-"]) button {
-            background-color: #0077b6; /* Couleur par défaut pour le bouton */
+            background-color: #0077b6; /* Couleur par default pour le bouton */
         }
         .card:not([class*="type-"]) button:hover {
-            background-color: #005f8a; /* Couleur par défaut pour le hover du bouton */
+            background-color: #005f8a; /* Couleur par default pour le hover du bouton */
+        }
+
+        /* Styles pour la bulle d'information */
+        .info-bubble-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Fond semi-transparent */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000; /* Assure que la bulle est au-dessus de tout le reste */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .info-bubble-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            text-align: center;
+            position: relative;
+            transform: translateY(20px); /* Légère animation d'apparition */
+            transition: transform 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible .info-bubble-content {
+            transform: translateY(0);
+        }
+
+        .info-bubble-content h3 {
+            color: #003366;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .info-bubble-content p {
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .info-bubble-content button {
+            background-color: #0077b6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .info-bubble-content button:hover {
+            background-color: #005f8a;
+        }
+
+        /* Styles spécifiques pour les petites écrans */
+        @media (max-width: 768px) {
+            .info-bubble-content {
+                margin: 20px;
+                padding: 20px;
+            }
+            .info-bubble-content h3 {
+                font-size: 1.3em;
+            }
+            .info-bubble-content p {
+                font-size: 0.9em;
+            }
+            .info-bubble-content button {
+                font-size: 1em;
+                padding: 10px 20px;
+            }
         }
     </style>
 </head>
 <body>
+    <div id="info-bubble-overlay" class="info-bubble-overlay">
+        <div class="info-bubble-content">
+            <h3>Bienvenue sur la page des Outils IA !</h3>
+            <p>
+                Découvrez ici une sélection d'outils basés sur l'intelligence artificielle, classés par type de contenu (texte, image, vidéo, audio). Vous pouvez les filtrer par <strong>catégories</strong>, par <strong>équipe</strong>, ou voir uniquement ceux qui sont <strong>validés par la RTBF</strong>. Chaque outil dispose d'une description rapide et d'une bulle d'information détaillée au survol.
+            </p>
+            <button id="info-bubble-close-btn">Compris !</button>
+        </div>
+    </div>
+
     <div id="header-placeholder"></div>
 
     <main>
@@ -265,7 +359,8 @@
             <div class="filters">
                 <input type="search" id="search" placeholder="Rechercher un outil..." />
                 <select id="filtre-type">
-                    <option value="">Type de contenu</option> <option value="texte">texte</option>
+                    <option value="">Type de contenu</option>
+                    <option value="texte">texte</option>
                     <option value="image">image</option>
                     <option value="video">video</option>
                     <option value="audio">audio</option>
@@ -342,6 +437,30 @@
                     } else {
                         console.error("Les fonctions d'outils (applyFilters) ou la variable 'tools' ne sont pas définies. Vérifiez tools-full.js.");
                     }
+
+                    // --- Logique d'affichage de la bulle d'information ---
+                    const infoBubbleOverlay = document.getElementById("info-bubble-overlay");
+                    const infoBubbleCloseBtn = document.getElementById("info-bubble-close-btn");
+                    const hasSeenInfoBubble = localStorage.getItem('hasSeenOutilsInfoBubble');
+
+                    if (!hasSeenInfoBubble) {
+                        // Afficher la bulle si l'utilisateur ne l'a jamais vue
+                        infoBubbleOverlay.classList.add('visible');
+                    }
+
+                    infoBubbleCloseBtn.addEventListener('click', () => {
+                        infoBubbleOverlay.classList.remove('visible');
+                        localStorage.setItem('hasSeenOutilsInfoBubble', 'true'); // Marquer comme vue
+                    });
+
+                    // Optionnel: fermer la bulle si l'utilisateur clique en dehors d'elle
+                    infoBubbleOverlay.addEventListener('click', (event) => {
+                        if (event.target === infoBubbleOverlay) {
+                            infoBubbleOverlay.classList.remove('visible');
+                            localStorage.setItem('hasSeenOutilsInfoBubble', 'true');
+                        }
+                    });
+                    // --- Fin de la logique de la bulle d'information ---
                 });
         });
     </script>
