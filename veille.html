@@ -128,6 +128,72 @@
             padding-bottom: 20px;
         }
 
+        /* Styles pour la bulle d'information */
+        .info-bubble-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Fond semi-transparent */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000; /* Assure que la bulle est au-dessus de tout le reste */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .info-bubble-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            text-align: center;
+            position: relative;
+            transform: translateY(20px); /* Légère animation d'apparition */
+            transition: transform 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible .info-bubble-content {
+            transform: translateY(0);
+        }
+
+        .info-bubble-content h3 {
+            color: #003366;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .info-bubble-content p {
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .info-bubble-content button {
+            background-color: #0077b6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .info-bubble-content button:hover {
+            background-color: #005f8a;
+        }
+
         /* Media Queries pour la responsivité */
         @media (max-width: 768px) {
             .container {
@@ -149,25 +215,52 @@
             .card h2 {
                 font-size: 1.4em;
             }
+            /* Styles spécifiques pour les petites écrans de la bulle d'info */
+            .info-bubble-content {
+                margin: 20px;
+                padding: 20px;
+            }
+            .info-bubble-content h3 {
+                font-size: 1.3em;
+            }
+            .info-bubble-content p {
+                font-size: 0.9em;
+            }
+            .info-bubble-content button {
+                font-size: 1em;
+                padding: 10px 20px;
+            }
         }
     </style>
 </head>
 <body>
+    <div id="info-bubble-overlay" class="info-bubble-overlay">
+        <div class="info-bubble-content">
+            <h3>Bienvenue dans la Veille IA & Marketing !</h3>
+            <p>
+                Gardez un œil sur les dernières actualités et avancées en intelligence artificielle appliquées au marketing. Utilisez la barre de recherche pour trouver des articles spécifiques ou filtrez par catégories pour rester informé des tendances qui comptent.
+            </p>
+            <button id="info-bubble-close-btn">Compris !</button>
+        </div>
+    </div>
+
     <div id="header-placeholder"></div>
 
     <main>
         <div class="container">
-            <h1>📰 Veille IA & Marketing</h1>
             <div class="filters">
                 <input type="search" id="search" placeholder="Rechercher un article..." oninput="filtrerArticles()">
                 <select id="filtre-tag" onchange="filtrerArticles()">
                     <option value="">Tous les tags</option>
-                    <option value="Marketing Video">Marketing Vidéo</option>
+                    <option value="Marketing Vidéo">Marketing Vidéo</option>
                     <option value="Comportement des consommateurs">Comportement des consommateurs</option>
                     <option value="Analyse de marché">Analyse de marché</option>
                     <option value="Personnalisation">Personnalisation</option>
                     <option value="Création de contenu">Création de contenu</option>
-                    <option value="Intelligence Artificielle">Intelligence Artificielle</option> <option value="Design">Design</option> <option value="Animation">Animation</option> </select>
+                    <option value="Intelligence Artificielle">Intelligence Artificielle</option>
+                    <option value="Design">Design</option>
+                    <option value="Animation">Animation</option>
+                </select>
             </div>
             <div id="articles"></div>
         </div>
@@ -183,7 +276,7 @@
         const articles = [
             {
                 titre: "Google DeepMind explore l’AGI",
-                date: "2024-09-29", // Date ajustée pour être plus récente
+                date: "2024-09-29", 
                 tag: "Intelligence Artificielle",
                 resume: "Google DeepMind travaille sur l'intelligence générale artificielle pour améliorer les algorithmes de marketing.",
                 lien: "http://googleblog.com/deepmind_ia_marketing",
@@ -224,7 +317,7 @@
             {
                 titre: "Midjourney lance un outil vidéo",
                 date: "2025-06-01",
-                tag: "Marketing Vidéo", // Changé pour correspondre à l'option du select
+                tag: "Marketing Vidéo",
                 resume: "Midjourney lance un outil d'IA vidéo pour optimiser les campagnes marketing.",
                 lien: "https://www.midjourney.com/press/video-tool",
                 source: "Midjourney Press Release"
@@ -318,6 +411,33 @@
 
         // Exécution principale à l'initialisation de la page
         document.addEventListener("DOMContentLoaded", () => {
+            const mainElement = document.querySelector("main");
+            const infoBubbleOverlay = document.getElementById("info-bubble-overlay");
+            const infoBubbleCloseBtn = document.getElementById("info-bubble-close-btn");
+            
+            // --- Logique d'affichage de la bulle d'information ---
+            // On peut utiliser localStorage pour n'afficher la bulle qu'une seule fois
+            const hasSeenVeilleInfoBubble = localStorage.getItem('hasSeenVeilleInfoBubble');
+
+            if (!hasSeenVeilleInfoBubble) {
+                infoBubbleOverlay.classList.add('visible');
+            }
+
+            infoBubbleCloseBtn.addEventListener('click', () => {
+                infoBubbleOverlay.classList.remove('visible');
+                localStorage.setItem('hasSeenVeilleInfoBubble', 'true'); // Marquez comme vu
+            });
+
+            // Optionnel: fermer la bulle si l'utilisateur clique en dehors d'elle
+            infoBubbleOverlay.addEventListener('click', (event) => {
+                if (event.target === infoBubbleOverlay) {
+                    infoBubbleOverlay.classList.remove('visible');
+                    localStorage.setItem('hasSeenVeilleInfoBubble', 'true'); // Marquez comme vu
+                }
+            });
+            // --- Fin de la logique de la bulle d'information ---
+
+
             // Charger le header
             fetch("header.html")
                 .then(response => {
@@ -330,9 +450,8 @@
                     document.getElementById("header-placeholder").innerHTML = data;
                     // Rendre le body et le main visibles après le chargement du header
                     document.body.classList.add("show");
-                    const mainElement = document.querySelector("main");
                     if (mainElement) {
-                        mainElement.classList.add("show"); // Ajout de la classe show pour main
+                        mainElement.classList.add("show"); 
                     }
                     mettreAJourBulleDemandes(); // Met à jour la bulle après que le header soit chargé
                     // Gérer les liens actifs du menu (s'il y en a dans header.html)
@@ -349,7 +468,6 @@
                     document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
                     // Rendre visible même en cas d'erreur du header
                     document.body.classList.add("show");
-                    const mainElement = document.querySelector("main");
                     if (mainElement) {
                         mainElement.classList.add("show");
                     }
