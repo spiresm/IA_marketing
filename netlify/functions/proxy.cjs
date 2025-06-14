@@ -1,7 +1,8 @@
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 export const handler = async (event) => {
-  const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbztywF0w5m1kk54Ml-mIOi_TEijQQOEWbeIMB6x7XwRS4xRu7sxM0ZFfoAs2FXoQ2z_/exec';
+  const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL ||
+    'https://script.google.com/macros/s/AKfycbztywF0w5m1kk54Ml-mIOi_TEijQQOEWbeIMB6x7XwRS4xRu7sxM0ZFfoAs2FXoQ2z_/exec';
 
   try {
     let action = event.queryStringParameters?.action;
@@ -34,7 +35,13 @@ export const handler = async (event) => {
         break;
 
       case 'getDemandesIA':
+      case 'deleteDemande':
+      case 'updateDemandeIA':
+      case 'sendRequest':
         targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
+        if (event.httpMethod === "POST") {
+          fetchBody = JSON.stringify(requestBody);
+        }
         break;
 
       case 'updateProfil':
@@ -42,33 +49,17 @@ export const handler = async (event) => {
         isLocalFunctionCall = true;
         break;
 
-      case 'deleteDemande':
-        targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
-        fetchMethod = 'POST';
-        fetchBody = JSON.stringify(requestBody);
-        break;
-
-      case 'updateDemandeIA':
-        targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
-        fetchMethod = 'POST';
-        fetchBody = JSON.stringify(requestBody);
-        break;
-
-      case 'sendRequest':
-        targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
-        fetchMethod = 'POST';
-        fetchBody = JSON.stringify(requestBody);
-        break;
-
       default:
         console.warn(`Proxy.cjs: Action non reconnue: ${action}`);
         return {
           statusCode: 400,
-          body: JSON.stringify({ message: "Action non reconnue ou manquante." }),
+          body: JSON.stringify({ error: "Action non reconnue ou manquante.", actionReçue: action }),
         };
     }
 
-    const fullTargetUrl = isLocalFunctionCall ? new URL(targetUrl, `https://${event.headers.host}`).toString() : targetUrl;
+    const fullTargetUrl = isLocalFunctionCall
+      ? new URL(targetUrl, `https://${event.headers.host}`).toString()
+      : targetUrl;
 
     const fetchOptions = {
       method: fetchMethod,
@@ -80,14 +71,22 @@ export const handler = async (event) => {
       fetchOptions.body = fetchBody;
     }
 
+    // Facultatif : Indique qu'on attend du JSON
+    fetchOptions.headers["Accept"] = "application/json";
+
     console.log("Proxy.cjs envoie vers :", fullTargetUrl);
     console.log("Options fetch :", fetchOptions);
 
     const response = await fetch(fullTargetUrl, fetchOptions);
+    const rawText = await response.text();
 
-    const contentType = response.headers.get("content-type") || "";
-    const isJSON = contentType.includes("application/json");
-    const body = isJSON ? await response.json() : await response.text();
+    let body;
+    try {
+      body = JSON.parse(rawText);
+    } catch (err) {
+      console.warn("Réponse non-JSON, renvoi du texte brut.");
+      body = rawText;
+    }
 
     console.log("Proxy.cjs reçoit :", body);
 
@@ -97,9 +96,9 @@ export const handler = async (event) => {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": isJSON ? "application/json" : "text/plain",
+        "Content-Type": typeof body === "object" ? "application/json" : "text/plain",
       },
-      body: isJSON ? JSON.stringify(body) : body,
+      body: typeof body === "object" ? JSON.stringify(body) : body,
     };
 
   } catch (error) {
