@@ -51,7 +51,14 @@
             margin-top: 6px;
             background-color: #f9fafb;
         }
-        input[name="emailPrefix"], input[name="date"] {
+        /* Ajustement de la taille du champ Nom et Initiales */
+        input[name="nom"] {
+            max-width: 300px; /* Réduit la largeur du champ Nom */
+        }
+        input[name="emailPrefix"] {
+            max-width: 150px; /* Réduit la largeur du champ Initiales */
+        }
+        input[name="date"] {
             max-width: 200px;
         }
         .email-container {
@@ -88,6 +95,10 @@
             margin-top: 0;
             color: #0077b6;
             margin-bottom: 10px;
+        }
+        /* Ajout d'une marge sous le filtre Auteur pour l'espace */
+        #filtreAuteur {
+            margin-bottom: 15px; /* Augmente la marge sous le filtre auteur */
         }
         .ticket {
             position: relative;
@@ -334,7 +345,6 @@
             }
 
             // Extrait les noms d'auteurs uniques et les trie alphabétiquement
-            // filter(Boolean) est utilisé pour exclure les valeurs nulles, undefined, ou chaînes vides
             const auteurs = [...new Set(demandes.map(d => d.nom).filter(Boolean))].sort(); 
 
             auteurs.forEach(auteur => {
@@ -350,11 +360,11 @@
             }
         }
 
-        // Affiche les demandes dans le panneau de récapitulatif, en appliquant les filtres
+        // Affiche les demandes dans le panneau de récapitulatif, en appliquant les filtres et le tri
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
             const filtreChaine = document.getElementById("filtreChaine").value;
-            const filtreAuteur = document.getElementById("filtreAuteur").value; // La valeur vient directement du select
+            const filtreAuteur = document.getElementById("filtreAuteur").value;
 
             let demandes = [];
             try {
@@ -370,10 +380,13 @@
             if (filtreChaine) {
                 demandes = demandes.filter(d => d.chaine === filtreChaine);
             }
-            if (filtreAuteur) { // Le filtrage est une correspondance exacte avec le nom de l'auteur
+            if (filtreAuteur) { 
                 demandes = demandes.filter(d => d.nom === filtreAuteur);
             }
             
+            // Tri par date décroissante pour afficher la plus récente en premier
+            demandes.sort((a, b) => new Date(b.date) - new Date(a.date));
+
             recapList.innerHTML = ""; // Vide la liste avant de la remplir avec les éléments filtrés
 
             // Crée et ajoute un ticket pour chaque demande filtrée
@@ -405,14 +418,14 @@
 
                 // Attache les écouteurs d'événements aux boutons de suppression et de statut
                 div.querySelector(".btn-supprimer")?.addEventListener("click", async e => {
-                    e.stopPropagation(); // Empêche l'événement de se propager au ticket et d'ouvrir le modal
+                    e.stopPropagation(); 
                     if (confirm("Êtes-vous sûr de vouloir supprimer cette demande ?")) {
                          await supprimerDemande(d.id);
                     }
                 });
 
                 div.querySelector(".btn-traite")?.addEventListener("click", async e => {
-                    e.stopPropagation(); // Empêche l'événement de se propager au ticket et d'ouvrir le modal
+                    e.stopPropagation(); 
                     await marquerTraite(d.id);
                 });
 
@@ -447,7 +460,7 @@ ${d.description}`;
                 let demandes = await res.json();
                 
                 const initialLength = demandes.length;
-                demandes = demandes.filter(d => d.id !== id); // Filtre la demande à supprimer
+                demandes = demandes.filter(d => d.id !== id); 
                 
                 if (demandes.length === initialLength) {
                     console.warn("Aucune demande trouvée avec cet ID pour la suppression:", id);
@@ -455,15 +468,14 @@ ${d.description}`;
                     return;
                 }
 
-                // Envoie le tableau de demandes mis à jour à votre fonction Netlify
                 await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "updateDemandeIA", demandes })
                 });
                 console.log("Demande supprimée avec succès, rafraîchissement..."); 
-                afficherDemandes(); // Rafraîchit la liste des demandes
-                mettreAJourBulleDemandes(); // Met à jour le compteur
+                afficherDemandes(); 
+                mettreAJourBulleDemandes(); 
                 remplirFiltreAuteur(); // Met à jour le filtre auteur au cas où un auteur a été supprimé
             } catch (e) {
                 console.error("Erreur lors de la suppression de la demande :", e);
@@ -479,24 +491,22 @@ ${d.description}`;
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 let demandes = await res.json();
                 
-                const demande = demandes.find(d => d.id === id); // Trouve la demande à modifier
+                const demande = demandes.find(d => d.id === id); 
                 if (!demande) {
                     console.warn("Aucune demande trouvée avec cet ID pour le statut:", id);
                     alert("La demande n'a pas été trouvée pour le changement de statut.");
                     return;
                 }
-                demande.traite = true; // Met à jour le statut
+                demande.traite = true;
 
-                // Envoie le tableau de demandes mis à jour à votre fonction Netlify
                 await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "updateDemandeIA", demandes })
                 });
                 console.log("Demande marquée comme traitée avec succès, rafraîchissement..."); 
-                afficherDemandes(); // Rafraîchit la liste des demandes
-                mettreAJourBulleDemandes(); // Met à jour le compteur
-                // Pas besoin de remplirFiltreAuteur() ici, car le statut ne change pas les noms d'auteur.
+                afficherDemandes(); 
+                mettreAJourBulleDemandes(); 
             } catch (e) {
                 console.error("Erreur lors du marquage comme traité :", e);
                 alert("Une erreur est survenue lors du changement de statut. Vérifiez la console pour plus de détails.");
@@ -505,34 +515,26 @@ ${d.description}`;
 
         // -------------------------------------------------------------
         // LOGIQUE CRUCIALE DE CHARGEMENT ET D'INITIALISATION DE LA PAGE
-        // Cette section assure un chargement séquentiel et robuste.
         // -------------------------------------------------------------
         document.addEventListener("DOMContentLoaded", () => {
-            // Étape 1: Charger le header en premier. C'est asynchrone, donc on attend.
             fetch("header.html")
                 .then(res => {
-                    // Vérifie si la réponse HTTP est OK (statut 200)
                     if (!res.ok) {
                         throw new Error(`Erreur HTTP: ${res.status} ${res.statusText}`);
                     }
-                    return res.text(); // Retourne le contenu HTML du header
+                    return res.text();
                 })
                 .then(data => {
-                    // Insère le HTML du header dans le placeholder
                     document.getElementById("header-placeholder").innerHTML = data;
-                    ensureNotifParentPosition(); // Appelle la fonction pour la position de la notification
+                    ensureNotifParentPosition();
                     
-                    // Étape 2: Une fois le header chargé et inséré, rendre le body et le main visibles.
-                    // Cela évite que la page ne s'affiche blanche.
                     document.body.style.opacity = "1";
                     document.querySelector("main").style.display = "block";
 
-                    // Étape 3: Initialiser le reste des fonctionnalités de la page, maintenant que le DOM est prêt.
-                    mettreAJourBulleDemandes(); // Met à jour le compteur de notifications
-                    remplirFiltreAuteur(); // IMPORTANT: Remplit le filtre auteur dès le chargement de la page
-                    afficherDemandes(); // Affiche la liste initiale des demandes
+                    mettreAJourBulleDemandes(); 
+                    remplirFiltreAuteur(); 
+                    afficherDemandes(); 
 
-                    // Initialisation du sélecteur de durée pour le formulaire de demande
                     const dureeSelect = document.getElementById("duree");
                     for (let i = 0; i <= 60; i++) {
                         const opt = document.createElement("option");
@@ -541,13 +543,12 @@ ${d.description}`;
                         dureeSelect.appendChild(opt);
                     }
 
-                    // Écouteur d'événement pour la soumission du formulaire de demande IA
                     document.getElementById("demandeIA").addEventListener("submit", async e => {
-                        e.preventDefault(); // Empêche le rechargement de la page par défaut
-                        const data = new FormData(e.target); // Récupère les données du formulaire
+                        e.preventDefault();
+                        const data = new FormData(e.target);
                         const demande = {
-                            id: "_" + Math.random().toString(36).substr(2, 9), // Génère un ID unique pour la demande
-                            nom: data.get("nom"), // Nom de l'auteur
+                            id: "_" + Math.random().toString(36).substr(2, 9), 
+                            nom: data.get("nom"), 
                             email: `${data.get("emailPrefix")}@rtbf.be`,
                             type: data.get("type"),
                             support: data.get("support"),
@@ -555,32 +556,31 @@ ${d.description}`;
                             date: data.get("date"),
                             description: data.get("description"),
                             chaine: data.get("chaine"),
-                            traite: false // Nouvelle demande n'est pas traitée par défaut
+                            traite: false
                         };
 
                         try {
                             const response = await fetch(SEND_REQUEST_URL, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(demande) // Envoie la demande au format JSON
+                                body: JSON.stringify(demande)
                             });
 
                             if (!response.ok) {
-                                // Gère les erreurs HTTP (ex: 404, 500)
                                 const errorText = await response.text();
                                 console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
                                 alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 200)}... (voir console pour plus)`);
                                 return;
                             }
 
-                            const result = await response.json(); // Parle la réponse JSON
+                            const result = await response.json();
 
                             if (result.success) {
                                 alert(result.message || "Demande envoyée avec succès et mail transmis !");
-                                e.target.reset(); // Réinitialise le formulaire
-                                afficherDemandes(); // Rafraîchit le récapitulatif des demandes
-                                mettreAJourBulleDemandes(); // Met à jour le compteur de notifications
-                                remplirFiltreAuteur(); // IMPORTANT: Met à jour le filtre auteur si un nouvel auteur a été ajouté
+                                e.target.reset();
+                                afficherDemandes(); 
+                                mettreAJourBulleDemandes(); 
+                                remplirFiltreAuteur(); 
                             } else {
                                 console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
                                 alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
@@ -591,34 +591,29 @@ ${d.description}`;
                         }
                     });
 
-                    // Écouteurs d'événements pour les nouveaux filtres (maintenant tous des 'change' pour les selects)
                     document.getElementById("filtreChaine").addEventListener("change", afficherDemandes);
                     document.getElementById("filtreAuteur").addEventListener("change", afficherDemandes); 
 
-                    // Écouteurs d'événements pour la gestion du modal (pop-up)
                     document.querySelector(".close-modal").addEventListener("click", () => {
                         document.getElementById("modal").classList.remove('visible');
                     });
                     document.getElementById("modal").addEventListener("click", e => {
-                        if (e.target.id === "modal") { // Ferme le modal si on clique en dehors du contenu
+                        if (e.target.id === "modal") {
                             document.getElementById("modal").classList.remove('visible');
                         }
                     });
 
                 })
                 .catch(error => {
-                    // En cas d'erreur critique lors du chargement du header (ex: fichier introuvable)
                     console.error("Erreur critique lors du chargement de header.html:", error);
-                    // On rend quand même la page visible pour éviter une page blanche persistante
                     document.body.style.opacity = "1";
                     document.querySelector("main").style.display = "block";
-                    // Et on affiche un message d'erreur clair à l'utilisateur
                     const errorDiv = document.createElement("div");
                     errorDiv.style.color = "red";
                     errorDiv.style.textAlign = "center";
                     errorDiv.style.marginTop = "20px";
                     errorDiv.textContent = "Impossible de charger l'en-tête de la page. Veuillez réessayer ou contacter l'administrateur.";
-                    document.body.prepend(errorDiv); // Ajoute le message au début du body
+                    document.body.prepend(errorDiv); 
                 });
         });
     </script>
