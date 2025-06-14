@@ -120,6 +120,7 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+            cursor: pointer; /* Ajouté pour indiquer que le ticket est cliquable */
         }
         .ticket span {
             display: block;
@@ -322,14 +323,22 @@
         // Met à jour le nombre dans la bulle de notification (si elle existe)
         async function mettreAJourBulleDemandes() {
             const notif = document.getElementById("notif-count");
-            if (!notif) return; 
+            if (!notif) {
+                console.warn("Élément #notif-count non trouvé. La bulle de notification ne peut pas être mise à jour.");
+                return;
+            }
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
                 const demandes = await res.json();
-                notif.textContent = demandes.length;
-                notif.style.display = demandes.length > 0 ? "inline-block" : "none";
+                const demandesNonTraitees = demandes.filter(d => !d.traite); // Filtrer seulement les demandes non traitées
+                notif.textContent = demandesNonTraitees.length;
+                notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
             } catch (e) {
                 console.error("Erreur lors de la mise à jour du compteur de notifications :", e);
+                notif.style.display = "none"; // Masquer la bulle en cas d'erreur
             }
         }
 
@@ -373,6 +382,9 @@
             let demandes = [];
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                if (!res.ok) { // Vérification explicite de la réponse HTTP
+                    throw new Error(`Erreur HTTP! statut: ${res.status}`);
+                }
                 const data = await res.json();
                 demandes = Array.isArray(data) ? data : []; 
             } catch (err) {
@@ -381,23 +393,25 @@
             }
 
             // Application des filtres
+            let filteredDemandes = demandes;
             if (filtreChaine) {
-                demandes = demandes.filter(d => d.chaine === filtreChaine);
+                filteredDemandes = filteredDemandes.filter(d => d.chaine === filtreChaine);
             }
             if (filtreAuteur) { 
-                demandes = demandes.filter(d => d.nom === filtreAuteur);
+                filteredDemandes = filteredDemandes.filter(d => d.nom === filtreAuteur);
             }
             
             // Tri par date décroissante pour afficher la plus récente en premier
-            demandes.sort((a, b) => new Date(b.date) - new Date(a.date));
+            filteredDemandes.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             recapList.innerHTML = ""; // Vide la liste avant de la remplir avec les éléments filtrés
 
             // Crée et ajoute un ticket pour chaque demande filtrée
-            demandes.forEach(d => {
+            filteredDemandes.forEach(d => {
                 const couleur = couleursParChaine[d.chaine] || "#0077b6"; 
                 const div = document.createElement("div");
                 div.className = "ticket";
+                div.dataset.id = d.id; // Stocke l'ID sur l'élément div pour un accès facile
                 div.style.borderLeftColor = couleur;
                 div.innerHTML = `
                     <div style="display:flex; justify-content: space-between; align-items:center">
@@ -424,7 +438,7 @@
                 div.querySelector(".btn-supprimer")?.addEventListener("click", async e => {
                     e.stopPropagation(); 
                     if (confirm("Êtes-vous sûr de vouloir supprimer cette demande ?")) {
-                         await supprimerDemande(d.id);
+                        await supprimerDemande(d.id);
                     }
                 });
 
@@ -459,36 +473,28 @@ ${d.description}`;
         async function supprimerDemande(id) {
             console.log("Tentative de suppression de la demande avec l'ID:", id); 
             try {
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                let demandes = await res.json();
-                
-                const initialLength = demandes.length;
-                const updatedDemandes = demandes.filter(d => d.id !== id); // Filtre la demande à supprimer
-                
-                if (updatedDemandes.length === initialLength) {
-                    console.warn("Aucune demande trouvée avec cet ID pour la suppression:", id);
-                    alert("La demande n'a pas été trouvée pour la suppression.");
-                    return;
-                }
+                // Vous n'avez pas besoin de récupérer toutes les demandes pour les filtrer côté client
+                // si votre fonction Netlify peut gérer la suppression par ID.
+                // Si votre fonction Netlify attend la liste complète après suppression, vous devrez l'adapter.
+                // Pour cette correction, nous supposons que la fonction Netlify gère la suppression côté serveur.
 
-                // Envoie le tableau de demandes mis à jour à votre fonction Netlify
-                const updateRes = await fetch(PROXY_URL, {
+                const response = await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "updateDemandeIA", demandes: updatedDemandes })
+                    body: JSON.stringify({ action: "deleteDemandeIA", id: id }) // Envoyer l'action et l'ID
                 });
 
-                if (!updateRes.ok) { // Vérifie la réponse de la mise à jour
-                    const errorText = await updateRes.text();
-                    throw new Error(`Erreur HTTP lors de l'envoi de la mise à jour: ${updateRes.status} ${updateRes.statusText}. Détails: ${errorText}`);
+                if (!response.ok) { 
+                    const errorText = await response.text();
+                    throw new Error(`Erreur HTTP lors de la suppression: ${response.status} ${response.statusText}. Détails: ${errorText}`);
                 }
-                const updateResult = await updateRes.json();
-                if (!updateResult.success) { // Vérifie le succès renvoyé par votre fonction Netlify
-                     throw new Error(`Échec de l'opération de suppression côté serveur: ${updateResult.message || "Aucun message."}`);
+                const result = await response.json();
+                if (!result.success) { 
+                    throw new Error(`Échec de l'opération de suppression côté serveur: ${result.message || "Aucun message."}`);
                 }
 
                 console.log("Demande supprimée avec succès, rafraîchissement..."); 
+                // Mise à jour de l'UI après la suppression réussie
                 afficherDemandes(); 
                 mettreAJourBulleDemandes(); 
                 remplirFiltreAuteur(); 
@@ -502,34 +508,24 @@ ${d.description}`;
         async function marquerTraite(id) {
             console.log("Tentative de marquer comme traité la demande avec l'ID:", id); 
             try {
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                let demandes = await res.json();
-                
-                const demande = demandes.find(d => d.id === id); 
-                if (!demande) {
-                    console.warn("Aucune demande trouvée avec cet ID pour le statut:", id);
-                    alert("La demande n'a pas été trouvée pour le changement de statut.");
-                    return;
-                }
-                demande.traite = true; // Met à jour le statut
-
-                const updateRes = await fetch(PROXY_URL, {
+                // Similaire à la suppression, nous envoyons directement l'ID à marquer
+                const response = await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "updateDemandeIA", demandes: demandes }) // Envoie toutes les demandes avec la modification
+                    body: JSON.stringify({ action: "markDemandeIAAsTreated", id: id }) // Envoyer l'action et l'ID
                 });
 
-                if (!updateRes.ok) { // Vérifie la réponse de la mise à jour
-                    const errorText = await updateRes.text();
-                    throw new Error(`Erreur HTTP lors de l'envoi de la mise à jour: ${updateRes.status} ${updateRes.statusText}. Détails: ${errorText}`);
+                if (!response.ok) { 
+                    const errorText = await response.text();
+                    throw new Error(`Erreur HTTP lors du marquage comme traité: ${response.status} ${response.statusText}. Détails: ${errorText}`);
                 }
-                const updateResult = await updateRes.json();
-                if (!updateResult.success) { // Vérifie le succès renvoyé par votre fonction Netlify
-                    throw new Error(`Échec de l'opération de marquage comme traité côté serveur: ${updateResult.message || "Aucun message."}`);
+                const result = await response.json();
+                if (!result.success) { 
+                    throw new Error(`Échec de l'opération de marquage comme traité côté serveur: ${result.message || "Aucun message."}`);
                 }
 
                 console.log("Demande marquée comme traitée avec succès, rafraîchissement..."); 
+                // Mise à jour de l'UI après le marquage réussi
                 afficherDemandes(); 
                 mettreAJourBulleDemandes(); 
             } catch (e) {
@@ -585,6 +581,7 @@ ${d.description}`;
                         };
 
                         try {
+                            // Envoi des données du formulaire à la fonction Netlify
                             const response = await fetch(SEND_REQUEST_URL, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
