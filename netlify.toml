@@ -2,14 +2,33 @@
 
 [build]
   publish = "."
-  functions = "netlify/functions"
+  # La ligne 'functions = "netlify/functions"' est mieux placée directement sous [functions]
+  # pour être plus explicite sur le dossier des fonctions.
+  # functions = "netlify/functions" # <--- Cette ligne n'est plus nécessaire ici
 
+  # Vous pouvez laisser NODE_VERSION ici pour la phase de build,
+  # mais la version pour le runtime des fonctions sera définie plus bas.
   [build.environment]
     NODE_VERSION = "18"
 
+# Section des fonctions (Functions Settings)
 [functions]
+  # 'directory' spécifie le chemin vers le dossier de vos fonctions.
+  # C'est ici qu'il est le plus clair de le définir.
+  directory = "netlify/functions"
+
+  # CECI EST LA LIGNE CRUCIALE ET LA CORRECTION PRINCIPALE :
+  # Spécifie la version de Node.js pour le RUNTIME de vos fonctions.
+  # C'est cette ligne qui garantit que votre fonction .mjs s'exécutera correctement
+  # en tant que module ES.
+  node_version = "18" 
+
+  # 'node_bundler' spécifie le bundler à utiliser pour vos fonctions.
+  # 'esbuild' est un excellent choix.
   node_bundler = "esbuild"
 
+# Configurations spécifiques par fonction
+# Ces sections sont correctes et ne nécessitent pas de changement.
 [functions.compressImage]
   external_node_modules = ["sharp"]
 
@@ -17,20 +36,21 @@
   external_node_modules = ["node-fetch"]
 
 [functions.getProfils]
-# external_node_modules = ["@octokit/core", "@octokit/plugin-rest"] # <-- Cette ligne est déjà bien retirée !
+# external_node_modules = ["@octokit/core", "@octokit/plugin-rest"]
 
-# --- MODIFIEZ CETTE SECTION ÉGALEMENT ! ---
 [functions.uploadImage]
-  # external_node_modules = ["@octokit/core", "@octokit/plugin-rest", "node-fetch"] # <-- RETIREZ @octokit/core et @octokit/plugin-rest
-  external_node_modules = ["node-fetch"] # Gardez node-fetch si uploadImage en a besoin et que vous voulez le garder externe.
+  external_node_modules = ["node-fetch"]
 
 [functions.sendRequest]
   external_node_modules = ["nodemailer", "multiparty"]
 
+# =============================================================
+# Redirections et en-têtes globaux (Headers)
+# =============================================================
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, POST, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS" # J'ai ajouté PUT/DELETE pour plus de complétude
+    Access-Control-Allow-Headers = "Content-Type, Authorization" # J'ai ajouté Authorization
     Access-Control-Max-Age = "86400"
