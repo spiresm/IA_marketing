@@ -673,8 +673,11 @@
                 }
                 const demandes = await res.json();
                 console.log("Équipe: Demandes récupérées pour la bulle:", demandes);
-                notif.textContent = Array.isArray(demandes) ? demandes.length : 0;
-                notif.style.display = (Array.isArray(demandes) && demandes.length > 0) ? "inline-block" : "none";
+                const count = Array.isArray(demandes) ? demandes.length : 0;
+                notif.textContent = count;
+                // Important: Use 'inline-flex' or 'block' if 'inline-block' causes layout issues
+                notif.style.display = (count > 0) ? "inline-block" : "none";
+                console.log("Équipe: Bulle de notification mise à jour. Count:", count, "Display:", notif.style.display);
             } catch (e) {
                 console.error("Équipe: Erreur mise à jour compteur de demandes :", e);
                 notif.style.display = "none";
@@ -725,65 +728,49 @@
                 // 1. Charger le header
                 const headerResponse = await fetch("header.html");
                 if (!headerResponse.ok) {
-                    throw new Error(`Équipe: Erreur HTTP lors du chargement du header pour Équipe: ${headerResponse.status}`);
+                    throw new Error(`Failed to load header.html: ${headerResponse.statusText}`);
                 }
-                const headerHtml = await headerResponse.text();
-                const headerPlaceholder = document.getElementById("header-placeholder");
-                if (headerPlaceholder) {
-                    headerPlaceholder.innerHTML = headerHtml;
-                } else {
-                    console.error("Équipe: L'élément #header-placeholder n'a pas été trouvé.");
+                document.getElementById("header-placeholder").innerHTML = await headerResponse.text();
+                console.log("Équipe: Header chargé.");
+
+                // 2. Mettre à jour la bulle de notification *après* le chargement du header
+                // car l'élément 'notif-count' est dans le header.
+                await mettreAJourBulleDemandes();
+
+                // 3. Charger les profils
+                const profilsResponse = await fetch(`${PROXY_URL}?action=getProfils`);
+                if (!profilsResponse.ok) {
+                    const errorText = await profilsResponse.text();
+                    throw new Error(`Failed to load profils: ${profilsResponse.status} - ${errorText}`);
                 }
+                const profilsData = await profilsResponse.json();
+                profils = Array.isArray(profilsData) ? profilsData : [];
+                console.log("Équipe: Profils chargés :", profils.length);
 
-                // 2. Charger les profils, les prompts de la galerie, et les TIPS en parallèle
-                await Promise.all([
-                    fetch(`${PROXY_URL}?action=getProfils`).then(res => {
-                        if (!res.ok) throw new Error(`Équipe: Erreur HTTP lors de la récupération des profils: ${res.status}`);
-                        return res.json();
-                    }).then(data => {
-                        profils = Array.isArray(data) ? data : (data.profils || []);
-                        console.log("Équipe: Profils chargés :", profils.length, profils);
-                    }),
-                    fetchGalleryPrompts(), // Cette fonction met à jour galleryPrompts
-                    fetchSharedTips() // Fonction pour charger les TIPS
-                ]);
-                
-                // 3. Afficher la page
-                document.body.style.opacity = "1";
-                const mainElement = document.querySelector("main");
-                if (mainElement) {
-                    mainElement.style.display = "block";
-                } else {
-                    console.error("Équipe: L'élément <main> n'a pas été trouvé.");
-                }
+                // 4. Charger les prompts de la galerie
+                await fetchGalleryPrompts();
 
-                mettreAJourBulleDemandes();
-                
-                const path = location.pathname.split("/").pop();
-                const links = document.querySelectorAll("nav a");
-                links.forEach(link => {
-                    if (link.getAttribute("href") === path) {
-                        link.classList.add("active");
-                    }
-                });
+                // 5. Charger les TIPS partagés
+                await fetchSharedTips();
 
-                renderProfils(); // Rendre les profils initiaux avec les données de la galerie et des TIPS disponibles
+                // 6. Rendre les profils et afficher la page
+                renderProfils();
+                document.querySelector("main").style.display = "block"; // Affiche le contenu principal
+                document.body.style.opacity = 1; // Fait apparaître la page en fondu
+                console.log("Équipe: Page initialisée et affichée.");
+
             } catch (error) {
-                console.error("Équipe: Erreur critique lors de l'initialisation de la page ou chargement des données :", error);
-                document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu.</p>";
-                const mainElement = document.querySelector("main");
-                if (mainElement) {
-                    mainElement.innerHTML = `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les données : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
-                    mainElement.style.display = "block";
-                } else {
-                    document.body.innerHTML += `<p style="text-align:center;color:red;padding:2rem">Impossible de charger les données : ${error.message}. Vérifiez la console pour plus de détails.</p>`;
-                }
-                document.body.style.opacity = "1";
+                console.error("Équipe: Erreur critique lors de l'initialisation de la page :", error);
+                alert("Impossible de charger la page. Veuillez réessayer. Erreur: " + error.message);
+                document.body.style.opacity = 1; // Rendre la page visible même en cas d'erreur
             }
         }
 
-        // Appeler la fonction d'initialisation globale au chargement du DOM
+        // Lance l'initialisation quand le DOM est complètement chargé
         document.addEventListener("DOMContentLoaded", initPageData);
+
+        // Optionnel : Recharger la bulle toutes les 5 minutes pour des données fraîches
+        // setInterval(mettreAJourBulleDemandes, 300000); // 5 minutes = 300000 ms
     </script>
 </body>
 </html>
