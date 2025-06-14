@@ -285,9 +285,57 @@
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
         }
+
+        /* --- Styles for the new "Bubble" notification --- */
+        #welcome-bubble {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #0077b6; /* Match your blue theme */
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            max-width: 300px;
+            display: none; /* Hidden by default */
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+            z-index: 1000; /* Ensure it's on top */
+            text-align: center;
+        }
+
+        #welcome-bubble.show {
+            display: block; /* Make it visible */
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #welcome-bubble .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+
+        #welcome-bubble .close-btn:hover {
+            color: #e0f2f7; /* Lighter blue on hover */
+        }
     </style>
 </head>
 <body>
+    <div id="welcome-bubble">
+        <button class="close-btn">&times;</button>
+        <p>Bienvenue sur la galerie des prompts !</p>
+        <p style="font-size: 0.9em; margin-top: 10px;">Découvrez les prompts archivés et utilisez les filtres pour trouver l'inspiration.</p>
+    </div>
+
     <div id="header-placeholder"></div>
 
     <main>
@@ -347,6 +395,29 @@
             const headerPlaceholder = document.getElementById("header-placeholder");
             const mainElement = document.querySelector("main");
             const bodyElement = document.body;
+            const welcomeBubble = document.getElementById('welcome-bubble');
+            const closeBubbleBtn = welcomeBubble.querySelector('.close-btn');
+
+            // --- Bubble Logic Start ---
+            // If you want the bubble to appear EVERY time the page is opened,
+            // regardless of whether the user saw it in the current session,
+            // remove the 'if' condition below.
+            const bubbleShownInSession = sessionStorage.getItem('welcomeBubbleShown');
+            if (!bubbleShownInSession) {
+                // Delay showing slightly after the page content to ensure it animates nicely
+                setTimeout(() => {
+                    welcomeBubble.classList.add('show');
+                    sessionStorage.setItem('welcomeBubbleShown', 'true'); // Mark as shown for this session
+                }, 1000); // Wait 1 second after page load
+            }
+
+            closeBubbleBtn.addEventListener('click', () => {
+                welcomeBubble.classList.remove('show');
+                // If you want it to disappear permanently after closing once,
+                // you could use localStorage and never show it again.
+                // localStorage.setItem('welcomeBubbleDismissed', 'true');
+            });
+            // --- Bubble Logic End ---
 
             fetch("header.html")
                 .then(res => res.ok ? res.text() : Promise.reject(res))
