@@ -244,15 +244,15 @@
             font-size: 0.95rem;
             margin-top: 15px;
         }
-        /* Styles spécifiques pour la galerie dans le panneau latéral */
+        /* Styles spécifiques pour la galerie et les TIPS dans le panneau latéral */
         .side-panel .gallery-section,
-        .side-panel .tios-section { /* Nouveau style pour la section TIOs */
+        .side-panel .tips-section { /* Nommé 'tips-section' */
             margin-top: 20px;
             border-top: 1px solid #eee;
             padding-top: 15px;
         }
         .side-panel .gallery-section h3,
-        .side-panel .tios-section h3 { /* Nouveau style pour le titre TIOs */
+        .side-panel .tips-section h3 { /* Nommé 'tips-section' */
             color: #0077b6;
             font-size: 1.2rem;
             margin-bottom: 10px;
@@ -278,39 +278,39 @@
             border: 1px solid #ddd;
             cursor: pointer;
         }
-        .side-panel .no-image-placeholder {
+        .side-panel .no-item-placeholder { /* Nom plus générique */
             text-align: center;
             color: #888;
             font-style: italic;
             font-size: 0.9rem;
             padding: 10px 0;
         }
-        /* Styles pour la liste des TIOs */
-        .side-panel .tios-list {
+        /* Styles pour la liste des TIPS */
+        .side-panel .tips-list { /* Nommé 'tips-list' */
             list-style: none;
             padding: 0;
             margin: 0;
-            background-color: #f0f8f0; /* Couleur de fond légère pour les TIOs */
+            background-color: #f0f8f0; /* Couleur de fond légère pour les TIPS */
             padding: 10px;
             border-radius: 8px;
             border: 1px solid #d4edda;
         }
-        .side-panel .tios-list li {
+        .side-panel .tips-list li {
             font-size: 0.9rem;
             margin-bottom: 8px;
             padding-bottom: 8px;
             border-bottom: 1px dashed #e0e0e0;
             line-height: 1.4;
         }
-        .side-panel .tios-list li:last-child {
+        .side-panel .tips-list li:last-child {
             margin-bottom: 0;
             padding-bottom: 0;
             border-bottom: none;
         }
-        .side-panel .tios-list strong {
-            color: #28a745; /* Couleur pour le titre du prompt */
+        .side-panel .tips-list strong {
+            color: #28a745; /* Couleur pour le titre du tip */
         }
-        .side-panel .tios-list .page-context {
+        .side-panel .tips-list .page-context {
             font-size: 0.8em;
             color: #6c757d;
             display: block;
@@ -357,7 +357,7 @@
         const PROXY_URL = "/.netlify/functions/proxy";
         let profils = [];
         let galleryPrompts = []; // Stocke les prompts avec images
-        let sharedTips = []; // Nouvelle variable pour stocker les TIOs (maintenant TIPS)
+        let sharedTips = []; // Variable pour stocker les TIPS
 
         const listContainer = document.getElementById("profil-list");
         const filterPole = document.getElementById("filterPole");
@@ -368,7 +368,11 @@
 
         function normalizeString(str) {
             if (typeof str !== 'string') return '';
-            return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+            // Supprime les accents et met en minuscules pour une comparaison robuste
+            // Utilise la forme normalisée NFD pour décomposer les caractères accentués,
+            // puis supprime les marques diacritiques (accents, trémas, etc.).
+            // Enfin, convertit en minuscules.
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         }
 
         function renderProfils() {
@@ -511,7 +515,7 @@
                             if (data.success) {
                                 console.log("Équipe: Profil supprimé avec succès:", p.name);
                                 profils = profils.filter(profile => profile.id !== p.id);
-                                // Re-charger les prompts et TIOs pour s'assurer que les données sont à jour
+                                // Re-charger les prompts et TIPS pour s'assurer que les données sont à jour
                                 initPageData(); 
                             } else {
                                 console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
@@ -530,7 +534,7 @@
                         console.log("Équipe: Ouverture du panneau latéral pour", p.name);
                         
                         let gallerySection = '';
-                        let tiosSection = ''; // Nouvelle variable pour la section TIOs
+                        let tipsSection = ''; // Variable pour la section TIPS
 
                         const profilNameNormalized = normalizeString(p.name || '');
 
@@ -567,44 +571,52 @@
                             gallerySection = `
                                 <div class="gallery-section">
                                     <h3>Derniers prompts partagés (Images)</h3>
-                                    <p class="no-image-placeholder">Aucune image de prompt partagée par ${p.name} n'a été trouvée.</p>
+                                    <p class="no-item-placeholder">Aucune image de prompt partagée par ${p.name} n'a été trouvée.</p>
                                 </div>
                             `;
                         }
 
-                        // --- Nouvelle section TIOs ---
-                        const tiosFromAuthor = sharedTips
-                            .filter(tip => normalizeString(tip.auteur || '') === profilNameNormalized)
+                        // --- Nouvelle section TIPS ---
+                        const tipsFromAuthor = sharedTips
+                            .filter(tip => {
+                                const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages'); // Assurez-vous que c'est "cas-usages" si c'est le nom de votre page
+                                const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
+                                // Inclure un log pour le débogage précis
+                                if (isByThisAuthor) {
+                                    console.log(`DEBUG: Tip par ${tip.auteur} ("${tip.titre}") trouvé. Origine page "${tip.pageDePartage}". Corresponds à "cas-usages": ${isFromCorrectPage}`);
+                                }
+                                return isByThisAuthor && isFromCorrectPage;
+                            })
                             .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage)); // Tri du plus récent au plus ancien
 
-                        const latestTios = tiosFromAuthor.slice(0, 3); // Les 3 derniers tips
+                        const latestTips = tipsFromAuthor.slice(0, 3); // Les 3 derniers tips
 
-                        console.log(`DEBUG: TIOs trouvés pour "${p.name}" :`, latestTios);
+                        console.log(`DEBUG: TIPS finaux à afficher pour "${p.name}" :`, latestTips);
 
-                        if (latestTios.length > 0) {
-                            const tiosHtml = latestTios.map(tip => `
+                        if (latestTips.length > 0) {
+                            const tipsHtml = latestTips.map(tip => `
                                 <li>
                                     <strong>${tip.titre || 'Titre inconnu'}</strong>
-                                    <span class="page-context">dans la page ${tip.pageDePartage || 'Inconnue'}</span>
+                                    <span class="page-context">sur la page "${tip.pageDePartage || 'Inconnue'}"</span>
                                 </li>
                             `).join('');
 
-                            tiosSection = `
-                                <div class="tios-section">
-                                    <h3>Derniers TIOs partagés</h3>
-                                    <ul class="tios-list">
-                                        ${tiosHtml}
+                            tipsSection = `
+                                <div class="tips-section">
+                                    <h3>Derniers TIPS partagés</h3>
+                                    <ul class="tips-list">
+                                        ${tipsHtml}
                                     </ul>
                                 </div>
                             `;
                         } else {
-                            console.log("DEBUG: Aucun TIO trouvé pour l'auteur :", p.name);
-                            tiosSection = `
-                                <div class="tios-section">
-                                    <h3>Derniers TIOs partagés</h3>
-                                    <p class="no-image-placeholder">Aucun TIO partagé par ${p.name} n'a été trouvé.</p>
-                                    <p class="no-image-placeholder">
-                                        <a href="cas-usages.html">Partager un TIO maintenant !</a>
+                            console.log("DEBUG: Aucun TIP trouvé pour l'auteur :", p.name);
+                            tipsSection = `
+                                <div class="tips-section">
+                                    <h3>Derniers TIPS partagés</h3>
+                                    <p class="no-item-placeholder">Aucun TIP partagé par ${p.name} n'a été trouvé depuis la page "Cas d'usages".</p>
+                                    <p class="no-item-placeholder">
+                                        <a href="cas-usages.html">Partager un TIP maintenant !</a>
                                     </p>
                                 </div>
                             `;
@@ -620,7 +632,7 @@
                             <ul>${toolsList}</ul>
                             ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}
                             ${gallerySection}
-                            ${tiosSection}
+                            ${tipsSection}
                         `;
                         sidePanel.classList.add("show");
                     }
@@ -687,22 +699,22 @@
             }
         }
 
-        // Nouvelle fonction pour charger tous les TIOs (tips)
+        // Fonction pour charger tous les TIPS
         async function fetchSharedTips() {
-            console.log("Équipe: Tentative de récupération des TIOs partagés...");
+            console.log("Équipe: Tentative de récupération des TIPS partagés...");
             try {
                 // Assurez-vous que votre fonction Netlify 'proxy' peut gérer cette action 'getSharedTips'
                 // et qu'elle renvoie un tableau d'objets avec 'auteur', 'titre', 'pageDePartage', 'datePartage'.
                 const res = await fetch(`${PROXY_URL}?action=getSharedTips`); 
                 if (!res.ok) {
                     const errorText = await res.text();
-                    throw new Error(`Erreur HTTP lors de la récupération des TIOs: ${res.status} - ${errorText}`);
+                    throw new Error(`Erreur HTTP lors de la récupération des TIPS: ${res.status} - ${errorText}`);
                 }
                 const data = await res.json();
                 sharedTips = Array.isArray(data) ? data : [];
-                console.log("Équipe: TIOs partagés chargés :", sharedTips.length, sharedTips);
+                console.log("Équipe: TIPS partagés chargés :", sharedTips.length, sharedTips);
             } catch (error) {
-                console.error("Équipe: Erreur lors du chargement des TIOs partagés :", error);
+                console.error("Équipe: Erreur lors du chargement des TIPS partagés :", error);
                 sharedTips = []; // S'assurer que c'est un tableau même en cas d'erreur
             }
         }
@@ -713,7 +725,7 @@
                 // 1. Charger le header
                 const headerResponse = await fetch("header.html");
                 if (!headerResponse.ok) {
-                    throw new Error(`Erreur HTTP lors du chargement du header pour Équipe: ${headerResponse.status}`);
+                    throw new Error(`Équipe: Erreur HTTP lors du chargement du header pour Équipe: ${headerResponse.status}`);
                 }
                 const headerHtml = await headerResponse.text();
                 const headerPlaceholder = document.getElementById("header-placeholder");
@@ -723,17 +735,17 @@
                     console.error("Équipe: L'élément #header-placeholder n'a pas été trouvé.");
                 }
 
-                // 2. Charger les profils, les prompts de la galerie, et les TIOs en parallèle
+                // 2. Charger les profils, les prompts de la galerie, et les TIPS en parallèle
                 await Promise.all([
                     fetch(`${PROXY_URL}?action=getProfils`).then(res => {
-                        if (!res.ok) throw new Error(`Erreur HTTP lors de la récupération des profils: ${res.status}`);
+                        if (!res.ok) throw new Error(`Équipe: Erreur HTTP lors de la récupération des profils: ${res.status}`);
                         return res.json();
                     }).then(data => {
                         profils = Array.isArray(data) ? data : (data.profils || []);
                         console.log("Équipe: Profils chargés :", profils.length, profils);
                     }),
                     fetchGalleryPrompts(), // Cette fonction met à jour galleryPrompts
-                    fetchSharedTips() // Nouvelle fonction pour charger les TIOs
+                    fetchSharedTips() // Fonction pour charger les TIPS
                 ]);
                 
                 // 3. Afficher la page
@@ -755,7 +767,7 @@
                     }
                 });
 
-                renderProfils(); // Rendre les profils initiaux avec les données de la galerie et des TIOs disponibles
+                renderProfils(); // Rendre les profils initiaux avec les données de la galerie et des TIPS disponibles
             } catch (error) {
                 console.error("Équipe: Erreur critique lors de l'initialisation de la page ou chargement des données :", error);
                 document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu.</p>";
