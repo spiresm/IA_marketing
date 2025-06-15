@@ -44,7 +44,7 @@ export const handler = async (event) => {
         // ce qui est correct si le corps entier doit être transmis à GAS.
         break;
 
-      case 'deleteDemandeIA': // <-- J'AI RENOMMÉ CECI POUR CORRESPONDRE AU CLIENT
+      case 'deleteDemande': // <-- J'AI RENOMMÉ CECI POUR CORRESPONDRE AU CLIENT
         // Pour la suppression, nous voulons envoyer l'ID spécifique.
         // Il est plus propre d'envoyer l'ID via un paramètre d'URL pour la suppression simple.
         // Assurez-vous que requestBody.id contient l'ID envoyé par le client.
