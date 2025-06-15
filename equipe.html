@@ -756,87 +756,80 @@
             }
         }
 
-        // Fonction pour charger le contenu du header
-        async function loadHeader() {
-            console.log("Équipe: Chargement du header...");
-            try {
-                const response = await fetch("header.html");
-                if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status}`);
-                }
-                const headerHtml = await response.text();
-                document.getElementById("header-placeholder").innerHTML = headerHtml;
-                console.log("Équipe: Header chargé avec succès.");
-                mettreAJourBulleDemandes(); // Met à jour la bulle après le chargement du header
-            } catch (error) {
-                console.error("Équipe: Erreur lors du chargement du header :", error);
-                // Optionnel: Afficher un message d'erreur ou un contenu alternatif
-                document.getElementById("header-placeholder").innerHTML = '<p style="color: red; text-align: center;">Erreur de chargement du header.</p>';
-            }
-        }
-
         // Fonction principale de chargement des données
-        async function loadDataAndRender() {
-            console.log("Équipe: Début du chargement des données...");
+        async function loadData() {
+            console.log("Équipe: Chargement des données initiales...");
             try {
-                // Charger les profils
-                const profilsRes = await fetch(`${PROXY_URL}?action=getProfils`);
-                if (!profilsRes.ok) {
-                    const errorText = await profilsRes.text();
-                    throw new Error(`Erreur HTTP lors de la récupération des profils: ${profilsRes.status} - ${errorText}`);
-                }
-                const data = await profilsRes.json();
-                profils = Array.isArray(data) ? data : [];
-                console.log("Équipe: Profils chargés :", profils.length);
-
-                // Charger les prompts de la galerie et les TIPS en parallèle
-                await Promise.all([
-                    fetchGalleryPrompts(),
-                    fetchSharedTips()
+                const [profilsRes, galleryRes, tipsRes] = await Promise.all([
+                    fetch(`${PROXY_URL}?action=getProfils`),
+                    fetch(`${PROXY_URL}?action=getGalleryPrompts`),
+                    fetch(`${PROXY_URL}?action=getSharedTips`)
                 ]);
 
-                renderProfils();
-                console.log("Équipe: Chargement initial des données et rendu terminés.");
-
-                // Masquer le loader et afficher le contenu principal après un court délai
-                setTimeout(() => {
-                    const loader = document.getElementById("loader");
-                    if (loader) {
-                        loader.style.opacity = "0";
-                        loader.addEventListener("transitionend", () => {
-                            loader.style.display = "none";
-                            bodyElement.classList.add('loaded'); // Ajoute la classe 'loaded' pour afficher le main
-                            bodyElement.style.opacity = "1"; // Effet de fade-in du corps de la page
-                            console.log("Équipe: Loader masqué, contenu principal affiché.");
-                        }, { once: true });
-                    } else {
-                        // Fallback si le loader n'existe pas ou si JS est trop lent
-                        bodyElement.classList.add('loaded');
-                        bodyElement.style.opacity = "1";
-                        console.log("Équipe: Loader non trouvé ou transition ignorée, contenu principal affiché directement.");
-                    }
-                }, 300); // Court délai pour l'effet de fade-out
-            } catch (error) {
-                console.error("Équipe: Erreur critique lors du chargement des données initiales :", error);
-                document.getElementById("loader").innerHTML = '<div style="color: red; text-align: center; padding: 20px;">Erreur de chargement des données. Veuillez recharger la page.</div>';
-                // En cas d'erreur grave, assurez-vous au moins de masquer le loader pour ne pas laisser une page blanche bloquée
-                const loader = document.getElementById("loader");
-                if (loader) {
-                    loader.style.opacity = "0";
-                    loader.addEventListener("transitionend", () => {
-                        loader.style.display = "none";
-                        bodyElement.classList.add('loaded');
-                        bodyElement.style.opacity = "1";
-                    }, { once: true });
+                // Traitement des profils
+                if (profilsRes.ok) {
+                    profils = await profilsRes.json();
+                    console.log("Équipe: Profils chargés :", profils.length);
+                } else {
+                    console.error("Équipe: Erreur chargement profils:", await profilsRes.text());
+                    profils = [];
                 }
+
+                // Traitement des prompts de galerie
+                if (galleryRes.ok) {
+                    galleryPrompts = await galleryRes.json();
+                    console.log("Équipe: Prompts de galerie chargés :", galleryPrompts.length);
+                } else {
+                    console.error("Équipe: Erreur chargement prompts de galerie:", await galleryRes.text());
+                    galleryPrompts = [];
+                }
+
+                // Traitement des TIPS
+                if (tipsRes.ok) {
+                    sharedTips = await tipsRes.json();
+                    console.log("Équipe: TIPS chargés :", sharedTips.length);
+                } else {
+                    console.error("Équipe: Erreur chargement TIPS:", await tipsRes.text());
+                    sharedTips = [];
+                }
+                
+                renderProfils();
+                mettreAJourBulleDemandes(); // Met à jour le compteur une fois le header chargé
+
+                // Masquer le loader et afficher le contenu
+                document.getElementById("loader").style.display = "none";
+                bodyElement.classList.add("loaded");
+                mainContent.style.display = "block";
+                console.log("Équipe: Chargement initial terminé. Contenu affiché.");
+
+            } catch (error) {
+                console.error("Équipe: Erreur fatale lors du chargement des données :", error);
+                alert("Une erreur est survenue lors du chargement des données initiales. Veuillez réessayer.");
+                // En cas d'erreur, masquer le loader et afficher le contenu vide ou un message d'erreur
+                document.getElementById("loader").style.display = "none";
+                bodyElement.classList.add("loaded");
+                mainContent.style.display = "block";
             }
         }
 
-        // Exécution au chargement complet du DOM
-        document.addEventListener("DOMContentLoaded", () => {
-            console.log("Équipe: DOMContentLoaded - Démarrage du processus de chargement.");
-            loadHeader(); // Charger le header en premier
-            loadDataAndRender(); // Puis charger les données des profils
+        // Charger le header et ensuite les données de la page
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("Équipe: DOMContentLoaded. Chargement du header...");
+            try {
+                const headerRes = await fetch("header.html");
+                if (headerRes.ok) {
+                    document.getElementById("header-placeholder").innerHTML = await headerRes.text();
+                    console.log("Équipe: Header chargé.");
+                    loadData(); // Charger les données après le chargement du header
+                } else {
+                    console.error("Équipe: Erreur chargement header:", await headerRes.text());
+                    // Même en cas d'erreur du header, tenter de charger les données
+                    loadData();
+                }
+            } catch (error) {
+                console.error("Équipe: Erreur réseau lors du chargement du header :", error);
+                loadData(); // Tenter de charger les données même sans header
+            }
         });
     </script>
 </body>
