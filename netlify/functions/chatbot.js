@@ -17,8 +17,8 @@ exports.handler = async (event, context) => {
     const userMessage = body.message;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: userMessage }],
+  model: "gpt-4o",
+  messages: [{ role: "user", content: message }],
     });
 
     const reply = completion.choices[0].message.content;
