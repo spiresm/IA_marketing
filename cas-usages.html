@@ -600,6 +600,121 @@
             margin: 0;
             font-size: 0.9em;
         }
+
+        /* Styles pour le panneau modal */
+        .modal {
+            display: none; /* Caché par défaut */
+            position: fixed; /* Reste en place même en scrollant */
+            z-index: 2000; /* Plus haut que tout le reste */
+            left: 0;
+            top: 0;
+            width: 100%; /* Pleine largeur */
+            height: 100%; /* Pleine hauteur */
+            overflow: auto; /* Permet le défilement si le contenu dépasse */
+            background-color: rgba(0,0,0,0.7); /* Fond noir semi-transparent */
+            backdrop-filter: blur(5px); /* Effet de flou derrière le modal */
+            -webkit-backdrop-filter: blur(5px); /* Compatibilité Safari */
+            justify-content: center; /* Centre le contenu horizontalement */
+            align-items: center; /* Centre le contenu verticalement */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto; /* Centre le contenu */
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 80%; /* Largeur du modal */
+            max-width: 600px; /* Largeur maximale pour les grands écrans */
+            position: relative;
+            text-align: center;
+            animation: fadeInScale 0.3s ease-out; /* Animation d'apparition */
+        }
+
+        .modal-content h2 {
+            color: #005f8a;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .modal-content p {
+            font-size: 1.1em;
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 25px;
+        }
+
+        .close-modal-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            transition: color 0.2s ease;
+        }
+
+        .close-modal-btn:hover,
+        .close-modal-btn:focus {
+            color: #333;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .modal-action-btn {
+            background-color: #0077b6;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        .modal-action-btn:hover {
+            background: #005f8a;
+            transform: translateY(-2px);
+        }
+
+        /* Animation d'apparition pour le modal */
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Media queries pour le modal sur petits écrans */
+        @media (max-width: 600px) {
+            .modal-content {
+                width: 90%;
+                padding: 20px;
+            }
+            .modal-content h2 {
+                font-size: 1.5em;
+            }
+            .modal-content p {
+                font-size: 1em;
+            }
+            .modal-action-btn {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
+            .close-modal-btn {
+                font-size: 24px;
+                top: 10px;
+                right: 15px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -661,6 +776,15 @@
         <div id="previewPanelContent" class="preview-panel-content">
             </div>
     </div>
+
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal-btn">&times;</span>
+            <h2>Bienvenue sur iMarketing !</h2>
+            <p>Découvrez notre galerie de tips et de prompts pour optimiser votre marketing digital.</p>
+            <button class="modal-action-btn" id="modalCloseButton">Commencer</button>
+        </div>
+    </div>
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = [];
@@ -677,6 +801,11 @@
         const previewPanelContent = document.getElementById('previewPanelContent');
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const bodyElement = document.body;
+
+        // Éléments du modal
+        const modal = document.getElementById('myModal');
+        const closeModalBtn = document.querySelector('.close-modal-btn');
+        const modalCloseButton = document.getElementById('modalCloseButton');
 
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
@@ -716,6 +845,8 @@
                 bodyElement.classList.add("show");
                 mainElement.classList.add("show");
                 loadAndDisplayTips();
+                // Afficher le modal après le chargement initial de la page
+                showModal();
             });
 
             if (window.location.search.includes('success=1')) {
@@ -735,6 +866,29 @@
             }
 
             setupFilters();
+        });
+
+        // Fonction pour afficher le modal
+        function showModal() {
+            modal.style.display = 'flex'; // Utilise flex pour le centrage
+            document.body.style.overflow = 'hidden'; // Empêche le défilement en arrière-plan
+        }
+
+        // Fonction pour cacher le modal
+        function hideModal() {
+            modal.style.display = 'none';
+            document.body.style.overflow = ''; // Rétablit le défilement
+        }
+
+        // Écouteurs d'événements pour le modal
+        closeModalBtn.addEventListener('click', hideModal);
+        modalCloseButton.addEventListener('click', hideModal);
+
+        // Fermer le modal si on clique en dehors du contenu du modal
+        window.addEventListener('click', (event) => {
+            if (event.target == modal) {
+                hideModal();
+            }
         });
 
         function openPreviewPanel(tip) {
@@ -851,47 +1005,74 @@
             msg.textContent = message;
             msg.style.opacity = '1';
             setTimeout(() => msg.style.opacity = '0', 2000);
+            // Pas de reset URL pour les messages de succès temporaires
         }
 
         // Fonction pour afficher un message d'erreur
         function showErrorMessage(message) {
-            errorDisplay.textContent = message;
+            errorDisplay.textContent = `Erreur: ${message}`;
             errorDisplay.style.display = 'block';
-            setTimeout(() => errorDisplay.style.display = 'none', 5000); // Masquer après 5 secondes
+            setTimeout(() => {
+                errorDisplay.style.display = 'none';
+                errorDisplay.textContent = ''; // Efface le message après avoir été caché
+            }, 5000);
         }
 
         function createTipCard(tip) {
-            const card = document.createElement('div');
-            card.className = 'carte';
-            card.setAttribute('data-id', tip.id);
-            card.setAttribute('data-categorie', tip.categorie);
-            card.setAttribute('data-auteur', tip.auteur);
-            card.setAttribute('data-outil', tip.outil);
-            card.style.borderLeftColor = tip.couleurBordure || '#0077b6'; // Utilise la couleur du tip ou une couleur par défaut
+            const carte = document.createElement('div');
+            carte.className = 'carte';
+            // Définir la couleur de la bordure gauche en fonction de l'outil
+            let borderColor = '#ccc'; // Couleur par défaut
+            switch (tip.outil) {
+                case 'Midjourney':
+                    borderColor = '#FF5733'; // Orange
+                    break;
+                case 'DALL·E':
+                    borderColor = '#33B5E5'; // Bleu clair
+                    break;
+                case 'Stable Diffusion':
+                    borderColor = '#8BC34A'; // Vert lime
+                    break;
+                case 'Adobe Firefly':
+                    borderColor = '#EE7F00'; // Orange Adobe
+                    break;
+                case 'Runway':
+                    borderColor = '#673AB7'; // Violet foncé
+                    break;
+                case 'ChatGPT':
+                    borderColor = '#198754'; // Vert plus foncé
+                    break;
+                case 'Autre':
+                    borderColor = '#607D8B'; // Gris ardoise
+                    break;
+                default:
+                    borderColor = '#0077b6'; // Bleu par défaut
+            }
+            carte.style.borderLeftColor = borderColor;
 
             const infosWrapper = document.createElement('div');
             infosWrapper.className = 'infos-wrapper';
 
-            const tipTitle = document.createElement('h2');
-            tipTitle.className = 'tip-title';
-            tipTitle.textContent = tip.titre;
-            infosWrapper.appendChild(tipTitle);
+            // Titre du tip
+            const titleElement = document.createElement('h3');
+            titleElement.className = 'tip-title';
+            titleElement.textContent = tip.titre;
+            infosWrapper.appendChild(titleElement);
 
-            if (tip.outil) {
-                const outilBadge = document.createElement('span');
-                outilBadge.className = 'outil-badge';
-                outilBadge.textContent = tip.outil;
-                infosWrapper.appendChild(outilBadge);
-            }
+            // Badge Outil
+            const outilBadge = document.createElement('span');
+            outilBadge.className = 'outil-badge';
+            outilBadge.textContent = tip.outil || 'Non spécifié';
+            infosWrapper.appendChild(outilBadge);
 
-            // Section des métadonnées (Auteur, Catégorie, Date)
+            // Section des métadonnées
             const metadataSection = document.createElement('div');
             metadataSection.className = 'metadata-section';
 
-            const addMetadataRow = (label, value, className = '') => {
+            const addMetadata = (label, value, className = '') => {
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'metadata-label';
-                labelDiv.textContent = label + ' :';
+                labelDiv.textContent = `${label} :`;
                 metadataSection.appendChild(labelDiv);
 
                 const valueDiv = document.createElement('div');
@@ -900,57 +1081,40 @@
                 metadataSection.appendChild(valueDiv);
             };
 
-            addMetadataRow('Catégorie', tip.categorie);
-            addMetadataRow('Auteur', tip.auteur, 'auteur-value');
-            if (tip.date) {
-                const dateObj = new Date(tip.date);
-                addMetadataRow('Date', dateObj.toLocaleDateString('fr-FR'));
-            }
-            infosWrapper.appendChild(metadataSection);
+            addMetadata('Auteur', tip.auteur, 'auteur-value');
+            addMetadata('Catégorie', tip.categorie);
+            addMetadata('Date', tip.date ? new Date(tip.date).toLocaleDateString('fr-FR') : 'N/A');
 
+            infosWrapper.appendChild(metadataSection);
 
             // Texte de prévisualisation (le "post-it" jaune)
             if (tip.previewText) {
                 const previewPostIt = document.createElement('div');
                 previewPostIt.className = 'preview-post-it';
                 previewPostIt.textContent = tip.previewText;
-                card.appendChild(previewPostIt);
+                carte.appendChild(previewPostIt);
             }
 
-            // Description ou début du prompt (celui qui est le plus pertinent ou existe)
-            // if (tip.description) {
-            //     const descriptionDiv = document.createElement('div');
-            //     descriptionDiv.className = 'text-display';
-            //     descriptionDiv.innerHTML = `<strong>Description :</strong> ${tip.description}`;
-            //     infosWrapper.appendChild(descriptionDiv);
-            // } else if (tip.prompt) {
-            //     const promptSnippetDiv = document.createElement('div');
-            //     promptSnippetDiv.className = 'text-display';
-            //     promptSnippetDiv.innerHTML = `<strong>Prompt :</strong> ${tip.prompt.substring(0, 150)}...`; // Affiche les 150 premiers caractères du prompt
-            //     infosWrapper.appendChild(promptSnippetDiv);
-            // }
-
+            // Boutons d'action sur la carte
             const cardActions = document.createElement('div');
             cardActions.className = 'card-actions';
 
             const topButtonsGroup = document.createElement('div');
             topButtonsGroup.className = 'top-buttons-group';
 
-            // Bouton Aperçu
-            const toggleContentBtn = document.createElement('button');
-            toggleContentBtn.className = 'toggle-content-btn';
-            toggleContentBtn.textContent = 'Aperçu';
-            toggleContentBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Empêche l'ouverture/fermeture du panneau si la carte est cliquée ailleurs
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'toggle-content-btn';
+            toggleBtn.textContent = 'Aperçu';
+            toggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Empêche l'ouverture du panneau latéral si on clique sur ce bouton
                 openPreviewPanel(tip);
             });
-            topButtonsGroup.appendChild(toggleContentBtn);
+            topButtonsGroup.appendChild(toggleBtn);
 
-            // Bouton Copier le prompt
-            const copierBtn = document.createElement('button');
-            copierBtn.className = 'copier-btn';
-            copierBtn.textContent = 'Copier le prompt';
-            copierBtn.addEventListener('click', (e) => {
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copier-btn';
+            copyBtn.textContent = 'Copier le prompt';
+            copyBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (tip.prompt) {
                     navigator.clipboard.writeText(tip.prompt).then(() => {
@@ -960,15 +1124,14 @@
                         showErrorMessage('Erreur lors de la copie du prompt.');
                     });
                 } else {
-                    showErrorMessage('Pas de prompt à copier pour ce tip.');
+                    showErrorMessage('Pas de prompt à copier.');
                 }
             });
-            topButtonsGroup.appendChild(copierBtn);
+            topButtonsGroup.appendChild(copyBtn);
 
-            // Bouton Éditer ce tip
             const editBtn = document.createElement('button');
             editBtn.className = 'edit-btn';
-            editBtn.textContent = 'Éditer ce tip';
+            editBtn.textContent = 'Éditer';
             editBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 window.location.href = `editer-tip.html?id=${tip.id}`;
@@ -977,119 +1140,118 @@
 
             cardActions.appendChild(topButtonsGroup);
 
-            // Bouton Supprimer
-            const supprimerBtn = document.createElement('button');
-            supprimerBtn.className = 'supprimer-btn';
-            supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-            supprimerBtn.title = "Supprimer ce tip";
-            supprimerBtn.addEventListener('click', async (e) => {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'supprimer-btn';
+            deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            deleteBtn.title = 'Supprimer ce tip';
+            deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (confirm('Êtes-vous sûr de vouloir supprimer ce tip ?')) {
-                    try {
-                        const response = await fetch(`${apiBase}delete-tip?id=${tip.id}`, {
-                            method: 'DELETE'
-                        });
-                        if (!response.ok) {
-                            throw new Error(`Erreur HTTP: ${response.status}`);
-                        }
-                        galerieDiv.removeChild(card);
-                        allTips = allTips.filter(t => t.id !== tip.id); // Met à jour le tableau des tips
-                        showSuccessMessage('Tip supprimé avec succès !');
-                    } catch (error) {
-                        console.error('Erreur lors de la suppression du tip:', error);
-                        showErrorMessage('Erreur lors de la suppression du tip.');
-                    }
+                if (confirm(`Êtes-vous sûr de vouloir supprimer le tip "${tip.titre}" ?`)) {
+                    deleteTip(tip.id);
                 }
             });
-            cardActions.appendChild(supprimerBtn);
+            cardActions.appendChild(deleteBtn);
 
             infosWrapper.appendChild(cardActions);
-            card.appendChild(infosWrapper);
+            carte.appendChild(infosWrapper);
 
-            return card;
+            return carte;
         }
 
         async function loadAndDisplayTips() {
             galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
             errorDisplay.style.display = 'none';
+
             try {
-                const response = await fetch(`${apiBase}get-tips`);
+                const response = await fetch(apiBase + 'getTips');
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}. Détails: ${errorText}`);
                 }
-                const tips = await response.json();
-                allTips = tips; // Stocke tous les tips pour le filtrage
-                displayTips(allTips); // Affiche tous les tips au chargement
-
+                const data = await response.json();
+                allTips = data;
                 populateFilters(allTips);
-
+                displayTips(allTips);
             } catch (error) {
-                console.error('Erreur lors du chargement des tips:', error);
+                console.error("Erreur lors du chargement des tips:", error);
                 galerieDiv.innerHTML = ''; // Enlève le loader
-                errorDisplay.textContent = 'Erreur de chargement des tips. Veuillez réessayer plus tard.';
-                errorDisplay.style.display = 'block';
+                showErrorMessage(`Impossible de charger les tips. ${error.message}`);
             }
-        }
-
-        function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = '';
-            if (tipsToDisplay.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos critères de recherche.</p>';
-                return;
-            }
-            tipsToDisplay.forEach(tip => {
-                galerieDiv.appendChild(createTipCard(tip));
-            });
         }
 
         function populateFilters(tips) {
             const auteurs = new Set();
+            const categories = new Set();
             const outils = new Set();
 
             tips.forEach(tip => {
                 if (tip.auteur) auteurs.add(tip.auteur);
+                if (tip.categorie) categories.add(tip.categorie);
                 if (tip.outil) outils.add(tip.outil);
             });
 
-            // Remplir le filtre Auteur
-            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
-            Array.from(auteurs).sort().forEach(auteur => {
-                const option = document.createElement('option');
-                option.value = auteur;
-                option.textContent = auteur;
-                filtreAuteurSelect.appendChild(option);
+            populateSelect(filtreAuteurSelect, Array.from(auteurs).sort());
+            // Les catégories sont fixes dans le HTML, donc pas besoin de les populer dynamiquement ici,
+            // à moins que vous souhaitiez une liste dynamique basée sur les données.
+            populateSelect(filtreOutilSelect, Array.from(outils).sort());
+        }
+
+        function populateSelect(selectElement, items) {
+            const currentSelectedValue = selectElement.value; // Conserver la valeur sélectionnée
+
+            // Vider sauf l'option "Toutes"
+            Array.from(selectElement.options).forEach(option => {
+                if (option.value !== "") {
+                    option.remove();
+                }
             });
 
-            // Remplir le filtre Outil
-            filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>';
-            Array.from(outils).sort().forEach(outil => {
+            items.forEach(item => {
                 const option = document.createElement('option');
-                option.value = outil;
-                option.textContent = outil;
-                filtreOutilSelect.appendChild(option);
+                option.value = item;
+                option.textContent = item;
+                selectElement.appendChild(option);
+            });
+
+            // Rétablir la sélection si la valeur existe toujours
+            if (currentSelectedValue && Array.from(items).includes(currentSelectedValue)) {
+                selectElement.value = currentSelectedValue;
+            } else {
+                selectElement.value = ""; // Réinitialiser si la valeur n'existe plus
+            }
+        }
+
+        function displayTips(tipsToDisplay) {
+            galerieDiv.innerHTML = ''; // Nettoyer la galerie
+
+            if (tipsToDisplay.length === 0) {
+                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos critères de recherche.</p>';
+                return;
+            }
+
+            // Trier les tips par date, du plus récent au plus ancien
+            tipsToDisplay.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            tipsToDisplay.forEach(tip => {
+                const card = createTipCard(tip);
+                galerieDiv.appendChild(card);
             });
         }
 
         function setupFilters() {
             const applyFilters = () => {
-                const searchText = previewTextInput.value.toLowerCase();
-                const selectedCategory = filtreCategorieSelect.value;
-                const selectedAuteur = filtreAuteurSelect.value;
-                const selectedOutil = filtreOutilSelect.value;
+                const previewText = previewTextInput.value.toLowerCase();
+                const categorie = filtreCategorieSelect.value;
+                const auteur = filtreAuteurSelect.value;
+                const outil = filtreOutilSelect.value;
 
                 const filteredTips = allTips.filter(tip => {
-                    const matchesSearch = searchText === '' ||
-                                          (tip.previewText && tip.previewText.toLowerCase().includes(searchText)) ||
-                                          (tip.titre && tip.titre.toLowerCase().includes(searchText)) ||
-                                          (tip.description && tip.description.toLowerCase().includes(searchText)) ||
-                                          (tip.prompt && tip.prompt.toLowerCase().includes(searchText)) ||
-                                          (tip.exemple && tip.exemple.toLowerCase().includes(searchText));
+                    const matchesPreviewText = !previewText || (tip.previewText && tip.previewText.toLowerCase().includes(previewText)) || (tip.titre && tip.titre.toLowerCase().includes(previewText));
+                    const matchesCategory = !categorie || tip.categorie === categorie;
+                    const matchesAuthor = !auteur || tip.auteur === auteur;
+                    const matchesOutil = !outil || tip.outil === outil;
 
-                    const matchesCategory = selectedCategory === '' || tip.categorie === selectedCategory;
-                    const matchesAuteur = selectedAuteur === '' || tip.auteur === selectedAuteur;
-                    const matchesOutil = selectedOutil === '' || tip.outil === selectedOutil;
-
-                    return matchesSearch && matchesCategory && matchesAuteur && matchesOutil;
+                    return matchesPreviewText && matchesCategory && matchesAuthor && matchesOutil;
                 });
                 displayTips(filteredTips);
             };
@@ -1098,6 +1260,31 @@
             filtreCategorieSelect.addEventListener('change', applyFilters);
             filtreAuteurSelect.addEventListener('change', applyFilters);
             filtreOutilSelect.addEventListener('change', applyFilters);
+        }
+
+        async function deleteTip(id) {
+            try {
+                // Utiliser la fonction de Netlify pour la suppression
+                const response = await fetch(apiBase + 'deleteTip', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ id }),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}. Détails: ${errorText}`);
+                }
+
+                // Si la suppression est réussie, recharger les tips
+                showSuccessMessage('Tip supprimé avec succès !');
+                loadAndDisplayTips(); // Recharge les tips pour mettre à jour l'affichage
+            } catch (error) {
+                console.error("Erreur lors de la suppression du tip:", error);
+                showErrorMessage(`Impossible de supprimer le tip. ${error.message}`);
+            }
         }
     </script>
 </body>
