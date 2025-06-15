@@ -278,7 +278,7 @@
             transform: translateY(-1px);
         }
 
-        .toggle-content-btn {
+        .toggle-content-btn, .edit-btn { /* Ajout de .edit-btn ici */
             background-color: #0077b6; /* Garde la couleur standard des autres boutons */
             color: white;
             border: none;
@@ -292,7 +292,7 @@
             white-space: nowrap;
         }
 
-        .toggle-content-btn:hover {
+        .toggle-content-btn:hover, .edit-btn:hover { /* Ajout de .edit-btn ici */
             background-color: #005f8a;
             transform: translateY(-1px);
         }
@@ -545,7 +545,7 @@
                 justify-content: center;
                 margin-bottom: 5px;
             }
-            .toggle-content-btn, .copier-btn {
+            .toggle-content-btn, .copier-btn, .edit-btn { /* Ajout de .edit-btn ici */
                 width: 100%; /* Les boutons prennent toute la largeur sur petits écrans */
                 text-align: center;
             }
@@ -569,7 +569,7 @@
         /* Styles for the "post-it" preview text on the card */
         .preview-post-it {
             position: absolute;
-            top: 90px; /* Ajusté pour déplacer plus bas */
+            top: 105px; /* Ajusté pour déplacer plus bas */
             right: 10px;
             background-color: #FFFAA0; /* Jaune pastel plus doux */
             color: #333; /* Texte noir par défaut pour le post-it */
@@ -644,7 +644,7 @@
             <button class="close-preview-btn" id="closePreviewBtn"><i class="fas fa-times"></i></button>
         </div>
         <div id="previewPanelContent" class="preview-panel-content">
-        </div>
+            </div>
     </div>
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
@@ -706,6 +706,14 @@
             if (window.location.search.includes('success=1')) {
                 const msg = document.getElementById('success-message');
                 msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+            }
+            // Message de succès pour l'édition
+            if (window.location.search.includes('editSuccess=1')) {
+                const msg = document.getElementById('success-message');
+                msg.textContent = '✅ Tip/Prompt modifié avec succès !';
                 msg.style.opacity = '1';
                 setTimeout(() => msg.style.opacity = '0', 2000);
                 setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
@@ -784,12 +792,22 @@
             infoDiv.innerHTML += `<p><strong>Outil:</strong> ${tip.outil || 'N/A'}</p>`;
             infoDiv.innerHTML += `<p><strong>Catégorie:</strong> ${tip.categorie || 'N/A'}</p>`;
             infoDiv.innerHTML += `<p><strong>Auteur:</strong> ${tip.auteur || 'N/A'}</p>`;
-            // Ligne suivante supprimée: infoDiv.innerHTML += `<p><strong>Chaîne:</strong> ${tip.chaine || 'N/A'}</p>`;
+            // ANCIENNE LIGNE : infoDiv.innerHTML += `<p><strong>Chaîne:</strong> ${tip.chaine || 'N/A'}</p>`;
             if (tip.date) {
                 const dateObj = new Date(tip.date);
                 infoDiv.innerHTML += `<p><strong>Date:</strong> ${dateObj.toLocaleDateString('fr-FR')}</p>`;
             }
             previewPanelContent.appendChild(infoDiv);
+
+            // Bouton Éditer dans le panneau de prévisualisation
+            const editPanelBtn = document.createElement('button');
+            editPanelBtn.className = 'edit-btn'; // Utilise la classe existante pour un style similaire
+            editPanelBtn.textContent = 'Éditer ce tip';
+            editPanelBtn.style.marginTop = '20px'; // Un peu d'espace au-dessus
+            editPanelBtn.addEventListener('click', () => {
+                window.location.href = `editer-tip.html?id=${tip.id}`; // Redirige vers la page d'édition avec l'ID
+            });
+            previewPanelContent.appendChild(editPanelBtn);
 
             previewPanel.classList.add('open');
         }
@@ -805,7 +823,11 @@
             // Vérifie si le clic est en dehors du panneau ET en dehors d'une carte (pour ne pas fermer si on clique sur une autre carte)
             if (previewPanel.classList.contains('open') &&
                 !previewPanel.contains(event.target) &&
-                !event.target.closest('.carte')) {
+                !event.target.closest('.carte') && // Ne ferme pas si on clique sur une carte
+                !event.target.closest('.edit-btn') && // Ne ferme pas si on clique sur le bouton éditer du panneau
+                !event.target.closest('.copier-btn') && // Ne ferme pas si on clique sur le bouton copier du panneau
+                !event.target.closest('.supprimer-btn') // Ne ferme pas si on clique sur le bouton supprimer
+            ) {
                 closePreviewPanel();
             }
         });
@@ -893,7 +915,6 @@
                 carteDiv.className = 'carte';
                 carteDiv.style.borderLeftColor = tip.color || '#0077b6'; // Utilise la couleur du tip ou une couleur par défaut
 
-                // **Modification ici : Suppression de la balise .left-panel et son contenu img**
                 carteDiv.innerHTML = `
                     <div class="infos-wrapper">
                         <div class="outil-badge">${tip.outil || 'Outil inconnu'}</div>
@@ -909,7 +930,7 @@
                             <div class="top-buttons-group">
                                 <button class="toggle-content-btn" onclick="openPreviewPanel(allTips.find(t => t.id === '${tip.id}'))">Aperçu</button>
                                 <button class="copier-btn" onclick="copyPromptToClipboard('${tip.prompt}', event)">Copier</button>
-                            </div>
+                                <button class="edit-btn" onclick="window.location.href='editer-tip.html?id=${tip.id}'">Éditer</button> </div>
                             <button class="supprimer-btn" onclick="deleteTip('${tip.id}', event)"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     </div>
