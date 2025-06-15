@@ -401,22 +401,29 @@ Briefing: ${d.description || 'N/A'}`;
             });
         }
 
+        // MODIFICATION DE LA FONCTION SUPPRIMERDEMANDE
         async function supprimerDemande(id) {
             try {
-                let demandes = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
-                demandes = demandes.filter(d => d.id !== id);
-
-                await fetch(PROXY_URL, {
+                const response = await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "updateDemandeIA", demandes })
+                    body: JSON.stringify({ action: "deleteDemande", id: id }) // Envoie juste l'ID
                 });
 
-                afficherDemandes();
-                mettreAJourBulleDemandes();
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log(result.message);
+                    alert(result.message || "Demande supprimée avec succès !");
+                    afficherDemandes(); // Rafraîchir l'affichage
+                    mettreAJourBulleDemandes(); // Mettre à jour le compteur
+                } else {
+                    console.error("Échec de la suppression (réponse backend) :", result.message);
+                    alert(`Échec de la suppression : ${result.message || "Erreur inconnue."}`);
+                }
             } catch(e) {
-                console.error("Erreur lors de la suppression de la demande :", e);
-                alert("Erreur lors de la suppression. Voir la console pour plus de détails.");
+                console.error("Erreur lors de la suppression de la demande côté client :", e);
+                alert("Erreur lors de la suppression. Vérifiez la console pour plus de détails.");
             }
         }
 
