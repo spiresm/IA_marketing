@@ -31,6 +31,44 @@
             display: block;
         }
 
+        /* Styles pour le loader */
+        #loader {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 10000;
+            transition: opacity 0.3s ease-out;
+        }
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none; /* Permet les clics à travers après la disparition */
+        }
+        .loader-content {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #333;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #0077b6; /* Couleur de votre thème */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-top: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+
         .container {
             max-width: 900px;
             margin: 40px auto;
@@ -408,6 +446,7 @@
         const closePanelBtn = document.querySelector(".close-panel");
         const mainContent = document.querySelector('main');
         const bodyElement = document.body;
+        const loader = document.getElementById("loader"); // Référence au loader
 
         function normalizeString(str) {
             if (typeof str !== 'string') return '';
@@ -756,81 +795,66 @@
             }
         }
 
-        // Fonction principale de chargement des données
-        async function loadData() {
-            console.log("Équipe: Chargement des données initiales...");
+        // Fonction principale de chargement des profils
+        async function loadProfils() {
+            console.log("Équipe: Tentative de récupération des profils...");
             try {
-                const [profilsRes, galleryRes, tipsRes] = await Promise.all([
-                    fetch(`${PROXY_URL}?action=getProfils`),
-                    fetch(`${PROXY_URL}?action=getGalleryPrompts`),
-                    fetch(`${PROXY_URL}?action=getSharedTips`)
-                ]);
-
-                // Traitement des profils
-                if (profilsRes.ok) {
-                    profils = await profilsRes.json();
-                    console.log("Équipe: Profils chargés :", profils.length);
-                } else {
-                    console.error("Équipe: Erreur chargement profils:", await profilsRes.text());
-                    profils = [];
+                const res = await fetch(`${PROXY_URL}?action=getProfils`);
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Erreur HTTP lors de la récupération des profils: ${res.status} - ${errorText}`);
                 }
-
-                // Traitement des prompts de galerie
-                if (galleryRes.ok) {
-                    galleryPrompts = await galleryRes.json();
-                    console.log("Équipe: Prompts de galerie chargés :", galleryPrompts.length);
-                } else {
-                    console.error("Équipe: Erreur chargement prompts de galerie:", await galleryRes.text());
-                    galleryPrompts = [];
-                }
-
-                // Traitement des TIPS
-                if (tipsRes.ok) {
-                    sharedTips = await tipsRes.json();
-                    console.log("Équipe: TIPS chargés :", sharedTips.length);
-                } else {
-                    console.error("Équipe: Erreur chargement TIPS:", await tipsRes.text());
-                    sharedTips = [];
-                }
-                
-                renderProfils();
-                mettreAJourBulleDemandes(); // Met à jour le compteur une fois le header chargé
-
-                // Masquer le loader et afficher le contenu
-                document.getElementById("loader").style.display = "none";
-                bodyElement.classList.add("loaded");
-                mainContent.style.display = "block";
-                console.log("Équipe: Chargement initial terminé. Contenu affiché.");
-
+                const data = await res.json();
+                profils = Array.isArray(data) ? data : [];
+                console.log("Équipe: Profils chargés :", profils.length, profils);
+                renderProfils(); // Affiche les profils une fois chargés
             } catch (error) {
-                console.error("Équipe: Erreur fatale lors du chargement des données :", error);
-                alert("Une erreur est survenue lors du chargement des données initiales. Veuillez réessayer.");
-                // En cas d'erreur, masquer le loader et afficher le contenu vide ou un message d'erreur
-                document.getElementById("loader").style.display = "none";
-                bodyElement.classList.add("loaded");
-                mainContent.style.display = "block";
+                console.error("Équipe: Erreur lors du chargement des profils :", error);
+                listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Erreur lors du chargement des profils. Veuillez vérifier la console pour plus de détails.</p>';
+                profils = [];
             }
         }
 
-        // Charger le header et ensuite les données de la page
-        document.addEventListener("DOMContentLoaded", async () => {
-            console.log("Équipe: DOMContentLoaded. Chargement du header...");
+        // Fonction pour charger le header.html
+        async function loadHeader() {
             try {
-                const headerRes = await fetch("header.html");
-                if (headerRes.ok) {
-                    document.getElementById("header-placeholder").innerHTML = await headerRes.text();
-                    console.log("Équipe: Header chargé.");
-                    loadData(); // Charger les données après le chargement du header
-                } else {
-                    console.error("Équipe: Erreur chargement header:", await headerRes.text());
-                    // Même en cas d'erreur du header, tenter de charger les données
-                    loadData();
-                }
+                const response = await fetch('header.html');
+                if (!response.ok) throw new Error('Network response for header.html was not ok.');
+                document.getElementById('header-placeholder').innerHTML = await response.text();
+                console.log("Équipe: Header chargé.");
             } catch (error) {
-                console.error("Équipe: Erreur réseau lors du chargement du header :", error);
-                loadData(); // Tenter de charger les données même sans header
+                console.error("Équipe: Erreur lors du chargement de l'en-tête:", error);
+                document.getElementById('header-placeholder').innerHTML = '<p style="color: red; text-align: center;">Erreur de chargement de l\'en-tête.</p>';
             }
-        });
+        }
+
+        // Fonction d'initialisation principale qui charge toutes les données
+        async function init() {
+            console.log("Équipe: Début de l'initialisation...");
+            await loadHeader(); // Charge l'en-tête en premier
+
+            // Charge toutes les données en parallèle
+            await Promise.all([
+                loadProfils(),
+                fetchGalleryPrompts(),
+                fetchSharedTips()
+            ]);
+
+            // Après le chargement de toutes les données et du header, mettez à jour la bulle de notification
+            await mettreAJourBulleDemandes();
+
+            // Une fois que tout est chargé, retirez le loader et affichez le contenu
+            loader.classList.add("hidden");
+            loader.addEventListener('transitionend', () => {
+                loader.style.display = 'none'; // Cache complètement le loader après la transition
+                bodyElement.classList.add('loaded'); // Rend la section <main> visible
+                bodyElement.style.opacity = 1; // Rend le corps de la page visible
+            }, { once: true });
+            console.log("Équipe: Initialisation complète et page affichée.");
+        }
+
+        // Déclenche l'initialisation après que le DOM soit entièrement chargé
+        document.addEventListener("DOMContentLoaded", init);
     </script>
 </body>
 </html>
