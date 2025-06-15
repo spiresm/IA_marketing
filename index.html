@@ -3,1079 +3,303 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Galerie des Tips et Prompts - iMarketing</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Accueil - Espace IA</title>
+    <link rel="stylesheet" href="style.css" />
     <style>
-        /* Styles généraux pour l'animation d'apparition de la page */
+        /* CSS spécifique au loader et au corps de page */
+        #loader {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95); /* Fond blanc semi-transparent */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5em;
+            font-family: Arial, sans-serif;
+            color: #0077b6; /* Couleur du texte du loader */
+            z-index: 9999; /* Assure que le loader est au-dessus de tout */
+            opacity: 1; /* Initialement visible */
+            transition: opacity 0.5s ease-out; /* Transition douce pour la disparition */
+        }
+
+        #loader.hidden {
+            opacity: 0; /* Rend le loader transparent */
+            pointer-events: none; /* Empêche les clics sur l'élément transparent */
+        }
+
+        /* Styles généraux du body et du layout */
         body {
-            opacity: 0;
-            transition: opacity 0.5s ease-in;
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Police cohérente */
-            background-color: #f0f2f5;
-            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background-color: #f2f4f8;
             display: flex;
             flex-direction: column;
-            color: #333; /* Couleur de texte principale */
+            min-height: 100vh;
+            opacity: 0; /* Initialement invisible pour l'animation d'apparition */
+            transition: opacity 0.5s ease-in; /* Animation d'apparition du contenu */
         }
+        /* Classe pour rendre le corps de page visible après le chargement */
         body.show {
             opacity: 1;
         }
-        main {
-            opacity: 0;
-            transition: opacity 0.5s ease-in;
+
+        /* Le CSS pour les sections et les tuiles est conservé */
+        .section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
             padding: 40px 20px;
             flex-grow: 1;
         }
-        main.show {
-            opacity: 1;
-        }
 
-        #header-placeholder {
+        .tile {
+            background-color: #ffffff;
             width: 100%;
-        }
-
-        /* Conteneur des contrôles en haut (filtres et boutons) */
-        .header-controls-container {
-            max-width: 960px;
-            margin: 20px auto 25px auto;
-            padding: 0 20px;
-            box-sizing: border-box;
-        }
-
-        /* Conteneur principal de la galerie (la "box" blanche) */
-        .galerie-container {
-            max-width: 960px;
-            margin: 0px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); /* Ombre plus douce */
-            border: 1px solid #eee; /* Bordure subtile */
-        }
-
-        /* Conteneur des filtres et boutons d'action */
-        .filters-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        #filters {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            flex-grow: 1;
-            min-width: 0;
-        }
-
-        #filters input[type="text"],
-        #filters select {
-            padding: 10px 14px; /* Plus de padding */
-            border: 1px solid #ccc; /* Bordure plus neutre */
-            border-radius: 8px;
-            font-size: 0.95em; /* Légèrement plus grand */
-            flex: 1;
-            min-width: 130px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); /* Ombre interne subtile */
-            background-color: #fcfcfc;
-            color: #444;
-        }
-        #filters input[type="text"]::placeholder, #filters select {
-            color: #888;
-        }
-        #filters select:focus, #filters input[type="text"]:focus {
-            border-color: #0077b6; /* Bordure bleue au focus */
-            outline: none;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05), 0 0 0 2px rgba(0, 119, 182, 0.2); /* Ombre focus */
-        }
-
-        #preview-text {
-            min-width: 180px;
-            max-width: 250px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-            align-items: center;
-        }
-
-        .action-buttons a {
-            background: #0077b6;
-            color: white;
-            text-decoration: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: background 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .action-buttons a:hover {
-            background: #005f8a;
-            transform: translateY(-1px);
-        }
-
-        /* Styles for the "Créer un tip" button */
-        .create-tip-button-container {
+            max-width: 900px;
+            border-left: 8px solid #0077b6;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
             text-align: center;
-            margin-top: 20px;
-            margin-bottom: 30px;
         }
 
-        .create-tip-button {
-            background: #4CAF50; /* Vert pour le CTA principal */
-            color: white;
-            text-decoration: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 1.1em;
-            transition: background 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .create-tip-button:hover {
-            background: #45a049; /* Teinte plus foncée au survol */
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        /* Galerie en colonne */
-        #galerie {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            padding: 20px 0;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ************************************************* */
-        /* STYLES POUR CHAQUE PLAQUE (CARTE) */
-        /* ************************************************* */
-        .carte {
-            background: #fff;
-            border-left: 5px solid transparent; /* Couleur définie par JS */
-            border-radius: 12px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: flex-start;
-            padding: 0;
-            position: relative;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
-            box-sizing: border-box;
-            width: 100%;
-            z-index: 1;
-        }
-
-        .carte:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            z-index: 100;
-        }
-
-        /* Conteneur pour toutes les informations textuelles */
-        .infos-wrapper {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            min-width: 0;
-            padding: 20px; /* Plus de padding ici pour un look aéré */
-            width: 100%;
-        }
-
-        /* Nouvelle classe pour le titre du tip */
-        .tip-title {
-            font-size: 1.4em; /* Légèrement plus grand */
-            color: #005f8a;
-            font-weight: bold;
-            margin-bottom: 10px; /* Espace après le titre */
-        }
-
-        /* Badge pour l'outil (dans infos-wrapper) */
-        .outil-badge {
-            background-color: #e0f2f7;
+        .tile h2 {
+            margin-top: 0;
             color: #0077b6;
-            font-size: 0.85em;
-            font-weight: bold;
-            padding: 5px 10px; /* Plus de padding */
-            border-radius: 5px;
-            margin-bottom: 12px; /* Plus d'espace après l'outil */
-            white-space: nowrap;
-            text-transform: uppercase;
-            align-self: flex-start;
         }
 
-        /* Section des métadonnées (Auteur, Catégorie) */
-        .metadata-section {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 4px 12px; /* Espacement ajusté */
-            font-size: 0.95em; /* Légèrement plus grand */
+        .tile p {
             color: #555;
-            margin-bottom: 10px; /* Plus d'espace */
-            padding-bottom: 8px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .metadata-label {
-            font-weight: bold;
-            color: #333;
-            white-space: nowrap;
-        }
-
-        .metadata-value {
-            color: #666;
-            word-break: break-word;
-        }
-        .metadata-value.auteur-value {
-            font-size: 1em;
-            color: #444;
-            font-weight: normal;
-        }
-
-        /* Texte du prompt et description */
-        .text-display {
-            font-size: 0.95em; /* Plus grand */
-            color: #444;
-            line-height: 1.5;
-            background-color: #f9f9f9;
-            border: 1px solid #eee;
-            border-radius: 8px; /* Rayon plus prononcé */
-            padding: 10px 15px; /* Plus de padding */
-            margin-bottom: 10px;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        /* Boutons d'action sur la carte */
-        .card-actions {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            margin-top: auto;
-            padding-top: 10px;
-            width: 100%;
-        }
-
-        .top-buttons-group {
-            display: flex;
-            gap: 12px; /* Espace entre Aperçu, Copier, Éditer */
-            margin-bottom: 8px; /* Petit espace sous le groupe de boutons */
-            align-items: center;
-            flex-wrap: wrap; /* Permet aux boutons de passer à la ligne sur petits écrans */
-        }
-
-        /* Styles spécifiques pour le bouton "Copier le prompt" */
-        .copier-btn {
-            background-color: #64B5F6; /* Bleu plus clair */
-            color: white;
-            border: none;
-            padding: 8px 16px; /* Plus de padding */
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9em;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
-
-        .copier-btn:hover {
-            background-color: #42A5F5;
-            transform: translateY(-1px);
-        }
-
-        .toggle-content-btn, .edit-btn {
-            background-color: #0077b6; /* Bleu standard */
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9em;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
-
-        .toggle-content-btn:hover, .edit-btn:hover {
-            background-color: #005f8a;
-            transform: translateY(-1px);
-        }
-
-        /* Styles pour le bouton supprimer (corbeille) */
-        .supprimer-btn {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 1.4em; /* Légèrement plus grand */
-            cursor: pointer;
-            transition: color 0.2s, transform 0.1s;
-            padding: 5px 8px; /* Plus de padding */
-            align-self: flex-start;
-        }
-
-        .supprimer-btn:hover {
-            color: #dc3545;
-            transform: translateY(-1px);
-        }
-
-        #success-message {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-            padding: 12px 20px; /* Plus de padding */
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 20px;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        /* Styles pour le loader */
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #0077b6; /* Bleu de la charte */
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 50px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Message d'erreur */
-        .error-message {
-            text-align: center;
-            color: #dc3545;
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            border-radius: 8px;
-        }
-
-        /* Styles for the new right-side preview panel */
-        .preview-panel {
-            position: fixed;
-            top: 0;
-            right: -760px; /* Masqué par défaut */
-            width: 740px;
-            max-width: 90%;
-            height: 100%;
-            background-color: #fff;
-            box-shadow: -6px 0 20px rgba(0, 0, 0, 0.15); /* Ombre plus prononcée */
-            transition: right 0.3s ease-in-out;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            padding: 25px; /* Plus de padding */
-            box-sizing: border-box;
-            overflow-y: auto;
-        }
-
-        .preview-panel.open {
-            right: 0;
-        }
-
-        .preview-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px; /* Plus d'espace */
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .preview-panel-header h3 {
-            margin: 0;
-            color: #333;
-            font-size: 1.3em; /* Plus grand */
-        }
-
-        .close-preview-btn {
-            background: none;
-            border: none;
-            font-size: 1.6em; /* Plus grand */
-            cursor: pointer;
-            color: #888;
-            transition: color 0.2s;
-        }
-
-        .close-preview-btn:hover {
-            color: #333;
-        }
-
-        .preview-panel-content {
-            flex-grow: 1;
-            font-size: 1em;
             line-height: 1.6;
-            color: #444;
-            font-weight: normal;
         }
 
-        .preview-panel-content strong {
+        /* CSS pour le bloc ChatGPT */
+        .chatgpt-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-top: 50px;
+        }
+        .chatgpt-box {
+            width: 100%;
+            max-width: 650px;
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 119, 182, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 24px;
+            align-items: center;
+        }
+        .chatgpt-box h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            text-align: center;
             color: #333;
-        }
-
-        /* Styles pour l'image dans le panneau d'aperçu */
-        .preview-panel-image {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin-bottom: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-
-        /* Styles pour le cartouche jaune du texte de prévisualisation dans le panneau de droite */
-        .preview-text-card-yellow {
-            background-color: #FFFAA0; /* Jaune pastel du post-it */
-            color: #333;
-            padding: 12px 18px; /* Plus de padding */
-            border-radius: 8px;
-            margin-bottom: 20px; /* Espace sous le cartouche */
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: 1em; /* Légèrement plus grand */
-            line-height: 1.5;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        /* Style pour les cartouches bleus clairs pour Description, Exemple */
-        .content-card-blue {
-            background-color: #E0F2F7; /* Bleu très clair */
-            color: #005f8a;
-            padding: 12px 18px; /* Plus de padding */
-            border-radius: 8px;
-            margin-bottom: 20px;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: 0.95em; /* Légèrement plus grand */
-            line-height: 1.4;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        /* Style pour le prompt (revenir au style initial) */
-        .prompt-content-pre {
-            background-color: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 8px; /* Rayon plus prononcé */
-            padding: 12px;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.9em;
-            margin-top: 8px;
-            font-weight: normal;
-            margin-bottom: 15px;
-        }
-
-        /* Style pour le bouton Copier dans le panneau latéral */
-        .copy-panel-btn {
-            background-color: #64B5F6; /* Bleu clair similaire au bouton de la carte */
-            color: white;
-            border: none;
-            padding: 10px 20px; /* Plus de padding */
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.95em; /* Légèrement plus grand */
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-            margin-top: -10px;
-            margin-bottom: 20px;
-            align-self: flex-start;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .copy-panel-btn:hover {
-            background-color: #42A5F5;
-            transform: translateY(-1px);
-        }
-
-        /* Media queries pour la responsivité */
-        @media (max-width: 992px) {
-            .preview-panel {
-                width: 100%;
-                right: -100%;
-            }
-            .preview-panel.open {
-                right: 0;
-            }
-        }
-        @media (max-width: 768px) {
-            .filters-header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            #filters {
-                flex-direction: column;
-                gap: 15px;
-            }
-            #filters input, #filters select {
-                min-width: unset;
-                max-width: unset;
-                width: 100%;
-            }
-            .action-buttons {
-                flex-direction: column;
-                width: 100%;
-                justify-content: center;
-            }
-            .action-buttons a {
-                width: 100%;
-                text-align: center;
-            }
-            .infos-wrapper {
-                padding: 15px;
-                width: auto;
-            }
-            .metadata-section {
-                grid-template-columns: 1fr;
-                gap: 5px;
-            }
-            .card-actions {
-                align-items: center;
-            }
-            .top-buttons-group {
-                flex-direction: column;
-                gap: 8px;
-                width: 100%;
-                justify-content: center;
-                margin-bottom: 8px;
-            }
-            .toggle-content-btn, .copier-btn, .edit-btn {
-                width: 100%;
-                text-align: center;
-            }
-            .supprimer-btn {
-                width: auto;
-                align-self: center;
-            }
-            .create-tip-button-container {
-                margin-top: 15px;
-                margin-bottom: 20px;
-            }
-            .preview-post-it {
-                position: static;
-                margin-top: 10px;
-                max-width: unset;
-                text-align: center;
-                transform: none;
-                font-size: 1.1em;
-            }
-        }
-
-        /* Styles for the "post-it" preview text on the card */
-        .preview-post-it {
-            position: absolute;
-            top: 70px;
-            right: 15px; /* Déplacé légèrement vers la droite pour le padding */
-            background-color: #FFFAA0;
-            color: #333;
-            padding: 12px; /* Plus de padding */
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            font-size: 1em;
             font-weight: bold;
-            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .chatgpt-box h3::before {
+            content: "💬";
+            font-size: 1.2rem;
+        }
+        .chatgpt-box textarea {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .chatgpt-box .btn {
+            padding: 12px 30px;
+            background-color: #0077b6;
+            color: #fff;
+            font-weight: bold;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .chatgpt-box .btn:hover {
+            background-color: #005f8c;
+        }
+        #reponse {
             white-space: pre-wrap;
-            word-break: break-word;
-            max-width: 180px;
-            transform: rotate(2deg);
+            background: #f4faff;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid #cce5ff;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            color: #333;
+            max-width: 500px;
+            margin: 0 auto;
         }
 
+        /* Style pour le footer (désormais un placeholder) */
+        #footer-placeholder {
+            text-align: center;
+            padding: 20px;
+            color: #777;
+            font-size: 0.85rem;
+            margin-top: auto;
+        }
     </style>
 </head>
 <body>
+    <div id="loader">
+        Chargement...
+    </div>
+
     <div id="header-placeholder"></div>
 
-    <main>
-        <div class="header-controls-container">
-            <div class="filters-header">
-                <div id="filters">
-                    <input type="text" id="preview-text" placeholder="Rechercher dans le texte..." />
-                    <select id="filtre-categorie">
-                        <option value="">Toutes les catégories</option>
-                        <option>Marketing Digital</option>
-                        <option>Réseaux Sociaux</option>
-                        <option>SEO</option>
-                        <option>Contenu</option>
-                        <option>Publicité</option>
-                        <option>Outils IA</option>
-                        <option>Stratégie</option>
-                        <option>Autre</option>
-                    </select>
-                    <select id="filtre-auteur">
-                        <option value="">Tous les auteurs</option>
-                    </select>
-                    <select id="filtre-outil">
-                        <option value="">Tous les outils</option>
-                        <option>Midjourney</option>
-                        <option>DALL·E</option>
-                        <option>Stable Diffusion</option>
-                        <option>Adobe Firefly</option>
-                        <option>Runway</option>
-                        <option>ChatGPT</option>
-                        <option>Autre</option>
-                    </select>
-                </div>
-                <div class="action-buttons">
-                    </div>
-            </div>
-            <div class="create-tip-button-container">
-                <a href="creer-tip.html" class="create-tip-button">Créer un tip</a>
-            </div>
-        </div>
+    <div class="section">
+        <div class="tile">
+            <h2>Bienvenue sur l’espace IA Marketing</h2>
+            <p>
+                Cette plateforme collaborative vous permet de découvrir, partager et capitaliser sur les usages de l’intelligence artificielle au sein de notre organisation. Que vous cherchiez des outils, des prompts, des cas d’usage inspirants ou que vous souhaitiez contribuer avec vos propres astuces, tout est centralisé ici pour accompagner votre montée en compétence et faciliter l’adoption de l’IA au quotidien.
+            </p>
 
-        <div class="galerie-container">
-            <div id="success-message"></div>
-            <div id="galerie">
-                <div class="loader"></div> <p style="text-align: center; color: #555;">Chargement des tips...</p>
+            <div class="chatgpt-wrapper">
+                <div class="chatgpt-box">
+                    <h3>Discuter avec ChatGPT</h3>
+                    <textarea id="user-input" rows="4" placeholder="Pose ta question ici..."></textarea>
+                    <button class="btn" onclick="envoyer()">Envoyer</button>
+                    <pre id="reponse"></pre>
+                </div>
             </div>
-            <div id="error-display" class="error-message" style="display: none;"></div>
         </div>
-    </main>
+    </div>
 
     <div id="footer-placeholder"></div>
 
-    <div id="previewPanel" class="preview-panel">
-        <div class="preview-panel-header">
-            <h3 id="previewPanelTitle">Aperçu du contenu</h3>
-            <button class="close-preview-btn" id="closePreviewBtn"><i class="fas fa-times"></i></button>
-        </div>
-        <div id="previewPanelContent" class="preview-panel-content">
-            </div>
-    </div>
     <script>
-        const apiBase = window.location.origin + '/.netlify/functions/';
-        let allTips = [];
-        const galerieDiv = document.getElementById('galerie');
-        const errorDisplay = document.getElementById('error-display');
-        const filtreAuteurSelect = document.getElementById('filtre-auteur');
-        const filtreCategorieSelect = document.getElementById('filtre-categorie');
-        const filtreOutilSelect = document.getElementById('filtre-outil');
+        const PROXY_URL = "/.netlify/functions/proxy"; // URL pour la Netlify Function qui récupère les données de Google Sheets
+        const apiBase = window.location.origin + '/.netlify/functions/'; // Pour les fonctions CRUD
 
-        const previewTextInput = document.getElementById('preview-text');
-
-        const previewPanel = document.getElementById('previewPanel');
-        const previewPanelTitle = document.getElementById('previewPanelTitle');
-        const previewPanelContent = document.getElementById('previewPanelContent');
-        const closePreviewBtn = document.getElementById('closePreviewBtn');
-        const bodyElement = document.body;
+        // Cette fonction sera appelée par le header pour mettre à jour la bulle
+        async function mettreAJourBulleDemandes() {
+            const notif = document.getElementById("notif-count");
+            if (!notif) {
+                console.warn("Élément #notif-count non trouvé. La bulle de notification ne peut pas être mise à jour.");
+                return;
+            }
+            try {
+                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                const demandes = await res.json();
+                const demandesNonTraitees = demandes.filter(d => !d.traite);
+                notif.textContent = demandesNonTraitees.length;
+                notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
+            } catch (e) {
+                console.error("Erreur lors de la mise à jour du compteur de demandes :", e);
+                notif.style.display = "none";
+            }
+        }
 
         document.addEventListener("DOMContentLoaded", () => {
+            const loader = document.getElementById("loader");
+            const body = document.body;
             const headerPlaceholder = document.getElementById("header-placeholder");
             const footerPlaceholder = document.getElementById("footer-placeholder");
-            const mainElement = document.querySelector("main");
 
+            // Fonction pour charger les composants (header/footer)
             const loadComponent = async (url, placeholderId, errorMessage) => {
-                console.log(`Attempting to load ${url} into #${placeholderId}`);
                 try {
                     const res = await fetch(url);
                     if (!res.ok) {
-                        const errorDetail = await res.text();
-                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                        throw new Error(`HTTP error! status: ${res.status}`);
                     }
                     document.getElementById(placeholderId).innerHTML = await res.text();
-                    console.log(`${url} loaded successfully.`);
                 } catch (error) {
-                    console.error(`Error loading ${url}:`, error);
+                    console.error(`Erreur lors du chargement de ${url}:`, error);
                     document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
                 }
             };
 
+            // Charger le header et le footer en parallèle
             Promise.all([
                 loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu"),
                 loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
             ])
             .then(() => {
-                const activeLink = document.querySelector("nav a[href='galerie.html']");
-                if (activeLink) {
-                    activeLink.classList.add("active");
-                }
+                // Une fois que les deux composants sont chargés
+                // Mettre à jour la bulle de notification après le chargement du header
+                mettreAJourBulleDemandes();
+
+                // Marquer le lien "Accueil" comme actif
+                const path = location.pathname.split("/").pop();
+                const links = document.querySelectorAll("nav a");
+                links.forEach(link => {
+                    if (path === "" || path === "index.html") {
+                        if (link.getAttribute("href") === "index.html") {
+                            link.classList.add("active");
+                        }
+                    } else if (link.getAttribute("href") === path) {
+                        link.classList.add("active");
+                    }
+                });
+
+                // Cacher le loader et afficher le contenu du body
+                loader.classList.add("hidden");
+                body.classList.add("show");
             })
             .catch(error => {
-                console.error("General issue loading components:", error);
-            })
-            .finally(() => {
-                bodyElement.classList.add("show");
-                mainElement.classList.add("show");
-                loadAndDisplayTips();
+                console.error("Erreur générale lors du chargement des composants :", error);
+                // Si une erreur se produit, masquer le loader et afficher le body quand même
+                loader.classList.add("hidden");
+                body.classList.add("show");
             });
-
-            if (window.location.search.includes('success=1')) {
-                const msg = document.getElementById('success-message');
-                msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
-                msg.style.opacity = '1';
-                setTimeout(() => msg.style.opacity = '0', 2000);
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-            }
-            // Message de succès pour l'édition
-            if (window.location.search.includes('editSuccess=1')) {
-                const msg = document.getElementById('success-message');
-                msg.textContent = '✅ Tip/Prompt modifié avec succès !';
-                msg.style.opacity = '1';
-                setTimeout(() => msg.style.opacity = '0', 2000);
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-            }
-
-            setupFilters();
         });
 
-        function openPreviewPanel(tip) {
-            previewPanelTitle.textContent = `Aperçu : ${tip.titre || 'Sans titre'}`;
-            previewPanelContent.innerHTML = '';
-
-            // Afficher l'image si elle existe
-            if (tip.imageUrl) {
-                const img = document.createElement('img');
-                img.className = 'preview-panel-image';
-                img.src = tip.imageUrl;
-                img.alt = `Image pour ${tip.titre || 'ce tip'}`;
-                previewPanelContent.appendChild(img);
-            }
-
-            // Afficher le previewText dans un cartouche jaune
-            if (tip.previewText) {
-                const previewDiv = document.createElement('div');
-                previewDiv.className = 'preview-text-card-yellow';
-                previewDiv.textContent = tip.previewText;
-                previewPanelContent.appendChild(previewDiv);
-            }
-
-            // Afficher la description dans un cartouche bleu clair, sans le label "Description :"
-            if (tip.description) {
-                const descriptionPre = document.createElement('pre');
-                descriptionPre.className = 'content-card-blue';
-                descriptionPre.textContent = tip.description;
-                previewPanelContent.appendChild(descriptionPre);
-            }
-
-            // Afficher le prompt avec son style d'origine (fond gris clair)
-            if (tip.prompt) {
-                const promptHtml = document.createElement('p');
-                promptHtml.innerHTML = `<strong>Prompt :</strong>`;
-                previewPanelContent.appendChild(promptHtml);
-                const promptPre = document.createElement('pre');
-                promptPre.className = 'prompt-content-pre';
-                promptPre.textContent = tip.prompt;
-                previewPanelContent.appendChild(promptPre);
-
-                // Ajouter le bouton "Copier le prompt" en dessous du prompt
-                const copyPromptPanelBtn = document.createElement('button');
-                copyPromptPanelBtn.className = 'copy-panel-btn';
-                copyPromptPanelBtn.textContent = 'Copier le prompt';
-                copyPromptPanelBtn.addEventListener('click', () => {
-                    navigator.clipboard.writeText(tip.prompt).then(() => {
-                        showSuccessMessage('Prompt copié !');
-                    }).catch(err => {
-                        console.error('Erreur lors de la copie du prompt:', err);
-                        showErrorMessage('Erreur lors de la copie.');
-                    });
-                });
-                previewPanelContent.appendChild(copyPromptPanelBtn);
-            }
-
-            // Afficher l'exemple dans un cartouche bleu clair
-            if (tip.exemple) {
-                const exempleHtml = document.createElement('p');
-                exempleHtml.innerHTML = `<strong>Exemple :</strong>`;
-                previewPanelContent.appendChild(exempleHtml);
-                const exemplePre = document.createElement('pre');
-                exemplePre.className = 'content-card-blue';
-                exemplePre.textContent = tip.exemple;
-                previewPanelContent.appendChild(exemplePre);
-            }
-
-            // Ajout des informations Auteur, Catégorie, Date, Outil
-            const infoDiv = document.createElement('div');
-            infoDiv.innerHTML += `<p><strong>Outil:</strong> ${tip.outil || 'N/A'}</p>`;
-            infoDiv.innerHTML += `<p><strong>Catégorie:</strong> ${tip.categorie || 'N/A'}</p>`;
-            infoDiv.innerHTML += `<p><strong>Auteur:</strong> ${tip.auteur || 'N/A'}</p>`;
-            if (tip.date) {
-                const dateObj = new Date(tip.date);
-                infoDiv.innerHTML += `<p><strong>Date:</strong> ${dateObj.toLocaleDateString('fr-FR')}</p>`;
-            }
-            previewPanelContent.appendChild(infoDiv);
-
-            previewPanel.classList.add('open');
-        }
-
-        function closePreviewPanel() {
-            previewPanel.classList.remove('open');
-        }
-
-        closePreviewBtn.addEventListener('click', closePreviewPanel);
-
-        // Modifié pour que le clic en dehors du panneau ou d'une carte ferme le panneau
-        document.addEventListener('click', (event) => {
-            if (previewPanel.classList.contains('open') &&
-                !previewPanel.contains(event.target) &&
-                !event.target.closest('.carte') &&
-                !event.target.closest('.edit-btn') &&
-                !event.target.closest('.copier-btn') &&
-                !event.target.closest('.supprimer-btn') &&
-                !event.target.closest('.toggle-content-btn') && /* Empêche de fermer si on clique sur le bouton "Aperçu complet" */
-                !event.target.closest('.copy-panel-btn') /* Empêche de fermer si on clique sur le bouton "Copier du panneau" */
-            ) {
-                closePreviewPanel();
-            }
-        });
-
-        async function loadAndDisplayTips() {
-            galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center; color: #555;">Chargement des tips...</p>';
-            errorDisplay.style.display = 'none';
+        async function envoyer() {
+            const userMessage = document.getElementById("user-input").value;
+            // Afficher un message de chargement
+            document.getElementById("reponse").textContent = "Chargement de la réponse...";
 
             try {
-                const response = await fetch(`${apiBase}getTips`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                allTips = data.tips || [];
-
-                populateFilters(allTips);
-                filterAndDisplayTips();
-            } catch (error) {
-                console.error("Erreur lors du chargement des tips :", error);
-                galerieDiv.innerHTML = '';
-                errorDisplay.textContent = `Erreur lors du chargement des tips : ${error.message}. Veuillez réessayer.`;
-                errorDisplay.style.display = 'block';
-            }
-        }
-
-        function populateFilters(tips) {
-            const auteurs = new Set();
-            const outils = new Set();
-
-            tips.forEach(tip => {
-                if (tip.auteur) auteurs.add(tip.auteur);
-                if (tip.outil) outils.add(tip.outil);
-            });
-
-            // Populate Auteur filter
-            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
-            Array.from(auteurs).sort().forEach(auteur => {
-                const option = document.createElement('option');
-                option.value = auteur;
-                option.textContent = auteur;
-                filtreAuteurSelect.appendChild(option);
-            });
-        }
-
-        function setupFilters() {
-            filtreAuteurSelect.addEventListener('change', filterAndDisplayTips);
-            filtreCategorieSelect.addEventListener('change', filterAndDisplayTips);
-            filtreOutilSelect.addEventListener('change', filterAndDisplayTips);
-            previewTextInput.addEventListener('input', filterAndDisplayTips);
-        }
-
-        function filterAndDisplayTips() {
-            const selectedAuteur = filtreAuteurSelect.value;
-            const selectedCategorie = filtreCategorieSelect.value;
-            const selectedOutil = filtreOutilSelect.value;
-            const previewTextFilter = previewTextInput.value.toLowerCase();
-
-            galerieDiv.innerHTML = '';
-            errorDisplay.style.display = 'none';
-
-            const filteredTips = allTips.filter(tip => {
-                const matchesAuteur = selectedAuteur === '' || tip.auteur === selectedAuteur;
-                const matchesCategorie = selectedCategorie === '' || tip.categorie === selectedCategorie;
-                const matchesOutil = selectedOutil === '' || tip.outil === selectedOutil;
-                const matchesPreviewText = previewTextFilter === '' ||
-                    (tip.previewText && tip.previewText.toLowerCase().includes(previewTextFilter)) ||
-                    (tip.titre && tip.titre.toLowerCase().includes(previewTextFilter)) ||
-                    (tip.description && tip.description.toLowerCase().includes(previewTextFilter)) ||
-                    (tip.prompt && tip.prompt.toLowerCase().includes(previewTextFilter)) ||
-                    (tip.exemple && tip.exemple.toLowerCase().includes(previewTextFilter));
-
-                return matchesAuteur && matchesCategorie && matchesOutil && matchesPreviewText;
-            });
-
-            if (filteredTips.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos filtres.</p>';
-                return;
-            }
-
-            filteredTips.forEach(tip => {
-                galerieDiv.appendChild(createTipCard(tip));
-            });
-        }
-
-        function getBorderColor(category) {
-            switch (category) {
-                case 'Marketing Digital': return '#FFC107'; // Jaune
-                case 'Réseaux Sociaux': return '#2196F3'; // Bleu
-                case 'SEO': return '#4CAF50'; // Vert
-                case 'Contenu': return '#9C27B0'; // Violet
-                case 'Publicité': return '#FF5722'; // Orange
-                case 'Outils IA': return '#607D8B'; // Gris-bleu
-                case 'Stratégie': return '#E91E63'; // Rose
-                case 'Autre': return '#9E9E9E'; // Gris
-                default: return '#ccc'; // Gris par défaut
-            }
-        }
-
-        function createTipCard(tip) {
-            const carte = document.createElement('div');
-            carte.className = 'carte';
-            carte.style.borderLeftColor = getBorderColor(tip.categorie);
-
-            const infosWrapper = document.createElement('div');
-            infosWrapper.className = 'infos-wrapper';
-
-            const tipTitle = document.createElement('div');
-            tipTitle.className = 'tip-title';
-            tipTitle.textContent = tip.titre || 'Sans titre';
-            infosWrapper.appendChild(tipTitle);
-
-            if (tip.outil) {
-                const outilBadge = document.createElement('span');
-                outilBadge.className = 'outil-badge';
-                outilBadge.textContent = tip.outil;
-                infosWrapper.appendChild(outilBadge);
-            }
-
-            const metadataSection = document.createElement('div');
-            metadataSection.className = 'metadata-section';
-
-            metadataSection.innerHTML += `<span class="metadata-label">Auteur :</span><span class="metadata-value auteur-value">${tip.auteur || 'N/A'}</span>`;
-            metadataSection.innerHTML += `<span class="metadata-label">Catégorie :</span><span class="metadata-value">${tip.categorie || 'N/A'}</span>`;
-            if (tip.date) {
-                const dateObj = new Date(tip.date);
-                metadataSection.innerHTML += `<span class="metadata-label">Date :</span><span class="metadata-value">${dateObj.toLocaleDateString('fr-FR')}</span>`;
-            }
-            infosWrapper.appendChild(metadataSection);
-
-            if (tip.description) {
-                const descriptionDisplay = document.createElement('div');
-                descriptionDisplay.className = 'text-display';
-                descriptionDisplay.textContent = tip.description;
-                infosWrapper.appendChild(descriptionDisplay);
-            }
-
-            const cardActions = document.createElement('div');
-            cardActions.className = 'card-actions';
-
-            const topButtonsGroup = document.createElement('div');
-            topButtonsGroup.className = 'top-buttons-group';
-
-            const toggleBtn = document.createElement('button');
-            toggleBtn.className = 'toggle-content-btn';
-            toggleBtn.textContent = 'Aperçu complet';
-            toggleBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                openPreviewPanel(tip);
-            });
-            topButtonsGroup.appendChild(toggleBtn);
-
-            const copyPromptBtn = document.createElement('button');
-            copyPromptBtn.className = 'copier-btn';
-            copyPromptBtn.textContent = 'Copier le prompt';
-            copyPromptBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                if (tip.prompt) {
-                    navigator.clipboard.writeText(tip.prompt).then(() => {
-                        showSuccessMessage('Prompt copié !');
-                    }).catch(err => {
-                        console.error('Erreur lors de la copie du prompt:', err);
-                        showErrorMessage('Erreur lors de la copie.');
-                    });
-                } else {
-                    showErrorMessage('Pas de prompt à copier pour ce tip.');
-                }
-            });
-            topButtonsGroup.appendChild(copyPromptBtn);
-
-            const editBtn = document.createElement('button');
-            editBtn.className = 'edit-btn';
-            editBtn.textContent = 'Éditer';
-            editBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                window.location.href = `editer-tip.html?id=${tip.id}`;
-            });
-            topButtonsGroup.appendChild(editBtn);
-
-            cardActions.appendChild(topButtonsGroup);
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'supprimer-btn';
-            deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-            deleteBtn.title = 'Supprimer ce tip';
-            deleteBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                if (confirm('Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.')) {
-                    deleteTip(tip.id);
-                }
-            });
-            cardActions.appendChild(deleteBtn);
-
-            infosWrapper.appendChild(cardActions);
-            carte.appendChild(infosWrapper);
-
-            // Ajoutez le "post-it" de prévisualisation si le texte existe
-            if (tip.previewText) {
-                const previewPostIt = document.createElement('div');
-                previewPostIt.className = 'preview-post-it';
-                previewPostIt.textContent = tip.previewText;
-                carte.appendChild(previewPostIt);
-            }
-
-            return carte;
-        }
-
-        async function deleteTip(id) {
-            try {
-                const response = await fetch(`${apiBase}deleteTip`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id })
+                const response = await fetch("/.netlify/functions/chat-clean", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: userMessage })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                const text = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    document.getElementById("reponse").textContent = "❌ Erreur : réponse non JSON\n" + text;
+                    console.error("Erreur de parsing JSON de la réponse de chat-clean:", e, text);
+                    return;
                 }
 
-                const result = await response.json();
-                if (result.success) {
-                    showSuccessMessage('Tip supprimé avec succès !');
-                    loadAndDisplayTips();
+                if (data.error) {
+                    document.getElementById("reponse").textContent = `❌ Erreur API : ${data.error}`;
+                    console.error("Erreur renvoyée par l'API chat-clean:", data.error);
                 } else {
-                    throw new Error(result.message || 'Échec de la suppression du tip.');
+                    document.getElementById("reponse").textContent = data.reply || "✅ Pas de réponse générée.";
                 }
-            } catch (error) {
-                console.error("Erreur lors de la suppression du tip :", error);
-                showErrorMessage(`Erreur de suppression : ${error.message}`);
+            } catch (networkError) {
+                document.getElementById("reponse").textContent = `❌ Erreur réseau ou fonction Netlify inaccessible: ${networkError.message}`;
+                console.error("Erreur réseau ou fonction Netlify inaccessible:", networkError);
             }
-        }
-
-        function showSuccessMessage(message) {
-            const msg = document.getElementById('success-message');
-            msg.textContent = message;
-            msg.style.opacity = '1';
-            setTimeout(() => msg.style.opacity = '0', 2000);
-        }
-
-        function showErrorMessage(message) {
-            errorDisplay.textContent = message;
-            errorDisplay.style.display = 'block';
-            setTimeout(() => errorDisplay.style.display = 'none', 5000);
         }
     </script>
 </body>
