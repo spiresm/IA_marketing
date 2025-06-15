@@ -209,20 +209,11 @@
 
             <div class="recap">
                 <h3>Récapitulatif des demandes</h3>
-                <select id="filtreDuree" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
-                    <option value="">Filtrer par durée</option>
-                    <option value="10 sec">10 sec</option>
-                    <option value="20 sec">20 sec</option>
-                    <option value="30 sec">30 sec</option>
-                    <option value="40 sec">40 sec</option>
-                    <option value="50 sec">50 sec</option>
-                    <option value="60 sec">60 sec</option>
-                </select>
-                <input type="text" id="filtreNom" placeholder="Filtrer par nom" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;" />
-                <select id="filtreDate" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-                    <option value="">Trier par date</option>
-                    <option value="asc">Date croissante</option>
-                    <option value="desc">Date décroissante</option>
+                <input type="text" id="filtreDemandeur" placeholder="Filtrer par demandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;" />
+                <select id="trierParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <option value="">Trier par chaîne</option>
+                    <option value="asc">Chaîne (A-Z)</option>
+                    <option value="desc">Chaîne (Z-A)</option>
                 </select>
                 <div id="recapList"></div>
             </div>
@@ -315,9 +306,8 @@
 
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            const filtreNom = document.getElementById("filtreNom").value.toLowerCase();
-            const filtreDate = document.getElementById("filtreDate").value;
-            const filtreDuree = document.getElementById("filtreDuree").value;
+            const filtreDemandeur = document.getElementById("filtreDemandeur").value.toLowerCase(); // Nouveau filtre
+            const trierParChaine = document.getElementById("trierParChaine").value; // Nouveau tri
 
             let demandes = []; // Initialiser comme un tableau vide
             try {
@@ -337,15 +327,14 @@
                 return;
             }
 
-            // Filtrage des demandes
-            demandes = demandes.filter(d => d.nom && d.nom.toLowerCase().includes(filtreNom)); // Ajout d.nom && pour éviter erreur si nom est undefined
-            if (filtreDuree) demandes = demandes.filter(d => d.duree === filtreDuree);
+            // Filtrage des demandes par demandeur
+            demandes = demandes.filter(d => d.nom && d.nom.toLowerCase().includes(filtreDemandeur)); 
             
-            // Tri des demandes
-            if (filtreDate === "asc") {
-                demandes.sort((a, b) => new Date(a.date) - new Date(b.date));
-            } else if (filtreDate === "desc") {
-                demandes.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Tri des demandes par chaîne
+            if (trierParChaine === "asc") {
+                demandes.sort((a, b) => (a.chaine || '').localeCompare(b.chaine || ''));
+            } else if (trierParChaine === "desc") {
+                demandes.sort((a, b) => (b.chaine || '').localeCompare(a.chaine || ''));
             }
 
             recapList.innerHTML = ""; // Vide la liste avant de la remplir
@@ -554,9 +543,8 @@ Briefing: ${d.description || 'N/A'}`;
             });
 
             // Écouteurs d'événements pour les filtres
-            document.getElementById("filtreNom").addEventListener("input", afficherDemandes);
-            document.getElementById("filtreDate").addEventListener("change", afficherDemandes);
-            document.getElementById("filtreDuree").addEventListener("change", afficherDemandes);
+            document.getElementById("filtreDemandeur").addEventListener("input", afficherDemandes); // Écouteur pour le nouveau filtre
+            document.getElementById("trierParChaine").addEventListener("change", afficherDemandes); // Écouteur pour le nouveau tri
 
             // Gestion de la modale
             document.querySelector(".close-modal").addEventListener("click", () => {
