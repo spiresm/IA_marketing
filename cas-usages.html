@@ -586,30 +586,19 @@
             transform: rotate(2deg); /* Slightly rotate for a "post-it" feel */
         }
 
-        /* FOOTER STYLES */
+        /* Styles pour le footer */
         footer {
             background-color: #333;
             color: white;
             text-align: center;
-            padding: 20px 0;
-            margin-top: 40px; /* Espace au-dessus du footer */
+            padding: 20px;
+            margin-top: 40px; /* Ajoute un espace au-dessus du footer */
             width: 100%;
         }
 
         footer p {
             margin: 0;
             font-size: 0.9em;
-        }
-
-        footer .social-icons a {
-            color: white;
-            margin: 0 10px;
-            font-size: 1.5em;
-            transition: color 0.3s ease;
-        }
-
-        footer .social-icons a:hover {
-            color: #0077b6; /* Couleur de survol pour les icônes sociales */
         }
     </style>
 </head>
@@ -672,17 +661,6 @@
         <div id="previewPanelContent" class="preview-panel-content">
             </div>
     </div>
-
-    <footer>
-        <p>&copy; 2025 iMarketing. Tous droits réservés.</p>
-        <div class="social-icons">
-            <a href="#" target="_blank" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-            <a href="#" target="_blank" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-            <a href="#" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
-            <a href="#" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-        </div>
-    </footer>
-
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = [];
@@ -843,73 +821,238 @@
             editPanelBtn.textContent = 'Éditer ce tip';
             editPanelBtn.style.marginTop = '20px'; // Un peu d'espace au-dessus
             editPanelBtn.addEventListener('click', () => {
-                window.location.href = `editer-tip.html?id=${tip.id}`; // Redirige vers la page d'édition avec l'ID
+                window.location.href = `editer-tip.html?id=${tip.id}`;
             });
             previewPanelContent.appendChild(editPanelBtn);
             */
 
             previewPanel.classList.add('open');
+            // Empêche le défilement du corps de page lorsque le panneau est ouvert
+            document.body.style.overflow = 'hidden';
         }
 
-        function closePreviewPanel() {
+        closePreviewBtn.addEventListener('click', () => {
             previewPanel.classList.remove('open');
-        }
+            document.body.style.overflow = ''; // Rétablit le défilement du corps de page
+        });
 
-        closePreviewBtn.addEventListener('click', closePreviewPanel);
-
-        // Modifié pour que le clic en dehors du panneau ou d'une carte ferme le panneau
+        // Fermer le panneau si on clique en dehors
         document.addEventListener('click', (event) => {
-            // Vérifie si le clic est en dehors du panneau ET en dehors d'une carte (pour ne pas fermer si on clique sur une autre carte)
-            if (previewPanel.classList.contains('open') &&
-                !previewPanel.contains(event.target) &&
-                !event.target.closest('.carte') && // Ne ferme pas si on clique sur une carte
-                !event.target.closest('.edit-btn') && // Ne ferme pas si on clique sur le bouton éditer du panneau
-                !event.target.closest('.copier-btn') && // Ne ferme pas si on clique sur le bouton copier du panneau
-                !event.target.closest('.supprimer-btn') // Ne ferme pas si on clique sur le bouton supprimer
-            ) {
-                closePreviewPanel();
+            if (previewPanel.classList.contains('open') && !previewPanel.contains(event.target) && !event.target.closest('.carte')) {
+                previewPanel.classList.remove('open');
+                document.body.style.overflow = '';
             }
         });
 
+
+        // Fonction pour afficher un message de succès
+        function showSuccessMessage(message) {
+            const msg = document.getElementById('success-message');
+            msg.textContent = message;
+            msg.style.opacity = '1';
+            setTimeout(() => msg.style.opacity = '0', 2000);
+        }
+
+        // Fonction pour afficher un message d'erreur
+        function showErrorMessage(message) {
+            errorDisplay.textContent = message;
+            errorDisplay.style.display = 'block';
+            setTimeout(() => errorDisplay.style.display = 'none', 5000); // Masquer après 5 secondes
+        }
+
+        function createTipCard(tip) {
+            const card = document.createElement('div');
+            card.className = 'carte';
+            card.setAttribute('data-id', tip.id);
+            card.setAttribute('data-categorie', tip.categorie);
+            card.setAttribute('data-auteur', tip.auteur);
+            card.setAttribute('data-outil', tip.outil);
+            card.style.borderLeftColor = tip.couleurBordure || '#0077b6'; // Utilise la couleur du tip ou une couleur par défaut
+
+            const infosWrapper = document.createElement('div');
+            infosWrapper.className = 'infos-wrapper';
+
+            const tipTitle = document.createElement('h2');
+            tipTitle.className = 'tip-title';
+            tipTitle.textContent = tip.titre;
+            infosWrapper.appendChild(tipTitle);
+
+            if (tip.outil) {
+                const outilBadge = document.createElement('span');
+                outilBadge.className = 'outil-badge';
+                outilBadge.textContent = tip.outil;
+                infosWrapper.appendChild(outilBadge);
+            }
+
+            // Section des métadonnées (Auteur, Catégorie, Date)
+            const metadataSection = document.createElement('div');
+            metadataSection.className = 'metadata-section';
+
+            const addMetadataRow = (label, value, className = '') => {
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'metadata-label';
+                labelDiv.textContent = label + ' :';
+                metadataSection.appendChild(labelDiv);
+
+                const valueDiv = document.createElement('div');
+                valueDiv.className = `metadata-value ${className}`;
+                valueDiv.textContent = value || 'N/A';
+                metadataSection.appendChild(valueDiv);
+            };
+
+            addMetadataRow('Catégorie', tip.categorie);
+            addMetadataRow('Auteur', tip.auteur, 'auteur-value');
+            if (tip.date) {
+                const dateObj = new Date(tip.date);
+                addMetadataRow('Date', dateObj.toLocaleDateString('fr-FR'));
+            }
+            infosWrapper.appendChild(metadataSection);
+
+
+            // Texte de prévisualisation (le "post-it" jaune)
+            if (tip.previewText) {
+                const previewPostIt = document.createElement('div');
+                previewPostIt.className = 'preview-post-it';
+                previewPostIt.textContent = tip.previewText;
+                card.appendChild(previewPostIt);
+            }
+
+            // Description ou début du prompt (celui qui est le plus pertinent ou existe)
+            // if (tip.description) {
+            //     const descriptionDiv = document.createElement('div');
+            //     descriptionDiv.className = 'text-display';
+            //     descriptionDiv.innerHTML = `<strong>Description :</strong> ${tip.description}`;
+            //     infosWrapper.appendChild(descriptionDiv);
+            // } else if (tip.prompt) {
+            //     const promptSnippetDiv = document.createElement('div');
+            //     promptSnippetDiv.className = 'text-display';
+            //     promptSnippetDiv.innerHTML = `<strong>Prompt :</strong> ${tip.prompt.substring(0, 150)}...`; // Affiche les 150 premiers caractères du prompt
+            //     infosWrapper.appendChild(promptSnippetDiv);
+            // }
+
+            const cardActions = document.createElement('div');
+            cardActions.className = 'card-actions';
+
+            const topButtonsGroup = document.createElement('div');
+            topButtonsGroup.className = 'top-buttons-group';
+
+            // Bouton Aperçu
+            const toggleContentBtn = document.createElement('button');
+            toggleContentBtn.className = 'toggle-content-btn';
+            toggleContentBtn.textContent = 'Aperçu';
+            toggleContentBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Empêche l'ouverture/fermeture du panneau si la carte est cliquée ailleurs
+                openPreviewPanel(tip);
+            });
+            topButtonsGroup.appendChild(toggleContentBtn);
+
+            // Bouton Copier le prompt
+            const copierBtn = document.createElement('button');
+            copierBtn.className = 'copier-btn';
+            copierBtn.textContent = 'Copier le prompt';
+            copierBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (tip.prompt) {
+                    navigator.clipboard.writeText(tip.prompt).then(() => {
+                        showSuccessMessage('Prompt copié !');
+                    }).catch(err => {
+                        console.error('Erreur lors de la copie:', err);
+                        showErrorMessage('Erreur lors de la copie du prompt.');
+                    });
+                } else {
+                    showErrorMessage('Pas de prompt à copier pour ce tip.');
+                }
+            });
+            topButtonsGroup.appendChild(copierBtn);
+
+            // Bouton Éditer ce tip
+            const editBtn = document.createElement('button');
+            editBtn.className = 'edit-btn';
+            editBtn.textContent = 'Éditer ce tip';
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.location.href = `editer-tip.html?id=${tip.id}`;
+            });
+            topButtonsGroup.appendChild(editBtn);
+
+            cardActions.appendChild(topButtonsGroup);
+
+            // Bouton Supprimer
+            const supprimerBtn = document.createElement('button');
+            supprimerBtn.className = 'supprimer-btn';
+            supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            supprimerBtn.title = "Supprimer ce tip";
+            supprimerBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm('Êtes-vous sûr de vouloir supprimer ce tip ?')) {
+                    try {
+                        const response = await fetch(`${apiBase}delete-tip?id=${tip.id}`, {
+                            method: 'DELETE'
+                        });
+                        if (!response.ok) {
+                            throw new Error(`Erreur HTTP: ${response.status}`);
+                        }
+                        galerieDiv.removeChild(card);
+                        allTips = allTips.filter(t => t.id !== tip.id); // Met à jour le tableau des tips
+                        showSuccessMessage('Tip supprimé avec succès !');
+                    } catch (error) {
+                        console.error('Erreur lors de la suppression du tip:', error);
+                        showErrorMessage('Erreur lors de la suppression du tip.');
+                    }
+                }
+            });
+            cardActions.appendChild(supprimerBtn);
+
+            infosWrapper.appendChild(cardActions);
+            card.appendChild(infosWrapper);
+
+            return card;
+        }
+
         async function loadAndDisplayTips() {
             galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
-            errorDisplay.style.display = 'none'; // Cacher les messages d'erreur précédents
-
+            errorDisplay.style.display = 'none';
             try {
-                const response = await fetch(`${apiBase}getTips`);
+                const response = await fetch(`${apiBase}get-tips`);
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}. Détails: ${errorText}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const tips = await response.json();
                 allTips = tips; // Stocke tous les tips pour le filtrage
-                populateFilters(tips); // Popule les options des filtres
-                displayTips(tips); // Affiche tous les tips au début
+                displayTips(allTips); // Affiche tous les tips au chargement
+
+                populateFilters(allTips);
+
             } catch (error) {
-                console.error("Erreur lors du chargement des tips:", error);
-                showErrorMessage(`Impossible de charger les tips. Veuillez réessayer plus tard. (${error.message})`);
-                galerieDiv.innerHTML = ''; // Supprimer le loader si erreur
+                console.error('Erreur lors du chargement des tips:', error);
+                galerieDiv.innerHTML = ''; // Enlève le loader
+                errorDisplay.textContent = 'Erreur de chargement des tips. Veuillez réessayer plus tard.';
+                errorDisplay.style.display = 'block';
             }
+        }
+
+        function displayTips(tipsToDisplay) {
+            galerieDiv.innerHTML = '';
+            if (tipsToDisplay.length === 0) {
+                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos critères de recherche.</p>';
+                return;
+            }
+            tipsToDisplay.forEach(tip => {
+                galerieDiv.appendChild(createTipCard(tip));
+            });
         }
 
         function populateFilters(tips) {
             const auteurs = new Set();
-            const categories = new Set();
             const outils = new Set();
 
             tips.forEach(tip => {
                 if (tip.auteur) auteurs.add(tip.auteur);
-                if (tip.categorie) categories.add(tip.categorie);
                 if (tip.outil) outils.add(tip.outil);
             });
 
-            // Supprimer les options existantes sauf "Tous les..."
-            filtreAuteurSelect.querySelectorAll('option:not([value=""])').forEach(option => option.remove());
-            filtreCategorieSelect.querySelectorAll('option:not([value=""])').forEach(option => option.remove());
-            filtreOutilSelect.querySelectorAll('option:not([value=""])').forEach(option => option.remove());
-
-
-            // Ajouter les nouvelles options
+            // Remplir le filtre Auteur
+            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
             Array.from(auteurs).sort().forEach(auteur => {
                 const option = document.createElement('option');
                 option.value = auteur;
@@ -917,13 +1060,8 @@
                 filtreAuteurSelect.appendChild(option);
             });
 
-            Array.from(categories).sort().forEach(categorie => {
-                const option = document.createElement('option');
-                option.value = categorie;
-                option.textContent = categorie;
-                filtreCategorieSelect.appendChild(option);
-            });
-
+            // Remplir le filtre Outil
+            filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>';
             Array.from(outils).sort().forEach(outil => {
                 const option = document.createElement('option');
                 option.value = outil;
@@ -932,153 +1070,34 @@
             });
         }
 
-
-        function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = ''; // Efface le contenu actuel (y compris le loader)
-
-            if (tipsToDisplay.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip/prompt ne correspond à vos critères de recherche.</p>';
-                return;
-            }
-
-            tipsToDisplay.forEach(tip => {
-                const carte = document.createElement('div');
-                carte.className = 'carte';
-                carte.dataset.id = tip.id; // Stocke l'ID pour les opérations futures
-                carte.style.borderLeftColor = tip.couleurBordure || '#0077b6'; // Utilise la couleur du tip ou une couleur par défaut
-
-                let imageHtml = '';
-                if (tip.imageUrl) {
-                    imageHtml = `<div class="left-panel">
-                                    <img src="${tip.imageUrl}" alt="Image pour ${tip.titre}" class="carte-image">
-                                </div>`;
-                }
-
-                carte.innerHTML = `
-                    ${imageHtml}
-                    <div class="infos-wrapper">
-                        <h2 class="tip-title">${tip.titre}</h2>
-                        ${tip.outil ? `<span class="outil-badge">${tip.outil}</span>` : ''}
-                        <div class="metadata-section">
-                            <span class="metadata-label">Catégorie:</span><span class="metadata-value">${tip.categorie || 'N/A'}</span>
-                            <span class="metadata-label">Auteur:</span><span class="metadata-value auteur-value">${tip.auteur || 'N/A'}</span>
-                        </div>
-                        ${tip.previewText ? `<div class="preview-post-it">${tip.previewText}</div>` : ''}
-                        <div class="card-actions">
-                            <div class="top-buttons-group">
-                                <button class="toggle-content-btn">Aperçu</button>
-                                ${tip.prompt ? `<button class="copier-btn" data-prompt="${encodeURIComponent(tip.prompt)}">Copier le prompt</button>` : ''}
-                                <button class="edit-btn" data-id="${tip.id}">Éditer</button>
-                            </div>
-                            <button class="supprimer-btn" data-id="${tip.id}" aria-label="Supprimer ce tip"><i class="fas fa-trash-alt"></i></button>
-                        </div>
-                    </div>
-                `;
-                galerieDiv.appendChild(carte);
-            });
-
-            attachEventListeners();
-        }
-
-        function attachEventListeners() {
-            document.querySelectorAll('.toggle-content-btn').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const card = event.target.closest('.carte');
-                    const tipId = card.dataset.id;
-                    const tip = allTips.find(t => t.id === tipId);
-                    if (tip) {
-                        openPreviewPanel(tip);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.copier-btn').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const promptText = decodeURIComponent(event.target.dataset.prompt);
-                    navigator.clipboard.writeText(promptText).then(() => {
-                        showSuccessMessage('Prompt copié !');
-                    }).catch(err => {
-                        console.error('Erreur lors de la copie:', err);
-                        showErrorMessage('Erreur lors de la copie.');
-                    });
-                });
-            });
-
-            document.querySelectorAll('.edit-btn').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const tipId = event.target.dataset.id;
-                    window.location.href = `editer-tip.html?id=${tipId}`;
-                });
-            });
-
-
-            document.querySelectorAll('.supprimer-btn').forEach(button => {
-                button.addEventListener('click', async (event) => {
-                    const tipId = event.target.dataset.id;
-                    if (confirm('Êtes-vous sûr de vouloir supprimer ce tip/prompt ? Cette action est irréversible.')) {
-                        try {
-                            const response = await fetch(`${apiBase}deleteTip?id=${tipId}`, {
-                                method: 'DELETE'
-                            });
-
-                            if (!response.ok) {
-                                const errorText = await response.text();
-                                throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}. Détails: ${errorText}`);
-                            }
-
-                            showSuccessMessage('Tip/Prompt supprimé avec succès !');
-                            // Supprimer la carte du DOM
-                            event.target.closest('.carte').remove();
-                            // Mettre à jour allTips
-                            allTips = allTips.filter(tip => tip.id !== tipId);
-                            // Ré-appliquer les filtres pour rafraîchir l'affichage (au cas où la suppression affecte les filtres disponibles)
-                            applyFilters();
-
-                        } catch (error) {
-                            console.error('Erreur lors de la suppression du tip:', error);
-                            showErrorMessage(`Impossible de supprimer le tip. (${error.message})`);
-                        }
-                    }
-                });
-            });
-        }
-
         function setupFilters() {
-            filtreAuteurSelect.addEventListener('change', applyFilters);
+            const applyFilters = () => {
+                const searchText = previewTextInput.value.toLowerCase();
+                const selectedCategory = filtreCategorieSelect.value;
+                const selectedAuteur = filtreAuteurSelect.value;
+                const selectedOutil = filtreOutilSelect.value;
+
+                const filteredTips = allTips.filter(tip => {
+                    const matchesSearch = searchText === '' ||
+                                          (tip.previewText && tip.previewText.toLowerCase().includes(searchText)) ||
+                                          (tip.titre && tip.titre.toLowerCase().includes(searchText)) ||
+                                          (tip.description && tip.description.toLowerCase().includes(searchText)) ||
+                                          (tip.prompt && tip.prompt.toLowerCase().includes(searchText)) ||
+                                          (tip.exemple && tip.exemple.toLowerCase().includes(searchText));
+
+                    const matchesCategory = selectedCategory === '' || tip.categorie === selectedCategory;
+                    const matchesAuteur = selectedAuteur === '' || tip.auteur === selectedAuteur;
+                    const matchesOutil = selectedOutil === '' || tip.outil === selectedOutil;
+
+                    return matchesSearch && matchesCategory && matchesAuteur && matchesOutil;
+                });
+                displayTips(filteredTips);
+            };
+
+            previewTextInput.addEventListener('input', applyFilters);
             filtreCategorieSelect.addEventListener('change', applyFilters);
+            filtreAuteurSelect.addEventListener('change', applyFilters);
             filtreOutilSelect.addEventListener('change', applyFilters);
-            previewTextInput.addEventListener('input', applyFilters); // Écoute l'événement 'input' pour la recherche en temps réel
-        }
-
-        function applyFilters() {
-            const auteurSelectionne = filtreAuteurSelect.value;
-            const categorieSelectionnee = filtreCategorieSelect.value;
-            const outilSelectionne = filtreOutilSelect.value;
-            const texteRecherche = previewTextInput.value.toLowerCase();
-
-            const filteredTips = allTips.filter(tip => {
-                const matchAuteur = !auteurSelectionne || (tip.auteur && tip.auteur === auteurSelectionne);
-                const matchCategorie = !categorieSelectionnee || (tip.categorie && tip.categorie === categorieSelectionnee);
-                const matchOutil = !outilSelectionne || (tip.outil && tip.outil === outilSelectionne);
-                const matchPreviewText = !texteRecherche || (tip.previewText && tip.previewText.toLowerCase().includes(texteRecherche));
-
-                return matchAuteur && matchCategorie && matchOutil && matchPreviewText;
-            });
-
-            displayTips(filteredTips);
-        }
-
-        function showSuccessMessage(message) {
-            const msg = document.getElementById('success-message');
-            msg.textContent = message;
-            msg.style.opacity = '1';
-            setTimeout(() => msg.style.opacity = '0', 3000);
-        }
-
-        function showErrorMessage(message) {
-            errorDisplay.textContent = message;
-            errorDisplay.style.display = 'block';
-            setTimeout(() => errorDisplay.style.display = 'none', 5000);
         }
     </script>
 </body>
