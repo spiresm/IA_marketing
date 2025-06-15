@@ -1,1711 +1,3 @@
-<html lang="fr">
-
-<head>
-
-    <meta charset="UTF-8" />
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <title>Galerie des Tips et Prompts - iMarketing</title>
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
-    <style>
-
-        /* Styles généraux pour l'animation d'apparition de la page */
-
-        body {
-
-            opacity: 0;
-
-            transition: opacity 0.5s ease-in;
-
-            margin: 0;
-
-            font-family: Arial, sans-serif;
-
-            background-color: #f0f2f5;
-
-            min-height: 100vh; /* Permet le défilement si le contenu dépasse la hauteur de la fenêtre */
-
-            display: flex;
-
-            flex-direction: column; /* Aide à la mise en page de l'en-tête, du contenu principal et du pied de page */
-
-        }
-
-        body.show {
-
-            opacity: 1;
-
-        }
-
-        main {
-
-            opacity: 0;
-
-            transition: opacity 0.5s ease-in;
-
-            padding: 40px 20px;
-
-            flex-grow: 1; /* Permet au main de prendre l'espace disponible, poussant le footer vers le bas */
-
-        }
-
-        main.show {
-
-            opacity: 1;
-
-        }
-
-
-
-        #header-placeholder {
-
-            width: 100%;
-
-        }
-
-
-
-        /* Conteneur des contrôles en haut (filtres et boutons) */
-
-        .header-controls-container {
-
-            max-width: 960px;
-
-            margin: 20px auto 25px auto;
-
-            padding: 0 20px;
-
-            box-sizing: border-box;
-
-        }
-
-
-
-        /* Conteneur principal de la galerie (la "box" blanche) */
-
-        .galerie-container {
-
-            max-width: 960px;
-
-            margin: 0px auto;
-
-            padding: 20px;
-
-            background: white;
-
-            border-radius: 12px;
-
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-
-        }
-
-
-
-        /* Conteneur des filtres et boutons d'action */
-
-        .filters-header {
-
-            display: flex;
-
-            justify-content: space-between;
-
-            align-items: center;
-
-            flex-wrap: wrap;
-
-            gap: 15px;
-
-            margin-bottom: 20px;
-
-        }
-
-
-
-        #filters {
-
-            display: flex;
-
-            gap: 10px;
-
-            flex-wrap: wrap;
-
-            flex-grow: 1;
-
-            min-width: 0;
-
-        }
-
-
-
-        #filters input[type="text"],
-
-        #filters select {
-
-            padding: 8px 12px;
-
-            border: 1px solid #ddd;
-
-            border-radius: 8px;
-
-            font-size: 0.9em;
-
-            flex: 1;
-
-            min-width: 120px;
-
-        }
-
-        #preview-text {
-
-            min-width: 180px;
-
-            max-width: 250px;
-
-        }
-
-
-
-        .action-buttons {
-
-            display: flex;
-
-            gap: 10px;
-
-            flex-wrap: wrap;
-
-            justify-content: flex-end;
-
-            align-items: center;
-
-        }
-
-
-
-        .action-buttons a {
-
-            background: #0077b6;
-
-            color: white;
-
-            text-decoration: none;
-
-            padding: 10px 15px;
-
-            border-radius: 8px;
-
-            font-weight: bold;
-
-            transition: background 0.3s ease;
-
-        }
-
-
-
-        .action-buttons a:hover {
-
-            background: #005f8a;
-
-        }
-
-
-
-        /* Styles for the "Créer un tip" button */
-
-        .create-tip-button-container {
-
-            text-align: center;
-
-            margin-top: 20px;
-
-            margin-bottom: 30px;
-
-        }
-
-
-
-        .create-tip-button {
-
-            /* Couleur bleue harmonieuse pour le bouton "Créer un tip" */
-
-            background: #0077b6; /* Un bleu harmonieux */
-
-            color: white;
-
-            text-decoration: none;
-
-            padding: 12px 25px;
-
-            border-radius: 8px;
-
-            font-weight: bold;
-
-            font-size: 1.1em;
-
-            transition: background 0.3s ease, transform 0.2s ease;
-
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-
-        }
-
-
-
-        .create-tip-button:hover {
-
-            /* Couleur de survol légèrement plus foncée */
-
-            background: #005f8a; /* Bleu plus foncé au survol */
-
-            transform: translateY(-2px);
-
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-
-        }
-
-
-
-        /* Galerie en colonne */
-
-        #galerie {
-
-            display: flex;
-
-            flex-direction: column;
-
-            gap: 20px;
-
-            padding: 20px 0;
-
-            position: relative;
-
-            z-index: 1;
-
-        }
-
-
-
-        /* ************************************************* */
-
-        /* STYLES POUR CHAQUE PLAQUE (CARTE) */
-
-        /* ************************************************* */
-
-        .carte {
-
-            background: #fff;
-
-            border-left: 5px solid transparent; /* Couleur définie par JS */
-
-            border-radius: 12px;
-
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-
-            display: flex; /* Garde flexbox pour le post-it et le contenu */
-
-            align-items: flex-start;
-
-            padding: 0; /* Plus de padding ici, il est dans .infos-wrapper */
-
-            position: relative; /* Important pour positionner le post-it */
-
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
-
-            box-sizing: border-box;
-
-            width: 100%;
-
-            z-index: 1;
-
-        }
-
-
-
-        .carte:hover {
-
-            transform: translateY(-5px);
-
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-
-            z-index: 100;
-
-        }
-
-
-
-        /* Conteneur pour toutes les informations textuelles */
-
-        .infos-wrapper {
-
-            display: flex;
-
-            flex-direction: column;
-
-            flex-grow: 1;
-
-            min-width: 0;
-
-            padding: 15px; /* Ajoutez le padding ici */
-
-            width: 100%; /* Prend toute la largeur si pas de left-panel */
-
-        }
-
-
-
-        /* Nouvelle classe pour le titre du tip */
-
-        .tip-title {
-
-            font-size: 1.3em;
-
-            color: #005f8a;
-
-            font-weight: bold;
-
-            margin-bottom: 8px; /* Espace après le titre */
-
-        }
-
-
-
-        /* Badge pour l'outil (dans infos-wrapper) */
-
-        .outil-badge {
-
-            background-color: #e0f2f7;
-
-            color: #0077b6;
-
-            font-size: 0.85em;
-
-            font-weight: bold;
-
-            padding: 4px 8px;
-
-            border-radius: 4px;
-
-            margin-bottom: 10px; /* Plus d'espace après l'outil */
-
-            white-space: nowrap;
-
-            text-transform: uppercase;
-
-            align-self: flex-start;
-
-        }
-
-
-
-        /* Section des métadonnées (Auteur, Catégorie) */
-
-        .metadata-section {
-
-            display: grid;
-
-            grid-template-columns: auto 1fr;
-
-            gap: 2px 10px;
-
-            font-size: 0.9em;
-
-            color: #555;
-
-            margin-bottom: 4px;
-
-            padding-bottom: 2px;
-
-            border-bottom: 1px solid #eee;
-
-        }
-
-
-
-        .metadata-label {
-
-            font-weight: bold;
-
-            color: #333;
-
-            white-space: nowrap;
-
-        }
-
-
-
-        .metadata-value {
-
-            color: #666;
-
-            word-break: break-word;
-
-        }
-
-        .metadata-value.auteur-value {
-
-            font-size: 1em;
-
-            color: #444;
-
-            font-weight: normal;
-
-        }
-
-
-
-        /* Texte du prompt et description */
-
-        .text-display {
-
-            font-size: 0.9em;
-
-            color: #444;
-
-            line-height: 1.4;
-
-            background-color: #f9f9f9;
-
-            border: 1px solid #eee;
-
-            border-radius: 5px;
-
-            padding: 6px;
-
-            margin-bottom: 4px;
-
-            white-space: pre-wrap;
-
-            word-break: break-word;
-
-        }
-
-
-
-        /* Boutons d'action sur la carte */
-
-        .card-actions {
-
-            display: flex;
-
-            flex-direction: column; /* Empile le groupe de boutons et la corbeille */
-
-            align-items: flex-start; /* Aligne tout le contenu de card-actions à gauche */
-
-            margin-top: auto;
-
-            padding-top: 5px;
-
-            width: 100%;
-
-        }
-
-
-
-        .top-buttons-group {
-
-            display: flex;
-
-            gap: 10px; /* Espace entre Aperçu et Copier */
-
-            margin-bottom: 5px; /* Petit espace entre la ligne des boutons et la corbeille */
-
-            align-items: center; /* Aligne les boutons verticalement */
-
-        }
-
-
-
-        /* Styles spécifiques pour le bouton "Copier le prompt" */
-
-        .copier-btn {
-
-            background-color: #64B5F6; /* Bleu plus clair */
-
-            color: white;
-
-            border: none;
-
-            padding: 7px 14px;
-
-            border-radius: 6px;
-
-            cursor: pointer;
-
-            font-size: 0.85em;
-
-            font-weight: 600;
-
-            transition: background-color 0.2s, transform 0.1s;
-
-            flex-shrink: 0;
-
-            white-space: nowrap;
-
-        }
-
-
-
-        .copier-btn:hover {
-
-            background-color: #42A5F5; /* Bleu plus clair au survol */
-
-            transform: translateY(-1px);
-
-        }
-
-
-
-        .toggle-content-btn, .edit-btn { /* Ajout de .edit-btn ici */
-
-            background-color: #0077b6; /* Garde la couleur standard des autres boutons */
-
-            color: white;
-
-            border: none;
-
-            padding: 7px 14px;
-
-            border-radius: 6px;
-
-            cursor: pointer;
-
-            font-size: 0.85em;
-
-            font-weight: 600;
-
-            transition: background-color 0.2s, transform 0.1s;
-
-            flex-shrink: 0;
-
-            white-space: nowrap;
-
-        }
-
-
-
-        .toggle-content-btn:hover, .edit-btn:hover { /* Ajout de .edit-btn ici */
-
-            background-color: #005f8a;
-
-            transform: translateY(-1px);
-
-        }
-
-
-
-        /* Styles pour le bouton supprimer (corbeille) */
-
-        .supprimer-btn {
-
-            background: none;
-
-            border: none;
-
-            color: #888; /* Couleur grise par default */
-
-            font-size: 1.3em;
-
-            cursor: pointer;
-
-            transition: color 0.2s, transform 0.1s;
-
-            padding: 0 5px; /* Petit padding pour cliquer plus facilement */
-
-            align-self: flex-start; /* Aligne la corbeille sous les boutons, à gauche */
-
-        }
-
-
-
-        .supprimer-btn:hover {
-
-            color: #dc3545; /* Rouge au survol pour indiquer le danger */
-
-            transform: translateY(-1px);
-
-        }
-
-
-
-        #success-message {
-
-            background-color: #d4edda;
-
-            color: #155724;
-
-            border: 1px solid #c3e6cb;
-
-            padding: 10px 20px;
-
-            border-radius: 8px;
-
-            text-align: center;
-
-            margin-bottom: 20px;
-
-            opacity: 0;
-
-            transition: opacity 0.5s ease-in-out;
-
-        }
-
-
-
-        /* Styles pour le loader */
-
-        .loader {
-
-            border: 4px solid #f3f3f3;
-
-            border-top: 4px solid #3498db;
-
-            border-radius: 50%;
-
-            width: 40px;
-
-            height: 40px;
-
-            animation: spin 1s linear infinite;
-
-            margin: 50px auto;
-
-        }
-
-
-
-        @keyframes spin {
-
-            0% { transform: rotate(0deg); }
-
-            100% { transform: rotate(360deg); }
-
-        }
-
-
-
-        /* Message d'erreur */
-
-        .error-message {
-
-            text-align: center;
-
-            color: #dc3545;
-
-            margin-top: 20px;
-
-            padding: 15px;
-
-            background-color: #f8d7da;
-
-            border: 1px solid #f5c6cb;
-
-            border-radius: 8px;
-
-        }
-
-
-
-        /* Styles for the new right-side preview panel */
-
-        .preview-panel {
-
-            position: fixed;
-
-            top: 0;
-
-            right: -760px;
-
-            width: 740px;
-
-            max-width: 90%;
-
-            height: 100%;
-
-            background-color: #fff;
-
-            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
-
-            transition: right 0.3s ease-in-out;
-
-            z-index: 1000;
-
-            display: flex;
-
-            flex-direction: column;
-
-            padding: 20px;
-
-            box-sizing: border-box;
-
-            overflow-y: auto;
-
-        }
-
-
-
-        .preview-panel.open {
-
-            right: 0;
-
-        }
-
-
-
-        .preview-panel-header {
-
-            display: flex;
-
-            justify-content: space-between;
-
-            align-items: center;
-
-            margin-bottom: 20px;
-
-            padding-bottom: 10px;
-
-            border-bottom: 1px solid #eee;
-
-        }
-
-
-
-        .preview-panel-header h3 {
-
-            margin: 0;
-
-            color: #333;
-
-            font-size: 1.2em;
-
-        }
-
-
-
-        .close-preview-btn {
-
-            background: none;
-
-            border: none;
-
-            font-size: 1.5em;
-
-            cursor: pointer;
-
-            color: #888;
-
-            transition: color 0.2s;
-
-        }
-
-
-
-        .close-preview-btn:hover {
-
-            color: #333;
-
-        }
-
-
-
-        .preview-panel-content {
-
-            flex-grow: 1;
-
-            font-size: 1em;
-
-            line-height: 1.6;
-
-            color: #444;
-
-            font-weight: normal;
-
-        }
-
-
-
-        .preview-panel-content strong {
-
-            color: #333;
-
-        }
-
-
-
-        /* Styles pour l'image dans le panneau d'aperçu (gardé au cas où vous voudriez la réactiver un jour) */
-
-        .preview-panel-image {
-
-            max-width: 100%;
-
-            height: auto;
-
-            display: block;
-
-            margin-bottom: 20px;
-
-            border-radius: 8px;
-
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-
-        }
-
-
-
-        /* Styles pour le cartouche jaune du texte de prévisualisation dans le panneau de droite */
-
-        .preview-text-card-yellow {
-
-            background-color: #FFFAA0; /* Jaune pastel du post-it */
-
-            color: #333; /* Texte noir */
-
-            padding: 10px 15px;
-
-            border-radius: 8px;
-
-            margin-bottom: 15px; /* Espace sous le cartouche */
-
-            white-space: pre-wrap; /* Maintient les sauts de ligne du texte */
-
-            word-break: break-word; /* Casse les mots si trop longs */
-
-            font-size: 0.95em;
-
-            line-height: 1.5;
-
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-
-        }
-
-
-
-        /* Style pour les cartouches bleus clairs pour Description, Exemple */
-
-        .content-card-blue {
-
-            background-color: #E0F2F7; /* Bleu très clair */
-
-            color: #005f8a; /* Texte bleu foncé */
-
-            padding: 10px 15px;
-
-            border-radius: 8px;
-
-            margin-bottom: 15px;
-
-            white-space: pre-wrap;
-
-            word-break: break-word;
-
-            font-size: 0.9em;
-
-            line-height: 1.4;
-
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-
-        }
-
-
-
-        /* Style pour le prompt (revenir au style initial) */
-
-        .prompt-content-pre {
-
-            background-color: #f0f0f0;
-
-            border: 1px solid #ddd;
-
-            border-radius: 5px;
-
-            padding: 10px;
-
-            white-space: pre-wrap;
-
-            word-break: break-word;
-
-            font-family: 'Courier New', Courier, monospace;
-
-            font-size: 0.9em;
-
-            margin-top: 5px;
-
-            font-weight: normal;
-
-            margin-bottom: 15px; /* Pour l'espacement avec les éléments suivants */
-
-        }
-
-
-
-        /* Style pour le bouton Copier dans le panneau latéral */
-
-        .copy-panel-btn {
-
-            background-color: #64B5F6; /* Bleu clair similaire au bouton de la carte */
-
-            color: white;
-
-            border: none;
-
-            padding: 8px 15px;
-
-            border-radius: 6px;
-
-            cursor: pointer;
-
-            font-size: 0.9em;
-
-            font-weight: 600;
-
-            transition: background-color 0.2s, transform 0.1s;
-
-            margin-top: -10px; /* Remonte un peu pour être plus près du prompt */
-
-            margin-bottom: 15px; /* Espace sous le bouton */
-
-            align-self: flex-start; /* Aligner à gauche */
-
-        }
-
-
-
-        .copy-panel-btn:hover {
-
-            background-color: #42A5F5;
-
-            transform: translateY(-1px);
-
-        }
-
-
-
-        /* Media queries pour la responsivité */
-
-        @media (max-width: 992px) {
-
-            .preview-panel {
-
-                width: 100%;
-
-                right: -100%;
-
-            }
-
-            .preview-panel.open {
-
-                right: 0;
-
-            }
-
-        }
-
-        @media (max-width: 768px) {
-
-            .filters-header {
-
-                flex-direction: column;
-
-                align-items: stretch;
-
-            }
-
-            #filters {
-
-                flex-direction: column;
-
-                gap: 15px;
-
-            }
-
-            #filters input, #filters select {
-
-                min-width: unset;
-
-                max-width: unset;
-
-                width: 100%;
-
-            }
-
-            .action-buttons {
-
-                flex-direction: column;
-
-                width: 100%;
-
-                justify-content: center;
-
-            }
-
-            .action-buttons a {
-
-                width: 100%;
-
-                text-align: center;
-
-            }
-
-            /* Pas de .carte flex-direction column car pas d'image */
-
-            /* .left-panel { ... } */
-
-            /* .carte-image { ... } */
-
-            .infos-wrapper {
-
-                padding: 15px;
-
-                width: auto;
-
-            }
-
-            .metadata-section {
-
-                grid-template-columns: 1fr;
-
-                gap: 5px;
-
-            }
-
-            .card-actions {
-
-                /* Ajuste l'alignement pour la responsivité */
-
-                align-items: center; /* Centre les éléments */
-
-            }
-
-            .top-buttons-group {
-
-                flex-direction: column; /* Revenir en colonne sur petits écrans pour économiser la largeur */
-
-                gap: 5px;
-
-                width: 100%;
-
-                justify-content: center;
-
-                margin-bottom: 5px;
-
-            }
-
-            .toggle-content-btn, .copier-btn, .edit-btn { /* Ajout de .edit-btn ici */
-
-                width: 100%; /* Les boutons prennent toute la largeur sur petits écrans */
-
-                text-align: center;
-
-            }
-
-            .supprimer-btn {
-
-                width: auto; /* La corbeille ne prend pas toute la largeur */
-
-                align-self: center; /* Centre l'icône verticalement et horizontalement */
-
-            }
-
-            .create-tip-button-container {
-
-                margin-top: 15px;
-
-                margin-bottom: 20px;
-
-            }
-
-            .preview-post-it {
-
-                position: static; /* Remove absolute positioning on small screens */
-
-                margin-top: 10px; /* Add some space if needed */
-
-                max-width: unset; /* Allow full width */
-
-                text-align: center; /* Center the text */
-
-                transform: none; /* Remove rotation on small screens */
-
-                font-size: 1.1em; /* Garde la taille plus grande sur mobile aussi */
-
-            }
-
-        }
-
-
-
-        /* Styles for the "post-it" preview text on the card */
-
-        .preview-post-it {
-
-            position: absolute;
-
-            top: 70px; /* Ajusté pour remonter le post-it (anciennement 95px) */
-
-            right: 10px;
-
-            background-color: #FFFAA0; /* Jaune pastel plus doux */
-
-            color: #333; /* Texte noir par défaut pour le post-it */
-
-            padding: 10px; /* Plus de padding */
-
-            border-radius: 5px;
-
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-
-            font-size: 1em; /* Taille de police légèrement plus grande */
-
-            font-weight: bold;
-
-            z-index: 2;
-
-            white-space: pre-wrap;
-
-            word-break: break-word;
-
-            max-width: 180px; /* Largeur maximale augmentée */
-
-            transform: rotate(2deg); /* Slightly rotate for a "post-it" feel */
-
-        }
-
-
-
-        /* Styles pour le footer */
-
-        footer {
-
-            background-color: #333;
-
-            color: white;
-
-            text-align: center;
-
-            padding: 20px;
-
-            margin-top: 40px; /* Ajoute un espace au-dessus du footer */
-
-            width: 100%;
-
-        }
-
-
-
-        footer p {
-
-            margin: 0;
-
-            font-size: 0.9em;
-
-        }
-
-    </style>
-
-</head>
-
-<body>
-
-    <div id="header-placeholder"></div>
-
-
-
-    <main>
-
-        <div class="header-controls-container">
-
-            <div class="filters-header">
-
-                <div id="filters">
-
-                    <input type="text" id="preview-text" placeholder="Rechercher dans le texte de prévisualisation..." />
-
-                    <select id="filtre-categorie">
-
-                        <option value="">Toutes les catégories</option>
-
-                        <option>Marketing Digital</option>
-
-                        <option>Réseaux Sociaux</option>
-
-                        <option>SEO</option>
-
-                        <option>Contenu</option>
-
-                        <option>Publicité</option>
-
-                        <option>Outils IA</option>
-
-                        <option>Stratégie</option>
-
-                        <option>Autre</option>
-
-                    </select>
-
-                    <select id="filtre-auteur">
-
-                        <option value="">Tous les auteurs</option>
-
-                    </select>
-
-                    <select id="filtre-outil"> <option value="">Tous les outils</option>
-
-                        <option>Midjourney</option>
-
-                        <option>DALL·E</option>
-
-                        <option>Stable Diffusion</option>
-
-                        <option>Adobe Firefly</option>
-
-                        <option>Runway</option>
-
-                        <option>ChatGPT</option>
-
-                        <option>Autre</option>
-
-                    </select>
-
-                </div>
-
-                <div class="action-buttons">
-
-                </div>
-
-            </div>
-
-            <div class="create-tip-button-container">
-
-                <a href="creer-tip.html" class="create-tip-button">Créer un tip</a>
-
-            </div>
-
-        </div>
-
-
-
-        <div class="galerie-container">
-
-            <div id="success-message"></div>
-
-            <div id="galerie">
-
-                <div class="loader"></div> <p style="text-align: center;">Chargement des tips...</p>
-
-            </div>
-
-            <div id="error-display" class="error-message" style="display: none;"></div>
-
-        </div>
-
-    </main>
-
-
-
-    <div id="footer-placeholder"></div>
-
-
-
-    <div id="previewPanel" class="preview-panel">
-
-        <div class="preview-panel-header">
-
-            <h3 id="previewPanelTitle">Aperçu du contenu</h3>
-
-            <button class="close-preview-btn" id="closePreviewBtn"><i class="fas fa-times"></i></button>
-
-        </div>
-
-        <div id="previewPanelContent" class="preview-panel-content">
-
-            </div>
-
-    </div>
-
-    <script>
-
-        const apiBase = window.location.origin + '/.netlify/functions/';
-
-        let allTips = [];
-
-        const galerieDiv = document.getElementById('galerie');
-
-        const errorDisplay = document.getElementById('error-display');
-
-        const filtreAuteurSelect = document.getElementById('filtre-auteur');
-
-        const filtreCategorieSelect = document.getElementById('filtre-categorie');
-
-        const filtreOutilSelect = document.getElementById('filtre-outil');
-
-
-
-        const previewTextInput = document.getElementById('preview-text');
-
-
-
-        const previewPanel = document.getElementById('previewPanel');
-
-        const previewPanelTitle = document.getElementById('previewPanelTitle');
-
-        const previewPanelContent = document.getElementById('previewPanelContent');
-
-        const closePreviewBtn = document.getElementById('closePreviewBtn');
-
-        const bodyElement = document.body;
-
-
-
-        document.addEventListener("DOMContentLoaded", () => {
-
-            const headerPlaceholder = document.getElementById("header-placeholder");
-
-            const footerPlaceholder = document.getElementById("footer-placeholder");
-
-            const mainElement = document.querySelector("main");
-
-
-
-            const loadComponent = async (url, placeholderId, errorMessage) => {
-
-                console.log(`Attempting to load ${url} into #${placeholderId}`);
-
-                try {
-
-                    const res = await fetch(url);
-
-                    if (!res.ok) {
-
-                        const errorDetail = await res.text();
-
-                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
-
-                    }
-
-                    document.getElementById(placeholderId).innerHTML = await res.text();
-
-                    console.log(`${url} loaded successfully.`);
-
-                } catch (error) {
-
-                    console.error(`Error loading ${url}:`, error);
-
-                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
-
-                }
-
-            };
-
-
-
-            Promise.all([
-
-                loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu"),
-
-                loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
-
-            ])
-
-            .then(() => {
-
-                const activeLink = document.querySelector("nav a[href='galerie.html']");
-
-                if (activeLink) {
-
-                    activeLink.classList.add("active");
-
-                }
-
-            })
-
-            .catch(error => {
-
-                console.error("General issue loading components:", error);
-
-            })
-
-            .finally(() => {
-
-                bodyElement.classList.add("show");
-
-                mainElement.classList.add("show");
-
-                loadAndDisplayTips();
-
-            });
-
-
-
-            if (window.location.search.includes('success=1')) {
-
-                const msg = document.getElementById('success-message');
-
-                msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
-
-                msg.style.opacity = '1';
-
-                setTimeout(() => msg.style.opacity = '0', 2000);
-
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-
-            }
-
-            // Message de succès pour l'édition
-
-            if (window.location.search.includes('editSuccess=1')) {
-
-                const msg = document.getElementById('success-message');
-
-                msg.textContent = '✅ Tip/Prompt modifié avec succès !';
-
-                msg.style.opacity = '1';
-
-                setTimeout(() => msg.style.opacity = '0', 2000);
-
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-
-            }
-
-
-
-            setupFilters();
-
-        });
-
-
-
-        function openPreviewPanel(tip) {
-
-            previewPanelTitle.textContent = `Aperçu : ${tip.titre || 'Sans titre'}`;
-
-            previewPanelContent.innerHTML = '';
-
-
-
-            // Afficher l'image si elle existe (cette partie est conservée pour le panneau latéral)
-
-            if (tip.imageUrl) {
-
-                const img = document.createElement('img');
-
-                img.className = 'preview-panel-image'; // Pour styliser l'image dans le panneau
-
-                img.src = tip.imageUrl;
-
-                img.alt = `Image pour ${tip.titre || 'ce tip'}`;
-
-                previewPanelContent.appendChild(img);
-
-            }
-
-
-
-            // Afficher le previewText dans un cartouche jaune
-
-            if (tip.previewText) {
-
-                const previewDiv = document.createElement('div');
-
-                previewDiv.className = 'preview-text-card-yellow'; // Classe pour le cartouche jaune
-
-                previewDiv.textContent = tip.previewText;
-
-                previewPanelContent.appendChild(previewDiv);
-
-            }
-
-
-
-            // Afficher la description dans un cartouche bleu clair, sans le label "Description :"
-
-            if (tip.description) {
-
-                const descriptionPre = document.createElement('pre');
-
-                descriptionPre.className = 'content-card-blue'; // Classe pour le cartouche bleu clair
-
-                descriptionPre.textContent = tip.description;
-
-                previewPanelContent.appendChild(descriptionPre);
-
-            }
-
-
-
-            // Afficher le prompt avec son style d'origine (fond gris clair)
-
-            if (tip.prompt) {
-
-                const promptHtml = document.createElement('p');
-
-                promptHtml.innerHTML = `<strong>Prompt :</strong>`;
-
-                previewPanelContent.appendChild(promptHtml);
-
-                const promptPre = document.createElement('pre');
-
-                promptPre.className = 'prompt-content-pre'; // Revenir à la classe de style d'origine
-
-                promptPre.textContent = tip.prompt;
-
-                previewPanelContent.appendChild(promptPre);
-
-
-
-                // Ajouter le bouton "Copier le prompt" en dessous du prompt
-
-                const copyPromptPanelBtn = document.createElement('button');
-
-                copyPromptPanelBtn.className = 'copy-panel-btn';
-
-                copyPromptPanelBtn.textContent = 'Copier le prompt';
-
-                copyPromptPanelBtn.addEventListener('click', () => {
-
-                    navigator.clipboard.writeText(tip.prompt).then(() => {
-
-                        showSuccessMessage('Prompt copié !');
-
-                    }).catch(err => {
-
-                        console.error('Erreur lors de la copie du prompt:', err);
-
-                        showErrorMessage('Erreur lors de la copie.');
-
-                    });
-
-                });
-
-                previewPanelContent.appendChild(copyPromptPanelBtn);
-
-            }
-
-
-
-            // Afficher l'exemple dans un cartouche bleu clair
-
-            if (tip.exemple) {
-
-                const exempleHtml = document.createElement('p');
-
-                exempleHtml.innerHTML = `<strong>Exemple :</strong>`;
-
-                previewPanelContent.appendChild(exempleHtml);
-
-                const exemplePre = document.createElement('pre');
-
-                exemplePre.className = 'content-card-blue'; // Classe pour le cartouche bleu clair
-
-                exemplePre.textContent = tip.exemple;
-
-                previewPanelContent.appendChild(exemplePre);
-
-            }
-
-
-
-            // Ajout des informations Auteur, Catégorie, Date
-
-            const infoDiv = document.createElement('div');
-
-            infoDiv.innerHTML += `<p><strong>Outil:</strong> ${tip.outil || 'N/A'}</p>`;
-
-            infoDiv.innerHTML += `<p><strong>Catégorie:</strong> ${tip.categorie || 'N/A'}</p>`;
-
-            infoDiv.innerHTML += `<p><strong>Auteur:</strong> ${tip.auteur || 'N/A'}</p>`;
-
-            // ANCIENNE LIGNE : infoDiv.innerHTML += `<p><strong>Chaîne:</strong> ${tip.chaine || 'N/A'}</p>`;
-
-            if (tip.date) {
-
-                const dateObj = new Date(tip.date);
-
-                infoDiv.innerHTML += `<p><strong>Date:</strong> ${dateObj.toLocaleDateString('fr-FR')}</p>`;
-
-            }
-
-            previewPanelContent.appendChild(infoDiv);
-
-
-
-            // ANCIEN CODE - Le bouton "Éditer ce tip" est retiré du panneau coulissant
-
-            /*
-
-            const editPanelBtn = document.createElement('button');
-
-            editPanelBtn.className = 'edit-btn'; // Utilise la classe existante pour un style similaire
-
-            editPanelBtn.textContent = 'Éditer ce tip';
-
-            editPanelBtn.style.marginTop = '20px'; // Un peu d'espace au-dessus
-
-            editPanelBtn.addEventListener('click', () => {
-
-                window.location.href = `editer-tip.html?id=${tip.id}`;
-
-            });
-
-            previewPanelContent.appendChild(editPanelBtn);
-
-            */
-
-
-
-            previewPanel.classList.add('open');
-
-            // Empêche le défilement du corps de page lorsque le panneau est ouvert
-
-            document.body.style.overflow = 'hidden';
-
-        }
-
-
-
-        closePreviewBtn.addEventListener('click', () => {
-
-            previewPanel.classList.remove('open');
-
-            document.body.style.overflow = ''; // Rétablit le défilement du corps de page
-
-        });
-
-
-
-        // Fermer le panneau si on clique en dehors
-
-        document.addEventListener('click', (event) => {
-
-            if (previewPanel.classList.contains('open') && !previewPanel.contains(event.target) && !event.target.closest('.carte')) {
-
-                previewPanel.classList.remove('open');
-
-                document.body.style.overflow = '';
-
-            }
-
-        });
-
-
-
-
-
-        // Fonction pour afficher un message de succès
-
-        function showSuccessMessage(message) {
-
-            const msg = document.getEle
-
-
-
-D'accord ! Pour créer un panneau modal qui s'affiche à chaque ouverture de la page, nous allons ajouter le code HTML, CSS et JavaScript nécessaire.
-
-Le panneau modal sera initialement caché et affiché via JavaScript. Nous utiliserons les cookies pour vérifier si l'utilisateur a déjà vu le modal pendant la session en cours. Cependant, votre demande est que le panneau revienne à chaque ouverture de la page, ce qui signifie que nous n'utiliserons pas de cookie pour se souvenir de la fermeture. Le modal apparaîtra donc à chaque rechargement de la page.
-
-Voici le code mis à jour pour votre page, avec les ajouts pour le modal :
-
-HTML
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -2308,121 +600,6 @@ HTML
             margin: 0;
             font-size: 0.9em;
         }
-
-        /* Styles pour le panneau modal */
-        .modal {
-            display: none; /* Caché par défaut */
-            position: fixed; /* Reste en place même en scrollant */
-            z-index: 2000; /* Plus haut que tout le reste */
-            left: 0;
-            top: 0;
-            width: 100%; /* Pleine largeur */
-            height: 100%; /* Pleine hauteur */
-            overflow: auto; /* Permet le défilement si le contenu dépasse */
-            background-color: rgba(0,0,0,0.7); /* Fond noir semi-transparent */
-            backdrop-filter: blur(5px); /* Effet de flou derrière le modal */
-            -webkit-backdrop-filter: blur(5px); /* Compatibilité Safari */
-            justify-content: center; /* Centre le contenu horizontalement */
-            align-items: center; /* Centre le contenu verticalement */
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: auto; /* Centre le contenu */
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            width: 80%; /* Largeur du modal */
-            max-width: 600px; /* Largeur maximale pour les grands écrans */
-            position: relative;
-            text-align: center;
-            animation: fadeInScale 0.3s ease-out; /* Animation d'apparition */
-        }
-
-        .modal-content h2 {
-            color: #005f8a;
-            margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 1.8em;
-        }
-
-        .modal-content p {
-            font-size: 1.1em;
-            line-height: 1.6;
-            color: #555;
-            margin-bottom: 25px;
-        }
-
-        .close-modal-btn {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            transition: color 0.2s ease;
-        }
-
-        .close-modal-btn:hover,
-        .close-modal-btn:focus {
-            color: #333;
-            text-decoration: none;
-            cursor: pointer;
-        }
-
-        .modal-action-btn {
-            background-color: #0077b6;
-            color: white;
-            padding: 12px 25px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: bold;
-            transition: background 0.3s ease, transform 0.2s ease;
-        }
-
-        .modal-action-btn:hover {
-            background: #005f8a;
-            transform: translateY(-2px);
-        }
-
-        /* Animation d'apparition pour le modal */
-        @keyframes fadeInScale {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        /* Media queries pour le modal sur petits écrans */
-        @media (max-width: 600px) {
-            .modal-content {
-                width: 90%;
-                padding: 20px;
-            }
-            .modal-content h2 {
-                font-size: 1.5em;
-            }
-            .modal-content p {
-                font-size: 1em;
-            }
-            .modal-action-btn {
-                padding: 10px 20px;
-                font-size: 1em;
-            }
-            .close-modal-btn {
-                font-size: 24px;
-                top: 10px;
-                right: 15px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -2484,15 +661,6 @@ HTML
         <div id="previewPanelContent" class="preview-panel-content">
             </div>
     </div>
-
-    <div id="myModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal-btn">&times;</span>
-            <h2>Bienvenue sur iMarketing !</h2>
-            <p>Découvrez notre galerie de tips et de prompts pour optimiser votre marketing digital.</p>
-            <button class="modal-action-btn" id="modalCloseButton">Commencer</button>
-        </div>
-    </div>
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = [];
@@ -2509,11 +677,6 @@ HTML
         const previewPanelContent = document.getElementById('previewPanelContent');
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const bodyElement = document.body;
-
-        // Éléments du modal
-        const modal = document.getElementById('myModal');
-        const closeModalBtn = document.querySelector('.close-modal-btn');
-        const modalCloseButton = document.getElementById('modalCloseButton');
 
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
@@ -2553,8 +716,6 @@ HTML
                 bodyElement.classList.add("show");
                 mainElement.classList.add("show");
                 loadAndDisplayTips();
-                // Afficher le modal après le chargement initial de la page
-                showModal();
             });
 
             if (window.location.search.includes('success=1')) {
@@ -2574,29 +735,6 @@ HTML
             }
 
             setupFilters();
-        });
-
-        // Fonction pour afficher le modal
-        function showModal() {
-            modal.style.display = 'flex'; // Utilise flex pour le centrage
-            document.body.style.overflow = 'hidden'; // Empêche le défilement en arrière-plan
-        }
-
-        // Fonction pour cacher le modal
-        function hideModal() {
-            modal.style.display = 'none';
-            document.body.style.overflow = ''; // Rétablit le défilement
-        }
-
-        // Écouteurs d'événements pour le modal
-        closeModalBtn.addEventListener('click', hideModal);
-        modalCloseButton.addEventListener('click', hideModal);
-
-        // Fermer le modal si on clique en dehors du contenu du modal
-        window.addEventListener('click', (event) => {
-            if (event.target == modal) {
-                hideModal();
-            }
         });
 
         function openPreviewPanel(tip) {
@@ -2713,74 +851,47 @@ HTML
             msg.textContent = message;
             msg.style.opacity = '1';
             setTimeout(() => msg.style.opacity = '0', 2000);
-            // Pas de reset URL pour les messages de succès temporaires
         }
 
         // Fonction pour afficher un message d'erreur
         function showErrorMessage(message) {
-            errorDisplay.textContent = `Erreur: ${message}`;
+            errorDisplay.textContent = message;
             errorDisplay.style.display = 'block';
-            setTimeout(() => {
-                errorDisplay.style.display = 'none';
-                errorDisplay.textContent = ''; // Efface le message après avoir été caché
-            }, 5000);
+            setTimeout(() => errorDisplay.style.display = 'none', 5000); // Masquer après 5 secondes
         }
 
         function createTipCard(tip) {
-            const carte = document.createElement('div');
-            carte.className = 'carte';
-            // Définir la couleur de la bordure gauche en fonction de l'outil
-            let borderColor = '#ccc'; // Couleur par défaut
-            switch (tip.outil) {
-                case 'Midjourney':
-                    borderColor = '#FF5733'; // Orange
-                    break;
-                case 'DALL·E':
-                    borderColor = '#33B5E5'; // Bleu clair
-                    break;
-                case 'Stable Diffusion':
-                    borderColor = '#8BC34A'; // Vert lime
-                    break;
-                case 'Adobe Firefly':
-                    borderColor = '#EE7F00'; // Orange Adobe
-                    break;
-                case 'Runway':
-                    borderColor = '#673AB7'; // Violet foncé
-                    break;
-                case 'ChatGPT':
-                    borderColor = '#198754'; // Vert plus foncé
-                    break;
-                case 'Autre':
-                    borderColor = '#607D8B'; // Gris ardoise
-                    break;
-                default:
-                    borderColor = '#0077b6'; // Bleu par défaut
-            }
-            carte.style.borderLeftColor = borderColor;
+            const card = document.createElement('div');
+            card.className = 'carte';
+            card.setAttribute('data-id', tip.id);
+            card.setAttribute('data-categorie', tip.categorie);
+            card.setAttribute('data-auteur', tip.auteur);
+            card.setAttribute('data-outil', tip.outil);
+            card.style.borderLeftColor = tip.couleurBordure || '#0077b6'; // Utilise la couleur du tip ou une couleur par défaut
 
             const infosWrapper = document.createElement('div');
             infosWrapper.className = 'infos-wrapper';
 
-            // Titre du tip
-            const titleElement = document.createElement('h3');
-            titleElement.className = 'tip-title';
-            titleElement.textContent = tip.titre;
-            infosWrapper.appendChild(titleElement);
+            const tipTitle = document.createElement('h2');
+            tipTitle.className = 'tip-title';
+            tipTitle.textContent = tip.titre;
+            infosWrapper.appendChild(tipTitle);
 
-            // Badge Outil
-            const outilBadge = document.createElement('span');
-            outilBadge.className = 'outil-badge';
-            outilBadge.textContent = tip.outil || 'Non spécifié';
-            infosWrapper.appendChild(outilBadge);
+            if (tip.outil) {
+                const outilBadge = document.createElement('span');
+                outilBadge.className = 'outil-badge';
+                outilBadge.textContent = tip.outil;
+                infosWrapper.appendChild(outilBadge);
+            }
 
-            // Section des métadonnées
+            // Section des métadonnées (Auteur, Catégorie, Date)
             const metadataSection = document.createElement('div');
             metadataSection.className = 'metadata-section';
 
-            const addMetadata = (label, value, className = '') => {
+            const addMetadataRow = (label, value, className = '') => {
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'metadata-label';
-                labelDiv.textContent = `${label} :`;
+                labelDiv.textContent = label + ' :';
                 metadataSection.appendChild(labelDiv);
 
                 const valueDiv = document.createElement('div');
@@ -2789,40 +900,57 @@ HTML
                 metadataSection.appendChild(valueDiv);
             };
 
-            addMetadata('Auteur', tip.auteur, 'auteur-value');
-            addMetadata('Catégorie', tip.categorie);
-            addMetadata('Date', tip.date ? new Date(tip.date).toLocaleDateString('fr-FR') : 'N/A');
-
+            addMetadataRow('Catégorie', tip.categorie);
+            addMetadataRow('Auteur', tip.auteur, 'auteur-value');
+            if (tip.date) {
+                const dateObj = new Date(tip.date);
+                addMetadataRow('Date', dateObj.toLocaleDateString('fr-FR'));
+            }
             infosWrapper.appendChild(metadataSection);
+
 
             // Texte de prévisualisation (le "post-it" jaune)
             if (tip.previewText) {
                 const previewPostIt = document.createElement('div');
                 previewPostIt.className = 'preview-post-it';
                 previewPostIt.textContent = tip.previewText;
-                carte.appendChild(previewPostIt);
+                card.appendChild(previewPostIt);
             }
 
-            // Boutons d'action sur la carte
+            // Description ou début du prompt (celui qui est le plus pertinent ou existe)
+            // if (tip.description) {
+            //     const descriptionDiv = document.createElement('div');
+            //     descriptionDiv.className = 'text-display';
+            //     descriptionDiv.innerHTML = `<strong>Description :</strong> ${tip.description}`;
+            //     infosWrapper.appendChild(descriptionDiv);
+            // } else if (tip.prompt) {
+            //     const promptSnippetDiv = document.createElement('div');
+            //     promptSnippetDiv.className = 'text-display';
+            //     promptSnippetDiv.innerHTML = `<strong>Prompt :</strong> ${tip.prompt.substring(0, 150)}...`; // Affiche les 150 premiers caractères du prompt
+            //     infosWrapper.appendChild(promptSnippetDiv);
+            // }
+
             const cardActions = document.createElement('div');
             cardActions.className = 'card-actions';
 
             const topButtonsGroup = document.createElement('div');
             topButtonsGroup.className = 'top-buttons-group';
 
-            const toggleBtn = document.createElement('button');
-            toggleBtn.className = 'toggle-content-btn';
-            toggleBtn.textContent = 'Aperçu';
-            toggleBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Empêche l'ouverture du panneau latéral si on clique sur ce bouton
+            // Bouton Aperçu
+            const toggleContentBtn = document.createElement('button');
+            toggleContentBtn.className = 'toggle-content-btn';
+            toggleContentBtn.textContent = 'Aperçu';
+            toggleContentBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Empêche l'ouverture/fermeture du panneau si la carte est cliquée ailleurs
                 openPreviewPanel(tip);
             });
-            topButtonsGroup.appendChild(toggleBtn);
+            topButtonsGroup.appendChild(toggleContentBtn);
 
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'copier-btn';
-            copyBtn.textContent = 'Copier le prompt';
-            copyBtn.addEventListener('click', (e) => {
+            // Bouton Copier le prompt
+            const copierBtn = document.createElement('button');
+            copierBtn.className = 'copier-btn';
+            copierBtn.textContent = 'Copier le prompt';
+            copierBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (tip.prompt) {
                     navigator.clipboard.writeText(tip.prompt).then(() => {
@@ -2832,14 +960,15 @@ HTML
                         showErrorMessage('Erreur lors de la copie du prompt.');
                     });
                 } else {
-                    showErrorMessage('Pas de prompt à copier.');
+                    showErrorMessage('Pas de prompt à copier pour ce tip.');
                 }
             });
-            topButtonsGroup.appendChild(copyBtn);
+            topButtonsGroup.appendChild(copierBtn);
 
+            // Bouton Éditer ce tip
             const editBtn = document.createElement('button');
             editBtn.className = 'edit-btn';
-            editBtn.textContent = 'Éditer';
+            editBtn.textContent = 'Éditer ce tip';
             editBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 window.location.href = `editer-tip.html?id=${tip.id}`;
@@ -2848,118 +977,119 @@ HTML
 
             cardActions.appendChild(topButtonsGroup);
 
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'supprimer-btn';
-            deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-            deleteBtn.title = 'Supprimer ce tip';
-            deleteBtn.addEventListener('click', (e) => {
+            // Bouton Supprimer
+            const supprimerBtn = document.createElement('button');
+            supprimerBtn.className = 'supprimer-btn';
+            supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            supprimerBtn.title = "Supprimer ce tip";
+            supprimerBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (confirm(`Êtes-vous sûr de vouloir supprimer le tip "${tip.titre}" ?`)) {
-                    deleteTip(tip.id);
+                if (confirm('Êtes-vous sûr de vouloir supprimer ce tip ?')) {
+                    try {
+                        const response = await fetch(`${apiBase}delete-tip?id=${tip.id}`, {
+                            method: 'DELETE'
+                        });
+                        if (!response.ok) {
+                            throw new Error(`Erreur HTTP: ${response.status}`);
+                        }
+                        galerieDiv.removeChild(card);
+                        allTips = allTips.filter(t => t.id !== tip.id); // Met à jour le tableau des tips
+                        showSuccessMessage('Tip supprimé avec succès !');
+                    } catch (error) {
+                        console.error('Erreur lors de la suppression du tip:', error);
+                        showErrorMessage('Erreur lors de la suppression du tip.');
+                    }
                 }
             });
-            cardActions.appendChild(deleteBtn);
+            cardActions.appendChild(supprimerBtn);
 
             infosWrapper.appendChild(cardActions);
-            carte.appendChild(infosWrapper);
+            card.appendChild(infosWrapper);
 
-            return carte;
+            return card;
         }
 
         async function loadAndDisplayTips() {
             galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
             errorDisplay.style.display = 'none';
-
             try {
-                const response = await fetch(apiBase + 'getTips');
+                const response = await fetch(`${apiBase}get-tips`);
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}. Détails: ${errorText}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                const data = await response.json();
-                allTips = data;
+                const tips = await response.json();
+                allTips = tips; // Stocke tous les tips pour le filtrage
+                displayTips(allTips); // Affiche tous les tips au chargement
+
                 populateFilters(allTips);
-                displayTips(allTips);
+
             } catch (error) {
-                console.error("Erreur lors du chargement des tips:", error);
+                console.error('Erreur lors du chargement des tips:', error);
                 galerieDiv.innerHTML = ''; // Enlève le loader
-                showErrorMessage(`Impossible de charger les tips. ${error.message}`);
-            }
-        }
-
-        function populateFilters(tips) {
-            const auteurs = new Set();
-            const categories = new Set();
-            const outils = new Set();
-
-            tips.forEach(tip => {
-                if (tip.auteur) auteurs.add(tip.auteur);
-                if (tip.categorie) categories.add(tip.categorie);
-                if (tip.outil) outils.add(tip.outil);
-            });
-
-            populateSelect(filtreAuteurSelect, Array.from(auteurs).sort());
-            // Les catégories sont fixes dans le HTML, donc pas besoin de les populer dynamiquement ici,
-            // à moins que vous souhaitiez une liste dynamique basée sur les données.
-            populateSelect(filtreOutilSelect, Array.from(outils).sort());
-        }
-
-        function populateSelect(selectElement, items) {
-            const currentSelectedValue = selectElement.value; // Conserver la valeur sélectionnée
-
-            // Vider sauf l'option "Toutes"
-            Array.from(selectElement.options).forEach(option => {
-                if (option.value !== "") {
-                    option.remove();
-                }
-            });
-
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item;
-                option.textContent = item;
-                selectElement.appendChild(option);
-            });
-
-            // Rétablir la sélection si la valeur existe toujours
-            if (currentSelectedValue && Array.from(items).includes(currentSelectedValue)) {
-                selectElement.value = currentSelectedValue;
-            } else {
-                selectElement.value = ""; // Réinitialiser si la valeur n'existe plus
+                errorDisplay.textContent = 'Erreur de chargement des tips. Veuillez réessayer plus tard.';
+                errorDisplay.style.display = 'block';
             }
         }
 
         function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = ''; // Nettoyer la galerie
-
+            galerieDiv.innerHTML = '';
             if (tipsToDisplay.length === 0) {
                 galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos critères de recherche.</p>';
                 return;
             }
-
-            // Trier les tips par date, du plus récent au plus ancien
-            tipsToDisplay.sort((a, b) => new Date(b.date) - new Date(a.date));
-
             tipsToDisplay.forEach(tip => {
-                const card = createTipCard(tip);
-                galerieDiv.appendChild(card);
+                galerieDiv.appendChild(createTipCard(tip));
+            });
+        }
+
+        function populateFilters(tips) {
+            const auteurs = new Set();
+            const outils = new Set();
+
+            tips.forEach(tip => {
+                if (tip.auteur) auteurs.add(tip.auteur);
+                if (tip.outil) outils.add(tip.outil);
+            });
+
+            // Remplir le filtre Auteur
+            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
+            Array.from(auteurs).sort().forEach(auteur => {
+                const option = document.createElement('option');
+                option.value = auteur;
+                option.textContent = auteur;
+                filtreAuteurSelect.appendChild(option);
+            });
+
+            // Remplir le filtre Outil
+            filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>';
+            Array.from(outils).sort().forEach(outil => {
+                const option = document.createElement('option');
+                option.value = outil;
+                option.textContent = outil;
+                filtreOutilSelect.appendChild(option);
             });
         }
 
         function setupFilters() {
             const applyFilters = () => {
-                const previewText = previewTextInput.value.toLowerCase();
-                const categorie = filtreCategorieSelect.value;
-                const auteur = filtreAuteurSelect.value;
-                const outil = filtreOutilSelect.value;
+                const searchText = previewTextInput.value.toLowerCase();
+                const selectedCategory = filtreCategorieSelect.value;
+                const selectedAuteur = filtreAuteurSelect.value;
+                const selectedOutil = filtreOutilSelect.value;
 
                 const filteredTips = allTips.filter(tip => {
-                    const matchesPreviewText = !previewText || (tip.previewText && tip.previewText.toLowerCase().includes(previewText)) || (tip.titre && tip.titre.toLowerCase().includes(previewText));
-                    const matchesCategory = !categorie || tip.categorie === categorie;
-                    const matchesAuthor = !auteur || tip.auteur === auteur;
-                    const matchesOutil = !outil || tip.outil === outil;
+                    const matchesSearch = searchText === '' ||
+                                          (tip.previewText && tip.previewText.toLowerCase().includes(searchText)) ||
+                                          (tip.titre && tip.titre.toLowerCase().includes(searchText)) ||
+                                          (tip.description && tip.description.toLowerCase().includes(searchText)) ||
+                                          (tip.prompt && tip.prompt.toLowerCase().includes(searchText)) ||
+                                          (tip.exemple && tip.exemple.toLowerCase().includes(searchText));
 
-                    return matchesPreviewText && matchesCategory && matchesAuthor && matchesOutil;
+                    const matchesCategory = selectedCategory === '' || tip.categorie === selectedCategory;
+                    const matchesAuteur = selectedAuteur === '' || tip.auteur === selectedAuteur;
+                    const matchesOutil = selectedOutil === '' || tip.outil === selectedOutil;
+
+                    return matchesSearch && matchesCategory && matchesAuteur && matchesOutil;
                 });
                 displayTips(filteredTips);
             };
@@ -2969,168 +1099,6 @@ HTML
             filtreAuteurSelect.addEventListener('change', applyFilters);
             filtreOutilSelect.addEventListener('change', applyFilters);
         }
-
-        async function deleteTip(id) {
-            try {
-                // Utiliser la fonction de Netlify pour la suppression
-                const response = await fetch(apiBase + 'deleteTip', {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ id }),
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}. Détails: ${errorText}`);
-                }
-
-                // Si la suppression est réussie, recharger les tips
-                showSuccessMessage('Tip supprimé avec succès !');
-                loadAndDisplayTips(); // Recharge les tips pour mettre à jour l'affichage
-            } catch (error) {
-                console.error("Erreur lors de la suppression du tip:", error);
-                showErrorMessage(`Impossible de supprimer le tip. ${error.message}`);
-            }
-        }
     </script>
 </body>
 </html>
-Explications des ajouts :
-1. HTML du Modal
-J'ai ajouté la structure HTML du modal juste avant la fermeture de la balise </body> :
-
-HTML
-
-<div id="myModal" class="modal">
-    <div class="modal-content">
-        <span class="close-modal-btn">&times;</span>
-        <h2>Bienvenue sur iMarketing !</h2>
-        <p>Découvrez notre galerie de tips et de prompts pour optimiser votre marketing digital.</p>
-        <button class="modal-action-btn" id="modalCloseButton">Commencer</button>
-    </div>
-</div>
-<div id="myModal" class="modal">: C'est le conteneur principal du modal. Il sera en display: none; par défaut et contiendra le fond semi-transparent qui couvre toute la page.
-<div class="modal-content">: C'est la "boîte" visible du modal, avec le contenu (titre, paragraphe, bouton).
-<span class="close-modal-btn">&times;</span>: Le bouton de fermeture (le "x") en haut à droite du modal.
-<button class="modal-action-btn" id="modalCloseButton">: Un bouton supplémentaire pour fermer le modal, plus grand et plus visible.
-2. CSS du Modal
-J'ai ajouté les styles CSS pour rendre le modal attrayant et fonctionnel, y compris les animations et la responsivité :
-
-CSS
-
-/* Styles pour le panneau modal */
-.modal {
-    display: none; /* Caché par défaut */
-    position: fixed; /* Reste en place même en scrollant */
-    z-index: 2000; /* Plus haut que tout le reste */
-    left: 0;
-    top: 0;
-    width: 100%; /* Pleine largeur */
-    height: 100%; /* Pleine hauteur */
-    overflow: auto; /* Permet le défilement si le contenu dépasse */
-    background-color: rgba(0,0,0,0.7); /* Fond noir semi-transparent */
-    backdrop-filter: blur(5px); /* Effet de flou derrière le modal */
-    -webkit-backdrop-filter: blur(5px); /* Compatibilité Safari */
-    justify-content: center; /* Centre le contenu horizontalement */
-    align-items: center; /* Centre le contenu verticalement */
-}
-
-.modal-content {
-    background-color: #fefefe;
-    margin: auto; /* Centre le contenu */
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    width: 80%; /* Largeur du modal */
-    max-width: 600px; /* Largeur maximale pour les grands écrans */
-    position: relative;
-    text-align: center;
-    animation: fadeInScale 0.3s ease-out; /* Animation d'apparition */
-}
-
-.modal-content h2 {
-    color: #005f8a;
-    margin-top: 0;
-    margin-bottom: 20px;
-    font-size: 1.8em;
-}
-
-.modal-content p {
-    font-size: 1.1em;
-    line-height: 1.6;
-    color: #555;
-    margin-bottom: 25px;
-}
-
-.close-modal-btn {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    transition: color 0.2s ease;
-}
-
-.close-modal-btn:hover,
-.close-modal-btn:focus {
-    color: #333;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.modal-action-btn {
-    background-color: #0077b6;
-    color: white;
-    padding: 12px 25px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1.1em;
-    font-weight: bold;
-    transition: background 0.3s ease, transform 0.2s ease;
-}
-
-.modal-action-btn:hover {
-    background: #005f8a;
-    transform: translateY(-2px);
-}
-
-/* Animation d'apparition pour le modal */
-@keyframes fadeInScale {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-/* Media queries pour le modal sur petits écrans */
-@media (max-width: 600px) {
-    .modal-content {
-        width: 90%;
-        padding: 20px;
-    }
-    .modal-content h2 {
-        font-size: 1.5em;
-    }
-    .modal-content p {
-        font-size: 1em;
-    }
-    .modal-action-btn {
-        padding: 10px 20px;
-        font-size: 1em;
-    }
-    .close-modal-btn {
-        font-size: 24px;
-        top: 10px;
-        right: 15px;
-    }
-}
