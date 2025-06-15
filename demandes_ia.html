@@ -70,6 +70,10 @@
         button:hover {
             background-color: #005f8a;
         }
+        button:disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+        }
         .recap {
             flex: 0 1 320px;
             background: rgb(0, 119, 182); /* Couleur de fond du récapitulatif */
@@ -78,14 +82,16 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
             max-height: 90vh;
             overflow-y: auto;
+            position: relative; /* Pour positionner le loading text */
         }
         .recap h3 {
             margin-top: 0;
             color: #ffffff; /* Texte en blanc */
             margin-bottom: 10px;
         }
-        #recapList { /* Ajout de la marge supérieure au conteneur des tickets */
-            margin-top: 20px; /* Espace entre le filtre et le premier ticket */
+        #recapList {
+            margin-top: 20px;
+            min-height: 50px; /* Pour éviter le saut quand les tickets chargent */
         }
         .ticket {
             position: relative;
@@ -99,6 +105,7 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+            cursor: pointer; /* Indique que c'est cliquable */
         }
         .ticket span {
             display: block;
@@ -116,9 +123,9 @@
         .modal-content {
             background: white;
             border-radius: 12px;
-            padding: 25px 35px; /* Augmentation du padding */
+            padding: 25px 35px;
             width: 90%;
-            max-width: 450px; /* Légèrement plus large pour la mise en page */
+            max-width: 450px;
             position: relative;
             box-shadow: 0 8px 20px rgba(0,0,0,0.2);
             font-size: 0.95em;
@@ -131,10 +138,10 @@
             border: none;
             font-size: 1.5em;
             cursor: pointer;
-            color: #666; /* Couleur du bouton de fermeture */
+            color: #666;
         }
         .modal-title {
-            color: #0077b6; /* Couleur du titre de la modale */
+            color: #0077b6;
             margin-top: 0;
             margin-bottom: 20px;
             font-size: 1.5em;
@@ -144,37 +151,82 @@
             display: flex;
             margin-bottom: 10px;
             line-height: 1.4;
-            flex-wrap: wrap; /* Permet le passage à la ligne sur petits écrans */
+            flex-wrap: wrap;
         }
         .modal-info-line strong {
-            color: #0077b6; /* Couleur du label */
-            min-width: 90px; /* Largeur minimale pour aligner les labels */
+            color: #0077b6;
+            min-width: 90px;
             margin-right: 10px;
         }
         .modal-info-line span {
-            flex: 1; /* Permet à la valeur de prendre l'espace restant */
-            word-break: break-word; /* Permet aux longs mots de se couper */
+            flex: 1;
+            word-break: break-word;
         }
         .modal-info-line.description {
-            flex-direction: column; /* La description sur une nouvelle ligne */
+            flex-direction: column;
         }
         .modal-info-line.description strong {
             margin-bottom: 5px;
         }
 
-        /* Styles pour la bulle de notification, s'ils ne sont pas déjà dans header.html ou style.css */
+        /* Styles pour la bulle de notification */
         .notification-bubble {
             position: absolute;
-            top: -5px; /* Ajustez la position selon votre header.html */
-            right: -5px; /* Ajustez la position selon votre header.html */
+            top: -5px;
+            right: -5px;
             background-color: #ff0000;
             color: white;
             border-radius: 50%;
             padding: 2px 7px;
             font-size: 0.75em;
             font-weight: bold;
-            display: none; /* Caché par défaut, affiché par JS si count > 0 */
-            line-height: 1; /* Pour centrer le texte verticalement */
+            display: none;
+            line-height: 1;
+        }
+
+        /* Styles pour les messages Toast */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none; /* Permet de cliquer à travers */
+        }
+        .toast-message {
+            background-color: rgba(51, 51, 51, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            transform: translateY(20px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            min-width: 250px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .toast-message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .toast-message.success {
+            background-color: rgba(40, 167, 69, 0.9); /* Vert */
+        }
+        .toast-message.error {
+            background-color: rgba(220, 53, 69, 0.9); /* Rouge */
+        }
+
+        /* Styles pour l'état de chargement des tickets */
+        .loading-text {
+            color: white;
+            text-align: center;
+            padding: 15px;
+            font-style: italic;
         }
     </style>
 </head>
@@ -247,8 +299,8 @@
                 <select id="filtreDemandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
                     <option value="">Filtrer par demandeur</option>
                 </select>
-                <select id="trierParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-                    <option value="">Trier par chaîne</option>
+                <select id="filtreParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <option value="">Filtrer par chaîne</option>
                     </select>
                 <div id="recapList"></div>
             </div>
@@ -263,6 +315,8 @@
                 </div>
         </div>
     </div>
+
+    <div id="toast-container"></div>
 
     <script>
         // Définitions des URL pour les fonctions Netlify
@@ -280,12 +334,31 @@
             }
         }
 
+        // Fonction pour afficher un message toast
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast-message ${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+
+            // Force reflow pour l'animation
+            void toast.offsetWidth; 
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+            }, 3000); // Disparaît après 3 secondes
+        }
+
         // Chargement de l'en-tête
         fetch("header.html")
             .then(res => {
                 if (!res.ok) {
                     console.error('Erreur lors du chargement de header.html:', res.status, res.statusText);
                     document.getElementById("header-placeholder").innerHTML = '<p style="color: red;">Erreur: header.html non trouvé ou inaccessible.</p>';
+                    showToast('Erreur de chargement de l\'en-tête.', 'error');
                     throw new Error('header.html not found');
                 }
                 return res.text();
@@ -341,7 +414,9 @@
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
             const filtreDemandeurSelect = document.getElementById("filtreDemandeur");
-            const trierParChaineSelect = document.getElementById("trierParChaine");
+            const filtreParChaineSelect = document.getElementById("filtreParChaine"); // Renommé
+
+            recapList.innerHTML = '<p class="loading-text">Chargement des demandes...</p>'; // Texte de chargement
 
             let demandes = [];
             try {
@@ -356,7 +431,8 @@
                 }
             } catch (err) {
                 console.error("Erreur lors de la récupération des demandes :", err);
-                recapList.innerHTML = '<p style="color: red;">Erreur lors du chargement des demandes. Vérifiez la console.</p>';
+                recapList.innerHTML = '<p style="color: red; text-align: center;">Erreur lors du chargement des demandes. Vérifiez la console.</p>';
+                showToast('Erreur lors du chargement des demandes.', 'error');
                 return;
             }
 
@@ -374,48 +450,45 @@
                 filtreDemandeurSelect.value = currentFiltreDemandeur;
             }
 
-            // Peupler le tri par chaîne (liste complète des options de chaîne)
+            // Peupler le filtre par chaîne (liste complète des options de chaîne)
             const chainesDisponibles = [
                 "La Une", "Tipik", "La Trois", "La première", "Classic 21", "vivacité", "Musiq3", "Auvio", "Auvio Kids"
             ].sort();
 
-            trierParChaineSelect.innerHTML = '<option value="">Trier par chaîne</option>';
+            filtreParChaineSelect.innerHTML = '<option value="">Filtrer par chaîne</option>';
             chainesDisponibles.forEach(chaine => {
                 const option = document.createElement('option');
                 option.value = chaine;
                 option.textContent = chaine;
-                trierParChaineSelect.appendChild(option);
+                filtreParChaineSelect.appendChild(option);
             });
-            const currentTrierParChaine = trierParChaineSelect.dataset.currentValue || '';
-            if (currentTrierParChaine) {
-                trierParChaineSelect.value = currentTrierParChaine;
+            const currentFiltreParChaine = filtreParChaineSelect.dataset.currentValue || '';
+            if (currentFiltreParChaine) {
+                filtreParChaineSelect.value = currentFiltreParChaine;
             }
             
             const selectedFiltreDemandeur = filtreDemandeurSelect.value;
-            const selectedTrierParChaine = trierParChaineSelect.value;
+            const selectedFiltreParChaine = filtreParChaineSelect.value; // Utilisé pour le filtrage réel
 
             let demandesFiltrees = demandes;
+            
+            // Appliquer le filtre par demandeur
             if (selectedFiltreDemandeur) {
                 demandesFiltrees = demandesFiltrees.filter(d => d.nom === selectedFiltreDemandeur);
             }
             
-            if (selectedTrierParChaine) {
-                demandesFiltrees.sort((a, b) => {
-                    if (chainesDisponibles.includes(selectedTrierParChaine)) {
-                        const aIsSelected = a.chaine === selectedTrierParChaine;
-                        const bIsSelected = b.chaine === selectedTrierParChaine;
-                        if (aIsSelected && !bIsSelected) return -1;
-                        if (!aIsSelected && bIsSelected) return 1;
-                    }
-                    return (a.chaine || '').localeCompare(b.chaine || '');
-                });
+            // Appliquer le filtre par chaîne (ne montrer QUE la chaîne sélectionnée)
+            if (selectedFiltreParChaine) {
+                demandesFiltrees = demandesFiltrees.filter(d => d.chaine === selectedFiltreParChaine);
             }
+            // Tri par date du plus récent au plus ancien, après filtrage
+            demandesFiltrees.sort((a, b) => new Date(b.date) - new Date(a.date));
 
 
             recapList.innerHTML = ""; // Vide la liste avant de la remplir
 
             if (demandesFiltrees.length === 0) {
-                recapList.innerHTML = '<p style="text-align: center; color: #777;">Aucune demande trouvée.</p>';
+                recapList.innerHTML = '<p style="text-align: center; color: #777;">Aucune demande trouvée avec ces critères.</p>';
                 return;
             }
 
@@ -434,7 +507,7 @@
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                         <span style="color:${couleur}; font-weight: bold">${d.chaine || 'N/A'}</span>
-                    <small style="color:#666;">📅 ${d.date ? d.date.split('T')[0] : 'N/A'}</small>
+                    <small style="color:#666;">📅 ${d.date ? new Date(d.date).toLocaleDateString('fr-BE') : 'N/A'}</small>
                     </div>
                     <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
                         <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
@@ -461,7 +534,6 @@
                     const modal = document.getElementById("modal");
                     const modalBody = document.getElementById("modal-body");
                     
-                    // Formatter la date pour l'affichage
                     const formattedDate = d.date ? new Date(d.date).toLocaleDateString('fr-BE', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
                     modalBody.innerHTML = `
@@ -492,55 +564,53 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    console.log(result.message);
-                    alert(result.message || "Demande supprimée avec succès !");
+                    showToast(result.message || "Demande supprimée avec succès !", 'success');
                     afficherDemandes();
                     mettreAJourBulleDemandes();
                 } else {
                     console.error("Échec de la suppression (réponse backend) :", result.message);
-                    alert(`Échec de la suppression : ${result.message || "Erreur inconnue."}`);
+                    showToast(`Échec de la suppression : ${result.message || "Erreur inconnue."}`, 'error');
                 }
             } catch(e) {
                 console.error("Erreur lors de la suppression de la demande côté client :", e);
-                alert("Erreur lors de la suppression. Vérifiez la console pour plus de détails.");
+                showToast("Erreur lors de la suppression. Vérifiez la console pour plus de détails.", 'error');
             }
         }
 
         async function marquerTraite(id) {
             try {
+                // Fetcher toutes les demandes pour trouver et mettre à jour le statut (nécessaire pour un store plat)
                 let responseData = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
                 let demandes = responseData.data;
 
                 const demande = demandes.find(d => d.id === id);
                 if (!demande) {
                     console.warn(`Demande avec l'ID ${id} non trouvée pour le marquage 'traité'.`);
+                    showToast("Demande introuvable pour le traitement.", 'error');
                     return;
                 }
-                demande.traite = true;
-
-                const index = demandes.findIndex(d => d.id === id);
-                if (index !== -1) {
-                    demandes[index] = demande; 
-                }
+                demande.traite = true; // Mettre à jour l'objet
 
                 const updateResponse = await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
+                    // Envoyer un tableau avec la demande mise à jour. 
+                    // La fonction backend doit être capable de gérer la mise à jour d'un élément spécifique.
                     body: JSON.stringify({ action: "updateDemandeIA", demandes: [demande] }) 
                 });
 
                 const updateResult = await updateResponse.json();
                 if (updateResult.success) {
-                    console.log(updateResult.message);
+                    showToast(updateResult.message || "Demande marquée comme traitée avec succès !", 'success');
                     afficherDemandes();
                     mettreAJourBulleDemandes();
                 } else {
                     console.error("Erreur lors de la mise à jour du statut (réponse backend) :", updateResult.message);
-                    alert(`Échec de la mise à jour : ${updateResult.message || "Erreur inconnue."}`);
+                    showToast(`Échec de la mise à jour : ${updateResult.message || "Erreur inconnue."}`, 'error');
                 }
             } catch(e) {
                 console.error("Erreur lors du marquage comme traité :", e);
-                alert("Erreur lors du marquage. Voir la console pour plus de détails.");
+                showToast("Erreur lors du marquage. Voir la console pour plus de détails.", 'error');
             }
         }
 
@@ -592,24 +662,24 @@
                     if (!response.ok) {
                         const errorText = await response.text();
                         console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
-                        alert(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}. Détails: ${errorText.substring(0, 200)}... (voir console)`);
+                        showToast(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}.`, 'error');
                         return;
                     }
 
                     const result = await response.json();
 
                     if (result.success) {
-                        alert(result.message || "Demande envoyée avec succès et mail transmis !");
+                        showToast(result.message || "Demande envoyée avec succès et mail transmis !", 'success');
                         e.target.reset(); 
                         afficherDemandes(); 
                         mettreAJourBulleDemandes(); 
                     } else {
                         console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
-                        alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
+                        showToast(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`, 'error');
                     }
                 } catch (err) {
                     console.error("Erreur d'envoi du formulaire côté client :", err);
-                    alert("Une erreur inattendue est survenue lors de l'envoi du formulaire. Vérifiez la console.");
+                    showToast("Une erreur inattendue est survenue lors de l'envoi du formulaire. Vérifiez la console.", 'error');
                 } finally {
                     submitBtn.textContent = originalBtnText;
                     submitBtn.disabled = false;
@@ -618,14 +688,15 @@
 
             // Écouteurs d'événements pour les filtres
             const filtreDemandeurSelect = document.getElementById("filtreDemandeur");
-            const trierParChaineSelect = document.getElementById("trierParChaine");
+            const filtreParChaineSelect = document.getElementById("filtreParChaine"); // Récupère le nouveau ID
 
             filtreDemandeurSelect.addEventListener("change", () => {
                 filtreDemandeurSelect.dataset.currentValue = filtreDemandeurSelect.value;
                 afficherDemandes();
             });
-            trierParChaineSelect.addEventListener("change", () => {
-                trierParChaineSelect.dataset.currentValue = trierParChaineSelect.value;
+            // Écouteur pour le nouveau filtre par chaîne
+            filtreParChaineSelect.addEventListener("change", () => {
+                filtreParChaineSelect.dataset.currentValue = filtreParChaineSelect.value;
                 afficherDemandes();
             });
 
