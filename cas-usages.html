@@ -586,6 +586,31 @@
             transform: rotate(2deg); /* Slightly rotate for a "post-it" feel */
         }
 
+        /* FOOTER STYLES */
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 20px 0;
+            margin-top: 40px; /* Espace au-dessus du footer */
+            width: 100%;
+        }
+
+        footer p {
+            margin: 0;
+            font-size: 0.9em;
+        }
+
+        footer .social-icons a {
+            color: white;
+            margin: 0 10px;
+            font-size: 1.5em;
+            transition: color 0.3s ease;
+        }
+
+        footer .social-icons a:hover {
+            color: #0077b6; /* Couleur de survol pour les icônes sociales */
+        }
     </style>
 </head>
 <body>
@@ -647,6 +672,17 @@
         <div id="previewPanelContent" class="preview-panel-content">
             </div>
     </div>
+
+    <footer>
+        <p>&copy; 2025 iMarketing. Tous droits réservés.</p>
+        <div class="social-icons">
+            <a href="#" target="_blank" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" target="_blank" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+            <a href="#" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+        </div>
+    </footer>
+
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = [];
@@ -837,170 +873,212 @@
 
         async function loadAndDisplayTips() {
             galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
-            errorDisplay.style.display = 'none';
+            errorDisplay.style.display = 'none'; // Cacher les messages d'erreur précédents
 
             try {
-                const response = await fetch(`${apiBase}get-tips`);
+                const response = await fetch(`${apiBase}getTips`);
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
+                    throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}. Détails: ${errorText}`);
                 }
                 const tips = await response.json();
-                allTips = tips;
-                console.log("Tips récupérés :", tips);
-
-                if (tips.length === 0) {
-                    galerieDiv.innerHTML = '<p style="text-align: center;">Aucun tip ou prompt trouvé pour le moment. Soyez le premier à en <a href="/creer-tip.html">partager un</a> !</p>';
-                } else {
-                    populateAuthorFilter(tips);
-                    filterAndSortTips(); // Appel de la fonction de filtrage et tri
-                }
+                allTips = tips; // Stocke tous les tips pour le filtrage
+                populateFilters(tips); // Popule les options des filtres
+                displayTips(tips); // Affiche tous les tips au début
             } catch (error) {
-                console.error("Erreur lors du chargement des tips de la galerie:", error);
-                galerieDiv.innerHTML = '';
-                errorDisplay.textContent = `Erreur lors du chargement des tips : ${error.message}`;
-                errorDisplay.style.display = 'block';
+                console.error("Erreur lors du chargement des tips:", error);
+                showErrorMessage(`Impossible de charger les tips. Veuillez réessayer plus tard. (${error.message})`);
+                galerieDiv.innerHTML = ''; // Supprimer le loader si erreur
             }
         }
 
-        function populateAuthorFilter(tips) {
-            const uniqueAuthors = new Set();
+        function populateFilters(tips) {
+            const auteurs = new Set();
+            const categories = new Set();
+            const outils = new Set();
+
             tips.forEach(tip => {
-                if (tip.auteur) {
-                    uniqueAuthors.add(tip.auteur);
-                }
+                if (tip.auteur) auteurs.add(tip.auteur);
+                if (tip.categorie) categories.add(tip.categorie);
+                if (tip.outil) outils.add(tip.outil);
             });
-            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
-            Array.from(uniqueAuthors).sort().forEach(auteur => {
+
+            // Supprimer les options existantes sauf "Tous les..."
+            filtreAuteurSelect.querySelectorAll('option:not([value=""])').forEach(option => option.remove());
+            filtreCategorieSelect.querySelectorAll('option:not([value=""])').forEach(option => option.remove());
+            filtreOutilSelect.querySelectorAll('option:not([value=""])').forEach(option => option.remove());
+
+
+            // Ajouter les nouvelles options
+            Array.from(auteurs).sort().forEach(auteur => {
                 const option = document.createElement('option');
                 option.value = auteur;
                 option.textContent = auteur;
                 filtreAuteurSelect.appendChild(option);
             });
+
+            Array.from(categories).sort().forEach(categorie => {
+                const option = document.createElement('option');
+                option.value = categorie;
+                option.textContent = categorie;
+                filtreCategorieSelect.appendChild(option);
+            });
+
+            Array.from(outils).sort().forEach(outil => {
+                const option = document.createElement('option');
+                option.value = outil;
+                option.textContent = outil;
+                filtreOutilSelect.appendChild(option);
+            });
         }
 
-        function filterAndSortTips() {
-            let filteredTips = [...allTips];
 
-            const previewText = previewTextInput.value.toLowerCase();
-            const categorie = filtreCategorieSelect.value;
-            const auteur = filtreAuteurSelect.value;
-            const outil = filtreOutilSelect.value;
+        function displayTips(tipsToDisplay) {
+            galerieDiv.innerHTML = ''; // Efface le contenu actuel (y compris le loader)
 
-            if (previewText) {
-                filteredTips = filteredTips.filter(tip =>
-                    tip.previewText && tip.previewText.toLowerCase().includes(previewText)
-                );
-            }
-            if (categorie) {
-                filteredTips = filteredTips.filter(tip => tip.categorie === categorie);
-            }
-            if (auteur) {
-                filteredTips = filteredTips.filter(tip => tip.auteur === auteur);
-            }
-            if (outil) {
-                filteredTips = filteredTips.filter(tip => tip.outil === outil);
-            }
-
-            renderTips(filteredTips);
-        }
-
-        function renderTips(tipsToRender) {
-            galerieDiv.innerHTML = ''; // Nettoyer le conteneur
-
-            if (tipsToRender.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center;">Aucun tip ne correspond à vos critères de recherche.</p>';
+            if (tipsToDisplay.length === 0) {
+                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip/prompt ne correspond à vos critères de recherche.</p>';
                 return;
             }
 
-            tipsToRender.forEach(tip => {
-                const carteDiv = document.createElement('div');
-                carteDiv.className = 'carte';
-                carteDiv.style.borderLeftColor = tip.color || '#0077b6'; // Utilise la couleur du tip ou une couleur par défaut
+            tipsToDisplay.forEach(tip => {
+                const carte = document.createElement('div');
+                carte.className = 'carte';
+                carte.dataset.id = tip.id; // Stocke l'ID pour les opérations futures
+                carte.style.borderLeftColor = tip.couleurBordure || '#0077b6'; // Utilise la couleur du tip ou une couleur par défaut
 
-                carteDiv.innerHTML = `
+                let imageHtml = '';
+                if (tip.imageUrl) {
+                    imageHtml = `<div class="left-panel">
+                                    <img src="${tip.imageUrl}" alt="Image pour ${tip.titre}" class="carte-image">
+                                </div>`;
+                }
+
+                carte.innerHTML = `
+                    ${imageHtml}
                     <div class="infos-wrapper">
-                        <h2 class="tip-title">${tip.titre}</h2> <div class="outil-badge">${tip.outil || 'Outil inconnu'}</div> <div class="metadata-section">
-                            <span class="metadata-label">Auteur:</span>
-                            <span class="metadata-value auteur-value">${tip.auteur || 'Inconnu'}</span>
-                            <span class="metadata-label">Catégorie:</span>
-                            <span class="metadata-value">${tip.categorie || 'Non classé'}</span>
+                        <h2 class="tip-title">${tip.titre}</h2>
+                        ${tip.outil ? `<span class="outil-badge">${tip.outil}</span>` : ''}
+                        <div class="metadata-section">
+                            <span class="metadata-label">Catégorie:</span><span class="metadata-value">${tip.categorie || 'N/A'}</span>
+                            <span class="metadata-label">Auteur:</span><span class="metadata-value auteur-value">${tip.auteur || 'N/A'}</span>
                         </div>
                         ${tip.previewText ? `<div class="preview-post-it">${tip.previewText}</div>` : ''}
                         <div class="card-actions">
                             <div class="top-buttons-group">
-                                <button class="toggle-content-btn" onclick="openPreviewPanel(allTips.find(t => t.id === '${tip.id}'))">Aperçu</button>
-                                <button class="copier-btn" onclick="copyPromptToClipboard('${tip.prompt}', event)">Copier</button>
-                                <button class="edit-btn" onclick="window.location.href='editer-tip.html?id=${tip.id}'">Éditer</button>
+                                <button class="toggle-content-btn">Aperçu</button>
+                                ${tip.prompt ? `<button class="copier-btn" data-prompt="${encodeURIComponent(tip.prompt)}">Copier le prompt</button>` : ''}
+                                <button class="edit-btn" data-id="${tip.id}">Éditer</button>
                             </div>
-                            <button class="supprimer-btn" onclick="deleteTip('${tip.id}', event)"><i class="fas fa-trash-alt"></i></button>
+                            <button class="supprimer-btn" data-id="${tip.id}" aria-label="Supprimer ce tip"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     </div>
                 `;
-                galerieDiv.appendChild(carteDiv);
+                galerieDiv.appendChild(carte);
+            });
+
+            attachEventListeners();
+        }
+
+        function attachEventListeners() {
+            document.querySelectorAll('.toggle-content-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const card = event.target.closest('.carte');
+                    const tipId = card.dataset.id;
+                    const tip = allTips.find(t => t.id === tipId);
+                    if (tip) {
+                        openPreviewPanel(tip);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.copier-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const promptText = decodeURIComponent(event.target.dataset.prompt);
+                    navigator.clipboard.writeText(promptText).then(() => {
+                        showSuccessMessage('Prompt copié !');
+                    }).catch(err => {
+                        console.error('Erreur lors de la copie:', err);
+                        showErrorMessage('Erreur lors de la copie.');
+                    });
+                });
+            });
+
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const tipId = event.target.dataset.id;
+                    window.location.href = `editer-tip.html?id=${tipId}`;
+                });
+            });
+
+
+            document.querySelectorAll('.supprimer-btn').forEach(button => {
+                button.addEventListener('click', async (event) => {
+                    const tipId = event.target.dataset.id;
+                    if (confirm('Êtes-vous sûr de vouloir supprimer ce tip/prompt ? Cette action est irréversible.')) {
+                        try {
+                            const response = await fetch(`${apiBase}deleteTip?id=${tipId}`, {
+                                method: 'DELETE'
+                            });
+
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}. Détails: ${errorText}`);
+                            }
+
+                            showSuccessMessage('Tip/Prompt supprimé avec succès !');
+                            // Supprimer la carte du DOM
+                            event.target.closest('.carte').remove();
+                            // Mettre à jour allTips
+                            allTips = allTips.filter(tip => tip.id !== tipId);
+                            // Ré-appliquer les filtres pour rafraîchir l'affichage (au cas où la suppression affecte les filtres disponibles)
+                            applyFilters();
+
+                        } catch (error) {
+                            console.error('Erreur lors de la suppression du tip:', error);
+                            showErrorMessage(`Impossible de supprimer le tip. (${error.message})`);
+                        }
+                    }
+                });
             });
         }
 
-        function copyPromptToClipboard(promptText, event) {
-            event.stopPropagation(); // Empêche l'ouverture du panneau d'aperçu
-            navigator.clipboard.writeText(promptText).then(() => {
-                showSuccessMessage('Prompt copié !');
-            }).catch(err => {
-                console.error('Erreur lors de la copie:', err);
-                showErrorMessage('Erreur lors de la copie.');
+        function setupFilters() {
+            filtreAuteurSelect.addEventListener('change', applyFilters);
+            filtreCategorieSelect.addEventListener('change', applyFilters);
+            filtreOutilSelect.addEventListener('change', applyFilters);
+            previewTextInput.addEventListener('input', applyFilters); // Écoute l'événement 'input' pour la recherche en temps réel
+        }
+
+        function applyFilters() {
+            const auteurSelectionne = filtreAuteurSelect.value;
+            const categorieSelectionnee = filtreCategorieSelect.value;
+            const outilSelectionne = filtreOutilSelect.value;
+            const texteRecherche = previewTextInput.value.toLowerCase();
+
+            const filteredTips = allTips.filter(tip => {
+                const matchAuteur = !auteurSelectionne || (tip.auteur && tip.auteur === auteurSelectionne);
+                const matchCategorie = !categorieSelectionnee || (tip.categorie && tip.categorie === categorieSelectionnee);
+                const matchOutil = !outilSelectionne || (tip.outil && tip.outil === outilSelectionne);
+                const matchPreviewText = !texteRecherche || (tip.previewText && tip.previewText.toLowerCase().includes(texteRecherche));
+
+                return matchAuteur && matchCategorie && matchOutil && matchPreviewText;
             });
+
+            displayTips(filteredTips);
         }
 
         function showSuccessMessage(message) {
             const msg = document.getElementById('success-message');
             msg.textContent = message;
             msg.style.opacity = '1';
-            setTimeout(() => msg.style.opacity = '0', 2000);
+            setTimeout(() => msg.style.opacity = '0', 3000);
         }
 
         function showErrorMessage(message) {
-            const msg = document.getElementById('error-display');
-            msg.textContent = message;
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 3000);
-        }
-
-        async function deleteTip(id, event) {
-            event.stopPropagation();
-            if (!confirm('Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`${apiBase}delete-tip`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ id }),
-                });
-
-                if (!response.ok) {
-                    const errorBody = await response.json();
-                    throw new Error(errorBody.message || `Erreur HTTP: ${response.status}`);
-                }
-
-                const result = await response.json();
-                showSuccessMessage(result.message || 'Tip supprimé avec succès !');
-                // Recharger les tips après suppression
-                await loadAndDisplayTips();
-
-            } catch (error) {
-                console.error('Erreur lors de la suppression du tip:', error);
-                showErrorMessage(`Échec de la suppression: ${error.message}`);
-            }
-        }
-
-        function setupFilters() {
-            previewTextInput.addEventListener('input', filterAndSortTips);
-            filtreCategorieSelect.addEventListener('change', filterAndSortTips);
-            filtreAuteurSelect.addEventListener('change', filterAndSortTips);
-            filtreOutilSelect.addEventListener('change', filterAndSortTips);
+            errorDisplay.textContent = message;
+            errorDisplay.style.display = 'block';
+            setTimeout(() => errorDisplay.style.display = 'none', 5000);
         }
     </script>
 </body>
