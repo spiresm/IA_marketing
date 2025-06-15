@@ -506,9 +506,9 @@
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
             const filtreDemandeurSelect = document.getElementById("filtreDemandeur");
-            const filtreParChaineSelect = document.getElementById("filtreParChaine"); // Renommé
+            const filtreParChaineSelect = document.getElementById("filtreParChaine"); 
 
-            recapList.innerHTML = '<p class="loading-text">Chargement des demandes...</p>'; // Texte de chargement
+            recapList.innerHTML = '<p class="loading-text">Chargement des demandes...</p>'; 
 
             let demandes = [];
             try {
@@ -531,7 +531,7 @@
             // Peupler le filtre "Demandeur"
             const demandeursUniques = [...new Set(demandes.map(d => d.nom).filter(Boolean))].sort();
             filtreDemandeurSelect.innerHTML = '<option value="">Filtrer par demandeur</option>';
-            demandeurUniques.forEach(nom => {
+            demandeursUniques.forEach(nom => { // Correction ici
                 const option = document.createElement('option');
                 option.value = nom;
                 option.textContent = nom;
@@ -560,7 +560,7 @@
             }
             
             const selectedFiltreDemandeur = filtreDemandeurSelect.value;
-            const selectedFiltreParChaine = filtreParChaineSelect.value; // Utilisé pour le filtrage réel
+            const selectedFiltreParChaine = filtreParChaineSelect.value; 
 
             let demandesFiltrees = demandes;
             
@@ -569,7 +569,7 @@
                 demandesFiltrees = demandesFiltrees.filter(d => d.nom === selectedFiltreDemandeur);
             }
             
-            // Appliquer le filtre par chaîne (ne montrer QUE la chaîne sélectionnée)
+            // Appliquer le filtre par chaîne 
             if (selectedFiltreParChaine) {
                 demandesFiltrees = demandesFiltrees.filter(d => d.chaine === selectedFiltreParChaine);
             }
@@ -577,7 +577,7 @@
             demandesFiltrees.sort((a, b) => new Date(b.date) - new Date(a.date));
 
 
-            recapList.innerHTML = ""; // Vide la liste avant de la remplir
+            recapList.innerHTML = ""; 
 
             if (demandesFiltrees.length === 0) {
                 recapList.innerHTML = '<p style="text-align: center; color: #777;">Aucune demande trouvée avec ces critères.</p>';
@@ -671,27 +671,17 @@
 
         async function marquerTraite(id) {
             try {
-                // Fetcher toutes les demandes pour trouver et mettre à jour le statut (nécessaire pour un store plat)
-                let responseData = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
-                let demandes = responseData.data;
-
-                const demande = demandes.find(d => d.id === id);
-                if (!demande) {
-                    console.warn(`Demande avec l'ID ${id} non trouvée pour le marquage 'traité'.`);
-                    showToast("Demande introuvable pour le traitement.", 'error');
-                    return;
-                }
-                demande.traite = true; // Mettre à jour l'objet
-
-                const updateResponse = await fetch(PROXY_URL, {
+                const response = await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    // Envoyer un tableau avec la demande mise à jour. 
-                    // La fonction backend doit être capable de gérer la mise à jour d'un élément spécifique.
-                    body: JSON.stringify({ action: "updateDemandeIA", demandes: [demande] }) 
+                    body: JSON.stringify({
+                        action: "updateDemandeIA",
+                        id: id,
+                        traite: true 
+                    })
                 });
 
-                const updateResult = await updateResponse.json();
+                const updateResult = await response.json();
                 if (updateResult.success) {
                     showToast(updateResult.message || "Demande marquée comme traitée avec succès !", 'success');
                     afficherDemandes();
