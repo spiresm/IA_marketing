@@ -1,4 +1,845 @@
-errorDisplay.style.display = 'none';
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galerie des Tips et Prompts - iMarketing</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Styles généraux pour l'animation d'apparition de la page */
+        body {
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Police cohérente */
+            background-color: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #333; /* Couleur de texte principale */
+        }
+        body.show {
+            opacity: 1;
+        }
+        main {
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+            padding: 40px 20px;
+            flex-grow: 1;
+        }
+        main.show {
+            opacity: 1;
+        }
+
+        #header-placeholder {
+            width: 100%;
+        }
+
+        /* Conteneur des contrôles en haut (filtres et boutons) */
+        .header-controls-container {
+            max-width: 960px;
+            margin: 20px auto 25px auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        /* Conteneur principal de la galerie (la "box" blanche) */
+        .galerie-container {
+            max-width: 960px;
+            margin: 0px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); /* Ombre plus douce */
+            border: 1px solid #eee; /* Bordure subtile */
+        }
+
+        /* Conteneur des filtres et boutons d'action */
+        .filters-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        #filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        #filters input[type="text"],
+        #filters select {
+            padding: 10px 14px; /* Plus de padding */
+            border: 1px solid #ccc; /* Bordure plus neutre */
+            border-radius: 8px;
+            font-size: 0.95em; /* Légèrement plus grand */
+            flex: 1;
+            min-width: 130px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); /* Ombre interne subtile */
+            background-color: #fcfcfc;
+            color: #444;
+        }
+        #filters input[type="text"]::placeholder, #filters select {
+            color: #888;
+        }
+        #filters select:focus, #filters input[type="text"]:focus {
+            border-color: #0077b6; /* Bordure bleue au focus */
+            outline: none;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05), 0 0 0 2px rgba(0, 119, 182, 0.2); /* Ombre focus */
+        }
+
+        #preview-text {
+            min-width: 180px;
+            max-width: 250px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .action-buttons a {
+            background: #0077b6;
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .action-buttons a:hover {
+            background: #005f8a;
+            transform: translateY(-1px);
+        }
+
+        /* Styles for the "Créer un tip" button */
+        .create-tip-button-container {
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+
+        .create-tip-button {
+            background: #4CAF50; /* Vert pour le CTA principal */
+            color: white;
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: background 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .create-tip-button:hover {
+            background: #45a049; /* Teinte plus foncée au survol */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Galerie en colonne */
+        #galerie {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ************************************************* */
+        /* STYLES POUR CHAQUE PLAQUE (CARTE) */
+        /* ************************************************* */
+        .carte {
+            background: #fff;
+            border-left: 5px solid transparent; /* Couleur définie par JS */
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: flex-start;
+            padding: 0;
+            position: relative;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
+            box-sizing: border-box;
+            width: 100%;
+            z-index: 1;
+        }
+
+        .carte:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+        }
+
+        /* Conteneur pour toutes les informations textuelles */
+        .infos-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-width: 0;
+            padding: 20px; /* Plus de padding ici pour un look aéré */
+            width: 100%;
+        }
+
+        /* Nouvelle classe pour le titre du tip */
+        .tip-title {
+            font-size: 1.4em; /* Légèrement plus grand */
+            color: #005f8a;
+            font-weight: bold;
+            margin-bottom: 10px; /* Espace après le titre */
+        }
+
+        /* Badge pour l'outil (dans infos-wrapper) */
+        .outil-badge {
+            background-color: #e0f2f7;
+            color: #0077b6;
+            font-size: 0.85em;
+            font-weight: bold;
+            padding: 5px 10px; /* Plus de padding */
+            border-radius: 5px;
+            margin-bottom: 12px; /* Plus d'espace après l'outil */
+            white-space: nowrap;
+            text-transform: uppercase;
+            align-self: flex-start;
+        }
+
+        /* Section des métadonnées (Auteur, Catégorie) */
+        .metadata-section {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 4px 12px; /* Espacement ajusté */
+            font-size: 0.95em; /* Légèrement plus grand */
+            color: #555;
+            margin-bottom: 10px; /* Plus d'espace */
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .metadata-label {
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .metadata-value {
+            color: #666;
+            word-break: break-word;
+        }
+        .metadata-value.auteur-value {
+            font-size: 1em;
+            color: #444;
+            font-weight: normal;
+        }
+
+        /* Texte du prompt et description */
+        .text-display {
+            font-size: 0.95em; /* Plus grand */
+            color: #444;
+            line-height: 1.5;
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 8px; /* Rayon plus prononcé */
+            padding: 10px 15px; /* Plus de padding */
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Boutons d'action sur la carte */
+        .card-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-top: auto;
+            padding-top: 10px;
+            width: 100%;
+        }
+
+        .top-buttons-group {
+            display: flex;
+            gap: 12px; /* Espace entre Aperçu, Copier, Éditer */
+            margin-bottom: 8px; /* Petit espace sous le groupe de boutons */
+            align-items: center;
+            flex-wrap: wrap; /* Permet aux boutons de passer à la ligne sur petits écrans */
+        }
+
+        /* Styles spécifiques pour le bouton "Copier le prompt" */
+        .copier-btn {
+            background-color: #64B5F6; /* Bleu plus clair */
+            color: white;
+            border: none;
+            padding: 8px 16px; /* Plus de padding */
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .copier-btn:hover {
+            background-color: #42A5F5;
+            transform: translateY(-1px);
+        }
+
+        .toggle-content-btn, .edit-btn {
+            background-color: #0077b6; /* Bleu standard */
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .toggle-content-btn:hover, .edit-btn:hover {
+            background-color: #005f8a;
+            transform: translateY(-1px);
+        }
+
+        /* Styles pour le bouton supprimer (corbeille) */
+        .supprimer-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.4em; /* Légèrement plus grand */
+            cursor: pointer;
+            transition: color 0.2s, transform 0.1s;
+            padding: 5px 8px; /* Plus de padding */
+            align-self: flex-start;
+        }
+
+        .supprimer-btn:hover {
+            color: #dc3545;
+            transform: translateY(-1px);
+        }
+
+        #success-message {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 12px 20px; /* Plus de padding */
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* Styles pour le loader */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0077b6; /* Bleu de la charte */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Message d'erreur */
+        .error-message {
+            text-align: center;
+            color: #dc3545;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+        }
+
+        /* Styles for the new right-side preview panel */
+        .preview-panel {
+            position: fixed;
+            top: 0;
+            right: -760px; /* Masqué par défaut */
+            width: 740px;
+            max-width: 90%;
+            height: 100%;
+            background-color: #fff;
+            box-shadow: -6px 0 20px rgba(0, 0, 0, 0.15); /* Ombre plus prononcée */
+            transition: right 0.3s ease-in-out;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            padding: 25px; /* Plus de padding */
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .preview-panel.open {
+            right: 0;
+        }
+
+        .preview-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px; /* Plus d'espace */
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .preview-panel-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1.3em; /* Plus grand */
+        }
+
+        .close-preview-btn {
+            background: none;
+            border: none;
+            font-size: 1.6em; /* Plus grand */
+            cursor: pointer;
+            color: #888;
+            transition: color 0.2s;
+        }
+
+        .close-preview-btn:hover {
+            color: #333;
+        }
+
+        .preview-panel-content {
+            flex-grow: 1;
+            font-size: 1em;
+            line-height: 1.6;
+            color: #444;
+            font-weight: normal;
+        }
+
+        .preview-panel-content strong {
+            color: #333;
+        }
+
+        /* Styles pour l'image dans le panneau d'aperçu */
+        .preview-panel-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Styles pour le cartouche jaune du texte de prévisualisation dans le panneau de droite */
+        .preview-text-card-yellow {
+            background-color: #FFFAA0; /* Jaune pastel du post-it */
+            color: #333;
+            padding: 12px 18px; /* Plus de padding */
+            border-radius: 8px;
+            margin-bottom: 20px; /* Espace sous le cartouche */
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 1em; /* Légèrement plus grand */
+            line-height: 1.5;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* Style pour les cartouches bleus clairs pour Description, Exemple */
+        .content-card-blue {
+            background-color: #E0F2F7; /* Bleu très clair */
+            color: #005f8a;
+            padding: 12px 18px; /* Plus de padding */
+            border-radius: 8px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 0.95em; /* Légèrement plus grand */
+            line-height: 1.4;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* Style pour le prompt (revenir au style initial) */
+        .prompt-content-pre {
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 8px; /* Rayon plus prononcé */
+            padding: 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            margin-top: 8px;
+            font-weight: normal;
+            margin-bottom: 15px;
+        }
+
+        /* Style pour le bouton Copier dans le panneau latéral */
+        .copy-panel-btn {
+            background-color: #64B5F6; /* Bleu clair similaire au bouton de la carte */
+            color: white;
+            border: none;
+            padding: 10px 20px; /* Plus de padding */
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95em; /* Légèrement plus grand */
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-top: -10px;
+            margin-bottom: 20px;
+            align-self: flex-start;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .copy-panel-btn:hover {
+            background-color: #42A5F5;
+            transform: translateY(-1px);
+        }
+
+        /* Media queries pour la responsivité */
+        @media (max-width: 992px) {
+            .preview-panel {
+                width: 100%;
+                right: -100%;
+            }
+            .preview-panel.open {
+                right: 0;
+            }
+        }
+        @media (max-width: 768px) {
+            .filters-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            #filters {
+                flex-direction: column;
+                gap: 15px;
+            }
+            #filters input, #filters select {
+                min-width: unset;
+                max-width: unset;
+                width: 100%;
+            }
+            .action-buttons {
+                flex-direction: column;
+                width: 100%;
+                justify-content: center;
+            }
+            .action-buttons a {
+                width: 100%;
+                text-align: center;
+            }
+            .infos-wrapper {
+                padding: 15px;
+                width: auto;
+            }
+            .metadata-section {
+                grid-template-columns: 1fr;
+                gap: 5px;
+            }
+            .card-actions {
+                align-items: center;
+            }
+            .top-buttons-group {
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+                justify-content: center;
+                margin-bottom: 8px;
+            }
+            .toggle-content-btn, .copier-btn, .edit-btn {
+                width: 100%;
+                text-align: center;
+            }
+            .supprimer-btn {
+                width: auto;
+                align-self: center;
+            }
+            .create-tip-button-container {
+                margin-top: 15px;
+                margin-bottom: 20px;
+            }
+            .preview-post-it {
+                position: static;
+                margin-top: 10px;
+                max-width: unset;
+                text-align: center;
+                transform: none;
+                font-size: 1.1em;
+            }
+        }
+
+        /* Styles for the "post-it" preview text on the card */
+        .preview-post-it {
+            position: absolute;
+            top: 70px;
+            right: 15px; /* Déplacé légèrement vers la droite pour le padding */
+            background-color: #FFFAA0;
+            color: #333;
+            padding: 12px; /* Plus de padding */
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            font-size: 1em;
+            font-weight: bold;
+            z-index: 2;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-width: 180px;
+            transform: rotate(2deg);
+        }
+
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <div class="header-controls-container">
+            <div class="filters-header">
+                <div id="filters">
+                    <input type="text" id="preview-text" placeholder="Rechercher dans le texte..." />
+                    <select id="filtre-categorie">
+                        <option value="">Toutes les catégories</option>
+                        <option>Marketing Digital</option>
+                        <option>Réseaux Sociaux</option>
+                        <option>SEO</option>
+                        <option>Contenu</option>
+                        <option>Publicité</option>
+                        <option>Outils IA</option>
+                        <option>Stratégie</option>
+                        <option>Autre</option>
+                    </select>
+                    <select id="filtre-auteur">
+                        <option value="">Tous les auteurs</option>
+                    </select>
+                    <select id="filtre-outil">
+                        <option value="">Tous les outils</option>
+                        <option>Midjourney</option>
+                        <option>DALL·E</option>
+                        <option>Stable Diffusion</option>
+                        <option>Adobe Firefly</option>
+                        <option>Runway</option>
+                        <option>ChatGPT</option>
+                        <option>Autre</option>
+                    </select>
+                </div>
+                <div class="action-buttons">
+                    </div>
+            </div>
+            <div class="create-tip-button-container">
+                <a href="creer-tip.html" class="create-tip-button">Créer un tip</a>
+            </div>
+        </div>
+
+        <div class="galerie-container">
+            <div id="success-message"></div>
+            <div id="galerie">
+                <div class="loader"></div> <p style="text-align: center; color: #555;">Chargement des tips...</p>
+            </div>
+            <div id="error-display" class="error-message" style="display: none;"></div>
+        </div>
+    </main>
+
+    <div id="footer-placeholder"></div>
+
+    <div id="previewPanel" class="preview-panel">
+        <div class="preview-panel-header">
+            <h3 id="previewPanelTitle">Aperçu du contenu</h3>
+            <button class="close-preview-btn" id="closePreviewBtn"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="previewPanelContent" class="preview-panel-content">
+            </div>
+    </div>
+    <script>
+        const apiBase = window.location.origin + '/.netlify/functions/';
+        let allTips = [];
+        const galerieDiv = document.getElementById('galerie');
+        const errorDisplay = document.getElementById('error-display');
+        const filtreAuteurSelect = document.getElementById('filtre-auteur');
+        const filtreCategorieSelect = document.getElementById('filtre-categorie');
+        const filtreOutilSelect = document.getElementById('filtre-outil');
+
+        const previewTextInput = document.getElementById('preview-text');
+
+        const previewPanel = document.getElementById('previewPanel');
+        const previewPanelTitle = document.getElementById('previewPanelTitle');
+        const previewPanelContent = document.getElementById('previewPanelContent');
+        const closePreviewBtn = document.getElementById('closePreviewBtn');
+        const bodyElement = document.body;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const headerPlaceholder = document.getElementById("header-placeholder");
+            const footerPlaceholder = document.getElementById("footer-placeholder");
+            const mainElement = document.querySelector("main");
+
+            const loadComponent = async (url, placeholderId, errorMessage) => {
+                console.log(`Attempting to load ${url} into #${placeholderId}`);
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        const errorDetail = await res.text();
+                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                    }
+                    document.getElementById(placeholderId).innerHTML = await res.text();
+                    console.log(`${url} loaded successfully.`);
+                } catch (error) {
+                    console.error(`Error loading ${url}:`, error);
+                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
+                }
+            };
+
+            Promise.all([
+                loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu"),
+                loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
+            ])
+            .then(() => {
+                const activeLink = document.querySelector("nav a[href='galerie.html']");
+                if (activeLink) {
+                    activeLink.classList.add("active");
+                }
+            })
+            .catch(error => {
+                console.error("General issue loading components:", error);
+            })
+            .finally(() => {
+                bodyElement.classList.add("show");
+                mainElement.classList.add("show");
+                loadAndDisplayTips();
+            });
+
+            if (window.location.search.includes('success=1')) {
+                const msg = document.getElementById('success-message');
+                msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+            }
+            // Message de succès pour l'édition
+            if (window.location.search.includes('editSuccess=1')) {
+                const msg = document.getElementById('success-message');
+                msg.textContent = '✅ Tip/Prompt modifié avec succès !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+            }
+
+            setupFilters();
+        });
+
+        function openPreviewPanel(tip) {
+            previewPanelTitle.textContent = `Aperçu : ${tip.titre || 'Sans titre'}`;
+            previewPanelContent.innerHTML = '';
+
+            // Afficher l'image si elle existe
+            if (tip.imageUrl) {
+                const img = document.createElement('img');
+                img.className = 'preview-panel-image';
+                img.src = tip.imageUrl;
+                img.alt = `Image pour ${tip.titre || 'ce tip'}`;
+                previewPanelContent.appendChild(img);
+            }
+
+            // Afficher le previewText dans un cartouche jaune
+            if (tip.previewText) {
+                const previewDiv = document.createElement('div');
+                previewDiv.className = 'preview-text-card-yellow';
+                previewDiv.textContent = tip.previewText;
+                previewPanelContent.appendChild(previewDiv);
+            }
+
+            // Afficher la description dans un cartouche bleu clair, sans le label "Description :"
+            if (tip.description) {
+                const descriptionPre = document.createElement('pre');
+                descriptionPre.className = 'content-card-blue';
+                descriptionPre.textContent = tip.description;
+                previewPanelContent.appendChild(descriptionPre);
+            }
+
+            // Afficher le prompt avec son style d'origine (fond gris clair)
+            if (tip.prompt) {
+                const promptHtml = document.createElement('p');
+                promptHtml.innerHTML = `<strong>Prompt :</strong>`;
+                previewPanelContent.appendChild(promptHtml);
+                const promptPre = document.createElement('pre');
+                promptPre.className = 'prompt-content-pre';
+                promptPre.textContent = tip.prompt;
+                previewPanelContent.appendChild(promptPre);
+
+                // Ajouter le bouton "Copier le prompt" en dessous du prompt
+                const copyPromptPanelBtn = document.createElement('button');
+                copyPromptPanelBtn.className = 'copy-panel-btn';
+                copyPromptPanelBtn.textContent = 'Copier le prompt';
+                copyPromptPanelBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(tip.prompt).then(() => {
+                        showSuccessMessage('Prompt copié !');
+                    }).catch(err => {
+                        console.error('Erreur lors de la copie du prompt:', err);
+                        showErrorMessage('Erreur lors de la copie.');
+                    });
+                });
+                previewPanelContent.appendChild(copyPromptPanelBtn);
+            }
+
+            // Afficher l'exemple dans un cartouche bleu clair
+            if (tip.exemple) {
+                const exempleHtml = document.createElement('p');
+                exempleHtml.innerHTML = `<strong>Exemple :</strong>`;
+                previewPanelContent.appendChild(exempleHtml);
+                const exemplePre = document.createElement('pre');
+                exemplePre.className = 'content-card-blue';
+                exemplePre.textContent = tip.exemple;
+                previewPanelContent.appendChild(exemplePre);
+            }
+
+            // Ajout des informations Auteur, Catégorie, Date, Outil
+            const infoDiv = document.createElement('div');
+            infoDiv.innerHTML += `<p><strong>Outil:</strong> ${tip.outil || 'N/A'}</p>`;
+            infoDiv.innerHTML += `<p><strong>Catégorie:</strong> ${tip.categorie || 'N/A'}</p>`;
+            infoDiv.innerHTML += `<p><strong>Auteur:</strong> ${tip.auteur || 'N/A'}</p>`;
+            if (tip.date) {
+                const dateObj = new Date(tip.date);
+                infoDiv.innerHTML += `<p><strong>Date:</strong> ${dateObj.toLocaleDateString('fr-FR')}</p>`;
+            }
+            previewPanelContent.appendChild(infoDiv);
+
+            previewPanel.classList.add('open');
+        }
+
+        function closePreviewPanel() {
+            previewPanel.classList.remove('open');
+        }
+
+        closePreviewBtn.addEventListener('click', closePreviewPanel);
+
+        // Modifié pour que le clic en dehors du panneau ou d'une carte ferme le panneau
+        document.addEventListener('click', (event) => {
+            if (previewPanel.classList.contains('open') &&
+                !previewPanel.contains(event.target) &&
+                !event.target.closest('.carte') &&
+                !event.target.closest('.edit-btn') &&
+                !event.target.closest('.copier-btn') &&
+                !event.target.closest('.supprimer-btn') &&
+                !event.target.closest('.toggle-content-btn') && /* Empêche de fermer si on clique sur le bouton "Aperçu complet" */
+                !event.target.closest('.copy-panel-btn') /* Empêche de fermer si on clique sur le bouton "Copier du panneau" */
+            ) {
+                closePreviewPanel();
+            }
+        });
+
+        async function loadAndDisplayTips() {
+            galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center; color: #555;">Chargement des tips...</p>';
+            errorDisplay.style.display = 'none';
 
             try {
                 const response = await fetch(`${apiBase}getTips`);
@@ -9,10 +850,10 @@ errorDisplay.style.display = 'none';
                 allTips = data.tips || [];
 
                 populateFilters(allTips);
-                filterAndDisplayTips(); // Affiche les tips après chargement et populage des filtres
+                filterAndDisplayTips();
             } catch (error) {
                 console.error("Erreur lors du chargement des tips :", error);
-                galerieDiv.innerHTML = ''; // Vide le loader
+                galerieDiv.innerHTML = '';
                 errorDisplay.textContent = `Erreur lors du chargement des tips : ${error.message}. Veuillez réessayer.`;
                 errorDisplay.style.display = 'block';
             }
@@ -35,16 +876,6 @@ errorDisplay.style.display = 'none';
                 option.textContent = auteur;
                 filtreAuteurSelect.appendChild(option);
             });
-
-            // Populate Outil filter (if not hardcoded in HTML)
-            // If you prefer to manage 'Outil' dynamically, uncomment and adjust:
-            // filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>';
-            // Array.from(outils).sort().forEach(outil => {
-            //     const option = document.createElement('option');
-            //     option.value = outil;
-            //     option.textContent = outil;
-            //     filtreOutilSelect.appendChild(option);
-            // });
         }
 
         function setupFilters() {
@@ -60,8 +891,8 @@ errorDisplay.style.display = 'none';
             const selectedOutil = filtreOutilSelect.value;
             const previewTextFilter = previewTextInput.value.toLowerCase();
 
-            galerieDiv.innerHTML = ''; // Clear current tips
-            errorDisplay.style.display = 'none'; // Hide error message initially
+            galerieDiv.innerHTML = '';
+            errorDisplay.style.display = 'none';
 
             const filteredTips = allTips.filter(tip => {
                 const matchesAuteur = selectedAuteur === '' || tip.auteur === selectedAuteur;
@@ -69,7 +900,10 @@ errorDisplay.style.display = 'none';
                 const matchesOutil = selectedOutil === '' || tip.outil === selectedOutil;
                 const matchesPreviewText = previewTextFilter === '' ||
                     (tip.previewText && tip.previewText.toLowerCase().includes(previewTextFilter)) ||
-                    (tip.titre && tip.titre.toLowerCase().includes(previewTextFilter)); // Also search in title
+                    (tip.titre && tip.titre.toLowerCase().includes(previewTextFilter)) ||
+                    (tip.description && tip.description.toLowerCase().includes(previewTextFilter)) ||
+                    (tip.prompt && tip.prompt.toLowerCase().includes(previewTextFilter)) ||
+                    (tip.exemple && tip.exemple.toLowerCase().includes(previewTextFilter));
 
                 return matchesAuteur && matchesCategorie && matchesOutil && matchesPreviewText;
             });
@@ -101,7 +935,7 @@ errorDisplay.style.display = 'none';
         function createTipCard(tip) {
             const carte = document.createElement('div');
             carte.className = 'carte';
-            carte.style.borderLeftColor = getBorderColor(tip.categorie); // Applique la couleur de bordure
+            carte.style.borderLeftColor = getBorderColor(tip.categorie);
 
             const infosWrapper = document.createElement('div');
             infosWrapper.className = 'infos-wrapper';
@@ -146,7 +980,7 @@ errorDisplay.style.display = 'none';
             toggleBtn.className = 'toggle-content-btn';
             toggleBtn.textContent = 'Aperçu complet';
             toggleBtn.addEventListener('click', (event) => {
-                event.stopPropagation(); // Empêche le clic de se propager à la carte
+                event.stopPropagation();
                 openPreviewPanel(tip);
             });
             topButtonsGroup.appendChild(toggleBtn);
@@ -221,7 +1055,7 @@ errorDisplay.style.display = 'none';
                 const result = await response.json();
                 if (result.success) {
                     showSuccessMessage('Tip supprimé avec succès !');
-                    loadAndDisplayTips(); // Recharger les tips après suppression
+                    loadAndDisplayTips();
                 } else {
                     throw new Error(result.message || 'Échec de la suppression du tip.');
                 }
@@ -241,5 +1075,8 @@ errorDisplay.style.display = 'none';
         function showErrorMessage(message) {
             errorDisplay.textContent = message;
             errorDisplay.style.display = 'block';
-            setTimeout(() => errorDisplay.style.display = 'none', 5000); // Cache après 5 secondes
+            setTimeout(() => errorDisplay.style.display = 'none', 5000);
         }
+    </script>
+</body>
+</html>
