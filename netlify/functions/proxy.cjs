@@ -5,6 +5,8 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 
 export const handler = async (event) => {
     // URL de votre Google Apps Script pour les demandes IA
+    // Utilisez la variable d'environnement pour plus de sécurité et flexibilité
+    // IMPORTANT : ASSUREZ-VOUS QUE CELLE DE NETLIFY EST CORRECTE ET LA PLUS RÉCENTE
     const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbyoDFofm25-QcQdli_bx4Odkl-xDw7501CbadTf3k85dWPx_gTq_oPVuHo7s3Mk7Q/exec';
 
     try {
@@ -13,8 +15,7 @@ export const handler = async (event) => {
 
         let targetUrl = ''; // L'URL vers laquelle la requête sera redirigée
         let fetchMethod = event.httpMethod; // La méthode HTTP originale (GET, POST, etc.)
-        let fetchBody = event.body; // Le corps de la requête originale
-        let isLocalFunctionCall = false; // Indicateur si la cible est une autre fonction Netlify locale
+        let requestBody = null; // Le corps de la requête que nous enverrons, initialisé à null par défaut
 
         // Si aucune action n'est spécifiée, renvoie une erreur 400
         if (!action) {
@@ -28,39 +29,34 @@ export const handler = async (event) => {
         // Logique de routage basée sur l'action demandée
         switch (action) {
             case 'getProfils':
-                // Redirige vers la fonction Netlify locale en charge de la récupération des profils
-                targetUrl = '/.netlify/functions/getProfils';
-                isLocalFunctionCall = true;
+                targetUrl = `https://${event.headers.host}/.netlify/functions/getProfils`;
+                requestBody = null; // Pour un GET, il n'y a pas de corps
                 break;
 
             case 'getDemandesIA':
-                // Redirige vers l'API externe (Google Apps Script) pour les demandes IA
                 targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
+                fetchMethod = 'GET'; // S'assurer que la méthode est bien GET
+                requestBody = null; // **CRUCIAL : Assure qu'aucun corps n'est envoyé pour cette requête GET**
                 break;
 
             case 'updateProfil':
-                // Redirige vers la fonction Netlify locale en charge de la mise à jour de profil
-                targetUrl = '/.netlify/functions/updateProfil';
-                isLocalFunctionCall = true;
+                targetUrl = `https://${event.headers.host}/.netlify/functions/updateProfil`;
+                requestBody = event.body; // Pour un POST/PUT/PATCH, on conserve le corps de la requête originale
                 break;
 
             case 'getGalleryPrompts':
-                // *** NOUVEAU/CORRIGÉ : Redirige vers la fonction Netlify locale pour les prompts de galerie ***
-                targetUrl = '/.netlify/functions/getGalleryPrompts';
-                isLocalFunctionCall = true;
+                targetUrl = `https://${event.headers.host}/.netlify/functions/getGalleryPrompts`;
+                requestBody = null; // Pour un GET, il n'y a pas de corps
                 break;
 
             case 'saveTip':
-                // Redirige vers la fonction Netlify locale pour sauvegarder un tip
-                targetUrl = '/.netlify/functions/saveTip';
-                isLocalFunctionCall = true;
-                // Pour les appels POST vers des fonctions locales, le body original est conservé.
+                targetUrl = `https://${event.headers.host}/.netlify/functions/saveTip`;
+                requestBody = event.body; // Pour un POST, on conserve le corps
                 break;
 
             case 'getSharedTips':
-                // *** NOUVEAU : Redirige vers la fonction Netlify locale pour récupérer les tips partagés ***
-                targetUrl = '/.netlify/functions/getSharedTips';
-                isLocalFunctionCall = true;
+                targetUrl = `https://${event.headers.host}/.netlify/functions/getSharedTips`;
+                requestBody = null; // Pour un GET, il n'y a pas de corps
                 break;
 
             default:
@@ -72,27 +68,25 @@ export const handler = async (event) => {
                 };
         }
 
-        // Construit l'URL complète pour les fonctions Netlify locales
-        // event.headers.host permet de construire une URL absolue pour les appels inter-fonctions Netlify
-        const fullTargetUrl = isLocalFunctionCall ? new URL(targetUrl, `https://${event.headers.host}`).toString() : targetUrl;
-
         // Options pour la requête fetch vers la cible
         const fetchOptions = {
             method: fetchMethod,
             headers: {}, // Les en-têtes seront ajoutés si nécessaire
         };
 
-        // Si c'est une requête POST et qu'il y a un corps, ajoute le Content-Type et le corps
-        if (fetchBody && fetchMethod === "POST") {
+        // Ajoute le corps seulement s'il existe et si la méthode HTTP le permet (POST, PUT, PATCH)
+        if (requestBody && ['POST', 'PUT', 'PATCH'].includes(fetchMethod.toUpperCase())) {
             fetchOptions.headers["Content-Type"] = "application/json"; // Indique que le corps est du JSON
-            fetchOptions.body = fetchBody;
+            fetchOptions.body = requestBody;
         }
 
-        console.log("Proxy.mjs envoie vers :", fullTargetUrl);
-        console.log("Options fetch :", fetchOptions);
+        // Logs pour le débogage : très utiles pour voir ce qui est envoyé
+        console.log("Proxy.mjs envoie vers :", targetUrl);
+        // Masque le contenu du corps dans les logs pour éviter d'afficher des données sensibles ou volumineuses
+        console.log("Options fetch :", { ...fetchOptions, body: fetchOptions.body ? '[body present]' : '[no body]' });
 
         // Effectue la requête HTTP vers la fonction cible ou l'API externe
-        const response = await fetch(fullTargetUrl, fetchOptions);
+        const response = await fetch(targetUrl, fetchOptions);
 
         // Détermine le type de contenu de la réponse et parse le corps en conséquence
         const contentType = response.headers.get("content-type") || "";
@@ -105,22 +99,21 @@ export const handler = async (event) => {
         return {
             statusCode: response.status, // Le statut HTTP de la réponse cible
             headers: {
-                // En-têtes CORS pour autoriser les requêtes depuis votre frontend
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type",
-                // Définit le type de contenu de la réponse finale
-                "Content-Type": isJSON ? "application/json" : "text/plain",
+                // En-têtes CORS (Cross-Origin Resource Sharing) pour autoriser les requêtes depuis votre frontend
+                "Access-Control-Allow-Origin": "*", // Autorise toutes les origines (attention en production, préférez votre domaine spécifique)
+                "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS", // Autorise les méthodes HTTP nécessaires
+                "Access-Control-Allow-Headers": "Content-Type, Authorization", // Autorise les en-têtes communs
+                "Content-Type": isJSON ? "application/json" : "text/plain", // Définit le type de contenu de la réponse finale
             },
-            // Renvoie le corps encodé en JSON si c'était du JSON à l'origine
+            // Renvoie le corps encodé en JSON si c'était du JSON à l'origine, sinon en texte brut
             body: isJSON ? JSON.stringify(body) : body,
         };
 
     } catch (error) {
-        // Gère les erreurs qui pourraient survenir dans le proxy lui-même
+        // Gère les erreurs qui pourraient survenir dans le proxy lui-même (ex: problème réseau, URL malformée)
         console.error("Erreur dans proxy.mjs :", error);
         return {
-            statusCode: 500,
+            statusCode: 500, // Statut d'erreur interne du serveur
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ error: `Erreur interne du proxy : ${error.message}` }),
         };
