@@ -84,6 +84,9 @@
             color: #ffffff; /* Texte en blanc */
             margin-bottom: 10px;
         }
+        #recapList { /* Ajout de la marge supérieure au conteneur des tickets */
+            margin-top: 20px; /* Espace entre le filtre et le premier ticket */
+        }
         .ticket {
             position: relative;
             background: white;
@@ -96,9 +99,6 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
-        }
-        .ticket + #trierParChaine { /* Cible le select #trierParChaine s'il est juste après un .ticket */
-            margin-top: 20px; /* Ajoute plus d'espace */
         }
         .ticket span {
             display: block;
@@ -195,7 +195,8 @@
                         <option value="vivacité">vivacité</option>
                         <option value="Musiq3">Musiq3</option>
                         <option value="Auvio">Auvio</option>
-                        <option value="Auvio Kids">Auvio Kids</option> </select>
+                        <option value="Auvio Kids">Auvio Kids</option>
+                    </select>
 
                     <label for="duree">Durée :</label>
                     <select name="duree" id="duree"></select>
@@ -215,7 +216,8 @@
                 <select id="filtreDemandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
                     <option value="">Filtrer par demandeur</option>
                 </select>
-                <select id="trierParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 20px;"> <option value="">Trier par chaîne</option>
+                <select id="trierParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <option value="">Trier par chaîne</option>
                     </select>
                 <div id="recapList"></div>
             </div>
@@ -236,7 +238,7 @@
 
         // Fonction pour s'assurer que le parent de la bulle de notification a une position relative
         function ensureNotifParentPosition() {
-            const demandeLink = document.querySelector("a.demandes"); // Assurez-vous que c'est le bon sélecteur pour votre lien "Demandes"
+            const demandeLink = document.querySelector("a.demandes");
             if (demandeLink) {
                 const style = getComputedStyle(demandeLink);
                 if (style.position === "static" || !style.position) {
@@ -249,7 +251,6 @@
         fetch("header.html")
             .then(res => {
                 if (!res.ok) {
-                    // Si le header.html n'est pas trouvé, affiche une erreur claire
                     console.error('Erreur lors du chargement de header.html:', res.status, res.statusText);
                     document.getElementById("header-placeholder").innerHTML = '<p style="color: red;">Erreur: header.html non trouvé ou inaccessible.</p>';
                     throw new Error('header.html not found');
@@ -258,15 +259,15 @@
             })
             .then(data => {
                 document.getElementById("header-placeholder").innerHTML = data;
-                ensureNotifParentPosition(); // Assure la position après le chargement du header
-                document.body.style.opacity = "1"; // Rend le corps visible
-                document.querySelector("main").style.display = "block"; // Rend le contenu principal visible
-                mettreAJourBulleDemandes(); // Met à jour la bulle après le chargement du header
+                ensureNotifParentPosition();
+                document.body.style.opacity = "1";
+                document.querySelector("main").style.display = "block";
+                mettreAJourBulleDemandes();
             })
             .catch(error => {
                 console.error("Échec du chargement de l'en-tête:", error);
-                document.body.style.opacity = "1"; // Rend le corps visible même en cas d'erreur de chargement du header
-                document.querySelector("main").style.display = "block"; // Rend le contenu principal visible
+                document.body.style.opacity = "1";
+                document.querySelector("main").style.display = "block";
             });
 
         const couleursParChaine = {
@@ -278,11 +279,10 @@
             'Auvio': 'black',
             'vivacité': 'orange',
             'Musiq3': 'hotpink',
-            'Auvio Kids': 'navy' // Nouvelle couleur pour Auvio Kids si nécessaire
+            'Auvio Kids': 'navy'
         };
 
         async function mettreAJourBulleDemandes() {
-            // S'assurer que le lien "Demandes" et la bulle de notification existent dans header.html
             const notif = document.getElementById("notif-count");
             if (!notif) {
                 console.warn("Élément 'notif-count' non trouvé. Assurez-vous qu'il est dans header.html.");
@@ -291,31 +291,30 @@
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                const responseData = await res.json(); // Récupère l'objet complet
+                const responseData = await res.json();
                 
                 const demandes = responseData.data; 
                 
-                // Filtrer les demandes non traitées
                 const demandesNonTraitees = demandes.filter(d => !d.traite);
                 
                 notif.textContent = demandesNonTraitees.length;
                 notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
             } catch (e) {
                 console.error("Erreur lors de la récupération du compteur de demandes :", e);
-                notif.style.display = "none"; // Cache la bulle en cas d'erreur
+                notif.style.display = "none";
             }
         }
 
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            const filtreDemandeurSelect = document.getElementById("filtreDemandeur"); // Select du demandeur
-            const trierParChaineSelect = document.getElementById("trierParChaine"); // Select du tri par chaîne
+            const filtreDemandeurSelect = document.getElementById("filtreDemandeur");
+            const trierParChaineSelect = document.getElementById("trierParChaine");
 
-            let demandes = []; // Initialiser comme un tableau vide
+            let demandes = [];
             try {
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                const responseData = await res.json(); // Récupère l'objet complet
+                const responseData = await res.json();
 
                 if (responseData.success && Array.isArray(responseData.data)) {
                     demandes = responseData.data;
@@ -337,16 +336,16 @@
                 option.textContent = nom;
                 filtreDemandeurSelect.appendChild(option);
             });
-            // Restaurer la sélection après le rechargement si une valeur était déjà sélectionnée
             const currentFiltreDemandeur = filtreDemandeurSelect.dataset.currentValue || '';
             if (currentFiltreDemandeur) {
                 filtreDemandeurSelect.value = currentFiltreDemandeur;
             }
 
             // Peupler le tri par chaîne (liste complète des options de chaîne)
+            // Cette liste doit correspondre aux options du formulaire, plus toute autre chaîne pertinente
             const chainesDisponibles = [
                 "La Une", "Tipik", "La Trois", "La première", "Classic 21", "vivacité", "Musiq3", "Auvio", "Auvio Kids"
-            ].sort(); // Liste fixe ou basée sur tes options de formulaire
+            ].sort();
 
             trierParChaineSelect.innerHTML = '<option value="">Trier par chaîne</option>';
             chainesDisponibles.forEach(chaine => {
@@ -355,7 +354,6 @@
                 option.textContent = chaine;
                 trierParChaineSelect.appendChild(option);
             });
-            // Restaurer la sélection après le rechargement si une valeur était déjà sélectionnée
             const currentTrierParChaine = trierParChaineSelect.dataset.currentValue || '';
             if (currentTrierParChaine) {
                 trierParChaineSelect.value = currentTrierParChaine;
@@ -364,23 +362,19 @@
             const selectedFiltreDemandeur = filtreDemandeurSelect.value;
             const selectedTrierParChaine = trierParChaineSelect.value;
 
-            // Filtrage des demandes par demandeur
             let demandesFiltrees = demandes;
             if (selectedFiltreDemandeur) {
                 demandesFiltrees = demandesFiltrees.filter(d => d.nom === selectedFiltreDemandeur);
             }
             
-            // Tri des demandes par chaîne
             if (selectedTrierParChaine) {
                 demandesFiltrees.sort((a, b) => {
-                    // Si l'option est une chaîne spécifique
                     if (chainesDisponibles.includes(selectedTrierParChaine)) {
                         const aIsSelected = a.chaine === selectedTrierParChaine;
                         const bIsSelected = b.chaine === selectedTrierParChaine;
                         if (aIsSelected && !bIsSelected) return -1;
                         if (!aIsSelected && bIsSelected) return 1;
                     }
-                    // Tri alphabétique par chaîne si pas de sélection spécifique ou en complément
                     return (a.chaine || '').localeCompare(b.chaine || '');
                 });
             }
@@ -454,7 +448,7 @@ Briefing: ${d.description || 'N/A'}`;
                 const response = await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "deleteDemande", id: id }) // Envoie juste l'ID
+                    body: JSON.stringify({ action: "deleteDemande", id: id })
                 });
 
                 const result = await response.json();
@@ -462,8 +456,8 @@ Briefing: ${d.description || 'N/A'}`;
                 if (result.success) {
                     console.log(result.message);
                     alert(result.message || "Demande supprimée avec succès !");
-                    afficherDemandes(); // Rafraîchir l'affichage
-                    mettreAJourBulleDemandes(); // Mettre à jour le compteur
+                    afficherDemandes();
+                    mettreAJourBulleDemandes();
                 } else {
                     console.error("Échec de la suppression (réponse backend) :", result.message);
                     alert(`Échec de la suppression : ${result.message || "Erreur inconnue."}`);
