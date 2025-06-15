@@ -72,7 +72,7 @@
         }
         .recap {
             flex: 0 1 320px;
-            background: #f9fafb;
+            background: #e0f2f7; /* Nouveau fond bleu clair */
             padding: 20px;
             border-radius: 14px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
@@ -81,7 +81,7 @@
         }
         .recap h3 {
             margin-top: 0;
-            color: #0077b6;
+            color: #ffffff; /* Texte en blanc */
             margin-bottom: 10px;
         }
         .ticket {
@@ -209,12 +209,12 @@
 
             <div class="recap">
                 <h3>Récapitulatif des demandes</h3>
-                <input type="text" id="filtreDemandeur" placeholder="Filtrer par demandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;" />
+                <select id="filtreDemandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <option value="">Filtrer par demandeur</option>
+                </select>
                 <select id="trierParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
                     <option value="">Trier par chaîne</option>
-                    <option value="asc">Chaîne (A-Z)</option>
-                    <option value="desc">Chaîne (Z-A)</option>
-                </select>
+                    </select>
                 <div id="recapList"></div>
             </div>
         </div>
@@ -290,7 +290,6 @@
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 const responseData = await res.json(); // Récupère l'objet complet
                 
-                // *** CORRECTION ICI : Accéder à responseData.data ***
                 const demandes = responseData.data; 
                 
                 // Filtrer les demandes non traitées
@@ -306,8 +305,8 @@
 
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            const filtreDemandeur = document.getElementById("filtreDemandeur").value.toLowerCase(); // Nouveau filtre
-            const trierParChaine = document.getElementById("trierParChaine").value; // Nouveau tri
+            const filtreDemandeurSelect = document.getElementById("filtreDemandeur"); // Select du demandeur
+            const trierParChaineSelect = document.getElementById("trierParChaine"); // Select du tri par chaîne
 
             let demandes = []; // Initialiser comme un tableau vide
             try {
@@ -315,7 +314,6 @@
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 const responseData = await res.json(); // Récupère l'objet complet
 
-                // *** CORRECTION ICI : Accéder à responseData.data ***
                 if (responseData.success && Array.isArray(responseData.data)) {
                     demandes = responseData.data;
                 } else {
@@ -327,24 +325,72 @@
                 return;
             }
 
-            // Filtrage des demandes par demandeur
-            demandes = demandes.filter(d => d.nom && d.nom.toLowerCase().includes(filtreDemandeur)); 
-            
-            // Tri des demandes par chaîne
-            if (trierParChaine === "asc") {
-                demandes.sort((a, b) => (a.chaine || '').localeCompare(b.chaine || ''));
-            } else if (trierParChaine === "desc") {
-                demandes.sort((a, b) => (b.chaine || '').localeCompare(a.chaine || ''));
+            // Peupler le filtre "Demandeur"
+            const demandeursUniques = [...new Set(demandes.map(d => d.nom).filter(Boolean))].sort();
+            filtreDemandeurSelect.innerHTML = '<option value="">Filtrer par demandeur</option>';
+            demandeursUniques.forEach(nom => {
+                const option = document.createElement('option');
+                option.value = nom;
+                option.textContent = nom;
+                filtreDemandeurSelect.appendChild(option);
+            });
+            // Restaurer la sélection après le rechargement si une valeur était déjà sélectionnée
+            const currentFiltreDemandeur = filtreDemandeurSelect.dataset.currentValue || '';
+            if (currentFiltreDemandeur) {
+                filtreDemandeurSelect.value = currentFiltreDemandeur;
             }
+
+
+            // Peupler le tri par chaîne
+            const chainesUniques = [...new Set(demandes.map(d => d.chaine).filter(Boolean))].sort();
+            trierParChaineSelect.innerHTML = '<option value="">Trier par chaîne</option>';
+            chainesUniques.forEach(chaine => {
+                const option = document.createElement('option');
+                option.value = chaine; // Triera par la valeur de la chaîne
+                option.textContent = chaine;
+                trierParChaineSelect.appendChild(option);
+            });
+            // Restaurer la sélection après le rechargement si une valeur était déjà sélectionnée
+            const currentTrierParChaine = trierParChaineSelect.dataset.currentValue || '';
+            if (currentTrierParChaine) {
+                trierParChaineSelect.value = currentTrierParChaine;
+            }
+            
+            const selectedFiltreDemandeur = filtreDemandeurSelect.value;
+            const selectedTrierParChaine = trierParChaineSelect.value;
+
+            // Filtrage des demandes par demandeur
+            let demandesFiltrees = demandes;
+            if (selectedFiltreDemandeur) {
+                demandesFiltrees = demandesFiltrees.filter(d => d.nom === selectedFiltreDemandeur);
+            }
+            
+            // Tri des demandes par chaîne (si une chaîne spécifique est sélectionnée) ou alphabétiquement
+            if (selectedTrierParChaine) {
+                if (chainesUniques.includes(selectedTrierParChaine)) { // Si l'option est une chaîne spécifique
+                    demandesFiltrees.sort((a, b) => {
+                        const aIsSelected = a.chaine === selectedTrierParChaine;
+                        const bIsSelected = b.chaine === selectedTrierParChaine;
+                        if (aIsSelected && !bIsSelected) return -1;
+                        if (!aIsSelected && bIsSelected) return 1;
+                        return 0;
+                    });
+                } else if (selectedTrierParChaine === "asc") { // Tri A-Z
+                    demandesFiltrees.sort((a, b) => (a.chaine || '').localeCompare(b.chaine || ''));
+                } else if (selectedTrierParChaine === "desc") { // Tri Z-A
+                    demandesFiltrees.sort((a, b) => (b.chaine || '').localeCompare(a.chaine || ''));
+                }
+            }
+
 
             recapList.innerHTML = ""; // Vide la liste avant de la remplir
 
-            if (demandes.length === 0) {
+            if (demandesFiltrees.length === 0) {
                 recapList.innerHTML = '<p style="text-align: center; color: #777;">Aucune demande trouvée.</p>';
                 return;
             }
 
-            demandes.forEach(d => {
+            demandesFiltrees.forEach(d => {
                 const couleur = couleursParChaine[d.chaine] || "#0077b6";
                 const div = document.createElement("div");
                 div.className = "ticket";
@@ -400,7 +446,6 @@ Briefing: ${d.description || 'N/A'}`;
             });
         }
 
-        // MODIFICATION DE LA FONCTION SUPPRIMERDEMANDE
         async function supprimerDemande(id) {
             try {
                 const response = await fetch(PROXY_URL, {
@@ -428,7 +473,6 @@ Briefing: ${d.description || 'N/A'}`;
 
         async function marquerTraite(id) {
             try {
-                // *** CORRECTION ICI : Accéder à responseData.data ***
                 let responseData = await (await fetch(`${PROXY_URL}?action=getDemandesIA`)).json();
                 let demandes = responseData.data;
 
@@ -439,17 +483,15 @@ Briefing: ${d.description || 'N/A'}`;
                 }
                 demande.traite = true;
 
-                // Trouver l'index de la demande à mettre à jour dans le tableau original
                 const index = demandes.findIndex(d => d.id === id);
                 if (index !== -1) {
-                    demandes[index] = demande; // Mettre à jour l'objet complet si nécessaire
+                    demandes[index] = demande; 
                 }
 
                 const updateResponse = await fetch(PROXY_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    // Envoyer le tableau des demandes mis à jour
-                    body: JSON.stringify({ action: "updateDemandeIA", demandes: [demande] }) // N'envoyer que la demande modifiée pour update
+                    body: JSON.stringify({ action: "updateDemandeIA", demandes: [demande] }) 
                 });
 
                 const updateResult = await updateResponse.json();
@@ -477,19 +519,18 @@ Briefing: ${d.description || 'N/A'}`;
                 opt.textContent = `${i} sec`;
                 dureeSelect.appendChild(opt);
             }
-            // Ajouter une option vide par défaut pour la durée
             const defaultOptDuree = document.createElement("option");
             defaultOptDuree.value = "";
             defaultOptDuree.textContent = "-- Sélectionner --";
             dureeSelect.prepend(defaultOptDuree);
-            dureeSelect.value = ""; // Sélectionne l'option vide au départ
+            dureeSelect.value = ""; 
 
             // Gestion de la soumission du formulaire
             document.getElementById("demandeIA").addEventListener("submit", async e => {
                 e.preventDefault();
                 const data = new FormData(e.target);
                 const demande = {
-                    id: "_" + Math.random().toString(36).substr(2, 9), // Génère un ID unique
+                    id: "_" + Math.random().toString(36).substr(2, 9), 
                     nom: data.get("nom"),
                     email: `${data.get("emailPrefix")}@rtbf.be`,
                     type: data.get("type"),
@@ -498,10 +539,9 @@ Briefing: ${d.description || 'N/A'}`;
                     date: data.get("date"),
                     description: data.get("description"),
                     chaine: data.get("chaine"),
-                    traite: false // Nouvelle demande n'est pas traitée
+                    traite: false 
                 };
 
-                // Désactiver le bouton et indiquer le chargement
                 const submitBtn = document.getElementById("submitBtn");
                 const originalBtnText = submitBtn.textContent;
                 submitBtn.textContent = "Envoi en cours...";
@@ -525,9 +565,9 @@ Briefing: ${d.description || 'N/A'}`;
 
                     if (result.success) {
                         alert(result.message || "Demande envoyée avec succès et mail transmis !");
-                        e.target.reset(); // Réinitialise le formulaire
-                        afficherDemandes(); // Rafraîchit le récapitulatif
-                        mettreAJourBulleDemandes(); // Met à jour le compteur
+                        e.target.reset(); 
+                        afficherDemandes(); 
+                        mettreAJourBulleDemandes(); 
                     } else {
                         console.error("Erreur de la fonction Netlify (réponse JSON) :", result);
                         alert(`Erreur lors de l'envoi de la demande: ${result.message || "Réponse non réussie de la fonction Netlify."}`);
@@ -536,15 +576,23 @@ Briefing: ${d.description || 'N/A'}`;
                     console.error("Erreur d'envoi du formulaire côté client :", err);
                     alert("Une erreur inattendue est survenue lors de l'envoi du formulaire. Vérifiez la console.");
                 } finally {
-                    // Réactiver le bouton après l'envoi (réussite ou échec)
                     submitBtn.textContent = originalBtnText;
                     submitBtn.disabled = false;
                 }
             });
 
             // Écouteurs d'événements pour les filtres
-            document.getElementById("filtreDemandeur").addEventListener("input", afficherDemandes); // Écouteur pour le nouveau filtre
-            document.getElementById("trierParChaine").addEventListener("change", afficherDemandes); // Écouteur pour le nouveau tri
+            const filtreDemandeurSelect = document.getElementById("filtreDemandeur");
+            const trierParChaineSelect = document.getElementById("trierParChaine");
+
+            filtreDemandeurSelect.addEventListener("change", () => {
+                filtreDemandeurSelect.dataset.currentValue = filtreDemandeurSelect.value;
+                afficherDemandes();
+            });
+            trierParChaineSelect.addEventListener("change", () => {
+                trierParChaineSelect.dataset.currentValue = trierParChaineSelect.value;
+                afficherDemandes();
+            });
 
             // Gestion de la modale
             document.querySelector(".close-modal").addEventListener("click", () => {
@@ -557,8 +605,6 @@ Briefing: ${d.description || 'N/A'}`;
             });
 
             // APPELS INITIAUX AU CHARGEMENT DE LA PAGE
-            // Ces lignes s'assurent que les demandes sont affichées et la bulle mise à jour
-            // une fois que le DOM est complètement chargé.
             afficherDemandes();
             mettreAJourBulleDemandes();
         });
