@@ -5,17 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Veille IA Marketing</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* Styles généraux pour l'animation d'apparition de la page */
         body {
             opacity: 0;
-            transition: opacity 0.3s ease-in;
+            transition: opacity 0.5s ease-in; /* Transition plus douce */
             margin: 0;
             font-family: Arial, sans-serif;
-            background: #f0f4f8;
+            background: #f0f4f8; /* Couleur de fond plus moderne */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        body.show {
+            opacity: 1;
         }
         main {
             display: none; /* Main caché au début, sera affiché par le script */
+            flex-grow: 1; /* Permet au main de prendre l'espace disponible */
         }
+        main.show {
+            display: block; /* S'assure que main devient visible */
+        }
+        #header-placeholder, #footer-placeholder {
+            width: 100%;
+        }
+
+        /* Conteneur principal de la veille */
         .container {
             max-width: 1000px;
             margin: 40px auto;
@@ -24,6 +41,8 @@
             border-radius: 20px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
+
+        /* Filtres */
         .filters {
             display: flex;
             flex-wrap: wrap;
@@ -33,53 +52,198 @@
         }
         .filters input,
         .filters select {
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            background: #f9f9f9;
+            padding: 12px 15px; /* Padding ajusté */
+            border-radius: 10px; /* Bordures plus arrondies */
+            border: 1px solid #ddd; /* Couleur de bordure plus douce */
+            background: #fdfdfd;
             min-width: 200px;
+            font-size: 1em; /* Taille de police plus lisible */
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); /* Ombre intérieure légère */
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
+        .filters input:focus,
+        .filters select:focus {
+            border-color: #0077b6;
+            box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.2);
+            outline: none;
+        }
+
+        /* Styles des cartes d'articles */
         .card {
-            background: #e3f2fd;
-            border-left: 5px solid #0077b6;
-            border-radius: 10px;
-            padding: 20px;
+            background: #ffffff; /* Fond blanc pour les cartes */
+            border-left: 5px solid #0077b6; /* Bordure bleue distinctive */
+            border-radius: 12px; /* Coins plus arrondis */
+            padding: 20px 25px; /* Padding ajusté */
             margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.08); /* Ombre plus prononcée */
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
         }
         .card h2 {
             margin: 0 0 10px;
-            color: #005f8a;
+            color: #005f8a; /* Titre bleu foncé */
+            font-size: 1.6em; /* Taille de titre plus grande */
+        }
+        .card p {
+            margin: 5px 0;
+            color: #444; /* Texte principal plus foncé */
+            line-height: 1.5;
+        }
+        .card strong {
+            color: #222; /* Dates en gras plus foncées */
         }
         .tag {
-            background: #b3e0ff;
-            padding: 0.2rem 0.5rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
+            background: #e0f2f7; /* Fond de tag bleu clair */
+            color: #0077b6; /* Texte de tag bleu */
+            padding: 5px 10px; /* Padding ajusté */
+            border-radius: 8px; /* Coins plus arrondis pour les tags */
+            font-size: 0.85em; /* Taille de tag légèrement plus grande */
+            font-weight: bold;
             display: inline-block;
+            margin-left: 10px; /* Espace entre la date et le tag */
         }
         .source {
-            font-size: 0.8rem;
-            color: #555;
-            margin-top: 0.5rem;
+            font-size: 0.8em;
+            color: #777; /* Source en gris plus clair */
+            margin-top: 10px; /* Plus d'espace au-dessus de la source */
         }
         a {
-            color: #007acc;
+            color: #0077b6; /* Liens bleus */
             text-decoration: none;
+            font-weight: bold;
+            transition: color 0.2s ease;
         }
         a:hover {
+            color: #005f8a; /* Liens bleu foncé au survol */
             text-decoration: underline;
         }
         footer {
             text-align: center;
-            margin-top: 4rem;
-            font-size: 0.9rem;
-            color: #888;
-            padding-bottom: 20px; /* Ajouté pour un peu d'espace */
+            margin-top: 50px; /* Plus d'espace au-dessus du footer */
+            font-size: 0.85em;
+            color: #999;
+            padding-bottom: 20px;
+        }
+
+        /* --- Styles pour la bulle d'information --- */
+        .info-bubble-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Fond semi-transparent */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000; /* Assure que la bulle est au-dessus de tout le reste */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .info-bubble-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            text-align: center;
+            position: relative;
+            transform: translateY(20px); /* Légère animation d'apparition */
+            transition: transform 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible .info-bubble-content {
+            transform: translateY(0);
+        }
+
+        .info-bubble-content h3 {
+            color: #003366;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .info-bubble-content p {
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .info-bubble-content button {
+            background-color: #0077b6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .info-bubble-content button:hover {
+            background-color: #005f8a;
+        }
+
+        /* Media Queries pour la responsivité */
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px auto;
+                padding: 20px;
+            }
+            .filters {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .filters input,
+            .filters select {
+                min-width: unset;
+                width: 100%;
+            }
+            .card {
+                padding: 15px;
+            }
+            .card h2 {
+                font-size: 1.4em;
+            }
+            /* Styles spécifiques pour les petites écrans de la bulle d'info */
+            .info-bubble-content {
+                margin: 20px;
+                padding: 20px;
+            }
+            .info-bubble-content h3 {
+                font-size: 1.3em;
+            }
+            .info-bubble-content p {
+                font-size: 0.9em;
+            }
+            .info-bubble-content button {
+                font-size: 1em;
+                padding: 10px 20px;
+            }
         }
     </style>
 </head>
 <body>
+    <div id="info-bubble-overlay" class="info-bubble-overlay">
+        <div class="info-bubble-content">
+            <h3>Bienvenue dans la Veille IA & Marketing !</h3>
+            <p>
+                Gardez un œil sur les dernières actualités et avancées en intelligence artificielle appliquées au marketing. Utilisez la barre de recherche pour trouver des articles spécifiques ou filtrez par catégories pour rester informé des tendances qui comptent.
+            </p>
+            <button id="info-bubble-close-btn">Compris !</button>
+        </div>
+    </div>
+
     <div id="header-placeholder"></div>
 
     <main>
@@ -88,27 +252,72 @@
                 <input type="search" id="search" placeholder="Rechercher un article..." oninput="filtrerArticles()">
                 <select id="filtre-tag" onchange="filtrerArticles()">
                     <option value="">Tous les tags</option>
-                    <option value="Marketing Video">Marketing Video</option>
+                    <option value="Marketing Vidéo">Marketing Vidéo</option>
                     <option value="Comportement des consommateurs">Comportement des consommateurs</option>
                     <option value="Analyse de marché">Analyse de marché</option>
                     <option value="Personnalisation">Personnalisation</option>
                     <option value="Création de contenu">Création de contenu</option>
+                    <option value="Intelligence Artificielle">Intelligence Artificielle</option>
+                    <option value="Design">Design</option>
+                    <option value="Animation">Animation</option>
                 </select>
             </div>
             <div id="articles"></div>
         </div>
     </main>
 
-    <footer>Mis à jour automatiquement le 2025-06-09</footer>
+    <div id="footer-placeholder"></div>
 
     <script>
-        const PROXY_URL = "/.netlify/functions/proxy"; // Adaptez si nécessaire
+        // Chemin vers votre fonction Netlify 'proxy'
+        const PROXY_URL = "/.netlify/functions/proxy";
 
+        // Données d'articles (peut être remplacé par un fetch API si nécessaire plus tard)
         const articles = [
+            {
+                titre: "Google DeepMind explore l’AGI",
+                date: "2024-09-29",
+                tag: "Intelligence Artificielle",
+                resume: "Google DeepMind travaille sur l'intelligence générale artificielle pour améliorer les algorithmes de marketing.",
+                lien: "http://googleblog.com/deepmind_ia_marketing",
+                source: "Google Blog"
+            },
+            {
+                titre: "OpenAI annonce un nouveau modèle",
+                date: "2024-09-29",
+                tag: "Intelligence Artificielle",
+                resume: "OpenAI a annoncé un nouveau modèle d'IA qui va transformer la stratégie marketing des entreprises.",
+                lien: "http://openai.com/blog/nouveau_modele",
+                source: "OpenAI Blog"
+            },
+            {
+                titre: "Adobe Firefly s’intègre à Photoshop",
+                date: "2024-09-29",
+                tag: "Design",
+                resume: "Adobe Firefly, outil d'IA, s'intègre à Photoshop pour améliorer les outils de design dans le marketing.",
+                lien: "http://adobe.com/blog/firefly_photoshop",
+                source: "Adobe Blog"
+            },
+            {
+                titre: "Lumiere AI révolutionne les animations",
+                date: "2024-09-29",
+                tag: "Animation",
+                resume: "Lumiere AI, une startup, utilise l'IA pour rendre les animations plus réalistes et engageantes pour le marketing.",
+                lien: "http://techcrunch.com/lumiere_ai_animation",
+                source: "TechCrunch"
+            },
+            {
+                titre: "Mistral publie un modèle open-source",
+                date: "2024-09-29",
+                tag: "Intelligence Artificielle",
+                resume: "Mistral a publié un nouveau modèle d'IA open-source qui pourrait être utilisé pour l'analyse de données marketing.",
+                lien: "http://mistral.ai/blog/modele_open_source",
+                source: "Mistral Blog"
+            },
             {
                 titre: "Midjourney lance un outil vidéo",
                 date: "2025-06-01",
-                tag: "Marketing Video",
+                tag: "Marketing Vidéo",
                 resume: "Midjourney lance un outil d'IA vidéo pour optimiser les campagnes marketing.",
                 lien: "https://www.midjourney.com/press/video-tool",
                 source: "Midjourney Press Release"
@@ -148,18 +357,18 @@
         ];
 
         function renderArticles(liste) {
-            console.log("Veille: Rendu des articles. Nombre:", liste.length);
             const container = document.getElementById('articles');
             container.innerHTML = '';
             if (liste.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #666;">Aucun article ne correspond à vos filtres.</p>';
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Aucun article ne correspond à vos filtres.</p>';
             }
+            liste.sort((a, b) => new Date(b.date) - new Date(a.date)); // Trie par date décroissante
             liste.forEach(article => {
                 const el = document.createElement('div');
                 el.className = 'card';
                 el.innerHTML = `
                     <h2>${article.titre}</h2>
-                    <p><strong>${new Date(article.date).toLocaleDateString('fr-BE')}</strong> – <span class="tag">${article.tag}</span></p>
+                    <p><strong>${new Date(article.date).toLocaleDateString('fr-BE', { year: 'numeric', month: 'long', day: 'numeric' })}</strong> – <span class="tag">${article.tag}</span></p>
                     <p>${article.resume}</p>
                     <a href="${article.lien}" target="_blank">Lire l’article →</a>
                     <p class="source">Source : ${article.source}</p>
@@ -169,7 +378,6 @@
         }
 
         function filtrerArticles() {
-            console.log("Veille: Application des filtres...");
             const search = document.getElementById('search').value.toLowerCase();
             const tag = document.getElementById('filtre-tag').value;
             const filtres = articles.filter(a =>
@@ -177,87 +385,107 @@
                 (!tag || a.tag === tag)
             );
             renderArticles(filtres);
-            console.log(`Veille: Filtres appliqués. ${filtres.length} articles trouvés.`);
         }
 
         // Fonction pour mettre à jour la bulle de notification (identique aux autres pages)
-        // La fonction reste présente mais ne sera plus appelée automatiquement
         async function mettreAJourBulleDemandes() {
             const notif = document.getElementById("notif-count");
             if (!notif) {
-                console.warn("Veille: L'élément 'notif-count' n'a pas été trouvé dans le header.");
+                console.warn("L'élément 'notif-count' n'a pas été trouvé dans le header.");
                 return;
             }
             try {
-                console.log("Veille: Tentative de récupération des demandes pour la bulle...");
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 if (!res.ok) {
-                    console.error(`Veille: Erreur HTTP lors de la récupération des demandes: ${res.status}`);
+                    console.error(`Erreur HTTP lors de la récupération des demandes: ${res.status}`);
                     throw new Error(`Erreur HTTP: ${res.status}`);
                 }
                 const demandes = await res.json();
-                console.log("Veille: Demandes récupérées pour la bulle:", demandes);
                 notif.textContent = demandes.length;
                 notif.style.display = demandes.length > 0 ? "inline-block" : "none";
             } catch (e) {
-                console.error("Veille: Erreur mise à jour compteur de demandes :", e);
+                console.error("Erreur mise à jour compteur de demandes :", e);
                 notif.style.display = "none";
             }
         }
 
         // Exécution principale à l'initialisation de la page
         document.addEventListener("DOMContentLoaded", () => {
-            console.log("Veille: DOM entièrement chargé. Début de l'initialisation de veille.html...");
+            const mainElement = document.querySelector("main");
+            const infoBubbleOverlay = document.getElementById("info-bubble-overlay");
+            const infoBubbleCloseBtn = document.getElementById("info-bubble-close-btn");
+
+            // --- Logique d'affichage de la bulle d'information ---
+            // Affiche toujours la bulle quand la page est chargée
+            infoBubbleOverlay.classList.add('visible');
+
+            infoBubbleCloseBtn.addEventListener('click', () => {
+                infoBubbleOverlay.classList.remove('visible');
+            });
+
+            // Fermer la bulle si l'utilisateur clique en dehors d'elle
+            infoBubbleOverlay.addEventListener('click', (event) => {
+                if (event.target === infoBubbleOverlay) {
+                    infoBubbleOverlay.classList.remove('visible');
+                }
+            });
+            // --- Fin de la logique de la bulle d'information ---
+
+
+            // Charger le header
             fetch("header.html")
                 .then(response => {
-                    console.log("Veille: Réponse de fetch('header.html') reçue.");
                     if (!response.ok) {
-                        throw new Error(`Erreur HTTP lors du chargement du header pour Veille: ${response.status}`);
+                        throw new Error(`Erreur HTTP lors du chargement du header: ${response.status}`);
                     }
                     return response.text();
                 })
                 .then(data => {
-                    console.log("Veille: Header HTML récupéré. Injection dans le placeholder.");
                     document.getElementById("header-placeholder").innerHTML = data;
-
-                    console.log("Veille: Rendre le body et le main visibles.");
-                    document.body.style.opacity = "1";
-                    const mainElement = document.querySelector("main");
+                    // Rendre le body et le main visibles après le chargement du header
+                    document.body.classList.add("show");
                     if (mainElement) {
-                        mainElement.style.display = "block";
+                        mainElement.classList.add("show");
                     }
-
-                    // console.log("Veille: Mise à jour de la bulle de notification.");
-                    // mettreAJourBulleDemandes(); // Cette ligne est maintenant commentée
-
-                    console.log("Veille: Gestion des liens actifs du menu.");
+                    // La bulle d'info est gérée indépendamment en début de DOMContentLoaded
+                    mettreAJourBulleDemandes(); // Met à jour la bulle après que le header soit chargé
+                    // Gérer les liens actifs du menu (s'il y en a dans header.html)
                     const path = location.pathname.split("/").pop();
-                    const links = document.querySelectorAll("nav a");
+                    const links = document.querySelectorAll("#header-placeholder nav a");
                     links.forEach(link => {
                         if (link.getAttribute("href") === path) {
                             link.classList.add("active");
                         }
                     });
-
-                    // Initialiser l'affichage des articles et attacher les écouteurs d'événements
-                    renderArticles(articles); // Affiche tous les articles au chargement
-                    console.log("Veille: Articles initiaux rendus.");
-
-                    // Les écouteurs oninput/onchange sont déjà dans le HTML, mais c'est une bonne pratique de les attacher ici aussi si besoin.
-                    // document.getElementById('search').addEventListener('input', filtrerArticles);
-                    // document.getElementById('filtre-tag').addEventListener('change', filtrerArticles);
-
                 })
                 .catch(error => {
-                    console.error("Veille: Erreur critique lors du chargement du header ou initialisation de Veille:", error);
-                    document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-                    // Rendre visible même en cas d'erreur du header pour ne pas laisser une page blanche
-                    document.body.style.opacity = "1";
-                    const mainElement = document.querySelector("main");
+                    console.error("Erreur de chargement du header:", error);
+                    document.getElementById("header-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du menu</p>";
+                    // Rendre visible même en cas d'erreur du header
+                    document.body.classList.add("show");
                     if (mainElement) {
-                        mainElement.style.display = "block";
+                        mainElement.classList.add("show");
                     }
                 });
+
+            // Charger le footer
+            fetch("footer.html")
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP lors du chargement du footer: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    document.getElementById("footer-placeholder").innerHTML = data;
+                })
+                .catch(error => {
+                    console.error("Erreur de chargement du footer:", error);
+                    document.getElementById("footer-placeholder").innerHTML = "<p style='color:red;text-align:center'>Erreur de chargement du pied de page</p>";
+                });
+
+            // Initialiser l'affichage des articles et attacher les écouteurs d'événements
+            renderArticles(articles); // Affiche tous les articles au chargement initial
         });
     </script>
 </body>
