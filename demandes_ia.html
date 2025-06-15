@@ -72,7 +72,7 @@
         }
         .recap {
             flex: 0 1 320px;
-            background: rgb(0, 119, 182); /* Nouvelle couleur de fond */
+            background: rgb(0, 119, 182); /* Couleur de fond du récapitulatif */
             padding: 20px;
             border-radius: 14px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
@@ -96,6 +96,9 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+        }
+        .ticket + #trierParChaine { /* Cible le select #trierParChaine s'il est juste après un .ticket */
+            margin-top: 20px; /* Ajoute plus d'espace */
         }
         .ticket span {
             display: block;
@@ -192,7 +195,7 @@
                         <option value="vivacité">vivacité</option>
                         <option value="Musiq3">Musiq3</option>
                         <option value="Auvio">Auvio</option>
-                    </select>
+                        <option value="Auvio Kids">Auvio Kids</option> </select>
 
                     <label for="duree">Durée :</label>
                     <select name="duree" id="duree"></select>
@@ -212,8 +215,7 @@
                 <select id="filtreDemandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
                     <option value="">Filtrer par demandeur</option>
                 </select>
-                <select id="trierParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-                    <option value="">Trier par chaîne</option>
+                <select id="trierParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 20px;"> <option value="">Trier par chaîne</option>
                     </select>
                 <div id="recapList"></div>
             </div>
@@ -275,7 +277,8 @@
             'La Trois': 'mediumorchid',
             'Auvio': 'black',
             'vivacité': 'orange',
-            'Musiq3': 'hotpink'
+            'Musiq3': 'hotpink',
+            'Auvio Kids': 'navy' // Nouvelle couleur pour Auvio Kids si nécessaire
         };
 
         async function mettreAJourBulleDemandes() {
@@ -340,13 +343,15 @@
                 filtreDemandeurSelect.value = currentFiltreDemandeur;
             }
 
+            // Peupler le tri par chaîne (liste complète des options de chaîne)
+            const chainesDisponibles = [
+                "La Une", "Tipik", "La Trois", "La première", "Classic 21", "vivacité", "Musiq3", "Auvio", "Auvio Kids"
+            ].sort(); // Liste fixe ou basée sur tes options de formulaire
 
-            // Peupler le tri par chaîne
-            const chainesUniques = [...new Set(demandes.map(d => d.chaine).filter(Boolean))].sort();
             trierParChaineSelect.innerHTML = '<option value="">Trier par chaîne</option>';
-            chainesUniques.forEach(chaine => {
+            chainesDisponibles.forEach(chaine => {
                 const option = document.createElement('option');
-                option.value = chaine; // Triera par la valeur de la chaîne
+                option.value = chaine;
                 option.textContent = chaine;
                 trierParChaineSelect.appendChild(option);
             });
@@ -365,21 +370,19 @@
                 demandesFiltrees = demandesFiltrees.filter(d => d.nom === selectedFiltreDemandeur);
             }
             
-            // Tri des demandes par chaîne (si une chaîne spécifique est sélectionnée) ou alphabétiquement
+            // Tri des demandes par chaîne
             if (selectedTrierParChaine) {
-                if (chainesUniques.includes(selectedTrierParChaine)) { // Si l'option est une chaîne spécifique
-                    demandesFiltrees.sort((a, b) => {
+                demandesFiltrees.sort((a, b) => {
+                    // Si l'option est une chaîne spécifique
+                    if (chainesDisponibles.includes(selectedTrierParChaine)) {
                         const aIsSelected = a.chaine === selectedTrierParChaine;
                         const bIsSelected = b.chaine === selectedTrierParChaine;
                         if (aIsSelected && !bIsSelected) return -1;
                         if (!aIsSelected && bIsSelected) return 1;
-                        return 0;
-                    });
-                } else if (selectedTrierParChaine === "asc") { // Tri A-Z
-                    demandesFiltrees.sort((a, b) => (a.chaine || '').localeCompare(b.chaine || ''));
-                } else if (selectedTrierParChaine === "desc") { // Tri Z-A
-                    demandesFiltrees.sort((a, b) => (b.chaine || '').localeCompare(a.chaine || ''));
-                }
+                    }
+                    // Tri alphabétique par chaîne si pas de sélection spécifique ou en complément
+                    return (a.chaine || '').localeCompare(b.chaine || '');
+                });
             }
 
 
