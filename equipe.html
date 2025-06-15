@@ -8,9 +8,7 @@
     <style>
         /* Styles spécifiques à cette page */
         body {
-            /* Gardez ces styles pour l'effet de fade-in initial du contenu si vous le souhaitez */
-            opacity: 0;
-            transition: opacity 0.3s ease-in;
+            /* Pas d'opacité initiale ici, le loader gère le masquage */
             margin: 0;
             font-family: Arial, sans-serif;
             background: #f0f4f8;
@@ -28,7 +26,7 @@
 
         /* Style pour rendre le main visible après le chargement */
         body.loaded main {
-            display: block;
+            display: block; /* Ou flex/grid selon la mise en page de main */
         }
 
         /* Styles pour le loader */
@@ -67,7 +65,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
 
         .container {
             max-width: 900px;
@@ -407,6 +404,7 @@
     </div>
 
     <div id="header-placeholder"></div>
+
     <main>
         <div class="container">
             <a href="profil.html" class="btn-creer">+ Créer un nouveau profil</a>
@@ -425,6 +423,7 @@
             <div class="grid" id="profil-list"></div>
         </div>
     </main>
+
     <div id="side-panel" class="side-panel">
         <button class="close-panel">×</button>
         <div id="panel-content"></div>
@@ -438,6 +437,7 @@
         let galleryPrompts = []; // Stocke les prompts avec images
         let sharedTips = []; // Variable pour stocker les TIPS
 
+        // Références aux éléments du DOM pour éviter des requêtes répétées
         const listContainer = document.getElementById("profil-list");
         const filterPole = document.getElementById("filterPole");
         const searchInput = document.getElementById("searchInput");
@@ -446,7 +446,29 @@
         const closePanelBtn = document.querySelector(".close-panel");
         const mainContent = document.querySelector('main');
         const bodyElement = document.body;
-        const loader = document.getElementById("loader"); // Référence au loader
+        const loader = document.getElementById("loader");
+
+        /**
+         * Fonction utilitaire pour récupérer des données depuis le proxy Netlify.
+         * Gère les erreurs et le parsing JSON.
+         * @param {string} action - L'action à demander au proxy (ex: 'getProfils', 'getGalleryPrompts').
+         * @returns {Promise<Object|Array|null>} Les données JSON ou null en cas d'erreur.
+         */
+        async function fetchData(action) {
+            try {
+                const response = await fetch(`${PROXY_URL}?action=${action}`);
+                if (!response.ok) {
+                    const errorBody = await response.json().catch(() => response.text());
+                    console.error(`Erreur HTTP lors de la récupération de ${action}: ${response.status} -`, errorBody);
+                    // Retourne un objet d'erreur pour `Promise.allSettled`
+                    throw new Error(`Échec du chargement de ${action}: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`Erreur lors du chargement de ${action}:`, error);
+                throw error; // Propage l'erreur pour que Promise.allSettled la capture
+            }
+        }
 
         function normalizeString(str) {
             if (typeof str !== 'string') return '';
@@ -457,12 +479,11 @@
             console.log("Équipe: Début du rendu des profils...");
             const selectedPole = normalizeString(filterPole.value);
             const searchQuery = normalizeString(searchInput.value);
-            listContainer.innerHTML = "";
+            listContainer.innerHTML = ""; // Vide le conteneur avant de re-rendre
 
             const filteredProfils = profils.filter(p => {
                 const poleNormalized = normalizeString(p.pole || '');
                 const nameNormalized = normalizeString(p.name || '');
-                // Assurez-vous que p.tools est un tableau avant d'appeler map
                 const toolsNormalized = (Array.isArray(p.tools) ? p.tools : []).map(t => normalizeString(t));
 
                 const matchPole = !selectedPole || poleNormalized === selectedPole;
@@ -474,6 +495,7 @@
                 listContainer.innerHTML = '<p style="text-align: center; color: #666; width: 100%;">Aucun profil ne correspond à vos critères.</p>';
             }
 
+            const fragment = document.createDocumentFragment(); // Utilise un fragment pour des performances accrues
             filteredProfils.forEach((p) => {
                 const div = document.createElement("div");
                 div.className = "vignette";
@@ -483,7 +505,9 @@
 
                 div.innerHTML = `
                     <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
-                    <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}" alt="${p.name || 'Profil'}" />
+                    <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}" 
+                         alt="${p.name || 'Profil'}" 
+                         onerror="this.onerror=null;this.src='https://via.placeholder.com/80x80?text=Erreur%20Image';" />
                     <h3>${p.name || 'Nom Inconnu'}</h3>
                     <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
                     <div class="icon-bar">
@@ -504,6 +528,7 @@
                 const noteEditor = div.querySelector(".note-editor");
                 const textarea = noteEditor.querySelector("textarea");
 
+                // Gestionnaire d'événements pour les boutons de la vignette
                 div.querySelector(".btn-note").addEventListener("click", e => {
                     e.stopPropagation();
                     console.log("Équipe: Clic sur 'Note' pour", p.name);
@@ -528,7 +553,7 @@
                         const data = await res.json();
                         if (data.success) {
                             console.log("Équipe: Note enregistrée avec succès pour", p.name);
-                            p.note = content;
+                            p.note = content; // Met à jour localement le profil
                             noteBadge.style.display = content ? 'inline-block' : 'none';
                             noteEditor.classList.remove("open");
                         } else {
@@ -554,7 +579,7 @@
                         const data = await res.json();
                         if (data.success) {
                             console.log("Équipe: Note effacée avec succès pour", p.name);
-                            p.note = "";
+                            p.note = ""; // Met à jour localement le profil
                             noteBadge.style.display = 'none';
                             noteEditor.classList.remove("open");
                         } else {
@@ -570,7 +595,7 @@
                 div.querySelector(".close-note").addEventListener("click", e => {
                     e.stopPropagation();
                     console.log("Équipe: Clic sur 'Retour note' pour", p.name);
-                    textarea.value = p.note || '';
+                    textarea.value = p.note || ''; // Restaure la note originale
                     noteEditor.classList.remove("open");
                 });
 
@@ -586,16 +611,19 @@
                     if (confirm(`Supprimer définitivement ${p.name} ?`)) {
                         try {
                             const res = await fetch(`${PROXY_URL}?action=deleteProfil`, {
-                                method: "POST", // Utilisez POST ou DELETE si votre fonction Netlify est configurée pour DELETE
+                                method: "POST", // Assurez-vous que votre fonction Netlify accepte POST pour la suppression
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ id: p.id })
                             });
                             const data = await res.json();
                             if (data.success) {
                                 console.log("Équipe: Profil supprimé avec succès:", p.name);
-                                profils = profils.filter(profile => profile.id !== p.id);
-                                renderProfils(); // Re-render les profils pour montrer la suppression
-                                // Pas besoin de recharger prompts et TIPS ici, ils seront mis à jour si le panneau est ouvert
+                                profils = profils.filter(profile => profile.id !== p.id); // Met à jour le tableau local
+                                renderProfils(); // Re-rend les profils
+                                // Si le panneau latéral était ouvert pour ce profil, fermez-le
+                                if (sidePanel.classList.contains("show") && panelContent.dataset.id === p.id) {
+                                    sidePanel.classList.remove("show");
+                                }
                             } else {
                                 console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
                                 alert("Erreur lors de la suppression du profil : " + data.message);
@@ -608,136 +636,145 @@
                 });
 
                 // Écouteur pour ouvrir le panneau latéral (détails du profil)
-                div.addEventListener("click", e => {
+                div.addEventListener("click", async e => {
+                    // Évite l'ouverture du panneau si un bouton d'action a été cliqué
                     if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
                         console.log("Équipe: Ouverture du panneau latéral pour", p.name);
+                        panelContent.dataset.id = p.id; // Stocke l'ID du profil affiché
 
-                        let gallerySection = '';
-                        let tipsSection = ''; // Variable pour la section TIPS
-
-                        const profilNameNormalized = normalizeString(p.name || '');
-
-                        // --- Section Galerie d'images ---
-                        const imagesByAuthor = galleryPrompts.filter(prompt => {
-                            return normalizeString(prompt.auteur || '') === profilNameNormalized;
-                        }).map(prompt => prompt.imageUrl).filter(Boolean);
-
-                        console.log(`DEBUG: Images de galerie trouvées pour "${p.name}" :`, imagesByAuthor);
-
-                        if (imagesByAuthor.length > 0) {
-                            const lastTwoImages = imagesByAuthor.slice(-2); // Les 2 dernières images
-                            console.log("DEBUG: Les 2 dernières images sélectionnées pour l'affichage:", lastTwoImages);
-
-                            const imagesHtml = lastTwoImages.map(imgSrc => {
-                                if (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) {
-                                    return `<a href="galerie.html?imageUrl=${encodeURIComponent(imgSrc)}" target="_blank"><img src="${imgSrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x100?text=Erreur+image';" title="Image: ${imgSrc}"></a>`;
-                                } else {
-                                    console.warn("DEBUG: URL d'image de galerie invalide détectée:", imgSrc);
-                                    return `<img src="https://via.placeholder.com/150x100?text=Image+Invalide" alt="Image invalide" title="URL invalide: ${imgSrc}">`;
-                                }
-                            }).join('');
-
-                            gallerySection = `
-                                <div class="gallery-section">
-                                    <h3>Derniers prompts partagés (Images)</h3>
-                                    <div class="gallery-images-container">
-                                        ${imagesHtml}
-                                    </div>
-                                </div>
-                            `;
-                        } else {
-                            console.log("DEBUG: Aucune image de galerie trouvée pour l'auteur :", p.name);
-                            gallerySection = `
-                                <div class="gallery-section">
-                                    <h3>Derniers prompts partagés (Images)</h3>
-                                    <p class="no-item-placeholder">Aucune image de prompt partagée par ${p.name} n'a été trouvée.</p>
-                                </div>
-                            `;
-                        }
-
-                        // --- Nouvelle section TIPS ---
-                        const tipsFromAuthor = sharedTips
-                            .filter(tip => {
-                                const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages'); // Assurez-vous que c'est "cas-usages" si c'est le nom de votre page
-                                const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
-                                return isByThisAuthor && isFromCorrectPage;
-                            })
-                            .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage)); // Tri du plus récent au plus ancien
-
-                        const latestTips = tipsFromAuthor.slice(0, 3); // Les 3 derniers tips
-
-                        console.log(`DEBUG: TIPS finaux à afficher pour "${p.name}" :`, latestTips);
-
-                        if (latestTips.length > 0) {
-                            const tipsHtml = latestTips.map(tip => `
-                                <li>
-                                    <strong>${tip.titre || 'Titre inconnu'}</strong>
-                                    <span class="page-context">sur la page "${tip.pageDePartage || 'Inconnue'}"</span>
-                                </li>
-                            `).join('');
-
-                            tipsSection = `
-                                <div class="tips-section">
-                                    <h3>Derniers TIPS partagés</h3>
-                                    <ul class="tips-list">
-                                        ${tipsHtml}
-                                    </ul>
-                                </div>
-                            `;
-                        } else {
-                            console.log("DEBUG: Aucun TIP trouvé pour l'auteur :", p.name);
-                            tipsSection = `
-                                <div class="tips-section">
-                                    <h3>Derniers TIPS partagés</h3>
-                                    <p class="no-item-placeholder">Aucun TIP partagé par ${p.name} n'a été trouvé depuis la page "Cas d'usages".</p>
-                                    <p class="no-item-placeholder">
-                                        <a href="cas-usages.html">Partager un TIP maintenant !</a>
-                                    </p>
-                                </div>
-                            `;
-                        }
-
-                        // --- Contenu du panneau latéral ---
-                        const toolsList = (Array.isArray(p.tools) ? p.tools : []).map(t => `<li>${t}</li>`).join('');
-
-                        panelContent.innerHTML = `
-                            <h2>${p.name || 'Nom Inconnu'}</h2>
-                            <p><strong>Pôle :</strong> ${p.pole || '—'}</p>
-                            <p><strong>Outils IA :</strong></p>
-                            <ul>${toolsList}</ul>
-                            ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${p.note}</div>` : ''}
-                            ${gallerySection}
-                            ${tipsSection}
-                        `;
+                        // Chargement et affichage des données dans le panneau
+                        await updateSidePanelContent(p);
                         sidePanel.classList.add("show");
                     }
                 });
 
-                listContainer.appendChild(div);
+                fragment.appendChild(div);
             });
+            listContainer.appendChild(fragment); // Ajoute tous les éléments d'un coup au DOM
             console.log("Équipe: Rendu des profils terminé.");
         }
 
+        /**
+         * Met à jour le contenu du panneau latéral avec les détails du profil sélectionné,
+         * y compris les images de la galerie et les TIPS.
+         * @param {Object} profil - L'objet profil à afficher.
+         */
+        async function updateSidePanelContent(profil) {
+            const profilNameNormalized = normalizeString(profil.name || '');
+
+            // --- Section Galerie d'images ---
+            const imagesByAuthor = galleryPrompts
+                .filter(prompt => normalizeString(prompt.auteur || '') === profilNameNormalized)
+                .map(prompt => prompt.imageUrl)
+                .filter(Boolean); // Filtrer les URL vides ou nulles
+
+            console.log(`DEBUG: Images de galerie trouvées pour "${profil.name}" :`, imagesByAuthor);
+
+            let gallerySection = '';
+            if (imagesByAuthor.length > 0) {
+                const lastTwoImages = imagesByAuthor.slice(-2); // Les 2 dernières images
+                const imagesHtml = lastTwoImages.map(imgSrc => {
+                    const fallbackSrc = 'https://via.placeholder.com/150x100?text=Erreur+image';
+                    const displaySrc = (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) ? imgSrc : fallbackSrc;
+                    return `<a href="galerie.html?imageUrl=${encodeURIComponent(displaySrc)}" target="_blank"><img src="${displaySrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='${fallbackSrc}';" title="Image: ${imgSrc}"></a>`;
+                }).join('');
+
+                gallerySection = `
+                    <div class="gallery-section">
+                        <h3>Derniers prompts partagés (Images)</h3>
+                        <div class="gallery-images-container">
+                            ${imagesHtml}
+                        </div>
+                    </div>
+                `;
+            } else {
+                gallerySection = `
+                    <div class="gallery-section">
+                        <h3>Derniers prompts partagés (Images)</h3>
+                        <p class="no-item-placeholder">Aucune image de prompt partagée par ${profil.name} n'a été trouvée.</p>
+                    </div>
+                `;
+            }
+
+            // --- Nouvelle section TIPS ---
+            const tipsFromAuthor = sharedTips
+                .filter(tip => {
+                    // S'assurer que le tip est bien de la page 'cas-usages' et de l'auteur
+                    const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages');
+                    const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
+                    return isByThisAuthor && isFromCorrectPage;
+                })
+                .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage)); // Tri du plus récent au plus ancien
+
+            const latestTips = tipsFromAuthor.slice(0, 3); // Les 3 derniers tips
+
+            let tipsSection = '';
+            if (latestTips.length > 0) {
+                const tipsHtml = latestTips.map(tip => `
+                    <li>
+                        <strong>${tip.titre || 'Titre inconnu'}</strong>
+                        <span class="page-context">sur la page "${tip.pageDePartage || 'Inconnue'}"</span>
+                    </li>
+                `).join('');
+
+                tipsSection = `
+                    <div class="tips-section">
+                        <h3>Derniers TIPS partagés</h3>
+                        <ul class="tips-list">
+                            ${tipsHtml}
+                        </ul>
+                    </div>
+                `;
+            } else {
+                tipsSection = `
+                    <div class="tips-section">
+                        <h3>Derniers TIPS partagés</h3>
+                        <p class="no-item-placeholder">Aucun TIP partagé par ${profil.name} n'a été trouvé depuis la page "Cas d'usages".</p>
+                        <p class="no-item-placeholder">
+                            <a href="cas-usages.html">Partager un TIP maintenant !</a>
+                        </p>
+                    </div>
+                `;
+            }
+
+            // --- Contenu principal du panneau latéral ---
+            const toolsList = (Array.isArray(profil.tools) ? profil.tools : []).map(t => `<li>${t}</li>`).join('');
+            const hasNote = (profil.note || '').trim() !== '';
+
+            panelContent.innerHTML = `
+                <h2>${profil.name || 'Nom Inconnu'}</h2>
+                <p><strong>Pôle :</strong> ${profil.pole || '—'}</p>
+                <p><strong>Outils IA :</strong></p>
+                <ul>${toolsList || '<li>Aucun outil enregistré</li>'}</ul>
+                ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${profil.note}</div>` : ''}
+                ${gallerySection}
+                ${tipsSection}
+            `;
+        }
+
+        // --- Gestionnaire d'événements pour le panneau latéral ---
         closePanelBtn.addEventListener("click", () => {
             console.log("Équipe: Clic sur le bouton de fermeture du panneau.");
             sidePanel.classList.remove("show");
         });
 
+        // Ferme le panneau si l'utilisateur clique en dehors de celui-ci (mais pas sur une vignette)
         document.addEventListener("click", event => {
-            // S'assure que le clic n'est pas sur une vignette ni sur le panneau lui-même
             if (sidePanel.classList.contains("show") && !sidePanel.contains(event.target) && !event.target.closest(".vignette")) {
                 console.log("Équipe: Clic en dehors du panneau, fermeture.");
                 sidePanel.classList.remove("show");
             }
         });
 
+        // --- Gestionnaires pour les filtres et la recherche ---
         filterPole.addEventListener("change", renderProfils);
         searchInput.addEventListener("input", renderProfils);
 
+        // --- Fonction pour mettre à jour la bulle de notification (si un élément existe) ---
         async function mettreAJourBulleDemandes() {
-            const notif = document.getElementById("notif-count");
+            const notif = document.getElementById("notif-count"); // Assurez-vous que cet ID existe dans votre header dynamique
             if (!notif) {
-                console.warn("Équipe: L'élément 'notif-count' n'a pas été trouvé dans le header.");
+                console.warn("Équipe: L'élément 'notif-count' n'a pas été trouvé dans le header. La bulle de notification ne peut pas être mise à jour.");
                 return;
             }
             try {
@@ -749,7 +786,7 @@
                 }
                 const demandes = await res.json();
                 console.log("Équipe: Demandes récupérées pour la bulle:", demandes);
-                const count = Array.isArray(demandes) ? demandes.length : 0;
+                const count = Array.isArray(demandes) ? demandes.length : 0; // Compte toutes les demandes
                 notif.textContent = count;
                 notif.style.display = (count > 0) ? "inline-block" : "none";
                 console.log("Équipe: Bulle de notification mise à jour. Count:", count, "Display:", notif.style.display);
@@ -759,102 +796,98 @@
             }
         }
 
-        // Fonction pour charger tous les prompts de la galerie (images)
-        async function fetchGalleryPrompts() {
-            console.log("Équipe: Tentative de récupération des prompts de la galerie...");
-            try {
-                const res = await fetch(`${PROXY_URL}?action=getGalleryPrompts`);
-                if (!res.ok) {
-                    const errorText = await res.text();
-                    throw new Error(`Erreur HTTP lors de la récupération des prompts de galerie: ${res.status} - ${errorText}`);
-                }
-                const data = await res.json();
-                galleryPrompts = Array.isArray(data) ? data : [];
-                console.log("Équipe: Prompts de la galerie chargés :", galleryPrompts.length, galleryPrompts);
-            } catch (error) {
-                console.error("Équipe: Erreur lors du chargement des prompts de la galerie :", error);
-                galleryPrompts = [];
-            }
-        }
-
-        // Fonction pour charger tous les TIPS
-        async function fetchSharedTips() {
-            console.log("Équipe: Tentative de récupération des TIPS...");
-            try {
-                const res = await fetch(`${PROXY_URL}?action=getSharedTips`);
-                if (!res.ok) {
-                    const errorText = await res.text();
-                    throw new Error(`Erreur HTTP lors de la récupération des TIPS: ${res.status} - ${errorText}`);
-                }
-                const data = await res.json();
-                sharedTips = Array.isArray(data) ? data : [];
-                console.log("Équipe: TIPS chargés :", sharedTips.length, sharedTips);
-            } catch (error) {
-                console.error("Équipe: Erreur lors du chargement des TIPS :", error);
-                sharedTips = [];
-            }
-        }
-
-        // Fonction principale de chargement des profils
-        async function loadProfils() {
-            console.log("Équipe: Tentative de récupération des profils...");
-            try {
-                const res = await fetch(`${PROXY_URL}?action=getProfils`);
-                if (!res.ok) {
-                    const errorText = await res.text();
-                    throw new Error(`Erreur HTTP lors de la récupération des profils: ${res.status} - ${errorText}`);
-                }
-                const data = await res.json();
-                profils = Array.isArray(data) ? data : [];
-                console.log("Équipe: Profils chargés :", profils.length, profils);
-                renderProfils(); // Affiche les profils une fois chargés
-            } catch (error) {
-                console.error("Équipe: Erreur lors du chargement des profils :", error);
-                listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Erreur lors du chargement des profils. Veuillez vérifier la console pour plus de détails.</p>';
-                profils = [];
-            }
-        }
-
-        // Fonction pour charger le header.html
+        /**
+         * Charge le contenu du header HTML dynamiquement.
+         * Utile si votre header est un fichier séparé pour la réutilisabilité.
+         */
         async function loadHeader() {
-            try {
-                const response = await fetch('header.html');
-                if (!response.ok) throw new Error('Network response for header.html was not ok.');
-                document.getElementById('header-placeholder').innerHTML = await response.text();
-                console.log("Équipe: Header chargé.");
-            } catch (error) {
-                console.error("Équipe: Erreur lors du chargement de l'en-tête:", error);
-                document.getElementById('header-placeholder').innerHTML = '<p style="color: red; text-align: center;">Erreur de chargement de l\'en-tête.</p>';
+            const headerPlaceholder = document.getElementById('header-placeholder');
+            if (headerPlaceholder) {
+                try {
+                    const response = await fetch('header.html'); // Chemin vers votre fichier header.html
+                    if (response.ok) {
+                        headerPlaceholder.innerHTML = await response.text();
+                        console.log("Header chargé avec succès.");
+                        // Une fois le header chargé, mettre à jour la bulle de notification
+                        mettreAJourBulleDemandes();
+                    } else {
+                        console.error('Impossible de charger le header:', response.statusText);
+                    }
+                } catch (error) {
+                    console.error('Erreur lors du chargement du header:', error);
+                }
             }
         }
 
-        // Fonction d'initialisation principale qui charge toutes les données
-        async function init() {
-            console.log("Équipe: Début de l'initialisation...");
-            await loadHeader(); // Charge l'en-tête en premier
+        /**
+         * Fonction d'initialisation principale de l'application.
+         * Gère l'affichage du loader et le chargement parallèle des données.
+         */
+        async function initializeApp() {
+            try {
+                console.log('Démarrage du chargement des données initiales en parallèle...');
 
-            // Charge toutes les données en parallèle
-            await Promise.all([
-                loadProfils(),
-                fetchGalleryPrompts(),
-                fetchSharedTips()
-            ]);
+                // Charge le header en premier pour que la bulle de notification soit visible rapidement.
+                // Le chargement des données principales peut se faire en parallèle.
+                const headerLoadPromise = loadHeader();
 
-            // Après le chargement de toutes les données et du header, mettez à jour la bulle de notification
-            await mettreAJourBulleDemandes();
+                // Lancer TOUTES les requêtes de données en PARALLÈLE
+                const [profilsResult, galleryPromptsResult, sharedTipsResult] = await Promise.allSettled([
+                    fetchData('getProfils'),
+                    fetchData('getGalleryPrompts'),
+                    fetchData('getSharedTips') // Nouvelle requête pour les TIPS
+                ]);
 
-            // Une fois que tout est chargé, retirez le loader et affichez le contenu
-            loader.classList.add("hidden");
-            loader.addEventListener('transitionend', () => {
-                loader.style.display = 'none'; // Cache complètement le loader après la transition
-                bodyElement.classList.add('loaded'); // Rend la section <main> visible
-                bodyElement.style.opacity = 1; // Rend le corps de la page visible
-            }, { once: true });
-            console.log("Équipe: Initialisation complète et page affichée.");
+                // Traiter les résultats
+                if (profilsResult.status === 'fulfilled') {
+                    profils = profilsResult.value;
+                    renderProfils(); // Rendre les profils une fois chargés
+                } else {
+                    console.error('Échec du chargement des profils:', profilsResult.reason);
+                    listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Impossible de charger les profils.</p>';
+                }
+
+                if (galleryPromptsResult.status === 'fulfilled') {
+                    galleryPrompts = galleryPromptsResult.value;
+                } else {
+                    console.error('Échec du chargement de la galerie de prompts:', galleryPromptsResult.reason);
+                }
+
+                if (sharedTipsResult.status === 'fulfilled') {
+                    sharedTips = sharedTipsResult.value;
+                } else {
+                    console.error('Échec du chargement des tips partagés:', sharedTipsResult.reason);
+                }
+
+                // Attendre que le header soit aussi chargé pour s'assurer que la bulle de notif est prête
+                await headerLoadPromise;
+
+                console.log('Toutes les données initiales et le header ont été chargés et traités.');
+
+            } catch (error) {
+                console.error("Erreur critique lors de l'initialisation de l'application:", error);
+                // Message d'erreur visible si un problème majeur survient
+                loader.innerHTML = '<div class="loader-content" style="color: red;"><p>Une erreur majeure est survenue lors du chargement.</p><p>Veuillez rafraîchir la page.</p></div>';
+            } finally {
+                // Masquer le loader et afficher le contenu principal après un petit délai pour la transition
+                setTimeout(() => {
+                    if (loader) {
+                        loader.classList.add("hidden");
+                        loader.addEventListener('transitionend', () => {
+                            loader.style.display = 'none';
+                            bodyElement.classList.add('loaded'); // Ajoute la classe pour afficher main
+                        }, { once: true }); // S'assure que l'écouteur n'est déclenché qu'une fois
+                    }
+                }, 300); // Délai avant de masquer le loader pour permettre de voir l'animation
+            }
         }
 
-        // Déclenche l'initialisation après que le DOM soit entièrement chargé
-        document.addEventListener("DOMContentLoaded", init);
+        // Lancer l'initialisation de l'application une fois que le DOM est complètement chargé
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+        // Optionnel: Mettre à jour la bulle de demandes IA toutes les 5 minutes
+        setInterval(mettreAJourBulleDemandes, 5 * 60 * 1000);
+
     </script>
 </body>
 </html>
