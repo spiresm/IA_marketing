@@ -76,7 +76,7 @@
         }
         .btn-creer {
             display: block;
-            margin: 0 auto 30px;
+            margin: 0 auto 33px; /* Augmenté pour un meilleur espacement */
             background: #0077b6;
             color: white;
             padding: 12px 24px;
@@ -447,6 +447,7 @@
         const mainContent = document.querySelector('main');
         const bodyElement = document.body;
         const loader = document.getElementById("loader");
+        const headerPlaceholder = document.getElementById("header-placeholder"); // Nouvelle référence
 
         /**
          * Fonction utilitaire pour récupérer des données depuis le proxy Netlify.
@@ -506,8 +507,8 @@
                 div.innerHTML = `
                     <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
                     <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}" 
-                         alt="${p.name || 'Profil'}" 
-                         onerror="this.onerror=null;this.src='https://via.placeholder.com/80x80?text=Erreur%20Image';" />
+                            alt="${p.name || 'Profil'}" 
+                            onerror="this.onerror=null;this.src='https://via.placeholder.com/80x80?text=Erreur%20Image';" />
                     <h3>${p.name || 'Nom Inconnu'}</h3>
                     <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
                     <div class="icon-bar">
@@ -770,124 +771,97 @@
         filterPole.addEventListener("change", renderProfils);
         searchInput.addEventListener("input", renderProfils);
 
+        // --- Fonction pour charger le header ---
+        async function loadHeader() {
+            try {
+                const response = await fetch("header.html"); // Assurez-vous que le chemin est correct
+                if (!response.ok) {
+                    throw new Error(`Erreur lors du chargement de l'en-tête: ${response.status}`);
+                }
+                const headerHtml = await response.text();
+                headerPlaceholder.innerHTML = headerHtml;
+
+                // Si vous avez du JavaScript dans votre header.html qui doit s'exécuter,
+                // vous devrez l'extraire et l'exécuter ici après l'insertion du HTML.
+                // Par exemple, si header.html contient un script pour gérer un menu mobile,
+                // vous devrez le relancer ou le structurer de manière à ce qu'il se lie
+                // aux éléments du DOM insérés.
+                // Pour l'instant, on suppose que le header.html est purement HTML/CSS.
+                console.log("Équipe: Header chargé avec succès.");
+            } catch (error) {
+                console.error("Équipe: Erreur lors du chargement du header:", error);
+                // Optionnel: Afficher un message d'erreur à l'utilisateur
+            }
+        }
+
         // --- Fonction pour mettre à jour la bulle de notification (si un élément existe) ---
         async function mettreAJourBulleDemandes() {
-            const notif = document.getElementById("notif-count"); // Assurez-vous que cet ID existe dans votre header dynamique
-            if (!notif) {
-                console.warn("Équipe: L'élément 'notif-count' n'a pas été trouvé dans le header. La bulle de notification ne peut pas être mise à jour.");
-                return;
-            }
-            try {
-                console.log("Équipe: Tentative de récupération des demandes pour la bulle...");
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) {
-                    console.error(`Équipe: Erreur HTTP lors de la récupération des demandes: ${res.status}`);
-                    throw new Error(`Erreur HTTP: ${res.status}`);
-                }
-                const demandes = await res.json();
-                console.log("Équipe: Demandes récupérées pour la bulle:", demandes);
-                const count = Array.isArray(demandes) ? demandes.length : 0; // Compte toutes les demandes
-                notif.textContent = count;
-                notif.style.display = (count > 0) ? "inline-block" : "none";
-                console.log("Équipe: Bulle de notification mise à jour. Count:", count, "Display:", notif.style.display);
-            } catch (e) {
-                console.error("Équipe: Erreur mise à jour compteur de demandes :", e);
-                notif.style.display = "none";
-            }
-        }
-
-        /**
-         * Charge le contenu du header HTML dynamiquement.
-         * Utile si votre header est un fichier séparé pour la réutilisabilité.
-         */
-        async function loadHeader() {
-            const headerPlaceholder = document.getElementById('header-placeholder');
-            if (headerPlaceholder) {
+            const notif = document.getElementById('notification-badge'); // Assurez-vous que cet ID existe dans votre header.html
+            if (notif) {
                 try {
-                    const response = await fetch('header.html'); // Chemin vers votre fichier header.html
-                    if (response.ok) {
-                        headerPlaceholder.innerHTML = await response.text();
-                        console.log("Header chargé avec succès.");
-                        // Une fois le header chargé, mettre à jour la bulle de notification
-                        mettreAJourBulleDemandes();
-                    } else {
-                        console.error('Impossible de charger le header:', response.statusText);
+                    const data = await fetchData('getDemandesCount'); // Appel à une nouvelle action pour obtenir le nombre de demandes
+                    if (data && data.count !== undefined) {
+                        if (data.count > 0) {
+                            notif.textContent = data.count;
+                            notif.style.display = 'block';
+                        } else {
+                            notif.style.display = 'none';
+                        }
                     }
                 } catch (error) {
-                    console.error('Erreur lors du chargement du header:', error);
+                    console.error("Équipe: Erreur lors de la mise à jour de la bulle de demandes:", error);
+                    notif.style.display = 'none'; // Cacher la bulle en cas d'erreur
                 }
             }
         }
 
-        /**
-         * Fonction d'initialisation principale de l'application.
-         * Gère l'affichage du loader et le chargement parallèle des données.
-         */
-        async function initializeApp() {
-            try {
-                console.log('Démarrage du chargement des données initiales en parallèle...');
+        // --- Initialisation au chargement de la page ---
+        window.addEventListener("load", async () => {
+            console.log("Équipe: Page chargée, début de l'initialisation...");
+            await loadHeader(); // Charge le header en premier
 
-                // Charge le header en premier pour que la bulle de notification soit visible rapidement.
-                // Le chargement des données principales peut se faire en parallèle.
-                const headerLoadPromise = loadHeader();
+            // Exécute toutes les requêtes de données en parallèle
+            const [profilsResult, galleryResult, tipsResult] = await Promise.allSettled([
+                fetchData('getProfils'),
+                fetchData('getGalleryPrompts'),
+                fetchData('getTips') // Nouvelle fonction pour récupérer les TIPS
+            ]);
 
-                // Lancer TOUTES les requêtes de données en PARALLÈLE
-                const [profilsResult, galleryPromptsResult, sharedTipsResult] = await Promise.allSettled([
-                    fetchData('getProfils'),
-                    fetchData('getGalleryPrompts'),
-                    fetchData('getSharedTips') // Nouvelle requête pour les TIPS
-                ]);
-
-                // Traiter les résultats
-                if (profilsResult.status === 'fulfilled') {
-                    profils = profilsResult.value;
-                    renderProfils(); // Rendre les profils une fois chargés
-                } else {
-                    console.error('Échec du chargement des profils:', profilsResult.reason);
-                    listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Impossible de charger les profils.</p>';
-                }
-
-                if (galleryPromptsResult.status === 'fulfilled') {
-                    galleryPrompts = galleryPromptsResult.value;
-                } else {
-                    console.error('Échec du chargement de la galerie de prompts:', galleryPromptsResult.reason);
-                }
-
-                if (sharedTipsResult.status === 'fulfilled') {
-                    sharedTips = sharedTipsResult.value;
-                } else {
-                    console.error('Échec du chargement des tips partagés:', sharedTipsResult.reason);
-                }
-
-                // Attendre que le header soit aussi chargé pour s'assurer que la bulle de notif est prête
-                await headerLoadPromise;
-
-                console.log('Toutes les données initiales et le header ont été chargés et traités.');
-
-            } catch (error) {
-                console.error("Erreur critique lors de l'initialisation de l'application:", error);
-                // Message d'erreur visible si un problème majeur survient
-                loader.innerHTML = '<div class="loader-content" style="color: red;"><p>Une erreur majeure est survenue lors du chargement.</p><p>Veuillez rafraîchir la page.</p></div>';
-            } finally {
-                // Masquer le loader et afficher le contenu principal après un petit délai pour la transition
-                setTimeout(() => {
-                    if (loader) {
-                        loader.classList.add("hidden");
-                        loader.addEventListener('transitionend', () => {
-                            loader.style.display = 'none';
-                            bodyElement.classList.add('loaded'); // Ajoute la classe pour afficher main
-                        }, { once: true }); // S'assure que l'écouteur n'est déclenché qu'une fois
-                    }
-                }, 300); // Délai avant de masquer le loader pour permettre de voir l'animation
+            if (profilsResult.status === 'fulfilled') {
+                profils = profilsResult.value || [];
+                console.log("Équipe: Profils chargés :", profils.length);
+            } else {
+                console.error("Équipe: Impossible de charger les profils au démarrage.");
             }
-        }
 
-        // Lancer l'initialisation de l'application une fois que le DOM est complètement chargé
-        document.addEventListener('DOMContentLoaded', initializeApp);
+            if (galleryResult.status === 'fulfilled') {
+                galleryPrompts = galleryResult.value || [];
+                console.log("Équipe: Prompts de galerie chargés :", galleryPrompts.length);
+            } else {
+                console.error("Équipe: Impossible de charger les prompts de galerie au démarrage.");
+            }
 
-        // Optionnel: Mettre à jour la bulle de demandes IA toutes les 5 minutes
-        setInterval(mettreAJourBulleDemandes, 5 * 60 * 1000);
+            if (tipsResult.status === 'fulfilled') {
+                sharedTips = tipsResult.value || [];
+                console.log("Équipe: TIPS chargés :", sharedTips.length);
+            } else {
+                console.error("Équipe: Impossible de charger les TIPS au démarrage.");
+            }
+            
+            renderProfils(); // Affiche les profils une fois les données chargées
+            await mettreAJourBulleDemandes(); // Met à jour la bulle après chargement
+            
+            // Masque le loader et affiche le contenu principal
+            loader.classList.add("hidden");
+            loader.addEventListener('transitionend', () => {
+                loader.style.display = 'none';
+                bodyElement.classList.add('loaded'); // Ajoute la classe pour afficher le main
+            }, { once: true }); // S'assure que l'événement ne se déclenche qu'une seule fois
+            console.log("Équipe: Initialisation terminée, contenu principal affiché.");
+        });
 
+        // Nettoyage de l'URL quand on arrive sur la page
+        history.replaceState({}, document.title, window.location.pathname);
     </script>
 </body>
 </html>
