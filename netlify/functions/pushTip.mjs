@@ -2,15 +2,19 @@ import { google } from 'googleapis';
 
 export async function handler(event) {
     if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
+        return {
+            statusCode: 405,
+            body: 'Method Not Allowed',
+        };
     }
 
     try {
         const data = JSON.parse(event.body);
         const { auteur, titre, description, categorie, outilIA, imageUrl, documentUrl } = data;
 
-        // Chargement sécurisé des credentials Google depuis une seule variable d'environnement
-        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON.replace(/\\n/g, '\n'));
+        // ✅ Parsing correct de la clé de service échappée
+        const rawCredentials = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+        const credentials = JSON.parse(rawCredentials.replace(/\\\\n/g, '\\n'));
 
         const auth = new google.auth.GoogleAuth({
             credentials,
@@ -24,7 +28,7 @@ export async function handler(event) {
         const dateSoumission = new Date().toISOString();
 
         const values = [
-            [auteur, titre, description, categorie, outilIA, imageUrl, documentUrl, dateSoumission]
+            [auteur, titre, description, categorie, outilIA, imageUrl, documentUrl, dateSoumission],
         ];
 
         const resource = { values };
@@ -40,12 +44,11 @@ export async function handler(event) {
             statusCode: 200,
             body: JSON.stringify({ message: 'Tip ajouté avec succès!' }),
         };
-
     } catch (error) {
-        console.error('Erreur lors de l\'ajout du tip:', error);
+        console.error("Erreur lors de l'ajout du tip:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Échec de l\'ajout du tip', details: error.message }),
+            body: JSON.stringify({ error: "Échec de l'ajout du tip", details: error.message }),
         };
     }
 }
