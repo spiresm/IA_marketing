@@ -7,7 +7,7 @@ export const handler = async (event) => {
     // URL de votre Google Apps Script pour les demandes IA
     // Utilisez la variable d'environnement pour plus de sécurité et flexibilité
     // IMPORTANT : ASSUREZ-VOUS QUE CELLE DE NETLIFY EST CORRECTE ET LA PLUS RÉCENTE
-    const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahQQrEuXFhblO3YV4d_qKeKQ8/exec';
+    const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8/exec';
 
     try {
         // Récupère l'action depuis les paramètres de requête de l'URL
