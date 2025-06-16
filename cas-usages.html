@@ -799,18 +799,20 @@
                    </div>`
                 : ''; // Si pas de vignettes, cette chaîne est vide
 
+            // Le post-it (.preview-post-it) reste EN DEHORS du .infos-wrapper
             card.innerHTML = `
                 <div class="infos-wrapper">
                     <div class="tip-title">${tip.titre || 'Sans titre'}</div>
                     <div class="outil-badge">${tip.outil || 'N/A'}</div>
 
-                    ${vignettesHtml} <div class="metadata-section">
+                    <div class="metadata-section">
                         <span class="metadata-label">Auteur:</span>
                         <span class="metadata-value auteur-value">${tip.auteur || 'N/A'}</span>
                         <span class="metadata-label">Catégorie:</span>
                         <span class="metadata-value">${tip.categorie || 'N/A'}</span>
                     </div>
-                    <div class="text-display">${tip.previewText || 'Pas de texte de prévisualisation.'}</div>
+
+                    ${vignettesHtml} <div class="text-display">${tip.previewText || 'Pas de texte de prévisualisation.'}</div>
 
                     <div class="card-actions">
                         <div class="top-buttons-group">
@@ -821,12 +823,9 @@
                         <button class="supprimer-btn" data-id="${tip.id}"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 </div>
-                ${tip.previewText ? `<div class="preview-post-it">${tip.previewText}</div>` : ''}
-            `;
+                ${tip.previewText ? `<div class="preview-post-it">${tip.previewText}</div>` : ''} `;
 
             // Ajout des écouteurs d'événements après que la carte soit créée
-            // Note: Les écouteurs pour les boutons Aperçu et Copier le prompt sont ajoutés ici.
-            // Pour le bouton éditer, l'onclick est directement dans le HTML généré.
             card.querySelector('.toggle-content-btn').addEventListener('click', () => openPreviewPanel(tip));
             card.querySelector('.copier-btn').addEventListener('click', (event) => {
                 const textToCopy = event.target.getAttribute('data-clipboard-text');
@@ -838,11 +837,10 @@
                 });
             });
 
-            // Gérer le bouton de suppression (requiert une fonction deleteTip sur le serveur)
             const deleteButton = card.querySelector('.supprimer-btn');
             if (deleteButton) {
                 deleteButton.addEventListener('click', async (e) => {
-                    e.stopPropagation(); // Empêche le clic sur la carte d'ouvrir le panneau
+                    e.stopPropagation();
                     if (confirm('Êtes-vous sûr de vouloir supprimer ce tip ?')) {
                         const tipId = e.currentTarget.getAttribute('data-id');
                         try {
@@ -855,7 +853,7 @@
                             const result = await response.json();
                             if (result.success) {
                                 showSuccessMessage('Tip supprimé avec succès !');
-                                loadAndDisplayTips(); // Recharger les tips après suppression
+                                loadAndDisplayTips();
                             } else {
                                 showErrorMessage(`Erreur lors de la suppression: ${result.message}`);
                             }
@@ -873,26 +871,24 @@
         // Fonction pour charger et afficher les tips
         async function loadAndDisplayTips() {
             galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
-            errorDisplay.style.display = 'none'; // Cacher les erreurs précédentes
+            errorDisplay.style.display = 'none';
 
             try {
-                // Utilisez apiBase pour la fonction Netlify qui renvoie all-tips.json
                 const response = await fetch(`${apiBase}get-tips`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 allTips = await response.json();
-                // Assurez-vous que allTips est bien un tableau, si la fonction Netlify renvoie un objet avec 'data'
                 if (allTips && allTips.data) {
                     allTips = allTips.data;
                 }
 
-                populateFilters(allTips); // Peupler les filtres après chargement des données
-                filterAndDisplayTips(); // Afficher les tips après chargement
+                populateFilters(allTips);
+                filterAndDisplayTips();
             } catch (error) {
                 console.error("Erreur lors du chargement des tips:", error);
                 showErrorMessage('Impossible de charger les tips. Veuillez vérifier votre connexion ou réessayer plus tard.');
-                galerieDiv.innerHTML = ''; // Supprimer le loader
+                galerieDiv.innerHTML = '';
             }
         }
 
@@ -908,7 +904,7 @@
         }
 
         function populateSelect(selectElement, optionsArray) {
-            const currentSelectedValue = selectElement.value; // Conserver la valeur sélectionnée
+            const currentSelectedValue = selectElement.value;
             selectElement.innerHTML = `<option value="">Tous les ${selectElement.id.replace('filtre-', '')}s</option>`;
             optionsArray.forEach(option => {
                 const opt = document.createElement('option');
@@ -916,7 +912,6 @@
                 opt.textContent = option;
                 selectElement.appendChild(opt);
             });
-            // Rétablir la valeur sélectionnée si elle existe toujours
             if (currentSelectedValue && optionsArray.includes(currentSelectedValue)) {
                 selectElement.value = currentSelectedValue;
             }
@@ -932,7 +927,7 @@
 
         // Fonction pour filtrer et afficher les tips
         function filterAndDisplayTips() {
-            galerieDiv.innerHTML = ''; // Vide la galerie avant d'afficher les résultats
+            galerieDiv.innerHTML = '';
             let filteredTips = allTips;
 
             const searchText = previewTextInput.value.toLowerCase().trim();
@@ -976,47 +971,40 @@
             previewPanelTitle.textContent = `Aperçu : ${tip.titre || 'Sans titre'}`;
             previewPanelContent.innerHTML = '';
 
-            // Afficher l'image si elle existe (cette partie est conservée pour le panneau latéral)
-            // Note: tip.imageUrl n'est pas défini dans le JSON exemple que j'ai créé pour les vignettes,
-            // si vous avez une image principale pour le panneau d'aperçu, assurez-vous qu'elle est dans vos données.
             if (tip.imageUrl) {
                 const img = document.createElement('img');
-                img.className = 'preview-panel-image'; // Pour styliser l'image dans le panneau
+                img.className = 'preview-panel-image';
                 img.src = tip.imageUrl;
                 img.alt = `Image pour ${tip.titre || 'ce tip'}`;
                 previewPanelContent.appendChild(img);
             }
 
-            // Afficher le previewText dans un cartouche jaune
             if (tip.previewText) {
                 const previewDiv = document.createElement('div');
-                previewDiv.className = 'preview-text-card-yellow'; // Classe pour le cartouche jaune
+                previewDiv.className = 'preview-text-card-yellow';
                 previewDiv.textContent = tip.previewText;
                 previewPanelContent.appendChild(previewDiv);
             }
 
-            // Afficher la description dans un cartouche bleu clair, sans le label "Description :"
             if (tip.description) {
                 const descriptionHtml = document.createElement('p');
                 descriptionHtml.innerHTML = `<strong>Description :</strong>`;
                 previewPanelContent.appendChild(descriptionHtml);
                 const descriptionPre = document.createElement('pre');
-                descriptionPre.className = 'content-card-blue'; // Classe pour le cartouche bleu clair
+                descriptionPre.className = 'content-card-blue';
                 descriptionPre.textContent = tip.description;
                 previewPanelContent.appendChild(descriptionPre);
             }
 
-            // Afficher le prompt avec son style d'origine (fond gris clair)
             if (tip.prompt) {
                 const promptHtml = document.createElement('p');
                 promptHtml.innerHTML = `<strong>Prompt :</strong>`;
                 previewPanelContent.appendChild(promptHtml);
                 const promptPre = document.createElement('pre');
-                promptPre.className = 'prompt-content-pre'; // Revenir à la classe de style d'origine
+                promptPre.className = 'prompt-content-pre';
                 promptPre.textContent = tip.prompt;
                 previewPanelContent.appendChild(promptPre);
 
-                // Ajouter le bouton "Copier le prompt" en dessous du prompt
                 const copyPromptPanelBtn = document.createElement('button');
                 copyPromptPanelBtn.className = 'copy-panel-btn';
                 copyPromptPanelBtn.textContent = 'Copier le prompt';
@@ -1031,18 +1019,16 @@
                 previewPanelContent.appendChild(copyPromptPanelBtn);
             }
 
-            // Afficher l'exemple dans un cartouche bleu clair
             if (tip.exemple) {
                 const exempleHtml = document.createElement('p');
                 exempleHtml.innerHTML = `<strong>Exemple :</strong>`;
                 previewPanelContent.appendChild(exempleHtml);
                 const exemplePre = document.createElement('pre');
-                exemplePre.className = 'content-card-blue'; // Classe pour le cartouche bleu clair
+                exemplePre.className = 'content-card-blue';
                 exemplePre.textContent = tip.exemple;
                 previewPanelContent.appendChild(exemplePre);
             }
 
-            // Ajout des informations Auteur, Catégorie, Date
             const infoDiv = document.createElement('div');
             infoDiv.innerHTML += `<p><strong>Outil:</strong> ${tip.outil || 'N/A'}</p>`;
             infoDiv.innerHTML += `<p><strong>Catégorie:</strong> ${tip.categorie || 'N/A'}</p>`;
@@ -1053,29 +1039,15 @@
             }
             previewPanelContent.appendChild(infoDiv);
 
-            // ANCIEN CODE - Le bouton "Éditer ce tip" est retiré du panneau coulissant
-            /*
-            const editPanelBtn = document.createElement('button');
-            editPanelBtn.className = 'edit-btn'; // Utilise la classe existante pour un style similaire
-            editPanelBtn.textContent = 'Éditer ce tip';
-            editPanelBtn.style.marginTop = '20px'; // Un peu d'espace au-dessus
-            editPanelBtn.addEventListener('click', () => {
-                window.location.href = `editer-tip.html?id=${tip.id}`;
-            });
-            previewPanelContent.appendChild(editPanelBtn);
-            */
-
             previewPanel.classList.add('open');
-            // Empêche le défilement du corps de page lorsque le panneau est ouvert
             document.body.style.overflow = 'hidden';
         }
 
         closePreviewBtn.addEventListener('click', () => {
             previewPanel.classList.remove('open');
-            document.body.style.overflow = ''; // Rétablit le défilement du corps de page
+            document.body.style.overflow = '';
         });
 
-        // Fermer le panneau si on clique en dehors
         document.addEventListener('click', (event) => {
             if (previewPanel.classList.contains('open') && !previewPanel.contains(event.target) && !event.target.closest('.carte') && !event.target.closest('#preview-text')) {
                 previewPanel.classList.remove('open');
@@ -1083,7 +1055,6 @@
             }
         });
 
-        // Fonction pour afficher un message de succès
         function showSuccessMessage(message) {
             const msg = document.getElementById('success-message');
             msg.textContent = message;
@@ -1091,11 +1062,10 @@
             setTimeout(() => msg.style.opacity = '0', 2000);
         }
 
-        // Fonction pour afficher un message d'erreur
         function showErrorMessage(message) {
             errorDisplay.textContent = message;
             errorDisplay.style.display = 'block';
-            setTimeout(() => errorDisplay.style.display = 'none', 5000); // Masquer après 5 secondes
+            setTimeout(() => errorDisplay.style.display = 'none', 5000);
         }
 
     </script>
