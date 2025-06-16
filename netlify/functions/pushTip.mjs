@@ -1,6 +1,6 @@
 // netlify/functions/pushTip.mjs
 
-import { google } from 'googleapis'; // <-- CORRECTION ICI : Utilisez 'import' au lieu de 'require'
+import { google } from 'googleapis';
 
 export async function handler(event) {
     if (event.httpMethod !== 'POST') {
@@ -11,11 +11,17 @@ export async function handler(event) {
         const data = JSON.parse(event.body);
         const { auteur, titre, description, categorie, outilIA, imageUrl, documentUrl } = data;
 
+        // Transformation et LOG de la clé privée pour le débogage
+        const transformedPrivateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
+        // ATTENTION : Cette ligne affichera votre clé privée dans les logs Netlify.
+        // NE JAMAIS PARTAGER CES LOGS EN PUBLIC ! Supprimez-la après le débogage.
+        console.log('Clé privée transformée pour debug (NE PAS PARTAGER EN PUBLIC):', transformedPrivateKey);
+
         // Configuration de l'authentification Google Sheets API
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-                private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+                private_key: transformedPrivateKey, // Utilise la clé transformée
             },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
@@ -52,7 +58,7 @@ export async function handler(event) {
             body: JSON.stringify({ error: 'Échec de l\'ajout du tip', details: error.message }),
         };
     }
-};
+}
 
 /*
 Rappel pour cette fonction :
