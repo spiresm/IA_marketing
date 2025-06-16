@@ -12,9 +12,11 @@ export async function handler(event) {
         const data = JSON.parse(event.body);
         const { auteur, titre, description, categorie, outilIA, imageUrl, documentUrl } = data;
 
-        // ✅ Parsing correct de la clé de service échappée
-        const rawCredentials = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-        const credentials = JSON.parse(rawCredentials.replace(/\\\\n/g, '\\n'));
+        // Préparation des credentials à partir de deux variables d’environnement
+        const credentials = {
+            client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+            private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        };
 
         const auth = new google.auth.GoogleAuth({
             credentials,
@@ -31,13 +33,11 @@ export async function handler(event) {
             [auteur, titre, description, categorie, outilIA, imageUrl, documentUrl, dateSoumission],
         ];
 
-        const resource = { values };
-
         await sheets.spreadsheets.values.append({
             spreadsheetId,
             range,
             valueInputOption: 'RAW',
-            resource,
+            resource: { values },
         });
 
         return {
@@ -48,7 +48,10 @@ export async function handler(event) {
         console.error("Erreur lors de l'ajout du tip:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: "Échec de l'ajout du tip", details: error.message }),
+            body: JSON.stringify({
+                error: "Échec de l'ajout du tip",
+                details: error.message,
+            }),
         };
     }
 }
