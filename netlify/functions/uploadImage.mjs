@@ -30,23 +30,23 @@ export async function handler(event, context) {
     }
 
     let fileName;
-    let fileContent; // <--- MODIFICATION ICI : Renommé la variable pour correspondre au frontend
+    let fileBase64; // <-- CORRECTION ICI : Utilisez 'fileBase64' pour correspondre au frontend
     try {
         const body = JSON.parse(event.body);
         // --- Ajout des console.log pour le débogage ---
         console.log("Parsed body object:", body);
         // --- Fin des console.log ---
         fileName = body.fileName;
-        fileContent = body.fileContent; // <--- MODIFICATION ICI : Utilisez 'fileContent'
+        fileBase64 = body.fileBase64; // <-- CORRECTION ICI : Récupérez 'fileBase64'
     } catch (e) {
         console.error("Erreur de parsing JSON du body de la requête:", e);
         return { statusCode: 400, body: JSON.stringify({ message: 'Corps de la requête invalide.' }) };
     }
 
-    // La validation utilise la nouvelle variable
-    if (!fileName || !fileContent) { // <--- MODIFICATION ICI : Utilisez 'fileContent'
-        console.error(`Validation échouée: fileName=${fileName}, fileContent=${fileContent ? 'présent' : 'absent'}`); // <--- MODIFICATION ICI pour les logs
-        return { statusCode: 400, body: JSON.stringify({ message: 'Nom de fichier ou contenu manquant.' }) };
+    // La validation utilise la variable corrigée
+    if (!fileName || !fileBase64) { // <-- CORRECTION ICI : Utilisez 'fileBase64'
+        console.error(`Validation échouée: fileName=${fileName}, fileBase64=${fileBase64 ? 'présent' : 'absent'}`); // <-- CORRECTION ICI pour les logs
+        return { statusCode: 400, body: JSON.stringify({ message: 'Nom de fichier ou contenu de l\'image manquant.' }) };
     }
 
     const filePath = `${UPLOAD_DIR}${fileName}`;
@@ -71,15 +71,12 @@ export async function handler(event, context) {
             console.log(`Fichier non trouvé: ${filePath}, sera créé.`);
         }
 
-        // Le contenu doit être le Base64 pur. Le frontend envoie le Base64 pur (après split(',')[1])
-        // Assurez-vous que fileContent ne contient PAS le préfixe "data:image/png;base64,"
-        // Votre frontend getBase64 fait déjà le split, donc c'est bon.
         const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
             owner: OWNER,
             repo: REPO,
             path: filePath,
             message: `Upload de ${fileName}`,
-            content: fileContent, // <--- MODIFICATION ICI : Utilise la variable corrigée
+            content: fileBase64, // <-- CORRECTION ICI : Utilisez 'fileBase64'
             sha: sha,
             branch: 'main',
         });
