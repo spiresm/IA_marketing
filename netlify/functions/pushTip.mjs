@@ -1,85 +1,70 @@
-// netlify/functions/pushTip.mjs
+// netlify/functions/pushTip.js
+const { google } = require('googleapis');
 
-import { Octokit } from "@octokit/core";
-import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
-import { Buffer } from 'buffer'; // Gardez si nécessaire pour vos opérations de fichiers
-
-const MyOctokit = Octokit.plugin(restEndpointMethods);
-
-export async function handler(event, context) {
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const OWNER = process.env.GITHUB_OWNER;
-    const REPO = process.env.GITHUB_REPO;
-    const TIPS_FILE_PATH = process.env.TIPS_FILE_PATH || 'data/all-tips.json'; // Adaptez le chemin
-
-    if (!GITHUB_TOKEN || !OWNER || !REPO) {
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ message: 'Configuration de l\'API GitHub manquante.' }),
-        };
-    }
-
+exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
-    let newTip;
     try {
-        newTip = JSON.parse(event.body);
-    } catch (e) {
-        return { statusCode: 400, body: JSON.stringify({ message: 'Corps de la requête invalide.' }) };
-    }
+        const data = JSON.parse(event.body);
+        const { auteur, titre, description, categorie, outilIA, imageUrl, documentUrl } = data;
 
-    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
+        // Configuration de l'authentification Google Sheets API
+        const auth = new google.auth.GoogleAuth({
+            credentials: {
+                client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+                // Assurez-vous que la clé privée est bien formatée avec les vrais retours à la ligne
+                private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            },
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
 
-    try {
-        // Récupérer le contenu actuel du fichier
-        let fileData;
-        try {
-            const response = await octokit.rest.repos.getContent({
-                owner: OWNER,
-                repo: REPO,
-                path: TIPS_FILE_PATH,
-                ref: 'main',
-            });
-            fileData = response.data;
-        } catch (error) {
-            if (error.status === 404) {
-                // Le fichier n'existe pas, commencer avec un tableau vide
-                fileData = { content: Buffer.from(JSON.stringify([], null, 2)).toString('base64'), sha: undefined };
-            } else {
-                throw error; // Lancer d'autres erreurs 
-            }
-        }
+        const sheets = google.sheets({ version: 'v4', auth });
 
-        const content = Buffer.from(fileData.content, 'base64').toString('utf8');
-        const existingTips = JSON.parse(content);
+        // REMPLACEZ 'YOUR_SPREADSHEET_ID' par l'ID de votre feuille Google Sheet
+        // Et 'Tips!A:H' par la plage où vous voulez insérer vos données
+        const spreadsheetId = process.env.GOOGLE_SHEET_ID_TIPS; // Il est recommandé d'utiliser une variable d'environnement
+        const range = 'Tips!A:H'; // Assurez-vous que le nom de votre feuille est correct (ex: 'Tips')
 
-        // Ajouter le nouveau tip
-        const updatedTips = [...existingTips, { id: Date.now().toString(), ...newTip }]; // Ajout d'un ID simple
+        const dateSoumission = new Date().toISOString(); // Ajout de la date et heure de soumission
 
-        // Mettre à jour le fichier sur GitHub
-        await octokit.rest.repos.createOrUpdateFileContents({
-            owner: OWNER,
-            repo: REPO,
-            path: TIPS_FILE_PATH,
-            message: `Ajout d'un nouveau tip`,
-            content: Buffer.from(JSON.stringify(updatedTips, null, 2)).toString('base64'),
-            sha: fileData.sha, // `sha` est nécessaire si le fichier existe pour la mise à jour
-            branch: 'main'
+        // Les valeurs à ajouter dans les colonnes de votre feuille Google Sheet
+        const values = [
+            [auteur, titre, description, categorie, outilIA, imageUrl, documentUrl, dateSoumission]
+        ];
+
+        const resource = { values };
+
+        // Ajout des données à la feuille Google Sheet
+        await sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range,
+            valueInputOption: 'RAW', // Les valeurs seront insérées telles quelles
+            resource,
         });
 
         return {
             statusCode: 200,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: 'Tip ajouté avec succès !', tip: newTip }),
+            body: JSON.stringify({ message: 'Tip ajouté avec succès!' }),
         };
 
     } catch (error) {
         console.error('Erreur lors de l\'ajout du tip:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: `Erreur interne du serveur: ${error.message}` }),
+            body: JSON.stringify({ error: 'Échec de l\'ajout du tip', details: error.message }),
         };
     }
-}
+};
+
+/*
+Pour que cette fonction marche :
+1.  Activer l'API Google Sheets dans Google Cloud Platform.
+2.  Créer un compte de service et télécharger son fichier JSON de clés.
+3.  Partager la feuille Google Sheet avec l'email du compte de service.
+4.  Ajouter les variables d'environnement dans Netlify :
+    - GOOGLE_SERVICE_ACCOUNT_EMAIL (l'email du compte de service)
+    - GOOGLE_PRIVATE_KEY (la clé privée du fichier JSON, n'oubliez pas de remplacer les '\n' par de vrais retours à la ligne si vous la copiez-collez en une ligne)
+    - GOOGLE_SHEET_ID_TIPS (l'ID de votre feuille Google Sheet spécifique aux tips)
+*/
