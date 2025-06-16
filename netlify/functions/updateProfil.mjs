@@ -1,6 +1,6 @@
 // netlify/functions/updateProfil.mjs
 
-import { Octokit } from "@octokit/core";
+import { Octokit } from "@octokit/rest";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Buffer } from 'buffer'; // Gardez si nécessaire, mais Buffer est global en Node.js
 
