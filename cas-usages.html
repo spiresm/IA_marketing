@@ -200,17 +200,17 @@
             align-self: flex-start;
         }
 
-        /* Nouveaux styles pour les vignettes sur la carte (emplacement à droite des métadonnées) */
-        .card-vignettes-icons {
+        /* Nouveaux styles pour les icônes de vignettes sur la carte (emplacement à droite des métadonnées) */
+        .card-preview-icons {
             position: absolute; /* Positionnement absolu par rapport à .infos-wrapper */
-            top: 60px; /* Ajustez cette valeur si nécessaire pour aligner verticalement avec Catégorie */
+            top: 65px; /* Ajustez cette valeur si nécessaire pour aligner verticalement avec Catégorie */
             right: 15px; /* Espace à droite de la carte */
             display: flex;
             gap: 8px; /* Espace entre les icônes */
             z-index: 5; /* Assure qu'elles sont au-dessus des autres éléments si besoin */
         }
 
-        .card-vignettes-icons .icon-vignette {
+        .card-preview-icons .icon-vignette {
             font-size: 1.8em; /* Taille des icônes */
             color: #888; /* Couleur par défaut des icônes */
             width: 30px; /* Largeur fixe pour la zone cliquable */
@@ -221,15 +221,17 @@
             border-radius: 5px;
             background-color: #f0f0f0; /* Léger fond pour distinguer */
             border: 1px solid #ddd;
-            cursor: pointer;
+            /* cursor: pointer; */ /* Pas de curseur pointer si non cliquable directement sur la carte */
             transition: color 0.2s, background-color 0.2s, transform 0.1s;
         }
 
-        .card-vignettes-icons .icon-vignette:hover {
-            color: #0077b6; /* Couleur au survol */
+        /* Au cas où on voudrait les rendre cliquables ou visuellement interactives sur la carte */
+        /* .card-preview-icons .icon-vignette:hover {
+            color: #0077b6;
             background-color: #e6f7ff;
             transform: translateY(-1px);
-        }
+        } */
+
 
         /* Section des métadonnées (Auteur, Catégorie) */
         .metadata-section {
@@ -241,8 +243,7 @@
             margin-bottom: 4px;
             padding-bottom: 2px;
             border-bottom: 1px solid #eee;
-            /* Retire le padding-right ou ajustez si la colonne prend trop de place */
-            padding-right: 80px; /* Réduit l'espace pour les vignettes à droite */
+            padding-right: 80px; /* Réduit l'espace pour les icônes à droite */
         }
 
         .metadata-label {
@@ -261,20 +262,9 @@
             font-weight: normal;
         }
 
-        /* Ancien .text-display, maintenant vide car le texte est dans le post-it */
-        /* Ce bloc est conservé pour ne pas casser le layout si d'autres choses s'y référaient, mais il est vide */
+        /* Le texte de prévisualisation (ancien .text-display) est désormais toujours caché sur la carte */
         .text-display {
-            /* font-size: 0.9em; */
-            /* color: #444; */
-            /* line-height: 1.4; */
-            /* background-color: #f9f9f9; */
-            /* border: 1px solid #eee; */
-            /* border-radius: 5px; */
-            /* padding: 6px; */
-            /* margin-bottom: 4px; */
-            /* white-space: pre-wrap; */
-            /* word-break: break-word; */
-            display: none; /* Cache le texte de prévisualisation ici */
+            display: none;
         }
 
 
@@ -283,7 +273,7 @@
             display: flex;
             flex-direction: column; /* Empile le groupe de boutons et la corbeille */
             align-items: flex-start; /* Aligne tout le contenu de card-actions à gauche */
-            margin-top: auto;
+            margin-top: 15px; /* Ajoute de l'espace après les métadonnées et avant les boutons */
             padding-top: 5px;
             width: 100%;
         }
@@ -453,7 +443,7 @@
             color: #333;
         }
 
-        /* Styles pour l'image dans le panneau d'aperçu (gardé au cas où vous voudriez la réactiver un jour) */
+        /* Styles pour les images dans le panneau d'aperçu */
         .preview-panel-image {
             max-width: 100%;
             height: auto;
@@ -462,6 +452,24 @@
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
+        /* Styles pour les liens de document dans le panneau d'aperçu */
+        .preview-panel-document-link {
+            display: inline-block;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 8px 12px;
+            text-decoration: none;
+            color: #0077b6;
+            font-weight: bold;
+            margin-bottom: 15px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .preview-panel-document-link:hover {
+            background-color: #e6f7ff;
+            color: #005f8a;
+        }
+
 
         /* Styles pour le cartouche jaune du texte de prévisualisation dans le panneau de droite */
         .preview-text-card-yellow {
@@ -573,7 +581,7 @@
                 padding-right: 0; /* Pas de vignettes sur petits écrans, donc pas besoin d'espace */
             }
             /* Masquer les icônes de vignettes sur les petits écrans pour économiser de l'espace */
-            .card-vignettes-icons {
+            .card-preview-icons {
                 display: none;
             }
 
@@ -806,14 +814,16 @@
             card.setAttribute('data-preview-text', tip.previewText ? tip.previewText.toLowerCase() : '');
             card.style.borderLeftColor = tip.couleur || '#0077b6';
 
-            // Crée le HTML pour les vignettes/icônes "image" et "document"
-            // Ces icônes n'utilisent PAS les données 'vignettes' du tip, mais sont fixes
-            const typeIconsHtml = `
-                <div class="card-vignettes-icons">
-                    <span class="icon-vignette" title="Contient une image"><i class="fas fa-image"></i></span>
-                    <span class="icon-vignette" title="Contient un document"><i class="fas fa-file-alt"></i></span>
-                </div>
-            `;
+            // Conteneur pour les icônes de prévisualisation (image et document)
+            let previewIconsHtml = '';
+            if (tip.imageUrl || tip.documentUrl) { // N'affiche les icônes que si une image ou un document existe
+                previewIconsHtml = `
+                    <div class="card-preview-icons">
+                        ${tip.imageUrl ? '<span class="icon-vignette" title="Contient une image"><i class="fas fa-image"></i></span>' : ''}
+                        ${tip.documentUrl ? '<span class="icon-vignette" title="Contient un document"><i class="fas fa-file-alt"></i></span>' : ''}
+                    </div>
+                `;
+            }
 
             // Le post-it (.preview-post-it) reste EN DEHORS du .infos-wrapper
             card.innerHTML = `
@@ -828,7 +838,10 @@
                         <span class="metadata-value">${tip.categorie || 'N/A'}</span>
                     </div>
 
-                    ${typeIconsHtml} <div class="card-actions">
+                    ${previewIconsHtml} <div class="text-display"></div>
+
+
+                    <div class="card-actions">
                         <div class="top-buttons-group">
                             <button class="toggle-content-btn" data-id="${tip.id}">Aperçu</button>
                             <button class="copier-btn" data-clipboard-text="${escapeHtml(tip.prompt || '')}">Copier le prompt</button>
@@ -985,6 +998,7 @@
             previewPanelTitle.textContent = `Aperçu : ${tip.titre || 'Sans titre'}`;
             previewPanelContent.innerHTML = '';
 
+            // Afficher l'image réelle si imageUrl existe
             if (tip.imageUrl) {
                 const img = document.createElement('img');
                 img.className = 'preview-panel-image';
@@ -992,6 +1006,20 @@
                 img.alt = `Image pour ${tip.titre || 'ce tip'}`;
                 previewPanelContent.appendChild(img);
             }
+
+            // Afficher le lien du document réel si documentUrl existe
+            if (tip.documentUrl) {
+                const docLink = document.createElement('a');
+                docLink.className = 'preview-panel-document-link';
+                docLink.href = tip.documentUrl;
+                docLink.target = '_blank'; // Ouvre dans un nouvel onglet
+                docLink.textContent = 'Voir le document (PDF)';
+                previewPanelContent.appendChild(docLink);
+                const docIcon = document.createElement('i');
+                docIcon.className = 'fas fa-file-pdf'; // Icône pour PDF
+                docLink.prepend(docIcon); // Ajoute l'icône avant le texte
+            }
+
 
             if (tip.previewText) {
                 const previewDiv = document.createElement('div');
