@@ -1,10 +1,12 @@
 // netlify/functions/deleteProfil.mjs
 
-import { Octokit } from "@octokit/core";
-import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
+// Changement ici: Importer directement depuis '@octokit/rest'
+// Cela inclut déjà les méthodes REST comme .repos.getContent et .repos.updateFile
+import { Octokit } from "@octokit/rest";
 import { Buffer } from 'buffer';
 
-const MyOctokit = Octokit.plugin(restEndpointMethods);
+// Pas besoin de Octokit.plugin(restEndpointMethods) si vous utilisez @octokit/rest directement
+// const MyOctokit = Octokit.plugin(restEndpointMethods); // Cette ligne peut être supprimée
 
 export async function handler(event) {
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -34,11 +36,12 @@ export async function handler(event) {
         return { statusCode: 400, body: JSON.stringify({ message: `Corps de la requête invalide ou non-JSON: ${e.message}` }) };
     }
 
-    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
+    // Changement ici: Initialiser Octokit directement
+    const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
     try {
         // 1. Obtenir le contenu actuel du fichier
-        // CHANGEMENT ICI : UTILISER octokit.repos.getContent DIRECTEMENT
+        // Maintenant, .repos.getContent devrait fonctionner
         const { data: fileData } = await octokit.repos.getContent({
             owner: OWNER,
             repo: REPO,
@@ -61,7 +64,7 @@ export async function handler(event) {
         }
 
         // 2. Mettre à jour le fichier sur GitHub
-        // CHANGEMENT ICI : UTILISER octokit.repos.updateFile DIRECTEMENT
+        // Maintenant, .repos.updateFile devrait fonctionner
         await octokit.repos.updateFile({
             owner: OWNER,
             repo: REPO,
