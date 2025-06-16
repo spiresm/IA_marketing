@@ -3,31 +3,38 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Créer un Tip - iMarketing</title>
+    <title>Ajouter un Tip - Espace IA</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Styles CSS inchangés pour la plupart, quelques ajouts pour les aperçus de documents et erreurs */
+        /* Styles généraux pour l'animation d'apparition de la page */
         body {
             opacity: 0;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.5s ease-in;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #f0f2f5;
+            min-height: 100vh; /* Permet le défilement si le contenu dépasse la hauteur de la fenêtre */
+            display: flex;
+            flex-direction: column; /* Aide à la mise en page de l'en-tête, du contenu principal et du pied de page */
         }
-
         body.show {
             opacity: 1;
         }
-
         main {
             opacity: 0;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.5s ease-in;
             padding: 40px 20px;
+            flex-grow: 1; /* Permet au main de prendre l'espace disponible, poussant le footer vers le bas */
         }
-
         main.show {
             opacity: 1;
         }
 
+        #header-placeholder {
+            width: 100%;
+        }
+
+        /* Styles spécifiques au formulaire */
         .container {
             max-width: 600px;
             margin: 0 auto;
@@ -76,15 +83,7 @@
             box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.2);
         }
 
-        /* Message d'erreur pour la validation côté client */
-        .error-message {
-            color: #e74c3c;
-            font-size: 0.9em;
-            margin-top: 5px;
-            display: block;
-        }
-
-        #drop-zone {
+        #drop-zone, #document-drop-zone { /* Styles pour les zones de dépôt */
             border: 2px dashed #0077b6;
             padding: 20px;
             text-align: center;
@@ -95,78 +94,18 @@
             transition: background 0.2s;
         }
 
-        #drop-zone.dragover {
+        #drop-zone.dragover, #document-drop-zone.dragover {
             background: #e0f7ff;
         }
 
-        .image-preview-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        /* Styles pour le conteneur de chaque aperçu/nom de fichier */
-        .image-preview-wrapper {
-            position: relative;
-            width: 100px; /* Taille fixe pour les aperçus */
-            height: 100px;
-            border-radius: 5px;
-            border: 1px solid #eee;
-            overflow: hidden;
-            display: flex; /* Utilisation de flexbox pour centrer le contenu */
-            flex-direction: column; /* Organiser l'image/nom et le bouton */
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            box-sizing: border-box; /* Inclure padding et border dans la largeur/hauteur */
-            background-color: #f9fafb; /* Fond pour les aperçus */
-        }
-
-        .image-preview {
-            max-width: 100%;
-            max-height: calc(100% - 20px); /* Laisse de la place pour le nom si besoin, ou s'adapte */
+        #image-preview {
+            display: block;
+            max-width: 80%;
+            max-height: 200px;
             object-fit: contain;
-        }
-
-        /* Style pour le nom du fichier des documents */
-        .file-name {
-            font-size: 0.8em;
-            color: #555;
-            word-break: break-all; /* Permet la coupure de mots longs */
-            padding: 2px 5px;
-            background-color: #f0f0f0;
-            border-top: 1px solid #ddd;
-            width: 100%; /* S'étend sur toute la largeur du wrapper */
-            overflow: hidden; /* Cache le texte qui déborde */
-            text-overflow: ellipsis; /* Ajoute des points de suspension */
-            white-space: nowrap; /* Empêche le retour à la ligne */
-            box-sizing: border-box;
-            line-height: 1.2em; /* Pour une meilleure lisibilité */
-        }
-
-        .remove-file-button {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(255, 0, 0, 0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 0.8em;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            line-height: 1;
-            z-index: 10;
-            padding: 0;
-        }
-
-        .remove-file-button:hover {
-            background: rgba(255, 0, 0, 0.9);
+            margin: 15px auto;
+            border-radius: 10px;
+            border: 1px solid #eee;
         }
 
         button {
@@ -223,27 +162,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
-        /* Styles pour les messages d'alerte (succès/erreur) */
-        .alert-message {
-            padding: 10px;
-            margin-top: 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        .alert-message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
     </style>
 </head>
 <body>
@@ -254,518 +172,329 @@
     </main>
 
     <script>
-        // Charger le header.html (assurez-vous que ce fichier existe dans le même répertoire ou ajustez le chemin)
+        // Charger le header et gérer l'apparition progressive du body et main
         fetch("header.html")
-            .then(response => response.text())
+            .then(r => r.text())
             .then(html => {
                 document.getElementById("header-placeholder").innerHTML = html;
-                // Ajoutez des classes pour des animations de chargement si souhaité
                 document.body.classList.add("show");
                 document.querySelector("main").classList.add("show");
-                console.log("Header chargé et animations démarrées.");
             })
-            .catch(error => {
-                console.error("Erreur lors du chargement du header:", error);
-                document.getElementById("header-placeholder").innerHTML = "<p style='color: red; text-align: center;'>Impossible de charger l'en-tête.</p>";
-                document.body.classList.add("show");
-                document.querySelector("main").classList.add("show");
-            });
+            .catch(error => console.error("Erreur lors du chargement du header:", error));
     </script>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script>
-        const { ref, createApp, onMounted, computed } = Vue;
+        const { ref, createApp, onMounted } = Vue;
 
-        const PROXY_URL = "/.netlify/functions/proxy";
-        const SAVE_TIP_URL = "/.netlify/functions/save-tip";
+        const PROXY_URL = "/.netlify/functions/proxy"; // L'URL de votre fonction Netlify
 
         const TipForm = {
             template: `
                 <div class="container">
-                    <a href="/cas-usages.html" class="retour-lien">← Retour aux Cas d'usages</a>
-                    <h2 style="text-align:center; color:#0077b6;">Partager un Tip / Prompt</h2>
+                    <a href="galerie.html" class="retour-lien">← Retour à la galerie</a>
+                    <h2 style="text-align:center; color:#0077b6;">Partager un nouveau Tip</h2>
 
                     <form @submit.prevent="submitForm">
                         <label for="auteur">Votre nom</label>
-                        <select id="auteur" v-model="auteur" required :disabled="isLoadingProfils || profilsAuteurs.length === 0">
+                        <select id="auteur" v-model="auteur" required>
                             <option value="" disabled>Sélectionnez un nom</option>
                             <option v-for="profilNom in profilsAuteurs" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
                         </select>
-                        <p v-if="isLoadingProfils" style="color: #0077b6; font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
-                        <p v-if="!isLoadingProfils && profilsAuteurs.length === 0" class="error-message">
-                            Aucun profil trouvé. Assurez-vous d'avoir créé des profils dans la section "Équipe" et que la fonction proxy est configurée.
+                        <p v-if="profilsAuteurs.length === 0 && !isLoadingProfils" style="color: #888; font-size: 0.9em; margin-top: 5px;">
+                            Aucun profil trouvé. Assurez-vous d'avoir créé des profils dans la section "Équipe".
                         </p>
-                        <span v-if="formErrors.auteur" class="error-message">{{ formErrors.auteur }}</span>
+                        <p v-if="isLoadingProfils" style="color: #0077b6; font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
 
-                        <label for="titre">Titre du Tip / Prompt</label>
-                        <input type="text" id="titre" v-model="titre" required />
-                        <span v-if="formErrors.titre" class="error-message">{{ formErrors.titre }}</span>
+                        <label for="titreTip">Titre du Tip</label>
+                        <input type="text" id="titreTip" v-model="titreTip" required />
 
-                        <label for="description">Description</label>
-                        <textarea id="description" v-model="description" rows="4" required></textarea>
-                        <span v-if="formErrors.description" class="error-message">{{ formErrors.description }}</span>
+                        <label for="descriptionTip">Description du Tip</label>
+                        <textarea id="descriptionTip" v-model="descriptionTip" rows="6" required></textarea>
 
-                        <label for="previewText">Texte de prévisualisation (optionnel)</label>
-                        <textarea id="previewText" v-model="previewText" rows="2" placeholder="Un court extrait ou un résumé pour la prévisualisation dans la galerie."></textarea>
-
-                        <label for="prompt">Prompt</label>
-                        <textarea id="prompt" v-model="promptText" rows="6" placeholder="Collez le prompt exact ici si c'est un prompt"></textarea>
-
-                        <label for="categorie">Catégorie</label>
-                        <select id="categorie" v-model="categorie">
+                        <label for="categorieTip">Catégorie</label>
+                        <select id="categorieTip" v-model="categorieTip">
                             <option>Marketing Digital</option>
-                            <option>Réseaux Sociaux</option>
-                            <option>SEO</option>
-                            <option>Contenu</option>
-                            <option>Publicité</option>
+                            <option>Développement Web</option>
+                            <option>Productivité</option>
                             <option>Outils IA</option>
-                            <option>Stratégie</option>
+                            <option>Design</option>
                             <option>Autre</option>
                         </select>
 
-                        <label for="outil">Plateforme / Outil</label>
-                        <select id="outil" v-model="outil">
-                            <option value="" disabled>Sélectionnez un outil</option>
-                            <option>ChatGPT</option>
-                            <option>Claude</option>
+                        <label for="outilIA">Outil IA (si applicable)</label>
+                        <select id="outilIA" v-model="outilIA">
+                            <option value="">Aucun</option>
                             <option>Midjourney</option>
-                            <option>DALL-E</option>
-                            <option>Stable Diffusion</option>
-                            <option>RunwayML</option>
-                            <option>Adobe Firefly</option>
-                            <option>Canva AI</option>
-                            <option>GrammarlyGO</option>
-                            <option>Jasper</option>
+                            <option>ChatGPT</option>
+                            <option>DALL·E</option>
                             <option>Autre</option>
                         </select>
 
-                        <label>Images / Documents (optionnel)</label>
+                        <label>Image (facultatif)</label>
                         <div id="drop-zone"
                              @click="triggerFile"
                              @dragover.prevent="onDragOver"
                              @dragleave="onDragLeave"
                              @drop.prevent="onDrop">
-                            Déposez ou cliquez pour ajouter des images ou documents (.txt, .pdf)
+                            Déposez ou cliquez pour ajouter une image
                         </div>
-                        <input type="file" ref="fileInput" accept="image/*, .txt, .pdf" style="display:none" @change="onFileChange" multiple />
-                        <span v-if="fileUploadError" class="error-message">{{ fileUploadError }}</span>
-                        <div v-if="fileUploadSuccessMessage" class="alert-message success">{{ fileUploadSuccessMessage }}</div>
+                        <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
+                        <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
 
-
-                        <div class="image-preview-container">
-                            <div v-for="(file, index) in selectedFiles" :key="index" class="image-preview-wrapper">
-                                <img v-if="isImage(file)" :src="file.previewUrl" class="image-preview" :alt="'Aperçu de ' + file.name" />
-                                <span v-else class="file-name">{{ file.name }}</span>
-                                <button type="button" class="remove-file-button" @click="removeFile(index)">X</button>
-                            </div>
+                        <label>Document (facultatif)</label>
+                        <div id="document-drop-zone"
+                             @click="triggerDocumentFile"
+                             @dragover.prevent="onDocumentDragOver"
+                             @dragleave="onDocumentDragLeave"
+                             @drop.prevent="onDocumentDrop">
+                            Déposez ou cliquez pour ajouter un document (PDF, DOCX, etc.)
                         </div>
+                        <input type="file" ref="documentFileInput" accept=".pdf,.doc,.docx" style="display:none" @change="onDocumentFileChange" />
+                        <p v-if="documentFileName">Fichier sélectionné : {{ documentFileName }}</p>
 
-                        <div v-if="isSubmitting" class="loader"></div>
-                        <button type="submit" :disabled="!isFormValid || isSubmitting">Partager le Tip / Prompt</button>
-                        <div v-if="generalError" class="alert-message error">{{ generalError }}</div>
+
+                        <div v-if="isLoading" class="loader"></div>
+                        <button v-else type="submit" :disabled="!auteur || !titreTip || !descriptionTip || isLoading">Partager le Tip</button>
                     </form>
 
                     <div class="confirmation" v-if="confirmationVisible">
-                        <p>✅ Tip / Prompt partagé avec succès !</p>
-                        <img v-if="confirmationImageUrl" :src="confirmationImageUrl" alt="Image du tip confirmé" />
-                        <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
-                        <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
-                        <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
-                        <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
-                        <p style="margin-top: 15px; color: #0077b6;">Redirection vers les cas d'usages dans 5 secondes...</p>
+                        <p>✅ Tip partagé avec succès vers la <strong>galerie</strong> !</p>
+                        <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
+                        <p style="white-space: pre-wrap;">Titre: {{ confirmationTitre }}</p>
+                        <p style="white-space: pre-wrap;">Description: {{ confirmationDescription }}</p>
+                        <p style="margin-top: 15px; color: #0077b6;">Redirection vers la galerie dans 5 secondes...</p>
                     </div>
                 </div>
             `,
             setup() {
-                // --- Données du formulaire (réactives avec ref) ---
                 const auteur = ref('');
-                const titre = ref('');
-                const description = ref('');
-                const previewText = ref('');
-                const promptText = ref('');
-                const categorie = ref('Marketing Digital');
-                const outil = ref('');
+                const titreTip = ref('');
+                const descriptionTip = ref('');
+                const categorieTip = ref('Marketing Digital'); // Valeur par défaut
+                const outilIA = ref(''); // Valeur par défaut
 
-                // --- Gestion des fichiers (réactives avec ref) ---
-                const fileInput = ref(null); // Référence à l'élément input file du DOM
-                const selectedFiles = ref([]); // Tableau pour stocker les objets File avec leurs aperçus
-                const fileUploadError = ref(''); // Message d'erreur pour les problèmes d'upload de fichiers
-                const fileUploadSuccessMessage = ref(''); // Message de succès temporaire après ajout de fichier
+                const fileInput = ref(null);
+                const imagePreviewUrl = ref('');
+                const documentFileInput = ref(null); // Pour le document
+                const documentFileName = ref(''); // Nom du fichier document
 
-                // --- États de l'interface utilisateur (réactifs avec ref) ---
                 const confirmationVisible = ref(false);
                 const confirmationImageUrl = ref('');
                 const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
-                const confirmationPreviewText = ref('');
-                const confirmationPromptText = ref('');
-                const isSubmitting = ref(false); // Indique si le formulaire est en cours de soumission
-                const profilsAuteurs = ref([]); // Liste des noms d'auteurs récupérés
-                const isLoadingProfils = ref(true); // Indique si les profils sont en cours de chargement
-                const generalError = ref(''); // Message d'erreur général pour la soumission du formulaire
-                const formErrors = ref({}); // Objet pour stocker les erreurs de validation côté client par champ
+                const isLoading = ref(false);
+                const profilsAuteurs = ref([]);
+                const isLoadingProfils = ref(true);
 
-                // --- Propriété calculée pour valider globalement le formulaire ---
-                const isFormValid = computed(() => {
-                    // Vérifie que les champs obligatoires ne sont pas vides après avoir ignoré les espaces
-                    return auteur.value && titre.value.trim() && description.value.trim();
-                });
-
-                // --- Méthodes ---
-
-                /**
-                 * Récupère la liste des profils d'auteurs depuis la fonction Netlify proxy.
-                 */
+                // Fonction pour charger les profils d'auteur (copiée de votre page existante)
                 async function fetchProfils() {
-                    console.log("Début du chargement des profils...");
                     isLoadingProfils.value = true;
-                    generalError.value = ''; // Réinitialise les erreurs précédentes
                     try {
                         const response = await fetch(`${PROXY_URL}?action=getProfils`);
                         if (!response.ok) {
-                            const errorText = await response.text();
-                            throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
+                            throw new Error(`HTTP error: ${response.status}`);
                         }
                         const data = await response.json();
-                        // S'assure que data est un tableau ou contient un tableau 'profils'
                         const profilsList = Array.isArray(data) ? data : (data.profils || []);
-                        // Extrait les noms uniques, filtre les valeurs vides et trie
-                        const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
+                        const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
 
-                        // Sélectionne automatiquement l'auteur si un seul profil est trouvé
                         if (names.length === 1) {
                             auteur.value = names[0];
-                            console.log("Un seul profil trouvé, auteur auto-sélectionné:", auteur.value);
-                        } else if (names.length > 1) {
-                            auteur.value = ''; // Laisse vide pour que l'utilisateur choisisse si plusieurs
-                            console.log("Plusieurs profils trouvés, veuillez sélectionner un auteur.");
                         } else {
-                            auteur.value = '';
-                            console.log("Aucun profil d'auteur trouvé.");
+                            auteur.value = ''; // Réinitialise si plusieurs ou aucun profil
                         }
+                        console.log("Noms de profils chargés:", profilsAuteurs.value);
+
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
-                        generalError.value = `Impossible de charger la liste des auteurs. Erreur: ${error.message}. Vérifiez la console et les logs de votre fonction proxy Netlify.`;
+                        alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
                     } finally {
                         isLoadingProfils.value = false;
-                        console.log("Fin du chargement des profils.");
                     }
                 }
 
-                /**
-                 * Déclenche le clic sur l'input de type "file" caché.
-                 */
-                function triggerFile() {
-                    fileInput.value?.click();
-                }
+                onMounted(fetchProfils); // Appeler la fonction au montage du composant
 
-                /**
-                 * Gère l'événement "dragover" pour la zone de dépôt.
-                 * @param {DragEvent} e - L'événement de glisser-déposer.
-                 */
-                function onDragOver(e) {
-                    e.currentTarget.classList.add('dragover');
-                }
 
-                /**
-                 * Gère l'événement "dragleave" pour la zone de dépôt.
-                 * @param {DragEvent} e - L'événement de glisser-déposer.
-                 */
-                function onDragLeave(e) {
-                    e.currentTarget.classList.remove('dragover');
-                }
-
-                /**
-                 * Gère l'événement "drop" pour la zone de dépôt.
-                 * @param {DragEvent} e - L'événement de glisser-déposer.
-                 */
+                // Fonctions de gestion de l'image (copiées de votre page existante)
+                function triggerFile() { fileInput.value?.click(); }
+                function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
+                function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
                 function onDrop(e) {
                     e.currentTarget.classList.remove('dragover');
                     const files = e.dataTransfer.files;
-                    handleFiles(files);
+                    if (files.length) { fileInput.value.files = files; handleFile(files[0]); }
                 }
-
-                /**
-                 * Gère le changement de fichiers via l'input de type "file".
-                 * @param {Event} e - L'événement de changement.
-                 */
                 function onFileChange(e) {
-                    const files = e.target.files;
-                    handleFiles(files);
+                    const file = e.target.files[0];
+                    if (file) handleFile(file);
+                }
+                function handleFile(file) {
+                    const reader = new FileReader();
+                    reader.onload = () => { imagePreviewUrl.value = reader.result; };
+                    reader.readAsDataURL(file);
                 }
 
-                /**
-                 * Traite les fichiers sélectionnés, crée des aperçus pour les images et les ajoute au tableau selectedFiles.
-                 * Gère la validation de la taille et du type de fichier.
-                 * @param {FileList} files - La liste des fichiers à traiter.
-                 */
-                function handleFiles(files) {
-                    fileUploadError.value = ''; // Réinitialise les erreurs précédentes d'upload
-                    fileUploadSuccessMessage.value = ''; // Réinitialise le message de succès
+                // Nouvelles fonctions pour la gestion des documents
+                function triggerDocumentFile() {
+                    documentFileInput.value?.click();
+                }
 
-                    let filesAddedCount = 0;
-                    Array.from(files).forEach(file => {
-                        const maxFileSize = 5 * 1024 * 1024; // 5 Mo en octets
-                        if (file.size > maxFileSize) {
-                            fileUploadError.value = `Le fichier "${file.name}" dépasse la taille maximale de 5 Mo et ne sera pas ajouté.`;
-                            console.warn(fileUploadError.value);
-                            return; // Passe au fichier suivant
-                        }
+                function onDocumentDragOver(e) {
+                    e.currentTarget.classList.add('dragover');
+                }
 
-                        if (isImage(file)) {
-                            const reader = new FileReader();
-                            reader.onload = (e) => {
-                                selectedFiles.value.push({
-                                    file: file,
-                                    name: file.name,
-                                    type: file.type,
-                                    previewUrl: e.target.result // URL de l'image pour l'aperçu
-                                });
-                                filesAddedCount++;
-                                updateFileUploadSuccessMessage(filesAddedCount);
-                            };
-                            reader.readAsDataURL(file); // Lit le fichier comme une URL de données (Base64)
-                        } else if (file.type === 'text/plain' || file.type === 'application/pdf') {
-                            selectedFiles.value.push({
-                                file: file,
-                                name: file.name,
-                                type: file.type,
-                                previewUrl: null // Pas d'aperçu pour les non-images, juste le nom
-                            });
-                            filesAddedCount++;
-                            updateFileUploadSuccessMessage(filesAddedCount);
-                        } else {
-                            fileUploadError.value = `Le fichier "${file.name}" a un format non supporté et ne sera pas ajouté. Formats supportés: images, .txt, .pdf.`;
-                            console.warn(fileUploadError.value);
-                        }
-                    });
-                    // Réinitialise l'input pour permettre de sélectionner les mêmes fichiers si besoin
-                    if (fileInput.value) {
-                        fileInput.value.value = '';
+                function onDocumentDragLeave(e) {
+                    e.currentTarget.classList.remove('dragover');
+                }
+
+                function onDocumentDrop(e) {
+                    e.currentTarget.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length) {
+                        documentFileInput.value.files = files;
+                        handleDocumentFile(files[0]);
                     }
                 }
 
-                function updateFileUploadSuccessMessage(count) {
-                    if (count > 0) {
-                        fileUploadSuccessMessage.value = `${count} fichier(s) ajouté(s) avec succès !`;
-                        setTimeout(() => fileUploadSuccessMessage.value = '', 3000); // Efface le message après 3 secondes
-                    }
+                function onDocumentFileChange(e) {
+                    const file = e.target.files[0];
+                    if (file) handleDocumentFile(file);
                 }
 
-                /**
-                 * Vérifie si un fichier est une image.
-                 * @param {File} file - Le fichier à vérifier.
-                 * @returns {boolean} Vrai si le fichier est une image, faux sinon.
-                 */
-                function isImage(file) {
-                    return file.type.startsWith('image/');
+                function handleDocumentFile(file) {
+                    documentFileName.value = file.name; // Affiche le nom du fichier
+                    // Pas besoin de prévisualisation pour un document comme pour une image
                 }
 
-                /**
-                 * Supprime un fichier du tableau des fichiers sélectionnés.
-                 * @param {number} index - L'index du fichier à supprimer.
-                 */
-                function removeFile(index) {
-                    selectedFiles.value.splice(index, 1);
-                    if (selectedFiles.value.length === 0) {
-                        fileUploadError.value = ''; // Efface l'erreur si tous les fichiers sont supprimés
-                        fileUploadSuccessMessage.value = ''; // Efface le message de succès
-                    }
-                }
-
-                /**
-                 * Convertit un fichier en chaîne Base64.
-                 * @param {File} file - Le fichier à convertir.
-                 * @returns {Promise<string>} Une promesse qui résout avec la chaîne Base64 du fichier.
-                 */
+                // Fonction utilitaire pour convertir un fichier en Base64
                 function getBase64(file) {
                     return new Promise((resolve, reject) => {
                         const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = (error) => reject(error);
                         reader.readAsDataURL(file);
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = error => reject(error);
                     });
                 }
 
-                /**
-                 * Valide les champs du formulaire côté client avant soumission.
-                 */
-                function validateForm() {
-                    formErrors.value = {}; // Réinitialise les erreurs
-                    if (!auteur.value) {
-                        formErrors.value.auteur = "Veuillez sélectionner un auteur.";
-                    }
-                    if (!titre.value.trim()) {
-                        formErrors.value.titre = "Le titre est requis.";
-                    }
-                    if (!description.value.trim()) {
-                        formErrors.value.description = "La description est requise.";
-                    }
-                    return Object.keys(formErrors.value).length === 0;
-                }
-
-                /**
-                 * Soumet le formulaire.
-                 */
+                // Logique de soumission du formulaire
                 async function submitForm() {
-                    generalError.value = ''; // Réinitialise les erreurs générales
-                    confirmationVisible.value = false; // Cache la confirmation si elle était visible
-
-                    if (!validateForm()) {
-                        generalError.value = "Veuillez corriger les erreurs dans le formulaire.";
+                    if (!auteur.value || !titreTip.value.trim() || !descriptionTip.value.trim()) {
+                        alert("Veuillez remplir tous les champs obligatoires (Auteur, Titre, Description).");
                         return;
                     }
 
-                    isSubmitting.value = true;
+                    confirmationVisible.value = false;
+                    isLoading.value = true;
+
+                    let imageUrl = '';
+                    let documentUrl = '';
+
                     try {
-                        // Convertit tous les fichiers sélectionnés en Base64
-                        const filesDataPromises = selectedFiles.value.map(async (fileObj) => {
-                            const base64 = await getBase64(fileObj.file);
-                            return {
-                                data: base64, // La chaîne Base64
-                                fileName: fileObj.name,
-                                fileType: fileObj.type
-                            };
-                        });
-                        const filesData = await Promise.all(filesDataPromises);
-
-                        // Génère un ID unique pour le tip
-                        const tipId = `tip-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-                        const payload = {
-                            id: tipId, // ID unique pour le tip
-                            auteur: auteur.value,
-                            titre: titre.value,
-                            description: description.value,
-                            previewText: previewText.value,
-                            prompt: promptText.value,
-                            categorie: categorie.value,
-                            outil: outil.value,
-                            filesData: filesData // Tableau des fichiers en Base64
-                        };
-
-                        console.log("Payload envoyé:", payload);
-
-                        const response = await fetch(SAVE_TIP_URL, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(payload),
-                        });
-
-                        if (!response.ok) {
-                            const errorData = await response.json().catch(() => ({ message: 'Erreur inconnue' }));
-                            throw new Error(`Échec de la soumission: ${response.status} ${response.statusText} - ${errorData.message || 'Erreur serveur'}`);
-                        }
-
-                        const result = await response.json();
-                        console.log("Réponse du serveur:", result);
-
-                        // Affiche la confirmation
-                        confirmationTitre.value = titre.value;
-                        confirmationDescription.value = description.value;
-                        confirmationPreviewText.value = previewText.value;
-                        confirmationPromptText.value = promptText.value;
-
-                        // Cherche la première URL d'image renvoyée par le backend pour l'aperçu
-                        if (result.imageUrls && result.imageUrls.length > 0) {
-                            // Trouver la première URL qui semble être une image
-                            const firstImageUrl = result.imageUrls.find(url => /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(url));
-                            if (firstImageUrl) {
-                                confirmationImageUrl.value = firstImageUrl;
+                        const imageFile = fileInput.value?.files?.[0];
+                        if (imageFile) {
+                            const base64 = await getBase64(imageFile);
+                            const payload = { fileBase64: base64, fileName: imageFile.name };
+                            // Réutilise la fonction Netlify 'uploadImage' existante
+                            const resp = await fetch('/.netlify/functions/uploadImage', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (!resp.ok) {
+                                const errorText = await resp.text();
+                                throw new Error(`Upload d'image échoué: ${resp.status} - ${errorText}`);
                             }
-                        } else if (selectedFiles.value.length > 0 && isImage(selectedFiles.value[0])) {
-                             // Fallback: Si le backend ne renvoie pas d'URL, utiliser l'URL de prévisualisation locale du premier fichier si c'est une image
-                             confirmationImageUrl.value = selectedFiles.value[0].previewUrl;
+                            const data = await resp.json();
+                            imageUrl = data.url;
+                            console.log("Image uploadée avec succès:", imageUrl);
                         }
 
+                        const docFile = documentFileInput.value?.files?.[0];
+                        if (docFile) {
+                            const base64 = await getBase64(docFile);
+                            const payload = { fileBase64: base64, fileName: docFile.name };
+                            // Appel à la nouvelle fonction Netlify 'uploadDocument'
+                            const respDoc = await fetch('/.netlify/functions/uploadDocument', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (!respDoc.ok) {
+                                const errorText = await respDoc.text();
+                                throw new Error(`Upload de document échoué: ${respDoc.status} - ${errorText}`);
+                            }
+                            const dataDoc = await respDoc.json();
+                            documentUrl = dataDoc.url;
+                            console.log("Document uploadé avec succès:", documentUrl);
+                        }
+
+
+                        // Appel à la nouvelle fonction Netlify 'pushTip'
+                        const tipResp = await fetch('/.netlify/functions/pushTip', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                auteur: auteur.value,
+                                titre: titreTip.value,
+                                description: descriptionTip.value,
+                                categorie: categorieTip.value,
+                                outilIA: outilIA.value,
+                                imageUrl: imageUrl,
+                                documentUrl: documentUrl
+                            })
+                        });
+
+                        if (!tipResp.ok) {
+                            const errorText = await tipResp.text();
+                            throw new Error(`Échec de l'envoi du tip: ${tipResp.status} - ${errorText}`);
+                        }
+
+                        confirmationImageUrl.value = imageUrl;
+                        confirmationTitre.value = titreTip.value;
+                        confirmationDescription.value = descriptionTip.value;
                         confirmationVisible.value = true;
 
-                        // Redirige après 5 secondes
                         setTimeout(() => {
-                            window.location.href = '/cas-usages.html';
+                            window.location.href = "/galerie.html"; // Rediriger vers la page de galerie
                         }, 5000);
 
-                        // Réinitialise le formulaire (optionnel, si vous voulez que l'utilisateur soumette plusieurs tips)
-                        resetForm();
+                        // Réinitialiser le formulaire
+                        auteur.value = '';
+                        titreTip.value = '';
+                        descriptionTip.value = '';
+                        categorieTip.value = 'Marketing Digital';
+                        outilIA.value = '';
+                        imagePreviewUrl.value = '';
+                        documentFileName.value = '';
+                        if (fileInput.value) fileInput.value.value = null;
+                        if (documentFileInput.value) documentFileInput.value.value = null;
 
-                    } catch (error) {
-                        console.error("Erreur lors de la soumission du formulaire:", error);
-                        generalError.value = `La soumission a échoué: ${error.message}. Veuillez réessayer.`;
+                        // Recharger les profils si nécessaire (utile si un nouveau profil a été ajouté entre-temps)
+                        fetchProfils();
+
+                    } catch (err) {
+                        console.error('Erreur lors de l\'envoi du tip:', err);
+                        alert(`Échec de l'envoi du tip: ${err.message || err}. Vérifiez la console.`);
                     } finally {
-                        isSubmitting.value = false;
+                        isLoading.value = false;
                     }
                 }
 
-                /**
-                 * Réinitialise tous les champs du formulaire à leur état initial.
-                 */
-                function resetForm() {
-                    auteur.value = '';
-                    titre.value = '';
-                    description.value = '';
-                    previewText.value = '';
-                    promptText.value = '';
-                    categorie.value = 'Marketing Digital';
-                    outil.value = '';
-                    selectedFiles.value = [];
-                    fileUploadError.value = '';
-                    fileUploadSuccessMessage.value = '';
-                    formErrors.value = {};
-                    generalError.value = '';
-                    // Ne pas réinitialiser confirmationVisible car cela gère l'affichage après succès
-                    // confirmationVisible.value = false;
-                }
-
-                // --- Cycle de vie du composant ---
-                onMounted(() => {
-                    fetchProfils(); // Charge les profils au montage du composant
-                    // Assure que l'input file est prêt
-                    if (fileInput.value) {
-                        fileInput.value.value = '';
-                    }
-                });
-
-                // --- Retourne les données et méthodes pour le template Vue.js ---
                 return {
-                    auteur,
-                    titre,
-                    description,
-                    previewText,
-                    promptText,
-                    categorie,
-                    outil,
-                    fileInput,
-                    selectedFiles,
-                    fileUploadError,
-                    fileUploadSuccessMessage,
-                    confirmationVisible,
-                    confirmationImageUrl,
-                    confirmationTitre,
-                    confirmationDescription,
-                    confirmationPreviewText,
-                    confirmationPromptText,
-                    isSubmitting,
-                    profilsAuteurs,
-                    isLoadingProfils,
-                    generalError,
-                    formErrors,
-                    isFormValid, // Utilisé pour désactiver le bouton
-                    triggerFile,
-                    onDragOver,
-                    onDragLeave,
-                    onDrop,
-                    onFileChange,
-                    isImage,
-                    removeFile,
-                    submitForm,
+                    auteur, titreTip, descriptionTip, categorieTip, outilIA, fileInput,
+                    imagePreviewUrl, documentFileInput, documentFileName,
+                    confirmationVisible, confirmationImageUrl, confirmationTitre, confirmationDescription,
+                    isLoading, profilsAuteurs, isLoadingProfils,
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
+                    triggerDocumentFile, onDocumentDragOver, onDocumentDragLeave, onDocumentDrop, onDocumentFileChange,
+                    submitForm
                 };
             }
         };
 
-        // Monte l'application Vue.js sur l'élément avec l'ID 'app'
         createApp(TipForm).mount('#app');
     </script>
 </body>
