@@ -1,55 +1,58 @@
-import { google } from 'googleapis';
 
-export async function handler(event) {
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: 'Méthode non autorisée',
-    };
-  }
+# netlify.toml
 
-  try {
-    const data = JSON.parse(event.body);
-    const { auteur, titre, description, categorie, outilIA, imageUrl, documentUrl } = data;
+[build]
+  publish = "."
+  functions = "netlify/functions"
 
-    // ✅ Clé de service lue depuis GOOGLE_SERVICE_ACCOUNT_JSON (au format JSON string échappée)
-    const rawCredentials = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-    const credentials = JSON.parse(rawCredentials.replace(/\\n/g, '\n'));
+  [build.environment]
+    NODE_VERSION = "18"
 
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+[functions]
+  node_bundler = "esbuild"
 
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID_TIPS;
-    const range = 'Tips!A:H';
-    const dateSoumission = new Date().toISOString();
+# Section pour compressImage
+[functions.compressImage]
+  external_node_modules = ["sharp"]
 
-    const values = [
-      [auteur, titre, description, categorie, outilIA, imageUrl, documentUrl, dateSoumission],
-    ];
+# Section pour proxy
+[functions.proxy]
+  external_node_modules = ["node-fetch"]
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range,
-      valueInputOption: 'RAW',
-      resource: { values },
-    });
+# Section pour getProfils (mettez à jour si vous l'activez)
+[functions.getProfils]
+  # Si getProfils utilise @octokit/rest, décommentez et utilisez:
+  # external_node_modules = ["@octokit/rest"]
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: 'Tip ajouté avec succès !' }),
-    };
+# Section pour uploadImage
+[functions.uploadImage]
+  external_node_modules = ["node-fetch"]
 
-  } catch (error) {
-    console.error("Erreur lors de l'ajout du tip:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        error: "Échec de l'ajout du tip",
-        details: error.message,
-      }),
-    };
-  }
-}
+# Section pour sendRequest
+[functions.sendRequest]
+  external_node_modules = ["nodemailer", "multiparty"]
+
+# --- AJOUTÉE : Section pour deleteProfil ---
+[functions.deleteProfil]
+  external_node_modules = ["@octokit/rest"]
+# ------------------------------------------
+
+# --- AJOUTÉE : Section pour updateProfil (C'EST LA CLÉ !) ---
+[functions.updateProfil]
+  external_node_modules = ["@octokit/rest"]
+# ------------------------------------------
+
+# Vous avez aussi des fonctions comme delete-tip.mjs, getDemandesCount.mjs,
+# getGalleryPrompts.mjs, getPrompts.mjs, pushPrompt.mjs, pushTip.mjs,
+# save-tip.mjs, updateDemandesIA.mjs, et uploadImage.mjs qui pourraient
+# nécessiter des configurations spécifiques si elles ont des dépendances
+# externes complexes ou des soucis de bundling.
+# Pensez à les ajouter ici si nécessaire !
+
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Max-Age = "86400"
