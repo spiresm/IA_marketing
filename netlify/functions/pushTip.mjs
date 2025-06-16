@@ -1,5 +1,3 @@
-// netlify/functions/pushTip.mjs
-
 import { google } from 'googleapis';
 
 export async function handler(event) {
@@ -11,10 +9,9 @@ export async function handler(event) {
         const data = JSON.parse(event.body);
         const { auteur, titre, description, categorie, outilIA, imageUrl, documentUrl } = data;
 
-        // Chargement des credentials depuis une seule variable JSON
+        // Chargement sécurisé des credentials Google depuis une seule variable d'environnement
         const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON.replace(/\\n/g, '\n'));
 
-        // Authentification Google Sheets
         const auth = new google.auth.GoogleAuth({
             credentials,
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
