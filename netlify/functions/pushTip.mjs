@@ -1,7 +1,8 @@
-// netlify/functions/pushTip.js
-const { google } = require('googleapis');
+// netlify/functions/pushTip.mjs
 
-exports.handler = async (event) => {
+import { google } from 'googleapis'; // <-- CORRECTION ICI : Utilisez 'import' au lieu de 'require'
+
+export async function handler(event) {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
@@ -14,7 +15,6 @@ exports.handler = async (event) => {
         const auth = new google.auth.GoogleAuth({
             credentials: {
                 client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-                // Assurez-vous que la clé privée est bien formatée avec les vrais retours à la ligne
                 private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
             },
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -22,25 +22,21 @@ exports.handler = async (event) => {
 
         const sheets = google.sheets({ version: 'v4', auth });
 
-        // REMPLACEZ 'YOUR_SPREADSHEET_ID' par l'ID de votre feuille Google Sheet
-        // Et 'Tips!A:H' par la plage où vous voulez insérer vos données
-        const spreadsheetId = process.env.GOOGLE_SHEET_ID_TIPS; // Il est recommandé d'utiliser une variable d'environnement
-        const range = 'Tips!A:H'; // Assurez-vous que le nom de votre feuille est correct (ex: 'Tips')
+        const spreadsheetId = process.env.GOOGLE_SHEET_ID_TIPS;
+        const range = 'Tips!A:H';
 
-        const dateSoumission = new Date().toISOString(); // Ajout de la date et heure de soumission
+        const dateSoumission = new Date().toISOString();
 
-        // Les valeurs à ajouter dans les colonnes de votre feuille Google Sheet
         const values = [
             [auteur, titre, description, categorie, outilIA, imageUrl, documentUrl, dateSoumission]
         ];
 
         const resource = { values };
 
-        // Ajout des données à la feuille Google Sheet
         await sheets.spreadsheets.values.append({
             spreadsheetId,
             range,
-            valueInputOption: 'RAW', // Les valeurs seront insérées telles quelles
+            valueInputOption: 'RAW',
             resource,
         });
 
@@ -59,12 +55,14 @@ exports.handler = async (event) => {
 };
 
 /*
-Pour que cette fonction marche :
-1.  Activer l'API Google Sheets dans Google Cloud Platform.
-2.  Créer un compte de service et télécharger son fichier JSON de clés.
-3.  Partager la feuille Google Sheet avec l'email du compte de service.
-4.  Ajouter les variables d'environnement dans Netlify :
-    - GOOGLE_SERVICE_ACCOUNT_EMAIL (l'email du compte de service)
-    - GOOGLE_PRIVATE_KEY (la clé privée du fichier JSON, n'oubliez pas de remplacer les '\n' par de vrais retours à la ligne si vous la copiez-collez en une ligne)
-    - GOOGLE_SHEET_ID_TIPS (l'ID de votre feuille Google Sheet spécifique aux tips)
+Rappel pour cette fonction :
+1.  **Installez googleapis** : Naviguez dans votre dossier `netlify/functions` via votre terminal et exécutez `npm install googleapis`.
+    (Ou ajoutez "googleapis": "^VERSION" dans votre package.json et exécutez `npm install` à la racine si vous centralisez les dépendances).
+2.  Activer l'API Google Sheets dans Google Cloud Platform.
+3.  Créer un compte de service et télécharger son fichier JSON de clés.
+4.  Partager la feuille Google Sheet avec l'email du compte de service.
+5.  Ajouter les variables d'environnement dans Netlify :
+    - GOOGLE_SERVICE_ACCOUNT_EMAIL
+    - GOOGLE_PRIVATE_KEY (n'oubliez pas de remplacer les '\n' par de vrais retours à la ligne si vous la copiez-collez en une ligne)
+    - GOOGLE_SHEET_ID_TIPS
 */
