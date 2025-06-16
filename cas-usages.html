@@ -175,6 +175,7 @@
             min-width: 0;
             padding: 15px; /* Ajoutez le padding ici */
             width: 100%; /* Prend toute la largeur si pas de left-panel */
+            position: relative; /* Pour positionner les vignettes par rapport à cet élément */
         }
 
         /* Nouvelle classe pour le titre du tip */
@@ -199,23 +200,35 @@
             align-self: flex-start;
         }
 
-        /* Nouveaux styles pour les vignettes sur la carte */
-        .card-vignettes {
+        /* Nouveaux styles pour les vignettes sur la carte (emplacement à droite des métadonnées) */
+        .card-vignettes-icons {
+            position: absolute; /* Positionnement absolu par rapport à .infos-wrapper */
+            top: 60px; /* Ajustez cette valeur si nécessaire pour aligner verticalement avec Catégorie */
+            right: 15px; /* Espace à droite de la carte */
             display: flex;
-            gap: 5px; /* Espace entre les vignettes */
-            margin-top: 10px; /* Espace au-dessus des vignettes */
-            margin-bottom: 15px; /* Espace en dessous des vignettes */
-            justify-content: center; /* Centre les vignettes horizontalement */
-            align-items: center; /* Centre les vignettes verticalement si elles ont des hauteurs différentes */
+            gap: 8px; /* Espace entre les icônes */
+            z-index: 5; /* Assure qu'elles sont au-dessus des autres éléments si besoin */
         }
 
-        .card-vignettes img {
-            width: 60px; /* Largeur fixe pour la vignette */
-            height: 60px; /* Hauteur fixe pour la vignette */
-            object-fit: cover; /* Assure que l'image couvre la zone sans distorsion */
-            border-radius: 5px; /* Bords légèrement arrondis */
-            border: 1px solid #ddd; /* Petite bordure discrète */
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Légère ombre */
+        .card-vignettes-icons .icon-vignette {
+            font-size: 1.8em; /* Taille des icônes */
+            color: #888; /* Couleur par défaut des icônes */
+            width: 30px; /* Largeur fixe pour la zone cliquable */
+            height: 30px; /* Hauteur fixe */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            background-color: #f0f0f0; /* Léger fond pour distinguer */
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: color 0.2s, background-color 0.2s, transform 0.1s;
+        }
+
+        .card-vignettes-icons .icon-vignette:hover {
+            color: #0077b6; /* Couleur au survol */
+            background-color: #e6f7ff;
+            transform: translateY(-1px);
         }
 
         /* Section des métadonnées (Auteur, Catégorie) */
@@ -228,6 +241,8 @@
             margin-bottom: 4px;
             padding-bottom: 2px;
             border-bottom: 1px solid #eee;
+            /* Retire le padding-right ou ajustez si la colonne prend trop de place */
+            padding-right: 80px; /* Réduit l'espace pour les vignettes à droite */
         }
 
         .metadata-label {
@@ -246,19 +261,22 @@
             font-weight: normal;
         }
 
-        /* Texte du prompt et description */
+        /* Ancien .text-display, maintenant vide car le texte est dans le post-it */
+        /* Ce bloc est conservé pour ne pas casser le layout si d'autres choses s'y référaient, mais il est vide */
         .text-display {
-            font-size: 0.9em;
-            color: #444;
-            line-height: 1.4;
-            background-color: #f9f9f9;
-            border: 1px solid #eee;
-            border-radius: 5px;
-            padding: 6px;
-            margin-bottom: 4px;
-            white-space: pre-wrap;
-            word-break: break-word;
+            /* font-size: 0.9em; */
+            /* color: #444; */
+            /* line-height: 1.4; */
+            /* background-color: #f9f9f9; */
+            /* border: 1px solid #eee; */
+            /* border-radius: 5px; */
+            /* padding: 6px; */
+            /* margin-bottom: 4px; */
+            /* white-space: pre-wrap; */
+            /* word-break: break-word; */
+            display: none; /* Cache le texte de prévisualisation ici */
         }
+
 
         /* Boutons d'action sur la carte */
         .card-actions {
@@ -552,7 +570,13 @@
             .metadata-section {
                 grid-template-columns: 1fr;
                 gap: 5px;
+                padding-right: 0; /* Pas de vignettes sur petits écrans, donc pas besoin d'espace */
             }
+            /* Masquer les icônes de vignettes sur les petits écrans pour économiser de l'espace */
+            .card-vignettes-icons {
+                display: none;
+            }
+
             .card-actions {
                 /* Ajuste l'alignement pour la responsivité */
                 align-items: center; /* Centre les éléments */
@@ -583,16 +607,6 @@
                 text-align: center; /* Center the text */
                 transform: none; /* Remove rotation on small screens */
                 font-size: 1.1em; /* Garde la taille plus grande sur mobile aussi */
-            }
-
-            /* Ajustement pour les petits écrans si nécessaire */
-            .card-vignettes {
-                flex-wrap: wrap; /* Permet aux vignettes de passer à la ligne si l'écran est trop petit */
-                justify-content: center; /* Centre les vignettes sur plusieurs lignes */
-            }
-            .card-vignettes img {
-                width: 50px; /* Légèrement plus petites sur mobile */
-                height: 50px;
             }
         }
 
@@ -792,12 +806,14 @@
             card.setAttribute('data-preview-text', tip.previewText ? tip.previewText.toLowerCase() : '');
             card.style.borderLeftColor = tip.couleur || '#0077b6';
 
-            // Crée le HTML pour les vignettes si elles existent
-            const vignettesHtml = tip.vignettes && tip.vignettes.length > 0
-                ? `<div class="card-vignettes">
-                     ${tip.vignettes.map(v => `<img src="${v}" alt="Vignette pour ${tip.titre}">`).join('')}
-                   </div>`
-                : ''; // Si pas de vignettes, cette chaîne est vide
+            // Crée le HTML pour les vignettes/icônes "image" et "document"
+            // Ces icônes n'utilisent PAS les données 'vignettes' du tip, mais sont fixes
+            const typeIconsHtml = `
+                <div class="card-vignettes-icons">
+                    <span class="icon-vignette" title="Contient une image"><i class="fas fa-image"></i></span>
+                    <span class="icon-vignette" title="Contient un document"><i class="fas fa-file-alt"></i></span>
+                </div>
+            `;
 
             // Le post-it (.preview-post-it) reste EN DEHORS du .infos-wrapper
             card.innerHTML = `
@@ -812,9 +828,7 @@
                         <span class="metadata-value">${tip.categorie || 'N/A'}</span>
                     </div>
 
-                    ${vignettesHtml} <div class="text-display">${tip.previewText || 'Pas de texte de prévisualisation.'}</div>
-
-                    <div class="card-actions">
+                    ${typeIconsHtml} <div class="card-actions">
                         <div class="top-buttons-group">
                             <button class="toggle-content-btn" data-id="${tip.id}">Aperçu</button>
                             <button class="copier-btn" data-clipboard-text="${escapeHtml(tip.prompt || '')}">Copier le prompt</button>
