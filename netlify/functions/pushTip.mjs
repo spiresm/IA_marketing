@@ -11,18 +11,12 @@ export async function handler(event) {
         const data = JSON.parse(event.body);
         const { auteur, titre, description, categorie, outilIA, imageUrl, documentUrl } = data;
 
-        // Transformation et LOG de la clé privée pour le débogage
-        const transformedPrivateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
-        // ATTENTION : Cette ligne affichera votre clé privée dans les logs Netlify.
-        // NE JAMAIS PARTAGER CES LOGS EN PUBLIC ! Supprimez-la après le débogage.
-        console.log('Clé privée transformée pour debug (NE PAS PARTAGER EN PUBLIC):', transformedPrivateKey);
+        // Chargement des credentials depuis une seule variable JSON
+        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON.replace(/\\n/g, '\n'));
 
-        // Configuration de l'authentification Google Sheets API
+        // Authentification Google Sheets
         const auth = new google.auth.GoogleAuth({
-            credentials: {
-                client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-                private_key: transformedPrivateKey, // Utilise la clé transformée
-            },
+            credentials,
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
 
@@ -30,7 +24,6 @@ export async function handler(event) {
 
         const spreadsheetId = process.env.GOOGLE_SHEET_ID_TIPS;
         const range = 'Tips!A:H';
-
         const dateSoumission = new Date().toISOString();
 
         const values = [
@@ -59,16 +52,3 @@ export async function handler(event) {
         };
     }
 }
-
-/*
-Rappel pour cette fonction :
-1.  **Installez googleapis** : Naviguez dans votre dossier `netlify/functions` via votre terminal et exécutez `npm install googleapis`.
-    (Ou ajoutez "googleapis": "^VERSION" dans votre package.json et exécutez `npm install` à la racine si vous centralisez les dépendances).
-2.  Activer l'API Google Sheets dans Google Cloud Platform.
-3.  Créer un compte de service et télécharger son fichier JSON de clés.
-4.  Partager la feuille Google Sheet avec l'email du compte de service.
-5.  Ajouter les variables d'environnement dans Netlify :
-    - GOOGLE_SERVICE_ACCOUNT_EMAIL
-    - GOOGLE_PRIVATE_KEY (n'oubliez pas de remplacer les '\n' par de vrais retours à la ligne si vous la copiez-collez en une ligne)
-    - GOOGLE_SHEET_ID_TIPS
-*/
