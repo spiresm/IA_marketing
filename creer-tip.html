@@ -280,7 +280,12 @@
                     <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
                     <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
                     <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
-                    <p style="margin-top: 15px; color: #0077b6;">Redirection automatique vers les cas d'usages dans 5 secondes...</p>
+                    
+                    <p style="margin-top: 15px; color: #0077b6;">Redirection automatique vers les cas d'usages dans {{ countdownSeconds }} secondes...</p>
+                    
+                    <button @click="redirectToCases" style="width: auto; padding: 8px 20px; margin-top: 20px;">
+                        Aller aux Cas d'usages maintenant
+                    </button>
                 </div>
             </div>
         </div>
@@ -340,6 +345,8 @@
                 const isLoading = ref(false); // Utilisé pour le loader du bouton de soumission
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
+                const countdownSeconds = ref(15); // Nouveau : Compte à rebours pour la redirection
+                let countdownInterval = null; // Nouveau : Variable pour stocker l'ID de l'intervalle
 
                 async function fetchProfils() {
                     console.log("Début du chargement des profils...");
@@ -452,6 +459,14 @@
                     });
                 }
 
+                // Nouvelle fonction pour la redirection
+                function redirectToCases() {
+                    if (countdownInterval) {
+                        clearInterval(countdownInterval); // Arrête le compte à rebours si l'utilisateur clique manuellement
+                    }
+                    window.location.href = "https://iamarketing.netlify.app/cas-usages.html?success=1";
+                }
+
                 async function submitForm() {
                     console.log("Soumission du formulaire...");
                     if (!auteur.value) {
@@ -504,29 +519,33 @@
                         const result = await tipResp.json();
                         console.log("Résultat de l'enregistrement du tip via GitHub:", result);
                          
-                        // --- DÉBUT DE LA MODIFICATION POUR L'IMAGE DANS LE PANNEAU DE CONFIRMATION ---
+                        // Définit l'image de confirmation avant de réinitialiser le formulaire
                         if (filePreviewUrls.value.length > 0) {
-                            confirmationImageUrl.value = filePreviewUrls.value[0]; // Utilise la première URL de prévisualisation
+                            confirmationImageUrl.value = filePreviewUrls.value[0]; 
                         } else {
-                            confirmationImageUrl.value = ''; // S'assure que c'est vide si aucune image n'était sélectionnée
+                            confirmationImageUrl.value = ''; 
                         }
-                        // --- FIN DE LA MODIFICATION ---
 
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
                         confirmationPreviewText.value = previewText.value;
                         confirmationPromptText.value = promptText.value;
                         
-                        // Le tip a été envoyé avec succès à GitHub
-                        // Nous affichons la confirmation et le loader pour le déploiement
                         confirmationVisible.value = true; 
                         isLoading.value = false; // Désactive le loader du bouton de soumission
                         
-                        console.log("Confirmation affichée. Redirection dans 5 secondes...");
+                        // Démarre le compte à rebours pour la redirection
+                        countdownSeconds.value = 15; // Réinitialise à 15 secondes
+                        if (countdownInterval) clearInterval(countdownInterval); // Nettoie un intervalle précédent
+                        countdownInterval = setInterval(() => {
+                            countdownSeconds.value--;
+                            if (countdownSeconds.value <= 0) {
+                                clearInterval(countdownInterval);
+                                redirectToCases(); // Redirection automatique
+                            }
+                        }, 1000); // Met à jour chaque seconde
 
-                        setTimeout(() => {
-                            window.location.href = "https://iamarketing.netlify.app/cas-usages.html?success=1";
-                        }, 5000);
+                        console.log("Confirmation affichée. Redirection automatique dans " + countdownSeconds.value + " secondes...");
 
                         // Reset the form
                         auteur.value = '';
@@ -537,7 +556,7 @@
                         categorie.value = 'Marketing Digital';
                         outil.value = '';
                         selectedFiles.value = [];
-                        filePreviewUrls.value = []; // Cela effacera les aperçus pour la prochaine soumission
+                        filePreviewUrls.value = []; 
                         fileNamesForDocuments.value = []; 
                         if (fileInput.value) {
                             fileInput.value.value = null; 
@@ -560,6 +579,8 @@
                     confirmationVisible,
                     confirmationImageUrl, confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
+                    countdownSeconds, // Rendre disponible dans le template
+                    redirectToCases, // Rendre disponible dans le template
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
                 };
             }
