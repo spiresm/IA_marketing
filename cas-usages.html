@@ -685,12 +685,16 @@
                     </select>
                     <select id="filtre-outil">
                         <option value="">Tous les outils</option>
-                        <option>Midjourney</option>
-                        <option>DALL·E</option>
-                        <option>Stable Diffusion</option>
-                        <option>Adobe Firefly</option>
-                        <option>Runway</option>
                         <option>ChatGPT</option>
+                        <option>Claude</option>
+                        <option>Midjourney</option>
+                        <option>DALL-E</option>
+                        <option>Stable Diffusion</option>
+                        <option>RunwayML</option>
+                        <option>Adobe Firefly</option>
+                        <option>Canva AI</option>
+                        <option>GrammarlyGO</option>
+                        <option>Jasper</option>
                         <option>Autre</option>
                     </select>
                 </div>
@@ -819,13 +823,6 @@
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
-        // Fonction pour obtenir la valeur temporelle en secondes pour le tri (plus utilisée pour "heure-recent/ancien")
-        function getTimeInSeconds(dateString) {
-            const date = new Date(dateString);
-            // Calculer le nombre total de secondes depuis minuit
-            return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
-        }
-
         function applyFiltersAndSort() {
             let filtered = [...allTips];
 
@@ -850,13 +847,13 @@
                 filtered.sort((a, b) => {
                     const dateA = new Date(a.dateCreation || a.date);
                     const dateB = new Date(b.dateCreation || b.date);
-                    return dateB.getTime() - dateA.getTime();
+                    return dateB.getTime() - dateA.getTime(); // Trie du plus récent au plus ancien (décroissant)
                 });
             } else if (sortOrder === 'ancien') {
                 filtered.sort((a, b) => {
                     const dateA = new Date(a.dateCreation || a.date);
                     const dateB = new Date(b.dateCreation || b.date);
-                    return dateA.getTime() - dateB.getTime();
+                    return dateA.getTime() - dateB.getTime(); // Trie du plus ancien au plus récent (croissant)
                 });
             }
             
@@ -883,8 +880,10 @@
                     // Assurez-vous que dateCreation existe et est une chaîne valide pour toLocaleDateString
                     // Fournit une date par défaut si dateCreation et date sont absents
                     dateCreation: tip.dateCreation || tip.date || new Date().toISOString(),
-                    // --- CORRECTION: GÉRER LE TITRE NON DÉFINI ---
-                    titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié" 
+                    // Gérer le titre non défini
+                    titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
+                    // Gérer l'auteur non défini
+                    auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu"
                 }));
                 applyFiltersAndSort();
             } catch (error) {
@@ -908,196 +907,209 @@
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
-                const carte = document.createElement('div');
-                carte.classList.add('carte');
-                carte.style.borderLeftColor = tip.couleur || '#0077b6'; // Utilise la couleur du tip ou une couleur par défaut
-
-                let imageUrlHtml = '';
-                if (tip.imageURL) {
-                    imageUrlHtml = `
-                        <div class="card-preview-icons-inline">
-                            <span class="icon-vignette"><i class="fas fa-image"></i></span>
-                        </div>
-                    `;
-                }
-
-                let documentUrlHtml = '';
-                if (tip.documentURL) {
-                    documentUrlHtml = `
-                        <div class="card-preview-icons-inline">
-                            <span class="icon-vignette"><i class="fas fa-file-alt"></i></span>
-                        </div>
-                    `;
-                }
-
-                // Gérer le texte de prévisualisation (post-it)
-                const previewTextHtml = tip.previewText ? `<div class="preview-post-it">${escapeHtml(tip.previewText)}</div>` : '';
-
-                carte.innerHTML = `
-                    <div class="infos-wrapper">
-                        <div class="outil-badge">${escapeHtml(tip.outil || 'Général')}</div>
-                        <div class="tip-title">${escapeHtml(tip.titre)}</div>
-                        <div class="metadata-section">
-                            <span class="metadata-label">Auteur :</span>
-                            <span class="metadata-value auteur-value">${escapeHtml(tip.auteur || 'Inconnu')}</span>
-                            <span class="metadata-label">Catégorie :</span>
-                            <span class="metadata-value">${escapeHtml(tip.categorie || 'Non classé')}</span>
-                            <span class="metadata-label">Créé le :</span>
-                            <span class="metadata-value">${formattedDate}</span>
-                        </div>
-                        <div class="card-actions">
-                            <div class="top-buttons-group">
-                                <button class="toggle-content-btn" data-id="${tip.id}">Voir le Contenu</button>
-                                <button class="copier-btn" data-prompt="${escapeHtml(tip.prompt || '')}">Copier le Prompt</button>
-                                <a href="editer-tip.html?id=${tip.id}" class="edit-btn">Éditer</a>
-                                ${imageUrlHtml}
-                                ${documentUrlHtml}
+                const cardHtml = `
+                    <div class="carte" style="border-left-color: ${getCategoryColor(tip.categorie)};">
+                        <div class="infos-wrapper">
+                            <h3 class="tip-title">${escapeHtml(tip.titre)}</h3>
+                            <span class="outil-badge">${escapeHtml(tip.outil || 'Non spécifié')}</span>
+                            <div class="metadata-section">
+                                <span class="metadata-label">Auteur:</span>
+                                <span class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</span>
+                                <span class="metadata-label">Catégorie:</span>
+                                <span class="metadata-value">${escapeHtml(tip.categorie)}</span>
+                                <span class="metadata-label">Date:</span>
+                                <span class="metadata-value">${formattedDate}</span>
                             </div>
-                            <button class="supprimer-btn" data-id="${tip.id}"><i class="fas fa-trash-alt"></i></button>
+
+                            ${tip.previewText ? `<div class="preview-post-it">${escapeHtml(tip.previewText)}</div>` : ''}
+
+                            <div class="card-actions">
+                                <div class="top-buttons-group">
+                                    <button class="toggle-content-btn" data-id="${tip.id}">Voir le contenu</button>
+                                    ${tip.prompt && tip.prompt.trim() !== '' ? `<button class="copier-btn" data-copy="${escapeHtml(tip.prompt)}">Copier le prompt</button>` : ''}
+                                    <button class="edit-btn" data-id="${tip.id}">Éditer</button>
+                                    <div class="card-preview-icons-inline">
+                                        ${tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
+                                        ${tip.documentUrl ? `<i class="fas fa-file-alt icon-vignette" title="Contient un document"></i>` : ''}
+                                    </div>
+                                </div>
+                                <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
+                            </div>
                         </div>
                     </div>
-                    ${previewTextHtml}
                 `;
-
-                galerieDiv.appendChild(carte);
+                galerieDiv.insertAdjacentHTML('beforeend', cardHtml);
             });
 
-            // Attache les événements aux nouveaux boutons
+            // Attacher les gestionnaires d'événements après que les cartes sont ajoutées au DOM
+            attachEventListenersToCards();
+        }
+
+        function getCategoryColor(category) {
+            switch (category) {
+                case 'Marketing Digital': return '#0077b6'; // Primary Blue
+                case 'Réseaux Sociaux': return '#38a3a5'; // Teal
+                case 'SEO': return '#ffc300'; // Amber
+                case 'Contenu': return '#c70039'; // Dark Red
+                case 'Publicité': return '#8ac926'; // Lime Green
+                case 'Outils IA': return '#9d4edd'; // Purple
+                case 'Stratégie': return '#3c096c'; // Dark Purple
+                case 'Autre': return '#6c757d'; // Gray
+                default: return '#cccccc'; // Default Gray
+            }
+        }
+
+        function attachEventListenersToCards() {
             document.querySelectorAll('.toggle-content-btn').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const tipId = event.target.dataset.id;
-                    const tip = allTips.find(t => t.id === tipId);
-                    if (tip) {
-                        openPreviewPanel(tip);
-                    }
-                });
+                button.onclick = (e) => openPreviewPanel(e.target.dataset.id);
             });
 
             document.querySelectorAll('.copier-btn').forEach(button => {
-                button.addEventListener('click', async (event) => {
-                    const promptText = event.target.dataset.prompt;
-                    try {
-                        await navigator.clipboard.writeText(promptText);
-                        alert('Prompt copié dans le presse-papiers !');
-                    } catch (err) {
-                        console.error('Erreur lors de la copie: ', err);
-                        alert('Impossible de copier le prompt.');
-                    }
-                });
+                button.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target);
+            });
+
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.onclick = (e) => redirectToEditPage(e.target.dataset.id);
             });
 
             document.querySelectorAll('.supprimer-btn').forEach(button => {
-                button.addEventListener('click', async (event) => {
-                    const tipId = event.target.dataset.id;
-                    if (confirm("Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.")) {
-                        try {
-                            const response = await fetch(`${apiBase}delete-tip`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({ id: tipId }),
-                            });
-
-                            if (!response.ok) {
-                                throw new Error(`Erreur lors de la suppression: ${response.statusText}`);
-                            }
-
-                            alert("Tip supprimé avec succès !");
-                            loadAndDisplayTips(); // Recharge les tips après suppression
-                        } catch (error) {
-                            console.error("Erreur de suppression:", error);
-                            alert(`Erreur lors de la suppression: ${error.message}`);
-                        }
-                    }
-                });
+                button.onclick = (e) => confirmAndDeleteTip(e.target.dataset.id || e.target.closest('button').dataset.id);
             });
         }
 
-        // --- Fonctions du panneau d'aperçu ---
-        function openPreviewPanel(tip) {
-            previewPanelTitle.textContent = escapeHtml(tip.titre || "Détails du Tip");
-            
-            let contentHtml = '';
+        async function openPreviewPanel(tipId) {
+            console.log(`Opening preview panel for tip ID: ${tipId}`);
+            const tip = allTips.find(t => t.id === tipId);
 
-            if (tip.previewText) {
-                contentHtml += `
-                    <h4>Texte de Prévisualisation:</h4>
-                    <div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>
-                    <button class="copy-panel-btn" data-text="${escapeHtml(tip.previewText)}">Copier le Texte de Prévisualisation</button>
-                `;
-            }
+            if (tip) {
+                previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
+                let contentHtml = '';
 
-            if (tip.description) {
-                contentHtml += `
-                    <h4>Description:</h4>
-                    <div class="content-card-blue">${escapeHtml(tip.description)}</div>
-                `;
-            }
+                if (tip.imageUrl) {
+                    contentHtml += `
+                        <div class="preview-panel-image-container">
+                            <img src="${escapeHtml(tip.imageUrl)}" alt="Image du tip" class="preview-panel-image" />
+                        </div>
+                    `;
+                }
+                if (tip.documentUrl && tip.documentFileName) {
+                    contentHtml += `
+                        <a href="${escapeHtml(tip.documentUrl)}" target="_blank" class="preview-panel-document-link">
+                            <i class="fas fa-file-alt"></i> Voir le document: ${escapeHtml(tip.documentFileName)}
+                        </a>
+                    `;
+                }
+                if (tip.previewText) {
+                    contentHtml += `
+                        <p><strong>Post-it:</strong></p>
+                        <div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>
+                    `;
+                }
+                if (tip.description) {
+                    contentHtml += `
+                        <p><strong>Description:</strong></p>
+                        <div class="content-card-blue">${escapeHtml(tip.description)}</div>
+                    `;
+                }
+                if (tip.prompt) {
+                    contentHtml += `
+                        <p><strong>Prompt:</strong></p>
+                        <button class="copy-panel-btn" data-copy="${escapeHtml(tip.prompt)}">Copier le prompt</button>
+                        <pre class="prompt-content-pre">${escapeHtml(tip.prompt)}</pre>
+                    `;
+                }
+                
+                // Add metadata to the panel
+                const dateObj = new Date(tip.dateCreation);
+                const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
-            if (tip.exemple) {
                 contentHtml += `
-                    <h4>Exemple d'utilisation:</h4>
-                    <div class="content-card-blue">${escapeHtml(tip.exemple)}</div>
-                `;
-            }
-
-            if (tip.prompt) {
-                contentHtml += `
-                    <h4>Prompt:</h4>
-                    <pre class="prompt-content-pre">${escapeHtml(tip.prompt)}</pre>
-                    <button class="copy-panel-btn" data-text="${escapeHtml(tip.prompt)}">Copier le Prompt</button>
-                `;
-            }
-
-            if (tip.imageURL) {
-                contentHtml += `
-                    <h4>Vignette Image:</h4>
-                    <div class="preview-panel-image-container">
-                        <img src="${escapeHtml(tip.imageURL)}" alt="Vignette" class="preview-panel-image">
+                    <div class="metadata-section" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+                        <span class="metadata-label">Auteur:</span>
+                        <span class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</span>
+                        <span class="metadata-label">Catégorie:</span>
+                        <span class="metadata-value">${escapeHtml(tip.categorie)}</span>
+                        <span class="metadata-label">Outil:</span>
+                        <span class="metadata-value">${escapeHtml(tip.outil || 'Non spécifié')}</span>
+                        <span class="metadata-label">Date de création:</span>
+                        <span class="metadata-value">${formattedDate}</span>
                     </div>
                 `;
-            }
 
-            if (tip.documentURL) {
-                contentHtml += `
-                    <h4>Document Attaché:</h4>
-                    <p><a href="${escapeHtml(tip.documentURL)}" target="_blank" class="preview-panel-document-link">Ouvrir le document <i class="fas fa-external-link-alt"></i></a></p>
-                `;
-            }
-            
-            if (!contentHtml) {
-                contentHtml = '<p>Aucun contenu additionnel pour ce tip.</p>';
-            }
+                previewPanelContent.innerHTML = contentHtml;
+                previewPanel.classList.add('open');
+                previewOverlay.classList.add('open');
+                bodyElement.style.overflow = 'hidden'; // Prevent scrolling of main content
 
-            previewPanelContent.innerHTML = contentHtml;
-            previewPanel.classList.add('open');
-            previewOverlay.classList.add('open');
-            bodyElement.style.overflow = 'hidden'; // Empêche le défilement du corps
-            
-            // Attache les écouteurs de copie pour les nouveaux boutons du panneau
-            document.querySelectorAll('#previewPanel .copy-panel-btn').forEach(button => {
-                button.addEventListener('click', async (event) => {
-                    const textToCopy = event.target.dataset.text;
-                    try {
-                        await navigator.clipboard.writeText(textToCopy);
-                        alert('Contenu copié dans le presse-papiers !');
-                    } catch (err) {
-                        console.error('Erreur lors de la copie du contenu du panneau: ', err);
-                        alert('Impossible de copier le contenu.');
-                    }
+                // Re-attach event listener for the copy button inside the panel
+                document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
+                    copyToClipboard(e.target.dataset.copy, e.target);
                 });
-            });
+
+            } else {
+                console.error("Tip not found for ID:", tipId);
+            }
         }
 
         function closePreviewPanel() {
             previewPanel.classList.remove('open');
             previewOverlay.classList.remove('open');
-            bodyElement.style.overflow = ''; // Réactive le défilement du corps
+            bodyElement.style.overflow = ''; // Restore scrolling
         }
 
         closePreviewBtn.addEventListener('click', closePreviewPanel);
-        previewOverlay.addEventListener('click', closePreviewPanel); // Ferme si on clique en dehors
+        previewOverlay.addEventListener('click', closePreviewPanel); // Close when clicking outside panel
+        // Close with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && previewPanel.classList.contains('open')) {
+                closePreviewPanel();
+            }
+        });
+
+
+        async function copyToClipboard(text, buttonElement) {
+            try {
+                await navigator.clipboard.writeText(text);
+                const originalText = buttonElement.textContent;
+                buttonElement.textContent = 'Copié !';
+                setTimeout(() => {
+                    buttonElement.textContent = originalText;
+                }, 1500);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+                alert('Échec de la copie.');
+            }
+        }
+
+        function redirectToEditPage(tipId) {
+            window.location.href = `modifier-tip.html?id=${tipId}`;
+        }
+
+        async function confirmAndDeleteTip(tipId) {
+            if (confirm("Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.")) {
+                try {
+                    const response = await fetch(`${apiBase}deleteTip`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ id: tipId })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || `Erreur HTTP! status: ${response.status}`);
+                    }
+
+                    alert("Tip supprimé avec succès !");
+                    loadAndDisplayTips(); // Recharger les tips après suppression
+                } catch (error) {
+                    console.error("Erreur lors de la suppression du tip:", error);
+                    alert(`Échec de la suppression du tip: ${error.message}`);
+                }
+            }
+        }
     </script>
 </body>
 </html>
