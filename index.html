@@ -5,8 +5,86 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Accueil - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
     <style>
-        /* ... (votre CSS existant pour le loader, body, sections, tiles, footer) ... */
+        /* Styles généraux pour l'animation d'apparition de la page */
+        body {
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            min-height: 100vh; /* Permet le défilement si le contenu dépasse la hauteur de la fenêtre */
+            display: flex;
+            flex-direction: column; /* Aide à la mise en page de l'en-tête, du contenu principal et du pied de page */
+        }
+        body.show {
+            opacity: 1;
+        }
+        main {
+            opacity: 0; /* Gardé pour une transition éventuelle du main si vous en ajoutez plus tard */
+            transition: opacity 0.5s ease-in;
+            padding: 40px 20px;
+            flex-grow: 1; /* Permet au main de prendre l'espace disponible, poussant le footer vers le bas */
+        }
+        main.show {
+            opacity: 1;
+        }
+
+        /* Styles de base pour le header, loader, etc., si non dans style.css */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #header-placeholder {
+            width: 100%;
+            /* Assurez-vous que le header importé ne contient pas de marges/padding indésirables */
+        }
+
+        .section {
+            padding: 40px 20px;
+            max-width: 900px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+        
+        .section h2 {
+            color: #0077b6;
+            margin-bottom: 15px;
+        }
+
+        .section p {
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .footer {
+            margin-top: auto; /* Pousse le footer vers le bas */
+            padding: 20px;
+            text-align: center;
+            background-color: #005f8a;
+            color: white;
+            font-size: 0.9em;
+        }
 
         /* Styles pour la section des derniers ajouts */
         .latest-additions-section {
@@ -42,13 +120,14 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             font-size: 0.95em;
             width: 250px; /* Largeur fixe pour les Post-it */
-            min-height: 150px; /* Hauteur minimale ajustée pour l'image */
+            min-height: 150px; /* Hauteur minimale ajustée pour l'image et le texte */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             transform: rotate(calc(var(--rotation, 0) * 1deg)); /* Rotation légère */
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             box-sizing: border-box; /* Inclure padding et border dans la largeur/hauteur */
+            cursor: pointer; /* Indique qu'il est cliquable */
         }
 
         .post-it-note.cas-usage {
@@ -131,15 +210,6 @@
             <p>
                 Cette plateforme collaborative vous permet de découvrir, partager et capitaliser sur les usages de l’intelligence artificielle au sein de notre organisation. Que vous cherchiez des outils, des prompts, des cas d’usage inspirants ou que vous souhaitiez contribuer avec vos propres astuces, tout est centralisé ici pour accompagner votre montée en compétence et faciliter l’adoption de l’IA au quotidien.
             </p>
-
-            <div class="chatgpt-wrapper-hidden">
-                <div class="chatgpt-box">
-                    <h3>Discuter avec ChatGPT</h3>
-                    <textarea id="user-input" rows="4" placeholder="Pose ta question ici..."></textarea>
-                    <button class="btn" onclick="envoyer()">Envoyer</button>
-                    <pre id="reponse"></pre>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -232,42 +302,6 @@
             });
         });
 
-        // La fonction `envoyer()` pour le chatbot est laissée ici mais ne sera pas appelée
-        // car le chatbot est masqué par `chatgpt-wrapper-hidden`.
-        async function envoyer() {
-            const userMessage = document.getElementById("user-input").value;
-            document.getElementById("reponse").textContent = "Chargement de la réponse...";
-
-            try {
-                const response = await fetch("/.netlify/functions/chat-clean", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: userMessage })
-                });
-
-                const text = await response.text();
-                let data;
-
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    document.getElementById("reponse").textContent = "❌ Erreur : réponse non JSON\n" + text;
-                    console.error("Erreur de parsing JSON de la réponse de chat-clean:", e, text);
-                    return;
-                }
-
-                if (data.error) {
-                    document.getElementById("reponse").textContent = `❌ Erreur API : ${data.error}`;
-                    console.error("Erreur renvoyée par l'API chat-clean:", data.error);
-                } else {
-                    document.getElementById("reponse").textContent = data.reply || "✅ Pas de réponse générée.";
-                }
-            } catch (networkError) {
-                document.getElementById("reponse").textContent = `❌ Erreur réseau ou fonction Netlify inaccessible: ${networkError.message}`;
-                console.error("Erreur réseau ou fonction Netlify inaccessible:", networkError);
-            }
-        }
-
         // Fonction pour récupérer et afficher les derniers ajouts sous forme de Post-it
         async function displayLatestAdditions() {
             const postItContainer = document.getElementById("post-it-container");
@@ -337,7 +371,8 @@
                         if (item.prompt) {
                             const promptText = document.createElement('p');
                             promptText.className = 'post-it-prompt-text';
-                            promptText.textContent = item.prompt.substring(0, 100) + (item.prompt.length > 100 ? '...' : ''); // Affiche les 100 premiers caractères du prompt
+                            // Limite la longueur du prompt pour qu'il tienne dans le Post-it
+                            promptText.textContent = item.prompt.substring(0, 100) + (item.prompt.length > 100 ? '...' : ''); 
                             postIt.appendChild(promptText);
                         }
                         const category = document.createElement("div");
