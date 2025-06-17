@@ -244,10 +244,10 @@
 
                     <label>Images / Documents (optionnel)</label>
                     <div id="drop-zone"
-                         @click="triggerFile"
-                         @dragover.prevent="onDragOver"
-                         @dragleave="onDragLeave"
-                         @drop.prevent="onDrop">
+                            @click="triggerFile"
+                            @dragover.prevent="onDragOver"
+                            @dragleave="onDragLeave"
+                            @drop.prevent="onDrop">
                         Déposez ou cliquez pour ajouter des images ou documents (.txt, .pdf)
                         </div>
                     <input type="file" ref="fileInput" accept="image/*, .txt, .pdf" style="display:none" @change="onFileChange" multiple />
@@ -269,23 +269,12 @@
 
                 <div class="confirmation" v-if="confirmationVisible">
                     <p>✅ Tip / Prompt partagé avec succès !</p>
-                    <div class="loader" style="margin: 15px auto;"></div>
-                    <p style="margin-top: 15px; color: #0077b6; font-weight: bold;">
-                        Votre tip est en cours de déploiement sur Netlify. Il sera visible sur le site sous peu.
-                    </p>
-                    <p v-if="confirmationImageUrl" style="margin-top: 15px;">
-                        <img :src="confirmationImageUrl" alt="Aperçu de l'image" style="max-width: 100%; height: auto; border-radius: 8px;">
-                    </p>
+                    <img v-if="confirmationImageUrl" :src="confirmationImageUrl" /> 
                     <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
                     <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
                     <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
                     <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
-                    
-                    <p style="margin-top: 15px; color: #0077b6;">Redirection automatique vers les cas d'usages dans {{ countdownSeconds }} secondes...</p>
-                    
-                    <button @click="redirectToCases" style="width: auto; padding: 8px 20px; margin-top: 20px;">
-                        Aller aux Cas d'usages maintenant
-                    </button>
+                    <p style="margin-top: 15px; color: #0077b6;">Redirection vers les cas d'usages dans 5 secondes...</p>
                 </div>
             </div>
         </div>
@@ -342,11 +331,9 @@
                 const confirmationDescription = ref('');
                 const confirmationPreviewText = ref('');
                 const confirmationPromptText = ref('');
-                const isLoading = ref(false); // Utilisé pour le loader du bouton de soumission
+                const isLoading = ref(false);
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
-                const countdownSeconds = ref(15); // Nouveau : Compte à rebours pour la redirection
-                let countdownInterval = null; // Nouveau : Variable pour stocker l'ID de l'intervalle
 
                 async function fetchProfils() {
                     console.log("Début du chargement des profils...");
@@ -428,6 +415,7 @@
                     }
                 }
 
+                // Cette fonction prépare les aperçus ou les noms de fichiers
                 function handleFiles(files) {
                     selectedFiles.value = Array.from(files);
                     filePreviewUrls.value = []; 
@@ -440,6 +428,7 @@
                         if (file.type.startsWith('image/')) {
                             const reader = new FileReader();
                             reader.onload = (e) => {
+                                // Vérifiez si le résultat est valide avant de l'ajouter
                                 if (e.target.result && typeof e.target.result === 'string' && e.target.result.startsWith('data:image')) {
                                     filePreviewUrls.value.push(e.target.result);
                                     console.log(`Aperçu image généré pour ${file.name}`);
@@ -457,14 +446,6 @@
                             console.log(`Le fichier ${file.name} est un document, ajout de son nom pour affichage.`);
                         }
                     });
-                }
-
-                // Nouvelle fonction pour la redirection
-                function redirectToCases() {
-                    if (countdownInterval) {
-                        clearInterval(countdownInterval); // Arrête le compte à rebours si l'utilisateur clique manuellement
-                    }
-                    window.location.href = "https://iamarketing.netlify.app/cas-usages.html?success=1";
                 }
 
                 async function submitForm() {
@@ -486,7 +467,7 @@
                     }
 
                     confirmationVisible.value = false;
-                    isLoading.value = true; // Active le loader du bouton
+                    isLoading.value = true;
                     console.log("Formulaire en cours de traitement (isLoading = true).");
 
                     try {
@@ -518,34 +499,27 @@
 
                         const result = await tipResp.json();
                         console.log("Résultat de l'enregistrement du tip via GitHub:", result);
-                         
-                        // Définit l'image de confirmation avant de réinitialiser le formulaire
+                           
+                        // CORRECTION 2: S'assurer que confirmationImageUrl est défini APRES la réception de la réponse,
+                        // mais AVANT l'affichage de la confirmation, en utilisant l'aperçu local.
                         if (filePreviewUrls.value.length > 0) {
-                            confirmationImageUrl.value = filePreviewUrls.value[0]; 
+                            confirmationImageUrl.value = filePreviewUrls.value[0];
+                            console.log("Image de confirmation définie avec l'URL d'aperçu.");
                         } else {
-                            confirmationImageUrl.value = ''; 
+                            confirmationImageUrl.value = ''; // Pas d'image sélectionnée
+                            console.log("Aucune image de confirmation définie (pas d'aperçu disponible).");
                         }
 
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
                         confirmationPreviewText.value = previewText.value;
                         confirmationPromptText.value = promptText.value;
-                        
-                        confirmationVisible.value = true; 
-                        isLoading.value = false; // Désactive le loader du bouton de soumission
-                        
-                        // Démarre le compte à rebours pour la redirection
-                        countdownSeconds.value = 15; // Réinitialise à 15 secondes
-                        if (countdownInterval) clearInterval(countdownInterval); // Nettoie un intervalle précédent
-                        countdownInterval = setInterval(() => {
-                            countdownSeconds.value--;
-                            if (countdownSeconds.value <= 0) {
-                                clearInterval(countdownInterval);
-                                redirectToCases(); // Redirection automatique
-                            }
-                        }, 1000); // Met à jour chaque seconde
+                        confirmationVisible.value = true;
+                        console.log("Confirmation affichée. Redirection dans 5 secondes...");
 
-                        console.log("Confirmation affichée. Redirection automatique dans " + countdownSeconds.value + " secondes...");
+                        setTimeout(() => {
+                            window.location.href = "https://iamarketing.netlify.app/cas-usages.html?success=1";
+                        }, 5000);
 
                         // Reset the form
                         auteur.value = '';
@@ -556,7 +530,7 @@
                         categorie.value = 'Marketing Digital';
                         outil.value = '';
                         selectedFiles.value = [];
-                        filePreviewUrls.value = []; 
+                        filePreviewUrls.value = [];
                         fileNamesForDocuments.value = []; 
                         if (fileInput.value) {
                             fileInput.value.value = null; 
@@ -568,7 +542,7 @@
                         console.error('Erreur irrécupérable lors de l\'envoi du tip:', err);
                         alert(`Échec de l'envoi du tip: ${err.message || err}. Vérifiez la console pour plus de détails.`);
                     } finally {
-                        isLoading.value = false; // Assurez-vous que le loader est désactivé même en cas d'erreur
+                        isLoading.value = false;
                         console.log("Fin du traitement du formulaire (isLoading = false).");
                     }
                 }
@@ -579,8 +553,6 @@
                     confirmationVisible,
                     confirmationImageUrl, confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
-                    countdownSeconds, // Rendre disponible dans le template
-                    redirectToCases, // Rendre disponible dans le template
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
                 };
             }
