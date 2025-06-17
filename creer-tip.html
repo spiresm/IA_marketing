@@ -158,12 +158,20 @@
             color: #333;
         }
 
+        /* NOUVEAU STYLE : pour l'image vignette dans le panneau de confirmation */
         .confirmation img {
-            max-width: 80%;
-            height: auto;
+            max-width: 150px; /* Plus petit pour la vignette */
+            max-height: 150px; /* Conserver les proportions */
+            object-fit: contain; /* Assurer que l'image tient dans le cadre sans être coupée */
             margin-top: 15px;
             border-radius: 10px;
             border: 1px solid #ddd;
+            cursor: pointer; /* Indique qu'elle est cliquable */
+            transition: transform 0.2s ease-in-out; /* Petite animation au survol */
+        }
+
+        .confirmation img:hover {
+            transform: scale(1.05); /* Effet de zoom léger au survol */
         }
 
         .loader {
@@ -179,6 +187,65 @@
 
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        /* NOUVEAU STYLE : pour la Lightbox / Modale d'image */
+        .lightbox-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px); /* Effet de flou sur l'arrière-plan */
+        }
+
+        .lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: flex; /* Pour centrer l'image à l'intérieur */
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lightbox-content img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block; /* Supprime l'espace sous l'image */
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #fff;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 1001; /* Au-dessus de l'overlay */
+            background-color: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+            text-shadow: 0 0 5px rgba(0,0,0,0.8);
+        }
+
+        .lightbox-close:hover {
+            color: #f00;
+            background-color: rgba(0,0,0,0.7);
         }
     </style>
 </head>
@@ -269,7 +336,7 @@
 
                 <div class="confirmation" v-if="confirmationVisible">
                     <p>✅ Tip / Prompt partagé avec succès !</p>
-                    <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
+                    <img v-if="confirmationImageUrl" :src="confirmationImageUrl" @click="openLightbox(confirmationImageUrl)" />
                     <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
                     <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
                     <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
@@ -277,6 +344,14 @@
                     <p style="margin-top: 15px; color: #0077b6;">Redirection vers les cas d'usages dans 5 secondes...</p>
                 </div>
             </div>
+
+            <div class="lightbox-overlay" v-if="lightboxVisible" @click.self="closeLightbox">
+                <span class="lightbox-close" @click="closeLightbox">&times;</span>
+                <div class="lightbox-content">
+                    <img :src="lightboxImageUrl" alt="Image en grand format" />
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -304,7 +379,7 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script>
-        const { ref, createApp, onMounted } = Vue;
+        const { ref, createApp, onMounted, onUnmounted } = Vue; // Ajout de onUnmounted
 
         const SAVE_TIP_URL = "/.netlify/functions/pushTip";
         const PROXY_URL = "/.netlify/functions/proxy";
@@ -331,6 +406,10 @@
                 const isLoading = ref(false);
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
+
+                // NOUVELLES PROPRIÉTÉS pour la lightbox
+                const lightboxVisible = ref(false);
+                const lightboxImageUrl = ref('');
 
                 async function fetchProfils() {
                     console.log("Début du chargement des profils...");
@@ -369,9 +448,37 @@
                     }
                 }
 
+                // NOUVELLE FONCTION : ouvre la lightbox
+                function openLightbox(imageUrl) {
+                    lightboxImageUrl.value = imageUrl;
+                    lightboxVisible.value = true;
+                    console.log("Lightbox ouverte pour:", imageUrl);
+                }
+
+                // NOUVELLE FONCTION : ferme la lightbox
+                function closeLightbox() {
+                    lightboxVisible.value = false;
+                    lightboxImageUrl.value = '';
+                    console.log("Lightbox fermée.");
+                }
+
+                // NOUVELLE FONCTION : Gère la touche Échappe pour fermer la lightbox
+                function handleKeydown(event) {
+                    if (event.key === 'Escape' && lightboxVisible.value) {
+                        closeLightbox();
+                    }
+                }
+
                 onMounted(() => {
                     console.log("Composant TipForm monté.");
                     fetchProfils();
+                    // Ajout de l'écouteur d'événement pour la touche Échappe
+                    window.addEventListener('keydown', handleKeydown);
+                });
+
+                // onUnmounted est utile pour nettoyer les écouteurs d'événements
+                onUnmounted(() => {
+                    window.removeEventListener('keydown', handleKeydown);
                 });
 
                 function triggerFile() {
@@ -476,20 +583,18 @@
                             outil: outil.value,
                         };
 
-                        // --- DÉBUT : Ajout des données d'image au payload ---
                         if (selectedFiles.value.length > 0 && selectedFiles.value[0].type.startsWith('image/')) {
                             const firstImage = selectedFiles.value[0];
-                            const firstImageUrl = filePreviewUrls.value[0]; // C'est la data:URL
+                            const firstImageUrl = filePreviewUrls.value[0];
 
                             if (firstImageUrl) {
-                                payload.imageData = firstImageUrl; // La data:URL complète
-                                payload.imageFileName = firstImage.name; // Le nom original du fichier
+                                payload.imageData = firstImageUrl;
+                                payload.imageFileName = firstImage.name;
                                 console.log("Image détectée et ajoutée au payload pour envoi à la fonction Netlify.");
                             } else {
                                 console.warn("Image sélectionnée mais Data URL non disponible pour l'envoi.");
                             }
                         }
-                        // --- FIN : Ajout des données d'image au payload ---
 
                         console.log("Payload complet envoyé à la fonction pushTip:", JSON.stringify(payload, null, 2));
 
@@ -510,8 +615,6 @@
                         const result = await tipResp.json();
                         console.log("Résultat de l'enregistrement du tip via GitHub:", result);
 
-                        // Utilisez l'URL d'image retournée par la fonction Netlify si disponible,
-                        // sinon, utilisez l'aperçu local temporaire pour la confirmation.
                         if (result.imageUrl) {
                             confirmationImageUrl.value = result.imageUrl;
                             console.log("Image de confirmation définie avec l'URL publique de GitHub:", result.imageUrl);
@@ -552,7 +655,8 @@
                         fetchProfils();
                         console.log("Formulaire réinitialisé.");
 
-                    } catch (err) {
+                    }
+                     catch (err) {
                         console.error('Erreur irrécupérable lors de l\'envoi du tip:', err);
                         alert(`Échec de l'envoi du tip: ${err.message || err}. Vérifiez la console pour plus de détails.`);
                     } finally {
@@ -567,7 +671,9 @@
                     confirmationVisible,
                     confirmationImageUrl, confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
-                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
+                    lightboxVisible, lightboxImageUrl, // Exposer les nouvelles propriétés
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm,
+                    openLightbox, closeLightbox // Exposer les nouvelles fonctions
                 };
             }
         };
