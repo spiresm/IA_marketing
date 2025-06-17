@@ -388,8 +388,200 @@
         const PROXY_URL = "/.netlify/functions/proxy";
         const GET_TIPS_URL = "/.netlify/functions/get-tips";
         const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";    
-        const apiBase = window.location.origin + '/.netlify/functions/';
+        // No need for apiBase if using PROXY_URL directly or specific function URLs
 
+        // --- GLOBAL VARIABLES (accessible to all functions) ---
+        // These need to be accessible from `appendMessage` and `sendMessage`
+        let chatbotFab;
+        let chatbotContainer;
+        let chatbotToggle;
+        let chatbotInput;
+        let chatbotSendButton;
+        let chatbotMessages;
+        let chatbotLoading;
+
+        // --- GLOBAL FUNCTIONS (accessible everywhere) ---
+
+        // Helper function to append messages to the chatbot UI
+        function appendMessage(text, ...classes) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', ...classes); // Use spread operator to add all classes
+            messageDiv.textContent = text;
+            chatbotMessages.appendChild(messageDiv);
+        }
+
+        // Helper function to create an addition card
+        const createCard = (item, type) => {
+            const card = document.createElement("div");
+            card.className = `addition-card ${type}`;
+
+            const header = document.createElement('div');
+            header.className = 'card-header';
+
+            const icon = document.createElement('i');
+            if (type === 'cas-usage') {
+                icon.className = 'fas fa-lightbulb icon';
+            } else if (type === 'galerie') {
+                icon.className = 'fas fa-image icon';
+            } else if (type === 'welcome-card') {
+                icon.className = 'fas fa-info-circle icon';
+            }
+            header.appendChild(icon);
+
+            const title = document.createElement("h4");
+            title.textContent = item.titre;
+            header.appendChild(title);
+            card.appendChild(header);
+
+            if (type === 'galerie' && item.imageUrl) {
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'card-image-container';
+                const img = document.createElement('img');
+                img.src = item.imageUrl;
+                img.alt = `Vignette de ${item.titre}`;
+                imgContainer.appendChild(img);
+                card.appendChild(imgContainer);
+            }
+            
+            const descriptionElement = document.createElement("p");
+            if (type === 'welcome-card') {
+                descriptionElement.textContent = item.description;
+            } else if (item.description) {
+                descriptionElement.textContent = item.description.substring(0, 150) + (item.description.length > 150 ? '...' : '');
+            } else if (item.prompt) {
+                descriptionElement.textContent = item.prompt.substring(0, 150) + (item.prompt.length > 150 ? '...' : '');
+            }
+            card.appendChild(descriptionElement);
+
+            const meta = document.createElement('div');
+            meta.className = 'card-meta';
+
+            const category = document.createElement("span");
+            category.className = "category";
+            if (type === 'cas-usage') {
+                category.textContent = "Cas d'usages";
+            } else if (type === 'galerie') {
+                category.textContent = "Galerie";
+            } else if (type === 'welcome-card') {
+                category.textContent = "Information";
+            }
+            meta.appendChild(category);
+            
+            const date = document.createElement("span");
+            date.className = "date";
+            if (item.date_ajout) {
+                const d = new Date(item.date_ajout);
+                date.textContent = `Ajouté le ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+            } else {
+                date.textContent = `Date inconnue`;
+            }
+            meta.appendChild(date);
+            
+            card.appendChild(meta);
+
+            return card;
+        };
+
+        // Function to display the latest additions and the welcome card
+        async function displayLatestAdditions() {
+            const container = document.getElementById("latest-additions-grid");
+            const loadingMessage = document.getElementById("post-it-loading-message");
+
+            if (!container || !loadingMessage) {
+                console.error("Conteneur ou message de chargement des derniers ajouts non trouvé !");
+                return;
+            }
+
+            loadingMessage.style.display = 'block';
+            container.innerHTML = ''; // Clear container before adding cards
+
+            // --- Add the "Welcome to IA Marketing Space" card statically ---
+            const welcomeCardData = {
+                titre: "Bienvenue sur l'Espace IA Marketing",
+                description: "Cette plateforme collaborative vous permet de découvrir, partager et capitaliser sur les usages de l’intelligence artificielle au sein de notre organisation. Que vous cherchiez des outils, des prompts, des cas d’usage inspirants ou que vous souhaitiez contribuer avec vos propres astuces, tout est centralisé ici pour accompagner votre montée en compétence et faciliter l’adoption de l’IA au quotidien. Explorez les différentes sections pour trouver des ressources, ajouter vos propres contributions ou poser des questions à notre chatbot IA intégré !",
+                date_ajout: new Date().toISOString() // Current date
+            };
+            container.appendChild(createCard(welcomeCardData, 'welcome-card')); 
+            // --- End of adding welcome card ---
+
+            try {
+                const casUsagesResponse = await fetch(GET_TIPS_URL);
+                if (!casUsagesResponse.ok) {
+                    throw new Error(`Erreur lors du chargement des cas d'usages: ${casUsagesResponse.statusText}`);
+                }
+                const casUsages = await casUsagesResponse.json();
+                if (!Array.isArray(casUsages)) {
+                    throw new Error("Les données des cas d'usages ne sont pas un tableau.");
+                }
+
+                const promptsResponse = await fetch(GET_PROMPTS_URL);
+                if (!promptsResponse.ok) {
+                    throw new Error(`Erreur lors du chargement des prompts de la galerie: ${promptsResponse.statusText}`);
+                }
+                const prompts = await promptsResponse.json();
+                if (!Array.isArray(prompts)) {
+                    throw new Error("Les données des prompts ne sont pas un tableau.");
+                }
+                
+                loadingMessage.style.display = 'none';
+
+                // Sort Case Studies
+                casUsages.sort((a, b) => {
+                    const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
+                    const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
+
+                    if (!dateA || isNaN(dateA.getTime())) {
+                        return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
+                    }
+                    if (!dateB || isNaN(dateB.getTime())) {
+                        return -1;
+                    }
+                    return dateB.getTime() - dateA.getTime();
+                });
+
+                // Sort Gallery Prompts
+                const imagePrompts = prompts.filter(item => item.imageUrl);
+                imagePrompts.sort((a, b) => {
+                    const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
+                    const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
+
+                    if (!dateA || isNaN(dateA.getTime())) {
+                        return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
+                    }
+                    if (!dateB || isNaN(dateB.getTime())) {
+                        return -1;
+                    }
+                    return dateB.getTime() - dateA.getTime();
+                });
+
+                const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
+                const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
+
+                if (latestCasUsage) {
+                    container.appendChild(createCard(latestCasUsage, 'cas-usage'));
+                } else {
+                    console.warn("Aucun cas d'usage trouvé pour l'affichage.");
+                }
+
+                if (latestGalerieItem) {
+                    container.appendChild(createCard(latestGalerieItem, 'galerie'));
+                } else {
+                    console.warn("Aucun élément de galerie trouvé pour l'affichage.");
+                }
+
+                if (!latestCasUsage && !latestGalerieItem && !container.querySelector('.welcome-card')) {
+                    container.innerHTML = "<p style='text-align: center; color: #777;'>Aucun ajout récent à afficher.</p>";
+                }
+
+            } catch (error) {
+                console.error("Erreur lors de la récupération ou de l'affichage des derniers ajouts:", error);
+                loadingMessage.textContent = "Erreur lors du chargement des derniers ajouts. Veuillez réessayer.";
+                loadingMessage.style.color = 'red';
+                loadingMessage.style.display = 'block';
+            }
+        }
+
+        // Function to update the notification bubble for IA demands
         async function mettreAJourBulleDemandes() {
             const notif = document.getElementById("notif-count");
             if (!notif) {
@@ -412,10 +604,20 @@
             }
         }
 
+        // --- DOMContentLoaded Listener (main execution flow when the page is ready) ---
         document.addEventListener("DOMContentLoaded", () => {
             const loader = document.getElementById("loader");
             const body = document.body;
             const headerPlaceholder = document.getElementById("header-placeholder");
+
+            // Initialize global chatbot variables after DOM is loaded
+            chatbotFab = document.getElementById('chatbot-fab');
+            chatbotContainer = document.getElementById('chatbot-container');
+            chatbotToggle = document.getElementById('chatbot-toggle');
+            chatbotInput = document.getElementById('chatbot-input');
+            chatbotSendButton = document.getElementById('chatbot-send-button');
+            chatbotMessages = document.getElementById('chatbot-messages');
+            chatbotLoading = document.getElementById('chatbot-loading');
 
             const loadComponent = async (url, placeholderId, errorMessage) => {
                 try {
@@ -449,7 +651,8 @@
                 loader.classList.add("hidden");
                 body.classList.add("show");
 
-                displayLatestAdditions();
+                // Call displayLatestAdditions AFTER header is loaded and DOM is fully ready
+                displayLatestAdditions(); 
             })
             .catch(error => {
                 console.error("Erreur générale lors du chargement des composants :", error);
@@ -457,16 +660,8 @@
                 body.classList.add("show");
             });
 
-            // --- Logique Chatbot ---
-            const chatbotFab = document.getElementById('chatbot-fab');
-            const chatbotContainer = document.getElementById('chatbot-container');
-            const chatbotToggle = document.getElementById('chatbot-toggle');
-            const chatbotInput = document.getElementById('chatbot-input');
-            const chatbotSendButton = document.getElementById('chatbot-send-button');
-            const chatbotMessages = document.getElementById('chatbot-messages');
-            const chatbotLoading = document.getElementById('chatbot-loading');
-
-            // Ouvrir/fermer le chatbot
+            // --- Chatbot Logic ---
+            // Open/close chatbot
             chatbotFab.addEventListener('click', () => {
                 chatbotContainer.style.display = chatbotContainer.style.display === 'flex' ? 'none' : 'flex';
                 if (chatbotContainer.style.display === 'flex') {
@@ -478,7 +673,7 @@
                 chatbotContainer.style.display = 'none';
             });
 
-            // Envoyer le message
+            // Send message
             chatbotSendButton.addEventListener('click', sendMessage);
             chatbotInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -490,11 +685,10 @@
                 const messageText = chatbotInput.value.trim();
                 if (messageText === "") return;
 
-                // Afficher le message de l'utilisateur
                 appendMessage(messageText, 'user');
                 chatbotInput.value = '';
                 chatbotLoading.style.display = 'block';
-                chatbotMessages.scrollTop = chatbotMessages.scrollHeight; // Scroll vers le bas
+                chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
 
                 try {
                     const response = await fetch(`${PROXY_URL}?action=chatWithGPT`, {
@@ -504,7 +698,6 @@
                     });
 
                     if (!response.ok) {
-                        // Utilisation du statut HTTP dans l'erreur pour un meilleur diagnostic
                         throw new Error(`Erreur HTTP: ${response.status}`);
                     }
 
@@ -512,194 +705,13 @@
                     appendMessage(data.reply, 'bot');
                 } catch (error) {
                     console.error('Erreur lors de la communication avec le chatbot :', error);
-                    // Utilisation de plusieurs classes comme solution au problème 'InvalidCharacterError'
                     appendMessage("Désolé, je n'ai pas pu communiquer avec l'IA. Veuillez réessayer.", 'bot', 'error-message');
                 } finally {
                     chatbotLoading.style.display = 'none';
-                    chatbotMessages.scrollTop = chatbotMessages.scrollHeight; // Scroll à nouveau
+                    chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
                 }
-            }
-
-            // Correction de la fonction appendMessage pour accepter plusieurs classes
-            function appendMessage(text, ...classes) {
-                const messageDiv = document.createElement('div');
-                messageDiv.classList.add('message', ...classes); // Utilise l'opérateur spread pour ajouter toutes les classes
-                messageDiv.textContent = text;
-                chatbotMessages.appendChild(messageDiv);
             }
         });
-
-        async function displayLatestAdditions() {
-            const container = document.getElementById("latest-additions-grid");
-            const loadingMessage = document.getElementById("post-it-loading-message");
-
-            if (!container || !loadingMessage) {
-                console.error("Conteneur ou message de chargement des derniers ajouts non trouvé !");
-                return;
-            }
-
-            loadingMessage.style.display = 'block';
-            container.innerHTML = ''; // Nettoyer le conteneur avant d'ajouter les cartes
-
-            // --- Ajout de la carte "Bienvenue sur l'Espace IA Marketing" en dur ---
-            const welcomeCardData = {
-                titre: "Bienvenue sur l'Espace IA Marketing",
-                description: "Cette plateforme collaborative vous permet de découvrir, partager et capitaliser sur les usages de l’intelligence artificielle au sein de notre organisation. Que vous cherchiez des outils, des prompts, des cas d’usage inspirants ou que vous souhaitiez contribuer avec vos propres astuces, tout est centralisé ici pour accompagner votre montée en compétence et faciliter l’adoption de l’IA au quotidien. Explorez les différentes sections pour trouver des ressources, ajouter vos propres contributions ou poser des questions à notre chatbot IA intégré !",
-                date_ajout: new Date().toISOString() // Date actuelle
-            };
-            // Crée la carte de bienvenue et l'ajoute en premier
-            container.appendChild(createCard(welcomeCardData, 'welcome-card')); 
-            // --- Fin de l'ajout de la carte "Bienvenue" ---
-
-            try {
-                const casUsagesResponse = await fetch(GET_TIPS_URL);
-                if (!casUsagesResponse.ok) {
-                    throw new Error(`Erreur lors du chargement des cas d'usages: ${casUsagesResponse.statusText}`);
-                }
-                const casUsages = await casUsagesResponse.json();
-                if (!Array.isArray(casUsages)) {
-                    throw new Error("Les données des cas d'usages ne sont pas un tableau.");
-                }
-
-                const promptsResponse = await fetch(GET_PROMPTS_URL);
-                if (!promptsResponse.ok) {
-                    throw new Error(`Erreur lors du chargement des prompts de la galerie: ${promptsResponse.statusText}`);
-                }
-                const prompts = await promptsResponse.json();
-                if (!Array.isArray(prompts)) {
-                    throw new Error("Les données des prompts ne sont pas un tableau.");
-                }
-                
-                loadingMessage.style.display = 'none';
-
-                // Tri pour les cas d'usages
-                casUsages.sort((a, b) => {
-                    const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
-                    const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
-
-                    if (!dateA || isNaN(dateA.getTime())) {
-                        return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
-                    }
-                    if (!dateB || isNaN(dateB.getTime())) {
-                        return -1;
-                    }
-                    return dateB.getTime() - dateA.getTime();
-                });
-
-                // Tri pour les prompts de la galerie
-                const imagePrompts = prompts.filter(item => item.imageUrl);
-                imagePrompts.sort((a, b) => {
-                    const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
-                    const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
-
-                    if (!dateA || isNaN(dateA.getTime())) {
-                        return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
-                    }
-                    if (!dateB || isNaN(dateB.getTime())) {
-                        return -1;
-                    }
-                    return dateB.getTime() - dateA.getTime();
-                });
-
-                const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
-                const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
-
-                const createCard = (item, type) => {
-                    const card = document.createElement("div");
-                    card.className = `addition-card ${type}`;
-
-                    const header = document.createElement('div');
-                    header.className = 'card-header';
-
-                    const icon = document.createElement('i');
-                    if (type === 'cas-usage') {
-                        icon.className = 'fas fa-lightbulb icon';
-                    } else if (type === 'galerie') {
-                        icon.className = 'fas fa-image icon';
-                    } else if (type === 'welcome-card') { // Icône spécifique pour la carte de bienvenue
-                        icon.className = 'fas fa-info-circle icon'; 
-                    }
-                    header.appendChild(icon);
-
-                    const title = document.createElement("h4");
-                    title.textContent = item.titre;
-                    header.appendChild(title);
-                    card.appendChild(header);
-
-                    if (type === 'galerie' && item.imageUrl) {
-                        const imgContainer = document.createElement('div');
-                        imgContainer.className = 'card-image-container';
-                        const img = document.createElement('img');
-                        img.src = item.imageUrl;
-                        img.alt = `Vignette de ${item.titre}`;
-                        imgContainer.appendChild(img);
-                        card.appendChild(imgContainer);
-                    }
-                    
-                    const descriptionElement = document.createElement("p");
-                    // Afficher toute la description pour la carte de bienvenue, tronquer les autres
-                    if (type === 'welcome-card') {
-                        descriptionElement.textContent = item.description;
-                    } else if (item.description) { // Pour cas d'usage et galerie si prompt est la "description"
-                        descriptionElement.textContent = item.description.substring(0, 150) + (item.description.length > 150 ? '...' : '');
-                    } else if (item.prompt) { // Si c'est un prompt de galerie sans description propre
-                        descriptionElement.textContent = item.prompt.substring(0, 150) + (item.prompt.length > 150 ? '...' : '');
-                    }
-                    card.appendChild(descriptionElement);
-
-                    const meta = document.createElement('div');
-                    meta.className = 'card-meta';
-
-                    const category = document.createElement("span");
-                    category.className = "category";
-                    if (type === 'cas-usage') {
-                        category.textContent = "Cas d'usages";
-                    } else if (type === 'galerie') {
-                        category.textContent = "Galerie";
-                    } else if (type === 'welcome-card') {
-                        category.textContent = "Information";
-                    }
-                    meta.appendChild(category);
-                    
-                    const date = document.createElement("span");
-                    date.className = "date";
-                    if (item.date_ajout) {
-                        const d = new Date(item.date_ajout);
-                        date.textContent = `Ajouté le ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
-                    } else {
-                        date.textContent = `Date inconnue`;
-                    }
-                    meta.appendChild(date);
-                    
-                    card.appendChild(meta);
-
-                    return card;
-                };
-
-                if (latestCasUsage) {
-                    container.appendChild(createCard(latestCasUsage, 'cas-usage'));
-                } else {
-                    console.warn("Aucun cas d'usage trouvé pour l'affichage.");
-                }
-
-                if (latestGalerieItem) {
-                    container.appendChild(createCard(latestGalerieItem, 'galerie'));
-                } else {
-                    console.warn("Aucun élément de galerie trouvé pour l'affichage.");
-                }
-
-                // Si aucune carte dynamique n'est ajoutée, afficher un message approprié
-                if (!latestCasUsage && !latestGalerieItem && !container.querySelector('.welcome-card')) {
-                    container.innerHTML = "<p style='text-align: center; color: #777;'>Aucun ajout récent à afficher.</p>";
-                }
-
-            } catch (error) {
-                console.error("Erreur lors de la récupération ou de l'affichage des derniers ajouts:", error);
-                loadingMessage.textContent = "Erreur lors du chargement des derniers ajouts. Veuillez réessayer.";
-                loadingMessage.style.color = 'red';
-                loadingMessage.style.display = 'block';
-            }
-        }
     </script>
 </body>
 </html>
