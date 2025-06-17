@@ -6,6 +6,425 @@
     <title>Accueil - Espace IA</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        /* Variables CSS */
+        :root {
+            --primary-blue: #0077b6;
+            --dark-blue: #005f8a;
+            --light-blue: #64B5F6;
+            --lighter-blue: #42A5F5;
+            --background-grey: #f0f2f5;
+            --card-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+            --card-hover-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            --success-bg: #d4edda;
+            --success-text: #155724;
+            --error-bg: #f8d7da;
+            --error-text: #dc3545;
+            --postit-yellow: #FFFAA0;
+            --light-blue-card: #E0F2F7;
+            --grey-text: #555;
+            --border-color: #ddd;
+        }
+
+        /* Styles généraux pour l'animation d'apparition de la page */
+        body {
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: var(--background-grey);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        body.show {
+            opacity: 1;
+        }
+        main {
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+            padding: 40px 20px;
+            flex-grow: 1;
+        }
+        main.show {
+            opacity: 1;
+        }
+
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #header-placeholder {
+            width: 100%;
+        }
+
+        /* La section de bienvenue (ancienne) ne doit plus être visible */
+        .section.welcome-section {
+            display: none; 
+        }
+        
+        .footer {
+            margin-top: auto;
+            padding: 20px;
+            text-align: center;
+            background-color: var(--dark-blue);
+            color: white;
+            font-size: 0.9em;
+        }
+
+        /* Styles pour la section des derniers ajouts - Cartes Modernes */
+        .latest-additions-section {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .latest-additions-section h2 {
+            text-align: center;
+            color: var(--primary-blue);
+            margin-bottom: 30px;
+        }
+
+        .latest-additions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        .addition-card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+        }
+
+        .addition-card.cas-usage {
+            border-left: 5px solid var(--light-blue);
+        }
+
+        .addition-card.galerie {
+            border-left: 5px solid var(--postit-yellow);
+        }
+        
+        /* Assurez-vous que cette carte n'apparaît pas si elle était ajoutée en dur */
+        .addition-card.welcome-card {
+            display: none; /* Cache explicitement la carte si elle était encore dans le HTML */
+        }
+
+        .addition-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--card-hover-shadow);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-header .icon {
+            font-size: 1.8em;
+            margin-right: 15px;
+            color: var(--primary-blue);
+        }
+
+        .card-header h4 {
+            margin: 0;
+            color: var(--dark-blue);
+            font-size: 1.2em;
+            flex-grow: 1;
+        }
+
+        .addition-card p {
+            font-size: 0.95em;
+            line-height: 1.5;
+            color: var(--grey-text);
+            margin-bottom: 15px;
+            flex-grow: 1;
+        }
+
+        .addition-card .card-image-container {
+            text-align: center;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+
+        .addition-card .card-image-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85em;
+            color: #888;
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px;
+            margin-top: 15px;
+        }
+
+        .card-meta .category {
+            font-style: italic;
+            color: var(--primary-blue);
+        }
+
+        .card-meta .date {
+            font-weight: bold;
+        }
+
+        /* Styles pour le Chatbot */
+        #chatbot-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+            width: 300px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 10px;
+            background-color: #fff;
+            display: none; /* Caché par défaut */
+            flex-direction: column;
+            max-height: 80vh;
+            overflow: hidden;
+        }
+
+        #chatbot-header {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 15px;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #chatbot-header h3 {
+            margin: 0;
+            font-size: 1.1em;
+        }
+
+        #chatbot-toggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0 5px;
+        }
+
+        #chatbot-body {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
+
+        #chatbot-messages {
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--light-blue);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+            background-color: #e0e0e0;
+            color: #333;
+            border-bottom-left-radius: 2px;
+        }
+
+        #chatbot-input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #eee;
+            background-color: #fff;
+        }
+
+        #chatbot-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            margin-right: 10px;
+            font-size: 0.9em;
+        }
+
+        #chatbot-send-button {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        #chatbot-send-button:hover {
+            background-color: var(--dark-blue);
+        }
+
+        #chatbot-loading {
+            text-align: center;
+            font-size: 0.9em;
+            color: #777;
+            padding: 5px;
+        }
+        #chatbot-fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--primary-blue);
+            color: white;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: background-color 0.3s ease;
+        }
+
+        #chatbot-fab:hover {
+            background-color: var(--dark-blue);
+        }
+
+        /* Styles pour la Modale de Bienvenue */
+        .modal {
+            display: none; /* Caché par défaut */
+            position: fixed; /* Reste en place même en défilant */
+            z-index: 1001; /* Doit être au-dessus du reste du contenu */
+            left: 0;
+            top: 0;
+            width: 100%; /* Pleine largeur */
+            height: 100%; /* Pleine hauteur */
+            overflow: auto; /* Active le défilement si nécessaire */
+            background-color: rgba(0, 0, 0, 0.4); /* Fond noir semi-transparent */
+            display: flex; /* Utilisation de flexbox pour centrer */
+            justify-content: center; /* Centrage horizontal */
+            align-items: center; /* Centrage vertical */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto; /* Supprimé car flexbox s'en occupe */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Largeur par défaut */
+            max-width: 500px; /* Largeur maximale pour une meilleure lisibilité */
+            border-radius: 10px;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+            position: relative; /* Pour positionner le bouton de fermeture */
+            text-align: center; /* Centrer le texte dans la modale */
+        }
+
+        .modal-header {
+            background-color: var(--primary-blue); /* Couleur d'en-tête */
+            color: white;
+            padding: 10px 20px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            margin: -20px -20px 20px -20px; /* Pour que l'en-tête sorte des paddings */
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .modal-body p {
+            line-height: 1.6;
+            color: var(--grey-text);
+            margin-bottom: 20px;
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute; /* Positionnement absolu par rapport au .modal-content */
+            top: 5px;
+            right: 15px;
+            cursor: pointer;
+            z-index: 10; /* S'assurer qu'il est au-dessus du header */
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .modal-button {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
+        }
+
+        .modal-button:hover {
+            background-color: var(--dark-blue);
+        }
+    </style>
 </head>
 <body>
     <div id="loader">
@@ -13,11 +432,6 @@
     </div>
 
     <div id="header-placeholder"></div>
-
-    <section class="section welcome-section" style="display: none;">
-        <h1>Bienvenue sur l'Espace IA Marketing</h1>
-        <p>Cette plateforme collaborative vous permet de découvrir, partager et capitaliser sur les usages de l’intelligence artificielle au sein de notre organisation. Que vous cherchiez des outils, des prompts, des cas d’usage inspirants ou que vous souhaitiez contribuer avec vos propres astuces, tout est centralisé ici pour accompagner votre montée en compétence et faciliter l’adoption de l’IA au quotidien. Explorez les différentes sections pour trouver des ressources, ajouter vos propres contributions ou poser des questions à notre chatbot IA intégré !</p>
-    </section>
 
     <div id="welcomeModal" class="modal">
         <div class="modal-content">
@@ -70,320 +484,221 @@
         const GET_TIPS_URL = "/.netlify/functions/get-tips";
         const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";    
         
-        // --- GLOBAL VARIABLES (accessible to all functions) ---
-        let chatbotFab;
-        let chatbotContainer;
-        let chatbotToggle;
-        let chatbotInput;
-        let chatbotSendButton;
-        let chatbotMessages;
-        let chatbotLoading;
+        // Toutes les variables et fonctions liées au DOM sont maintenant définies À L'INTÉRIEUR de DOMContentLoaded,
+        // ce qui est la meilleure pratique pour s'assurer que le DOM est prêt.
 
-        // Modal elements
-        let welcomeModal;
-        let closeButton;
-        let confirmWelcomeButton;
-
-        // --- GLOBAL FUNCTIONS (accessible everywhere) ---
-
-        // Helper function to append messages to the chatbot UI
-        function appendMessage(text, ...classes) {
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('message', ...classes);
-            messageDiv.textContent = text;
-            if (chatbotMessages) { // Add a check to ensure chatbotMessages is defined
-                chatbotMessages.appendChild(messageDiv);
-            } else {
-                console.warn("chatbotMessages element not found when trying to append message.");
-            }
-        }
-
-        // Helper function to create an addition card
-        const createCard = (item, type) => {
-            const card = document.createElement("div");
-            card.className = `addition-card ${type}`;
-
-            const header = document.createElement('div');
-            header.className = 'card-header';
-
-            const icon = document.createElement('i');
-            if (type === 'cas-usage') {
-                icon.className = 'fas fa-lightbulb icon';
-            } else if (type === 'galerie') {
-                icon.className = 'fas fa-image icon';
-            }
-            // No icon for 'welcome-card' as it's now in a modal
-
-            header.appendChild(icon);
-
-            const title = document.createElement("h4");
-            title.textContent = item.titre;
-            header.appendChild(title);
-            card.appendChild(header);
-
-            if (type === 'galerie' && item.imageUrl) {
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'card-image-container';
-                const img = document.createElement('img');
-                img.src = item.imageUrl;
-                img.alt = `Vignette de ${item.titre}`;
-                imgContainer.appendChild(img);
-                card.appendChild(imgContainer);
-            }
-            
-            const descriptionElement = document.createElement("p");
-            if (item.description) {
-                descriptionElement.textContent = item.description.substring(0, 150) + (item.description.length > 150 ? '...' : '');
-            } else if (item.prompt) {
-                descriptionElement.textContent = item.prompt.substring(0, 150) + (item.prompt.length > 150 ? '...' : '');
-            }
-            card.appendChild(descriptionElement);
-
-            const meta = document.createElement('div');
-            meta.className = 'card-meta';
-
-            const category = document.createElement("span");
-            category.className = "category";
-            if (type === 'cas-usage') {
-                category.textContent = "Cas d'usages";
-            } else if (type === 'galerie') {
-                category.textContent = "Galerie";
-            }
-            meta.appendChild(category);
-            
-            const date = document.createElement("span");
-            date.className = "date";
-            if (item.date_ajout) {
-                const d = new Date(item.date_ajout);
-                date.textContent = `Ajouté le ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
-            } else {
-                date.textContent = `Date inconnue`;
-            }
-            meta.appendChild(date);
-            
-            card.appendChild(meta);
-
-            return card;
-        };
-
-        // Function to display the latest additions (excluding the welcome card)
-        async function displayLatestAdditions() {
-            const container = document.getElementById("latest-additions-grid");
-            const loadingMessage = document.getElementById("post-it-loading-message");
-
-            if (!container || !loadingMessage) {
-                console.error("Conteneur ou message de chargement des derniers ajouts non trouvé !");
-                return;
-            }
-
-            loadingMessage.style.display = 'block';
-            container.innerHTML = ''; // Clear container before adding cards
-
-            try {
-                const casUsagesResponse = await fetch(GET_TIPS_URL);
-                if (!casUsagesResponse.ok) {
-                    throw new Error(`Erreur lors du chargement des cas d'usages: ${casUsagesResponse.statusText}`);
-                }
-                const casUsages = await casUsagesResponse.json();
-                if (!Array.isArray(casUsages)) {
-                    throw new Error("Les données des cas d'usages ne sont pas un tableau.");
-                }
-
-                const promptsResponse = await fetch(GET_PROMPTS_URL);
-                if (!promptsResponse.ok) {
-                    throw new Error(`Erreur lors du chargement des prompts de la galerie: ${promptsResponse.statusText}`);
-                }
-                const prompts = await promptsResponse.json();
-                if (!Array.isArray(prompts)) {
-                    throw new Error("Les données des prompts ne sont pas un tableau.");
-                }
-                
-                loadingMessage.style.display = 'none';
-
-                // Sort Case Studies
-                casUsages.sort((a, b) => {
-                    const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
-                    const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
-
-                    if (!dateA || isNaN(dateA.getTime())) {
-                        return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
-                    }
-                    if (!dateB || isNaN(dateB.getTime())) {
-                        return -1;
-                    }
-                    return dateB.getTime() - dateA.getTime();
-                });
-
-                // Sort Gallery Prompts
-                const imagePrompts = prompts.filter(item => item.imageUrl);
-                imagePrompts.sort((a, b) => {
-                    const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
-                    const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
-
-                    if (!dateA || isNaN(dateA.getTime())) {
-                        return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
-                    }
-                    if (!dateB || isNaN(dateB.getTime())) {
-                        return -1;
-                    }
-                    return dateB.getTime() - dateA.getTime();
-                });
-
-                const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
-                const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
-
-                if (latestCasUsage) {
-                    container.appendChild(createCard(latestCasUsage, 'cas-usage'));
-                } else {
-                    console.warn("Aucun cas d'usage trouvé pour l'affichage.");
-                }
-
-                if (latestGalerieItem) {
-                    container.appendChild(createCard(latestGalerieItem, 'galerie'));
-                } else {
-                    console.warn("Aucun élément de galerie trouvé pour l'affichage.");
-                }
-
-                if (!latestCasUsage && !latestGalerieItem) { // Check if *any* dynamic cards were added
-                    container.innerHTML = "<p style='text-align: center; color: #777;'>Aucun ajout récent à afficher.</p>";
-                }
-
-            } catch (error) {
-                console.error("Erreur lors de la récupération ou de l'affichage des derniers ajouts:", error);
-                loadingMessage.textContent = "Erreur lors du chargement des derniers ajouts. Veuillez réessayer.";
-                loadingMessage.style.color = 'red';
-                loadingMessage.style.display = 'block';
-            }
-        }
-
-        // Function to update the notification bubble for IA demands
-        async function mettreAJourBulleDemandes() {
-            const notif = document.getElementById("notif-count");
-            if (!notif) {
-                console.warn("Élément #notif-count non trouvé. La bulle de notification ne peut pas être mise à jour.");
-                return;
-            }
-            try {
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                }
-                const demandes = await res.json();
-                const demandesArray = demandes.data || demandes;
-                const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
-                notif.textContent = demandesNonTraitees.length;
-                notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
-            } catch (e) {
-                console.error("Erreur lors de la mise à jour du compteur de demandes :", e);
-                notif.style.display = "none";
-            }
-        }
-
-        // --- DOMContentLoaded Listener (main execution flow when the page is ready) ---
         document.addEventListener("DOMContentLoaded", () => {
             const loader = document.getElementById("loader");
             const body = document.body;
             const headerPlaceholder = document.getElementById("header-placeholder");
 
-            // Initialize global chatbot variables after DOM is loaded
-            chatbotFab = document.getElementById('chatbot-fab');
-            chatbotContainer = document.getElementById('chatbot-container');
-            chatbotToggle = document.getElementById('chatbot-toggle');
-            chatbotInput = document.getElementById('chatbot-input');
-            chatbotSendButton = document.getElementById('chatbot-send-button');
-            chatbotMessages = document.getElementById('chatbot-messages');
-            chatbotLoading = document.getElementById('chatbot-loading');
+            // Initialisation des éléments du chatbot
+            const chatbotFab = document.getElementById('chatbot-fab');
+            const chatbotContainer = document.getElementById('chatbot-container');
+            const chatbotToggle = document.getElementById('chatbot-toggle');
+            const chatbotInput = document.getElementById('chatbot-input');
+            const chatbotSendButton = document.getElementById('chatbot-send-button');
+            const chatbotMessages = document.getElementById('chatbot-messages');
+            const chatbotLoading = document.getElementById('chatbot-loading');
 
-            // Initialize modal elements
-            welcomeModal = document.getElementById('welcomeModal');
-            closeButton = document.querySelector('.close-button');
-            confirmWelcomeButton = document.getElementById('confirmWelcome');
+            // Initialisation des éléments de la modale de bienvenue
+            const welcomeModal = document.getElementById('welcomeModal');
+            const closeButton = document.querySelector('.close-button');
+            const confirmWelcomeButton = document.getElementById('confirmWelcome');
 
-            const loadComponent = async (url, placeholderId, errorMessage) => {
+
+            // --- Fonctions auxiliaires (définies à l'intérieur pour l'accès aux variables locales) ---
+
+            // Fonction pour ajouter un message au chatbot
+            function appendMessage(text, ...classes) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', ...classes);
+                messageDiv.textContent = text;
+                if (chatbotMessages) {
+                    chatbotMessages.appendChild(messageDiv);
+                } else {
+                    console.warn("chatbotMessages element not found when trying to append message.");
+                }
+            }
+
+            // Fonction pour créer une carte d'ajout récent
+            const createCard = (item, type) => {
+                const card = document.createElement("div");
+                card.className = `addition-card ${type}`;
+
+                const header = document.createElement('div');
+                header.className = 'card-header';
+
+                const icon = document.createElement('i');
+                if (type === 'cas-usage') {
+                    icon.className = 'fas fa-lightbulb icon';
+                } else if (type === 'galerie') {
+                    icon.className = 'fas fa-image icon';
+                }
+                header.appendChild(icon);
+
+                const title = document.createElement("h4");
+                title.textContent = item.titre;
+                header.appendChild(title);
+                card.appendChild(header);
+
+                if (type === 'galerie' && item.imageUrl) {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'card-image-container';
+                    const img = document.createElement('img');
+                    img.src = item.imageUrl;
+                    img.alt = `Vignette de ${item.titre}`;
+                    imgContainer.appendChild(img);
+                    card.appendChild(imgContainer);
+                }
+                
+                const descriptionElement = document.createElement("p");
+                if (item.description) {
+                    descriptionElement.textContent = item.description.substring(0, 150) + (item.description.length > 150 ? '...' : '');
+                } else if (item.prompt) {
+                    descriptionElement.textContent = item.prompt.substring(0, 150) + (item.prompt.length > 150 ? '...' : '');
+                }
+                card.appendChild(descriptionElement);
+
+                const meta = document.createElement('div');
+                meta.className = 'card-meta';
+
+                const category = document.createElement("span");
+                category.className = "category";
+                if (type === 'cas-usage') {
+                    category.textContent = "Cas d'usages";
+                } else if (type === 'galerie') {
+                    category.textContent = "Galerie";
+                }
+                meta.appendChild(category);
+                
+                const date = document.createElement("span");
+                date.className = "date";
+                if (item.date_ajout) {
+                    const d = new Date(item.date_ajout);
+                    date.textContent = `Ajouté le ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+                } else {
+                    date.textContent = `Date inconnue`;
+                }
+                meta.appendChild(date);
+                
+                card.appendChild(meta);
+
+                return card;
+            };
+
+            // Fonction pour afficher les derniers ajouts
+            async function displayLatestAdditions() {
+                const container = document.getElementById("latest-additions-grid");
+                const loadingMessage = document.getElementById("post-it-loading-message");
+
+                if (!container || !loadingMessage) {
+                    console.error("Conteneur ou message de chargement des derniers ajouts non trouvé !");
+                    return;
+                }
+
+                loadingMessage.style.display = 'block';
+                container.innerHTML = ''; 
+
                 try {
-                    const res = await fetch(url);
+                    const casUsagesResponse = await fetch(GET_TIPS_URL);
+                    if (!casUsagesResponse.ok) {
+                        throw new Error(`Erreur lors du chargement des cas d'usages: ${casUsagesResponse.statusText}`);
+                    }
+                    const casUsages = await casUsagesResponse.json();
+                    if (!Array.isArray(casUsages)) {
+                        throw new Error("Les données des cas d'usages ne sont pas un tableau.");
+                    }
+
+                    const promptsResponse = await fetch(GET_PROMPTS_URL);
+                    if (!promptsResponse.ok) {
+                        throw new Error(`Erreur lors du chargement des prompts de la galerie: ${promptsResponse.statusText}`);
+                    }
+                    const prompts = await promptsResponse.json();
+                    if (!Array.isArray(prompts)) {
+                        throw new Error("Les données des prompts ne sont pas un tableau.");
+                    }
+                    
+                    loadingMessage.style.display = 'none';
+
+                    casUsages.sort((a, b) => {
+                        const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
+                        const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
+
+                        if (!dateA || isNaN(dateA.getTime())) {
+                            return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
+                        }
+                        if (!dateB || isNaN(dateB.getTime())) {
+                            return -1;
+                        }
+                        return dateB.getTime() - dateA.getTime();
+                    });
+
+                    const imagePrompts = prompts.filter(item => item.imageUrl);
+                    imagePrompts.sort((a, b) => {
+                        const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
+                        const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
+
+                        if (!dateA || isNaN(dateA.getTime())) {
+                            return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
+                        }
+                        if (!dateB || isNaN(dateB.getTime())) {
+                            return -1;
+                        }
+                        return dateB.getTime() - dateA.getTime();
+                    });
+
+                    const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
+                    const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
+
+                    if (latestCasUsage) {
+                        container.appendChild(createCard(latestCasUsage, 'cas-usage'));
+                    } else {
+                        console.warn("Aucun cas d'usage trouvé pour l'affichage.");
+                    }
+
+                    if (latestGalerieItem) {
+                        container.appendChild(createCard(latestGalerieItem, 'galerie'));
+                    } else {
+                        console.warn("Aucun élément de galerie trouvé pour l'affichage.");
+                    }
+
+                    if (!latestCasUsage && !latestGalerieItem) {
+                        container.innerHTML = "<p style='text-align: center; color: #777;'>Aucun ajout récent à afficher.</p>";
+                    }
+
+                } catch (error) {
+                    console.error("Erreur lors de la récupération ou de l'affichage des derniers ajouts:", error);
+                    loadingMessage.textContent = "Erreur lors du chargement des derniers ajouts. Veuillez réessayer.";
+                    loadingMessage.style.color = 'red';
+                    loadingMessage.style.display = 'block';
+                }
+            }
+
+            // Fonction pour mettre à jour la bulle de notification des demandes IA
+            async function mettreAJourBulleDemandes() {
+                const notif = document.getElementById("notif-count");
+                if (!notif) {
+                    console.warn("Élément #notif-count non trouvé. La bulle de notification ne peut pas être mise à jour.");
+                    return;
+                }
+                try {
+                    const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                     if (!res.ok) {
                         throw new Error(`HTTP error! status: ${res.status}`);
                     }
-                    document.getElementById(placeholderId).innerHTML = await res.text();
-                } catch (error) {
-                    console.error(`Erreur lors du chargement de ${url}:`, error);
-                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
+                    const demandes = await res.json();
+                    const demandesArray = demandes.data || demandes;
+                    const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
+                    notif.textContent = demandesNonTraitees.length;
+                    notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
+                } catch (e) {
+                    console.error("Erreur lors de la mise à jour du compteur de demandes :", e);
+                    notif.style.display = "none";
                 }
-            };
-
-            loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu")
-            .then(() => {
-                mettreAJourBulleDemandes();
-
-                const path = location.pathname.split("/").pop();
-                const links = document.querySelectorAll("nav a");
-                links.forEach(link => {
-                    if (path === "" || path === "index.html") {
-                        if (link.getAttribute("href") === "index.html") {
-                            link.classList.add("active");
-                        }
-                    } else if (link.getAttribute("href") === path) {
-                        link.classList.add("active");
-                    }
-                });
-
-                loader.classList.add("hidden");
-                body.classList.add("show");
-
-                // Display the welcome modal immediately after the page is loaded and shown
-                welcomeModal.style.display = 'block';
-
-                // Call displayLatestAdditions AFTER header is loaded and DOM is fully ready
-                displayLatestAdditions(); 
-            })
-            .catch(error => {
-                console.error("Erreur générale lors du chargement des composants :", error);
-                loader.classList.add("hidden");
-                body.classList.add("show");
-            });
-
-            // --- Modal Logic ---
-            if (closeButton) {
-                closeButton.addEventListener('click', () => {
-                    welcomeModal.style.display = 'none';
-                });
             }
-            if (confirmWelcomeButton) {
-                confirmWelcomeButton.addEventListener('click', () => {
-                    welcomeModal.style.display = 'none';
-                });
-            }
-
-            // Close the modal if user clicks outside of it
-            window.addEventListener('click', (event) => {
-                if (event.target === welcomeModal) {
-                    welcomeModal.style.display = 'none';
-                }
-            });
-
-
-            // --- Chatbot Logic ---
-            // Open/close chatbot
-            chatbotFab.addEventListener('click', () => {
-                chatbotContainer.style.display = chatbotContainer.style.display === 'flex' ? 'none' : 'flex';
-                if (chatbotContainer.style.display === 'flex') {
-                    chatbotInput.focus();
-                }
-            });
-
-            chatbotToggle.addEventListener('click', () => {
-                chatbotContainer.style.display = 'none';
-            });
-
-            // Send message
-            chatbotSendButton.addEventListener('click', sendMessage);
-            chatbotInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    sendMessage();
-                }
-            });
-
+            
+            // Fonction pour envoyer un message au chatbot
             async function sendMessage() {
                 const messageText = chatbotInput.value.trim();
                 if (messageText === "") return;
@@ -414,7 +729,110 @@
                     chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
                 }
             }
+
+            // --- Logique principale au chargement du DOM ---
+
+            // 1. Charger le header (menu)
+            loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu")
+            .then(() => {
+                // Mettre à jour la bulle de notification après le chargement du header
+                mettreAJourBulleDemandes();
+
+                // Gérer les liens actifs du menu
+                const path = location.pathname.split("/").pop();
+                const links = document.querySelectorAll("nav a");
+                links.forEach(link => {
+                    if (path === "" || path === "index.html") {
+                        if (link.getAttribute("href") === "index.html") {
+                            link.classList.add("active");
+                        }
+                    } else if (link.getAttribute("href") === path) {
+                        link.classList.add("active");
+                    }
+                });
+
+                // Cacher le loader et montrer le corps de la page
+                loader.classList.add("hidden");
+                body.classList.add("show");
+
+                // 2. Afficher la modale de bienvenue
+                if (welcomeModal) {
+                    welcomeModal.style.display = 'flex'; // Utilisez 'flex' pour centrer la modale via CSS
+                } else {
+                    console.warn("Welcome modal element not found.");
+                }
+
+                // 3. Afficher les derniers ajouts (cartes)
+                displayLatestAdditions(); 
+            })
+            .catch(error => {
+                console.error("Erreur générale lors du chargement des composants :", error);
+                loader.classList.add("hidden");
+                body.classList.add("show");
+            });
+
+            // --- Gestion des événements de la modale ---
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                });
+            }
+            if (confirmWelcomeButton) {
+                confirmWelcomeButton.addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                });
+            }
+            // Fermer la modale si l'utilisateur clique en dehors
+            window.addEventListener('click', (event) => {
+                if (event.target === welcomeModal) {
+                    welcomeModal.style.display = 'none';
+                }
+            });
+
+
+            // --- Gestion des événements du chatbot ---
+            if (chatbotFab) {
+                chatbotFab.addEventListener('click', () => {
+                    chatbotContainer.style.display = chatbotContainer.style.display === 'flex' ? 'none' : 'flex';
+                    if (chatbotContainer.style.display === 'flex') {
+                        chatbotInput.focus();
+                    }
+                });
+            }
+
+            if (chatbotToggle) {
+                chatbotToggle.addEventListener('click', () => {
+                    chatbotContainer.style.display = 'none';
+                });
+            }
+
+            if (chatbotSendButton && chatbotInput) {
+                chatbotSendButton.addEventListener('click', sendMessage);
+                chatbotInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        sendMessage();
+                    }
+                });
+            } else {
+                console.warn("Chatbot elements (send button or input) not found.");
+            }
         });
+
+        // La fonction loadComponent est auxiliaire et peut être définie globalement
+        // ou passée en paramètre, mais pour le moment, laissons-la ici.
+        async function loadComponent(url, placeholderId, errorMessage) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+            } catch (error) {
+                console.error(`Erreur lors du chargement de ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
+            }
+        };
+
     </script>
 </body>
 </html>
