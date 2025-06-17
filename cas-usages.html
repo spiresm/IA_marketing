@@ -158,7 +158,7 @@
             display: flex;
             align-items: flex-start;
             padding: 0;
-            position: relative; /* IMPORTANT pour positionner le post-it et les icônes */
+            position: relative; /* IMPORTANT pour positionner le post-it */
             transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
             box-sizing: border-box;
             width: 100%;
@@ -178,7 +178,7 @@
             min-width: 0;
             padding: 15px;
             width: 100%;
-            position: relative; /* IMPORTANT pour que .card-preview-icons soit positionné par rapport à lui */
+            position: relative;
         }
 
         .tip-title {
@@ -201,34 +201,6 @@
             align-self: flex-start;
         }
 
-        /* Icônes de vignettes sur la carte (positionnées à droite des métadonnées) */
-        .card-preview-icons {
-            position: absolute;
-            top: 85px; /* Ajusté pour descendre les icônes et les aligner avec les métadonnées */
-            right: 15px;
-            display: flex;
-            gap: 8px;
-            z-index: 5;
-        }
-        .card-preview-icons .icon-vignette {
-            font-size: 1.8em;
-            color: #888;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 5px;
-            background-color: #f0f0f0;
-            border: 1px solid var(--border-color);
-            transition: color 0.2s, background-color 0.2s, transform 0.1s;
-        }
-        .card-preview-icons .icon-vignette:hover {
-            color: var(--primary-blue);
-            background-color: #e6f7ff;
-            transform: translateY(-1px);
-        }
-
         /* Section des métadonnées (Auteur, Catégorie) */
         .metadata-section {
             display: grid;
@@ -239,7 +211,6 @@
             margin-bottom: 4px;
             padding-bottom: 2px;
             border-bottom: 1px solid #eee;
-            padding-right: 80px; /* Laisse de l'espace pour les icônes */
         }
         .metadata-label {
             font-weight: bold;
@@ -257,10 +228,9 @@
         }
 
         /* Le texte de prévisualisation sur la carte (post-it) */
-        /* Ce style ne devrait JAMAIS contenir d'icônes, son contenu vient de tip.previewText échappé */
         .preview-post-it {
-            position: absolute; /* Reste positionné pour l'effet "post-it" */
-            top: 70px; /* Ajusté */
+            position: absolute;
+            top: 70px;
             right: 10px;
             background-color: var(--postit-yellow);
             color: #333;
@@ -291,6 +261,34 @@
             gap: 10px;
             margin-bottom: 5px;
             align-items: center;
+            flex-wrap: wrap; /* Permet aux éléments de passer à la ligne si pas assez d'espace */
+        }
+
+        /* NOUVEAUX STYLES POUR LES ICONES EN LIGNE AVEC LES BOUTONS */
+        .card-preview-icons-inline {
+            display: flex; /* Pour aligner les icônes horizontalement */
+            gap: 8px; /* Espacement entre les icônes */
+            margin-left: 15px; /* Pour les espacer des boutons */
+            align-items: center; /* Centrer verticalement avec les boutons */
+            flex-shrink: 0; /* Empêche les icônes de se compresser */
+        }
+        .card-preview-icons-inline .icon-vignette {
+            font-size: 1.5em; /* Légèrement plus petites */
+            color: #888;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+            border: 1px solid var(--border-color);
+            transition: color 0.2s, background-color 0.2s, transform 0.1s;
+        }
+        .card-preview-icons-inline .icon-vignette:hover {
+            color: var(--primary-blue);
+            background-color: #e6f7ff;
+            transform: translateY(-1px);
         }
 
         /* Styles spécifiques pour le bouton "Copier le prompt" */
@@ -328,7 +326,7 @@
         }
 
         .toggle-content-btn:hover, .edit-btn:hover {
-            background-color: var(--dark-blue);
+            background: var(--dark-blue);
             transform: translateY(-1px);
         }
 
@@ -341,7 +339,8 @@
             cursor: pointer;
             transition: color 0.2s, transform 0.1s;
             padding: 0 5px;
-            align-self: flex-start;
+            align-self: flex-start; /* Aligner la corbeille en haut à gauche de son conteneur */
+            margin-top: 5px; /* Petit ajustement pour l'alignement visuel */
         }
 
         .supprimer-btn:hover {
@@ -385,14 +384,14 @@
             padding: 15px;
             background-color: var(--error-bg);
             border: 1px solid #f5c6cb;
-            border-radius: 8px;
+            border-radius: 8gpx;
         }
 
         /* Styles for the new right-side preview panel */
         .preview-panel {
             position: fixed;
             top: 0;
-            right: -760px;
+            right: -760px; /* Masqué par défaut */
             width: 740px;
             max-width: 90%;
             height: 100%;
@@ -410,6 +409,26 @@
         .preview-panel.open {
             right: 0;
         }
+
+        /* Overlay pour la fermeture au clic dans le vide */
+        .preview-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4); /* Assombrir l'arrière-plan */
+            z-index: 999; /* Juste en dessous du panneau, au-dessus du reste */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        .preview-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
 
         .preview-panel-header {
             display: flex;
@@ -451,12 +470,15 @@
             color: #333;
         }
 
-        /* Styles pour les images dans le panneau d'aperçu */
-        .preview-panel-image {
-            max-width: 100%;
-            height: auto;
-            display: block;
+        /* Styles pour les images dans le panneau d'aperçu (vignette) */
+        .preview-panel-image-container {
+            text-align: center; /* Centrer l'image à l'intérieur de son conteneur */
             margin-bottom: 20px;
+        }
+        .preview-panel-image {
+            max-width: 200px; /* Taille maximale pour une vignette */
+            height: auto;
+            display: inline-block; /* Pour que text-align: center fonctionne */
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
@@ -583,10 +605,9 @@
             .metadata-section {
                 grid-template-columns: 1fr;
                 gap: 5px;
-                padding-right: 0;
             }
-            /* Masquer les icônes de vignettes sur les petits écrans pour économiser de l'espace */
-            .card-preview-icons {
+            /* Cache les icônes de vignettes en ligne sur les petits écrans */
+            .card-preview-icons-inline {
                 display: none;
             }
 
@@ -690,6 +711,8 @@
 
     <div id="footer-placeholder"></div>
 
+    <div id="previewOverlay" class="preview-overlay"></div>
+
     <div id="previewPanel" class="preview-panel">
         <div class="preview-panel-header">
             <h3 id="previewPanelTitle">Aperçu du contenu</h3>
@@ -714,6 +737,10 @@
         const previewPanelContent = document.getElementById('previewPanelContent');
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const bodyElement = document.body;
+
+        // NOUVELLE DECLARATION DE L'OVERLAY
+        const previewOverlay = document.getElementById('previewOverlay');
+
 
         document.addEventListener("DOMContentLoaded", () => {
             const headerPlaceholder = document.getElementById("header-placeholder");
@@ -799,20 +826,7 @@
             card.setAttribute('data-preview-text', tip.previewText ? tip.previewText.toLowerCase() : '');
             card.style.borderLeftColor = tip.couleur || '#0077b6';
 
-            // Conteneur pour les icônes de prévisualisation (image et document)
-            let previewIconsHtml = '';
-            // Les icônes sont générées ICI, et non dans le texte de prévisualisation
-            if (tip.imageUrl || tip.documentUrl) { 
-                previewIconsHtml = `
-                    <div class="card-preview-icons">
-                        ${tip.imageUrl ? '<span class="icon-vignette" title="Contient une image"><i class="fas fa-image"></i></span>' : ''}
-                        ${tip.documentUrl ? '<span class="icon-vignette" title="Contient un document"><i class="fas fa-file-alt"></i></span>' : ''}
-                    </div>
-                `;
-            }
-
-            // La structure HTML assure que les icônes sont DANS le infos-wrapper
-            // et que le post-it est un ÉLÉMENT FRÈRE du infos-wrapper
+            // Les icônes sont maintenant insérées dans le top-buttons-group
             card.innerHTML = `
                 <div class="infos-wrapper">
                     <div class="tip-title">${tip.titre || 'Sans titre'}</div>
@@ -825,14 +839,20 @@
                         <span class="metadata-value">${tip.categorie || 'N/A'}</span>
                     </div>
 
-                    ${previewIconsHtml} <div class="text-display"></div>
-
+                    <div class="text-display"></div>
 
                     <div class="card-actions">
                         <div class="top-buttons-group">
                             <button class="toggle-content-btn" data-id="${tip.id}">Aperçu</button>
                             <button class="copier-btn" data-clipboard-text="${escapeHtml(tip.prompt || '')}">Copier le prompt</button>
                             <button class="edit-btn" onclick="window.location.href='editer-tip.html?id=${tip.id}'">Éditer</button>
+
+                            ${tip.imageUrl || tip.documentUrl ? `
+                                <div class="card-preview-icons-inline">
+                                    ${tip.imageUrl ? '<span class="icon-vignette" title="Contient une image"><i class="fas fa-image"></i></span>' : ''}
+                                    ${tip.documentUrl ? '<span class="icon-vignette" title="Contient un document"><i class="fas fa-file-alt"></i></span>' : ''}
+                                </div>
+                            ` : ''}
                         </div>
                         <button class="supprimer-btn" data-id="${tip.id}"><i class="fas fa-trash-alt"></i></button>
                     </div>
@@ -1072,11 +1092,14 @@
 
             // Ajouter les éléments image et document s'ils existent dans le panneau de prévisualisation
             if (tip.imageUrl) {
+                const imageContainer = document.createElement('div'); // Conteneur pour centrer l'image
+                imageContainer.className = 'preview-panel-image-container';
                 const imageElement = document.createElement('img');
                 imageElement.src = tip.imageUrl;
                 imageElement.alt = `Image pour ${tip.titre}`;
                 imageElement.className = 'preview-panel-image';
-                previewPanelContent.appendChild(imageElement);
+                imageContainer.appendChild(imageElement);
+                previewPanelContent.appendChild(imageContainer);
             }
 
             if (tip.documentUrl) {
@@ -1088,13 +1111,21 @@
                 previewPanelContent.appendChild(documentLink);
             }
 
-
             previewPanel.classList.add('open');
+            previewOverlay.classList.add('open'); // Ouvrir l'overlay
             bodyElement.style.overflow = 'hidden';
         }
 
         closePreviewBtn.addEventListener('click', () => {
             previewPanel.classList.remove('open');
+            previewOverlay.classList.remove('open'); // Fermer l'overlay
+            bodyElement.style.overflow = '';
+        });
+
+        // Écouteur pour fermer le panneau si on clique sur l'overlay
+        previewOverlay.addEventListener('click', () => {
+            previewPanel.classList.remove('open');
+            previewOverlay.classList.remove('open');
             bodyElement.style.overflow = '';
         });
 
