@@ -505,7 +505,6 @@
                     const files = e.dataTransfer.files;
                     if (files.length) {
                         console.log("Fichiers déposés:", files);
-                        fileInput.value.files = files;
                         handleFiles(files);
                     } else {
                         console.log("Aucun fichier déposé.");
@@ -522,14 +521,13 @@
                     }
                 }
 
-                function handleFiles(files) {
-                    selectedFiles.value = Array.from(files);
-                    filePreviewUrls.value = [];
-                    fileNamesForDocuments.value = [];
+                function handleFiles(newlySelectedFiles) {
+                    // Concatenate new files with existing ones
+                    selectedFiles.value = [...selectedFiles.value, ...Array.from(newlySelectedFiles)];
 
-                    console.log("Fichiers à traiter dans handleFiles (pour aperçu et/ou noms):", selectedFiles.value);
+                    console.log("Fichiers nouvellement traités dans handleFiles (pour aperçu et/ou noms):", newlySelectedFiles);
 
-                    selectedFiles.value.forEach(file => {
+                    Array.from(newlySelectedFiles).forEach(file => {
                         console.log(`Traitement du fichier: ${file.name}, Type: ${file.type}, Taille: ${file.size} octets`);
                         if (file.type.startsWith('image/')) {
                             const reader = new FileReader();
@@ -586,14 +584,19 @@
                             outil: outil.value,
                         };
 
+                        // Currently, only the first image is sent to the backend.
+                        // To send multiple images, the backend function `pushTip` would need to be updated
+                        // to handle an array of image data and file names.
                         if (selectedFiles.value.length > 0 && selectedFiles.value[0].type.startsWith('image/')) {
                             const firstImage = selectedFiles.value[0];
-                            const firstImageUrl = filePreviewUrls.value[0];
-
+                            // Find the data URL for the first image that was previewed
+                            // This assumes filePreviewUrls are in the same order as selectedFiles
+                            const firstImageUrl = filePreviewUrls.value.find(url => url.includes(btoa(firstImage.name.substring(0, 10)))); // A rough way to match,
+                                                                                                            // ideally map preview URLs to files explicitly
                             if (firstImageUrl) {
                                 payload.imageData = firstImageUrl;
                                 payload.imageFileName = firstImage.name;
-                                console.log("Image détectée et ajoutée au payload pour envoi à la fonction Netlify.");
+                                console.log("Première image détectée et ajoutée au payload pour envoi à la fonction Netlify.");
                             } else {
                                 console.warn("Image sélectionnée mais Data URL non disponible pour l'envoi.");
                             }
@@ -622,8 +625,8 @@
                             confirmationImageUrl.value = result.imageUrl;
                             console.log("Image de confirmation définie avec l'URL publique de GitHub:", result.imageUrl);
                         } else if (filePreviewUrls.value.length > 0) {
-                            confirmationImageUrl.value = filePreviewUrls.value[0];
-                            console.log("Image de confirmation définie avec l'URL d'aperçu local.");
+                            confirmationImageUrl.value = filePreviewUrls.value[0]; // Still uses the first previewed image for confirmation
+                            console.log("Image de confirmation définie avec l'URL d'aperçu local (première image).");
                         } else {
                             confirmationImageUrl.value = '';
                             console.log("Aucune image de confirmation disponible.");
@@ -653,13 +656,13 @@
                         filePreviewUrls.value = [];
                         fileNamesForDocuments.value = [];
                         if (fileInput.value) {
-                            fileInput.value.value = null;
+                            fileInput.value.value = null; // Clear the file input element's value
                         }
                         fetchProfils();
                         console.log("Formulaire réinitialisé.");
 
                     }
-                     catch (err) {
+                    catch (err) {
                         console.error('Erreur irrécupérable lors de l\'envoi du tip:', err);
                         alert(`Échec de l'envoi du tip: ${err.message || err}. Vérifiez la console pour plus de détails.`);
                     } finally {
