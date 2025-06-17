@@ -21,7 +21,7 @@
             --success-text: #155724;
             --error-bg: #f8d7da;
             --error-text: #dc3545;
-            --postit-yellow: #FFFAA0;
+            --postit-yellow: #FFFAA0; /* Maintenu au cas où d'autres usages de cette couleur existent */
             --light-blue-card: #E0F2F7;
             --grey-text: #555;
             --border-color: #ddd;
@@ -422,59 +422,6 @@
         .modal-button:hover {
             background-color: var(--dark-blue);
         }
-
-        /* Styles pour le conteneur du post-it (pour cas-usages.html ou similaire) */
-        .post-it-container {
-            display: flex;
-            justify-content: center; /* Centrer le post-it horizontalement */
-            margin: 30px auto; /* Marge au-dessus et en dessous, centré */
-            max-width: 400px; /* Largeur maximale pour le post-it */
-            perspective: 1000px; /* Pour un effet de rotation potentiel */
-        }
-
-        .post-it-content {
-            background-color: var(--postit-yellow); /* Couleur jaune du post-it */
-            padding: 20px 25px;
-            border-radius: 5px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); /* Ombre pour l'effet 3D */
-            position: relative;
-            transform: rotate(2deg); /* Légère inclinaison pour l'effet post-it */
-            transform-origin: center center;
-            transition: transform 0.3s ease;
-            border: 1px solid #e0d970; /* Bordure légère */
-            text-align: center;
-        }
-
-        .post-it-content:hover {
-            transform: rotate(0deg) scale(1.02); /* Redresser légèrement et agrandir au survol */
-        }
-
-        .post-it-icon {
-            color: #a0a0a0; /* Couleur de la punaise */
-            font-size: 1.5em;
-            position: absolute;
-            top: 5px; /* Position en haut */
-            left: 50%; /* Centré horizontalement */
-            transform: translateX(-50%) rotate(-10deg); /* Légère rotation de la punaise */
-            z-index: 1; /* Pour qu'il soit au-dessus du texte */
-        }
-
-        .post-it-content p {
-            margin-top: 15px; /* Espace pour la punaise */
-            font-size: 1.1em;
-            color: #333;
-            line-height: 1.5;
-            font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif; /* Police style "écrit à la main" */
-            text-shadow: 1px 1px 0 rgba(255,255,255,0.7); /* Petit effet d'ombre sur le texte */
-        }
-
-        .post-it-meta {
-            display: block;
-            margin-top: 15px;
-            font-size: 0.85em;
-            color: #666;
-            font-style: italic;
-        }
     </style>
 </head>
 <body>
@@ -577,7 +524,6 @@
                 } else if (type === 'galerie') {
                     icon.className = 'fas fa-image icon';
                 } 
-                // Le post-it n'est plus une carte générée dynamiquement ici
                 header.appendChild(icon);
 
                 const title = document.createElement("h4");
@@ -596,11 +542,17 @@
                 }
                 
                 const descriptionElement = document.createElement("p");
-                if (item.description) {
-                    descriptionElement.textContent = item.description.substring(0, 150) + (item.description.length > 150 ? '...' : '');
+                let descriptionText = "";
+
+                if (type === 'cas-usage' && item.titre === "Optimisation de Contenu SEO avec l'IA") {
+                    // Ajouter le contenu du post-it à la description de cette carte spécifique
+                    descriptionText = "Accélérez l'optimisation SEO de vos contenus web grâce à l'aide de ChatGPT, en quelques minutes. " + (item.description ? item.description.substring(0, 100) + (item.description.length > 100 ? '...' : '') : '');
+                } else if (item.description) {
+                    descriptionText = item.description.substring(0, 150) + (item.description.length > 150 ? '...' : '');
                 } else if (item.prompt) {
-                    descriptionElement.textContent = item.prompt.substring(0, 150) + (item.prompt.length > 150 ? '...' : '');
+                    descriptionText = item.prompt.substring(0, 150) + (item.prompt.length > 150 ? '...' : '');
                 }
+                descriptionElement.textContent = descriptionText;
                 card.appendChild(descriptionElement);
 
                 const meta = document.createElement('div');
@@ -641,7 +593,7 @@
 
                 loadingMessage.style.display = 'block';
                 container.innerHTML = ''; 
-                // Le post-it n'est plus ajouté ici dynamiquement. Il doit être dans cas-usages.html.
+                // Le post-it n'est plus ajouté ici dynamiquement. Il est fusionné dans la carte "Cas d'usages".
 
                 try {
                     const casUsagesResponse = await fetch(GET_TIPS_URL);
@@ -694,12 +646,14 @@
                     const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
                     const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
 
+                    // Crée la carte Cas d'usages avec le texte fusionné
                     if (latestCasUsage) {
                         container.appendChild(createCard(latestCasUsage, 'cas-usage'));
                     } else {
                         console.warn("Aucun cas d'usage trouvé pour l'affichage.");
                     }
 
+                    // Crée la carte Galerie
                     if (latestGalerieItem) {
                         container.appendChild(createCard(latestGalerieItem, 'galerie'));
                     } else {
