@@ -158,7 +158,7 @@
             display: flex;
             align-items: flex-start;
             padding: 0;
-            position: relative;
+            position: relative; /* IMPORTANT pour positionner le post-it et les icônes */
             transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
             box-sizing: border-box;
             width: 100%;
@@ -178,7 +178,7 @@
             min-width: 0;
             padding: 15px;
             width: 100%;
-            position: relative; /* Important pour que .card-preview-icons soit positionné par rapport à lui */
+            position: relative; /* IMPORTANT pour que .card-preview-icons soit positionné par rapport à lui */
         }
 
         .tip-title {
@@ -257,7 +257,7 @@
         }
 
         /* Le texte de prévisualisation sur la carte (post-it) */
-        /* Ce style ne devrait jamais contenir d'icônes si le JS est correct */
+        /* Ce style ne devrait JAMAIS contenir d'icônes, son contenu vient de tip.previewText échappé */
         .preview-post-it {
             position: absolute; /* Reste positionné pour l'effet "post-it" */
             top: 70px; /* Ajusté */
@@ -801,7 +801,8 @@
 
             // Conteneur pour les icônes de prévisualisation (image et document)
             let previewIconsHtml = '';
-            if (tip.imageUrl || tip.documentUrl) { // N'affiche les icônes que si une image ou un document existe
+            // Les icônes sont générées ICI, et non dans le texte de prévisualisation
+            if (tip.imageUrl || tip.documentUrl) { 
                 previewIconsHtml = `
                     <div class="card-preview-icons">
                         ${tip.imageUrl ? '<span class="icon-vignette" title="Contient une image"><i class="fas fa-image"></i></span>' : ''}
@@ -810,8 +811,8 @@
                 `;
             }
 
-            // Le post-it (.preview-post-it) reste EN DEHORS du .infos-wrapper
-            // L'emplacement des icônes est géré par ${previewIconsHtml} dans .infos-wrapper
+            // La structure HTML assure que les icônes sont DANS le infos-wrapper
+            // et que le post-it est un ÉLÉMENT FRÈRE du infos-wrapper
             card.innerHTML = `
                 <div class="infos-wrapper">
                     <div class="tip-title">${tip.titre || 'Sans titre'}</div>
@@ -1028,19 +1029,20 @@
             if (tip.previewText) {
                 const previewTextElement = document.createElement('div');
                 previewTextElement.className = 'preview-text-card-yellow';
-                previewTextElement.innerHTML = `<strong>Prévisualisation:</strong><br>${escapeHtml(tip.previewText)}`;
+                // Utilisation de textContent pour éviter l'interprétation HTML
+                previewTextElement.innerHTML = `<strong>Prévisualisation:</strong><br>${escapeHtml(tip.previewText)}`; 
                 previewPanelContent.appendChild(previewTextElement);
             }
             if (tip.description) {
                 const descriptionElement = document.createElement('div');
                 descriptionElement.className = 'content-card-blue';
-                descriptionElement.innerHTML = `<strong>Description:</strong><br>${escapeHtml(tip.description)}`;
+                descriptionElement.innerHTML = `<strong>Description:</strong><br>${escapeHtml(tip.description)}`; 
                 previewPanelContent.appendChild(descriptionElement);
             }
             if (tip.exemple) {
                 const exempleElement = document.createElement('div');
                 exempleElement.className = 'content-card-blue';
-                exempleElement.innerHTML = `<strong>Exemple:</strong><br>${escapeHtml(tip.exemple)}`;
+                exempleElement.innerHTML = `<strong>Exemple:</strong><br>${escapeHtml(tip.exemple)}`; 
                 previewPanelContent.appendChild(exempleElement);
             }
             if (tip.prompt) {
@@ -1050,7 +1052,7 @@
 
                 const promptPre = document.createElement('pre');
                 promptPre.className = 'prompt-content-pre';
-                promptPre.textContent = tip.prompt;
+                promptPre.textContent = tip.prompt; // textContent pour éviter interprétation
                 previewPanelContent.appendChild(promptPre);
 
                 const copyPanelBtn = document.createElement('button');
