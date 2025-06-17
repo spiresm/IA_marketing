@@ -244,7 +244,7 @@
     <script>
         const PROXY_URL = "/.netlify/functions/proxy";
         const GET_TIPS_URL = "/.netlify/functions/get-tips";
-        const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts"; // Assurez-vous que c'est bien getGalleryPrompts
+        const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts"; 
         const apiBase = window.location.origin + '/.netlify/functions/';
 
         async function mettreAJourBulleDemandes() {
@@ -347,11 +347,47 @@
                 
                 loadingMessage.style.display = 'none';
 
-                casUsages.sort((a, b) => new Date(b.date_ajout) - new Date(a.date_ajout));
-                const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
+                // --- DEBUT DE LA MODIFICATION POUR LE TRI DES CAS D'USAGES ---
+                casUsages.sort((a, b) => {
+                    // Tente de créer des objets Date à partir de date_ajout.
+                    // Si date_ajout est manquante, null, ou invalide, dateA/B sera null ou "Invalid Date".
+                    const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
+                    const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
 
-                const imagePrompts = prompts.filter(item => item.imageUrl);
-                imagePrompts.sort((a, b) => new Date(b.date_ajout) - new Date(a.date_ajout));
+                    // Gérer les cas où les dates sont invalides ou manquantes
+                    // Objectif : Placer les entrées sans date valide à la fin.
+                    if (!dateA || isNaN(dateA.getTime())) {
+                        // Si A est invalide, B est invalide -> leur ordre relatif n'importe pas (0)
+                        // Si A est invalide, B est valide -> A est "plus ancien", le pousse vers la fin (1)
+                        return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
+                    }
+                    if (!dateB || isNaN(dateB.getTime())) {
+                        // Si B est invalide, A est valide -> B est "plus ancien", le pousse vers la fin (-1)
+                        return -1;
+                    }
+                    
+                    // Les deux dates sont valides, trier par ordre décroissant (le plus récent en premier)
+                    return dateB.getTime() - dateA.getTime();
+                });
+                // --- FIN DE LA MODIFICATION POUR LE TRI DES CAS D'USAGES ---
+
+                // Tri pour les prompts de la galerie (utilise la même logique robuste)
+                const imagePrompts = prompts.filter(item => item.imageUrl); // Votre filtre existant
+                imagePrompts.sort((a, b) => {
+                    const dateA = a.date_ajout ? new Date(a.date_ajout) : null;
+                    const dateB = b.date_ajout ? new Date(b.date_ajout) : null;
+
+                    if (!dateA || isNaN(dateA.getTime())) {
+                        return (!dateB || isNaN(dateB.getTime())) ? 0 : 1;
+                    }
+                    if (!dateB || isNaN(dateB.getTime())) {
+                        return -1;
+                    }
+                    return dateB.getTime() - dateA.getTime();
+                });
+
+                // Ne prenez que le dernier cas d'usage et le dernier élément de galerie APRÈS le tri
+                const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
                 const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
 
                 const createPostIt = (item, type) => {
@@ -384,7 +420,7 @@
                         category.textContent = `Catégorie: Galerie`;
                         postIt.appendChild(category);
 
-                    } else {
+                    } else { // type === 'cas-usage'
                         const description = document.createElement("p");
                         description.textContent = item.description;
                         postIt.appendChild(description);
@@ -397,9 +433,12 @@
                     
                     const date = document.createElement("div");
                     date.className = "post-it-date";
-                    if (item.date_ajout) {
+                    if (item.date_ajout) { // Affiche la date si elle existe
                         const d = new Date(item.date_ajout);
+                        // Utilise toLocaleDateString pour un format de date localisé (ex: 17/06/2025)
                         date.textContent = `Ajouté le: ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+                    } else {
+                        date.textContent = `Ajouté le: Date inconnue`; // Message si la date est absente ou invalide
                     }
                     postIt.appendChild(date);
                     return postIt;
