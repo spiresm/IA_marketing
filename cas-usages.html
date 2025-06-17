@@ -681,15 +681,10 @@
                     <select id="filtre-auteur">
                         <option value="">Tous les auteurs</option>
                     </select>
-                    <select id="filtre-outil">
-                        <option value="">Tous les outils</option>
-                        <option>Midjourney</option>
-                        <option>DALL·E</option>
-                        <option>Stable Diffusion</option>
-                        <option>Adobe Firefly</option>
-                        <option>Runway</option>
-                        <option>ChatGPT</option>
-                        <option>Autre</option>
+                    <select id="filtre-date-creation">
+                        <option value="">Date de création (par défaut: plus récent)</option>
+                        <option value="recent">Plus récent d'abord</option>
+                        <option value="oldest">Plus ancien d'abord</option>
                     </select>
                 </div>
                 <div class="action-buttons">
@@ -728,7 +723,7 @@
         const errorDisplay = document.getElementById('error-display');
         const filtreAuteurSelect = document.getElementById('filtre-auteur');
         const filtreCategorieSelect = document.getElementById('filtre-categorie');
-        const filtreOutilSelect = document.getElementById('filtre-outil');
+        const filtreDateCreationSelect = document.getElementById('filtre-date-creation'); // MODIFIÉ
 
         const previewTextInput = document.getElementById('preview-text');
 
@@ -822,8 +817,10 @@
             card.setAttribute('data-id', tip.id);
             card.setAttribute('data-categorie', tip.categorie);
             card.setAttribute('data-auteur', tip.auteur);
-            card.setAttribute('data-outil', tip.outil);
+            card.setAttribute('data-outil', tip.outil); // Maintenir pour compatibilité si "outil" est utilisé ailleurs
             card.setAttribute('data-preview-text', tip.previewText ? tip.previewText.toLowerCase() : '');
+            // Ajout de l'attribut data-creation-date pour le tri
+            card.setAttribute('data-creation-date', tip.creationDate ? new Date(tip.creationDate).getTime() : 0);
             card.style.borderLeftColor = tip.couleur || '#0077b6';
 
             // Les icônes sont maintenant insérées dans le top-buttons-group
@@ -837,6 +834,7 @@
                         <span class="metadata-value auteur-value">${tip.auteur || 'N/A'}</span>
                         <span class="metadata-label">Catégorie:</span>
                         <span class="metadata-value">${tip.categorie || 'N/A'}</span>
+                        ${tip.creationDate ? `<span class="metadata-label">Créé le:</span><span class="metadata-value">${new Date(tip.creationDate).toLocaleDateString('fr-FR')}</span>` : ''}
                     </div>
 
                     <div class="text-display"></div>
@@ -857,7 +855,7 @@
                         <button class="supprimer-btn" data-id="${tip.id}"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 </div>
-                ${tip.previewText ? `<div class="preview-post-it">${escapeHtml(tip.previewText)}</div>` : ''} 
+                ${tip.previewText ? `<div class="preview-post-it">${escapeHtml(tip.previewText)}</div>` : ''}
             `;
 
             // Ajout des écouteurs d'événements
@@ -890,189 +888,187 @@
                             const response = await fetch(`${apiBase}delete-tip`, {
                                 method: 'DELETE',
                                 headers: {
-                                    'Content-Type': 'application/json'
+                                    'Content-Type': 'application/json' // Ajout de Content-Type
                                 },
-                                body: JSON.stringify({ id: tipId })
+                                body: JSON.stringify({ id: tipId }) // Envoyer l'ID dans le corps de la requête
                             });
 
                             if (!response.ok) {
-                                const errorData = await response.json();
-                                throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+                                throw new Error(`Erreur HTTP: ${response.status}`);
                             }
 
                             const result = await response.json();
                             if (result.success) {
                                 showSuccessMessage('Tip supprimé avec succès !');
-                                loadAndDisplayTips(); // Recharge et affiche les tips après suppression
+                                loadAndDisplayTips(); // Recharger les tips après suppression
                             } else {
-                                showErrorMessage(`Erreur lors de la suppression: ${result.message}`);
+                                throw new Error(result.message || 'Échec de la suppression du tip.');
                             }
                         } catch (error) {
                             console.error('Erreur lors de la suppression du tip:', error);
-                            showErrorMessage('Erreur réseau ou serveur lors de la suppression du tip: ' + error.message);
+                            showErrorMessage('Erreur lors de la suppression: ' + error.message);
                         }
                     }
                 });
             }
-
             return card;
         }
 
+        // Fonction pour afficher les messages de succès
+        function showSuccessMessage(message) {
+            const msg = document.getElementById('success-message');
+            msg.textContent = '✅ ' + message;
+            msg.style.opacity = '1';
+            setTimeout(() => msg.style.opacity = '0', 2000);
+        }
+
+        // Fonction pour afficher les messages d'erreur
+        function showErrorMessage(message) {
+            const msg = document.getElementById('error-display');
+            msg.textContent = '❌ ' + message;
+            msg.style.display = 'block'; // Rendre visible
+            setTimeout(() => msg.style.display = 'none', 5000); // Cacher après 5 secondes
+        }
+
         async function loadAndDisplayTips() {
-            galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
-            errorDisplay.style.display = 'none';
+            galerieDiv.innerHTML = '<div class="loader"></div> <p style="text-align: center;">Chargement des tips...</p>';
+            errorDisplay.style.display = 'none'; // Cacher les erreurs précédentes
+
             try {
                 const response = await fetch(`${apiBase}get-tips`);
                 if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                allTips = await response.json();
-                console.log('Tips chargés:', allTips);
-                populateFilterOptions(allTips);
-                filterAndDisplayTips();
+                const data = await response.json();
+                allTips = data.tips; // Assurez-vous que la réponse contient un tableau 'tips'
+                populateFilters(); // Remplir les filtres après avoir chargé les tips
+                applyFilters(); // Appliquer les filtres et le tri initiaux
             } catch (error) {
                 console.error("Erreur de chargement des tips:", error);
-                galerieDiv.innerHTML = ''; // Enlève le loader
-                showErrorMessage('Erreur lors du chargement des tips : ' + error.message);
+                galerieDiv.innerHTML = ''; // Enlever le loader
+                showErrorMessage("Impossible de charger les tips. " + error.message);
             }
         }
 
-        function populateFilterOptions(tips) {
+        function populateFilters() {
             const auteurs = new Set();
             const categories = new Set();
+            // Assuming tools are still needed somewhere or derived
             const outils = new Set();
 
-            tips.forEach(tip => {
+            allTips.forEach(tip => {
                 if (tip.auteur) auteurs.add(tip.auteur);
                 if (tip.categorie) categories.add(tip.categorie);
-                if (tip.outil) outils.add(tip.outil);
+                if (tip.outil) outils.add(tip.outil); // Conserver pour d'autres usages si besoin
             });
 
-            // Populate Auteur filter
-            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
-            Array.from(auteurs).sort().forEach(auteur => {
-                const option = document.createElement('option');
-                option.value = auteur;
-                option.textContent = auteur;
-                filtreAuteurSelect.appendChild(option);
-            });
+            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>' +
+                Array.from(auteurs).sort().map(auteur => `<option>${escapeHtml(auteur)}</option>`).join('');
 
-            // Populate Catégorie filter (keep existing static options, add new dynamic ones)
-            // For categories, it's better to manage a fixed list in HTML if they are well-defined
-            // If you want dynamic, you'd clear and re-add all, including static
-            // For now, assuming static list is sufficient for categories unless specified otherwise
-            // If you want to dynamically add categories not in the static list:
-            // const existingCategoryOptions = Array.from(filtreCategorieSelect.options).map(opt => opt.value);
-            // Array.from(categories).sort().forEach(cat => {
-            //     if (!existingCategoryOptions.includes(cat)) {
-            //         const option = document.createElement('option');
-            //         option.value = cat;
-            //         option.textContent = cat;
-            //         filtreCategorieSelect.appendChild(option);
-            //     }
-            // });
+            // Categories are hardcoded in HTML, so no need to populate from data for now
+            // But if they were dynamic, it would be done here.
 
-            // Populate Outil filter (similar to Auteur)
-            filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>';
-            Array.from(outils).sort().forEach(outil => {
-                const option = document.createElement('option');
-                option.value = outil;
-                option.textContent = outil;
-                filtreOutilSelect.appendChild(option);
-            });
+            // No need to populate filtre-outil as it's replaced
         }
 
+        function applyFilters() {
+            let filteredTips = [...allTips]; // Créer une copie pour ne pas modifier l'original
 
-        function filterAndDisplayTips() {
-            const categorieFiltre = filtreCategorieSelect.value;
-            const auteurFiltre = filtreAuteurSelect.value;
-            const outilFiltre = filtreOutilSelect.value;
-            const previewTextFiltre = previewTextInput.value.toLowerCase().trim();
+            const searchTerm = previewTextInput.value.toLowerCase();
+            const selectedCategorie = filtreCategorieSelect.value;
+            const selectedAuteur = filtreAuteurSelect.value;
+            const selectedDateSort = filtreDateCreationSelect.value; // Nouveau: récupérer la valeur du tri par date
 
-            const filteredTips = allTips.filter(tip => {
-                const matchesCategorie = !categorieFiltre || tip.categorie === categorieFiltre;
-                const matchesAuteur = !auteurFiltre || tip.auteur === auteurFiltre;
-                const matchesOutil = !outilFiltre || tip.outil === outilFiltre;
-                const matchesPreviewText = !previewTextFiltre || (tip.previewText && tip.previewText.toLowerCase().includes(previewTextFiltre));
-                const matchesTitre = !previewTextFiltre || (tip.titre && tip.titre.toLowerCase().includes(previewTextFiltre)); // Recherche aussi dans le titre
-
-                return matchesCategorie && matchesAuteur && matchesOutil && (matchesPreviewText || matchesTitre);
-            });
-
-            displayTips(filteredTips);
-        }
-
-        function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = ''; // Efface les tips existants et le loader
-
-            if (tipsToDisplay.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip trouvé avec les filtres actuels.</p>';
-                return;
+            // Filtrer par texte de prévisualisation
+            if (searchTerm) {
+                filteredTips = filteredTips.filter(tip =>
+                    tip.previewText && tip.previewText.toLowerCase().includes(searchTerm)
+                );
             }
 
-            tipsToDisplay.forEach(tip => {
-                const card = createTipCard(tip);
-                galerieDiv.appendChild(card);
-            });
+            // Filtrer par catégorie
+            if (selectedCategorie) {
+                filteredTips = filteredTips.filter(tip => tip.categorie === selectedCategorie);
+            }
+
+            // Filtrer par auteur
+            if (selectedAuteur) {
+                filteredTips = filteredTips.filter(tip => tip.auteur === selectedAuteur);
+            }
+
+            // Appliquer le tri par date de création
+            if (selectedDateSort) {
+                filteredTips.sort((a, b) => {
+                    const dateA = new Date(a.creationDate || 0).getTime();
+                    const dateB = new Date(b.creationDate || 0).getTime();
+                    if (selectedDateSort === 'recent') {
+                        return dateB - dateA; // Plus récent d'abord
+                    } else if (selectedDateSort === 'oldest') {
+                        return dateA - dateB; // Plus ancien d'abord
+                    }
+                    return 0;
+                });
+            } else {
+                // Par défaut, trier par date de création du plus récent au plus ancien si aucune option n'est sélectionnée (valeur "")
+                filteredTips.sort((a, b) => {
+                    const dateA = new Date(a.creationDate || 0).getTime();
+                    const dateB = new Date(b.creationDate || 0).getTime();
+                    return dateB - dateA;
+                });
+            }
+
+
+            galerieDiv.innerHTML = ''; // Vider la galerie actuelle
+            if (filteredTips.length === 0) {
+                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à votre recherche.</p>';
+            } else {
+                filteredTips.forEach(tip => {
+                    galerieDiv.appendChild(createTipCard(tip));
+                });
+            }
         }
 
         function setupFilters() {
-            filtreCategorieSelect.addEventListener('change', filterAndDisplayTips);
-            filtreAuteurSelect.addEventListener('change', filterAndDisplayTips);
-            filtreOutilSelect.addEventListener('change', filterAndDisplayTips);
-            previewTextInput.addEventListener('input', filterAndDisplayTips); // Filtrage en temps réel
+            previewTextInput.addEventListener('input', applyFilters);
+            filtreCategorieSelect.addEventListener('change', applyFilters);
+            filtreAuteurSelect.addEventListener('change', applyFilters);
+            filtreDateCreationSelect.addEventListener('change', applyFilters); // Nouveau: écouteur pour le filtre de date
         }
 
-        function showSuccessMessage(message) {
-            const msg = document.getElementById('success-message');
-            msg.textContent = message;
-            msg.style.opacity = '1';
-            msg.style.display = 'block';
-            setTimeout(() => {
-                msg.style.opacity = '0';
-                setTimeout(() => msg.style.display = 'none', 500);
-            }, 2000);
-        }
-
-        function showErrorMessage(message) {
-            errorDisplay.textContent = message;
-            errorDisplay.style.display = 'block';
-            setTimeout(() => {
-                errorDisplay.style.display = 'none';
-            }, 5000);
-        }
 
         function showPreviewPanel(tip) {
-            previewPanelTitle.textContent = tip.titre || 'Détails du Tip';
-            previewPanelContent.innerHTML = ''; // Effacer le contenu précédent
+            previewPanelTitle.textContent = tip.titre || 'Aperçu';
+            previewPanelContent.innerHTML = ''; // Clear previous content
 
             if (tip.previewText) {
-                const previewTextElement = document.createElement('div');
-                previewTextElement.className = 'preview-text-card-yellow';
-                // Utilisation de textContent pour éviter l'interprétation HTML
-                previewTextElement.innerHTML = `<strong>Prévisualisation:</strong><br>${escapeHtml(tip.previewText)}`; 
-                previewPanelContent.appendChild(previewTextElement);
+                const previewTextCard = document.createElement('div');
+                previewTextCard.className = 'preview-text-card-yellow';
+                previewTextCard.innerHTML = `<strong>Aperçu :</strong><br>${escapeHtml(tip.previewText)}`;
+                previewPanelContent.appendChild(previewTextCard);
             }
+
             if (tip.description) {
-                const descriptionElement = document.createElement('div');
-                descriptionElement.className = 'content-card-blue';
-                descriptionElement.innerHTML = `<strong>Description:</strong><br>${escapeHtml(tip.description)}`; 
-                previewPanelContent.appendChild(descriptionElement);
+                const descriptionCard = document.createElement('div');
+                descriptionCard.className = 'content-card-blue';
+                descriptionCard.innerHTML = `<strong>Description :</strong><br>${escapeHtml(tip.description)}`;
+                previewPanelContent.appendChild(descriptionCard);
             }
+
             if (tip.exemple) {
-                const exempleElement = document.createElement('div');
-                exempleElement.className = 'content-card-blue';
-                exempleElement.innerHTML = `<strong>Exemple:</strong><br>${escapeHtml(tip.exemple)}`; 
-                previewPanelContent.appendChild(exempleElement);
+                const exampleCard = document.createElement('div');
+                exampleCard.className = 'content-card-blue';
+                exampleCard.innerHTML = `<strong>Exemple :</strong><br>${escapeHtml(tip.exemple)}`;
+                previewPanelContent.appendChild(exampleCard);
             }
+
             if (tip.prompt) {
                 const promptLabel = document.createElement('p');
-                promptLabel.innerHTML = '<strong>Prompt:</strong>';
+                promptLabel.innerHTML = '<strong>Prompt :</strong>';
                 previewPanelContent.appendChild(promptLabel);
 
                 const promptPre = document.createElement('pre');
                 promptPre.className = 'prompt-content-pre';
-                promptPre.textContent = tip.prompt; // textContent pour éviter interprétation
+                promptPre.textContent = tip.prompt; // No HTML escaping here, as it's pre-formatted text
                 previewPanelContent.appendChild(promptPre);
 
                 const copyPanelBtn = document.createElement('button');
@@ -1081,31 +1077,23 @@
                 copyPanelBtn.addEventListener('click', async () => {
                     try {
                         await navigator.clipboard.writeText(tip.prompt);
-                        showSuccessMessage('Prompt copié !');
+                        showSuccessMessage('Prompt copié depuis le panneau !');
                     } catch (err) {
                         console.error('Erreur lors de la copie du prompt du panneau:', err);
-                        showErrorMessage('Impossible de copier le prompt depuis le panneau.');
+                        showErrorMessage('Impossible de copier le prompt du panneau.');
                     }
                 });
                 previewPanelContent.appendChild(copyPanelBtn);
             }
 
-            // Ajouter les éléments image et document s'ils existent dans le panneau de prévisualisation
             if (tip.imageUrl) {
-                const imageContainer = document.createElement('div'); // Conteneur pour centrer l'image
+                const imageContainer = document.createElement('div');
                 imageContainer.className = 'preview-panel-image-container';
-
-                const imageLink = document.createElement('a'); // Crée le lien
-                imageLink.href = tip.imageUrl; // L'URL de l'image est la destination du lien
-                imageLink.target = '_blank'; // Ouvre le lien dans un nouvel onglet/fenêtre
-
                 const imageElement = document.createElement('img');
                 imageElement.src = tip.imageUrl;
                 imageElement.alt = `Image pour ${tip.titre}`;
                 imageElement.className = 'preview-panel-image';
-
-                imageLink.appendChild(imageElement); // L'image est contenue dans le lien
-                imageContainer.appendChild(imageLink); // Le lien est contenu dans le conteneur de l'image
+                imageContainer.appendChild(imageElement);
                 previewPanelContent.appendChild(imageContainer);
             }
 
