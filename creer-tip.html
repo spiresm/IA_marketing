@@ -269,12 +269,18 @@
 
                 <div class="confirmation" v-if="confirmationVisible">
                     <p>✅ Tip / Prompt partagé avec succès !</p>
-                    <img v-if="confirmationImageUrl" :src="confirmationImageUrl" style="display: none;" /> 
+                    <div class="loader" style="margin: 15px auto;"></div>
+                    <p style="margin-top: 15px; color: #0077b6; font-weight: bold;">
+                        Votre tip est en cours de déploiement sur Netlify. Il sera visible sur le site sous peu.
+                    </p>
+                    <p v-if="confirmationImageUrl" style="margin-top: 15px;">
+                        <img :src="confirmationImageUrl" alt="Aperçu de l'image" style="max-width: 100%; height: auto; border-radius: 8px;">
+                    </p>
                     <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
                     <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
                     <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
                     <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
-                    <p style="margin-top: 15px; color: #0077b6;">Redirection vers les cas d'usages dans 5 secondes...</p>
+                    <p style="margin-top: 15px; color: #0077b6;">Redirection automatique vers les cas d'usages dans 5 secondes...</p>
                 </div>
             </div>
         </div>
@@ -331,7 +337,7 @@
                 const confirmationDescription = ref('');
                 const confirmationPreviewText = ref('');
                 const confirmationPromptText = ref('');
-                const isLoading = ref(false);
+                const isLoading = ref(false); // Utilisé pour le loader du bouton de soumission
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
@@ -415,7 +421,6 @@
                     }
                 }
 
-                // Cette fonction prépare les aperçus ou les noms de fichiers
                 function handleFiles(files) {
                     selectedFiles.value = Array.from(files);
                     filePreviewUrls.value = []; 
@@ -428,7 +433,6 @@
                         if (file.type.startsWith('image/')) {
                             const reader = new FileReader();
                             reader.onload = (e) => {
-                                // Vérifiez si le résultat est valide avant de l'ajouter
                                 if (e.target.result && typeof e.target.result === 'string' && e.target.result.startsWith('data:image')) {
                                     filePreviewUrls.value.push(e.target.result);
                                     console.log(`Aperçu image généré pour ${file.name}`);
@@ -467,7 +471,7 @@
                     }
 
                     confirmationVisible.value = false;
-                    isLoading.value = true;
+                    isLoading.value = true; // Active le loader du bouton
                     console.log("Formulaire en cours de traitement (isLoading = true).");
 
                     try {
@@ -500,13 +504,24 @@
                         const result = await tipResp.json();
                         console.log("Résultat de l'enregistrement du tip via GitHub:", result);
                          
-                        confirmationImageUrl.value = ''; 
+                        // --- DÉBUT DE LA MODIFICATION POUR L'IMAGE DANS LE PANNEAU DE CONFIRMATION ---
+                        if (filePreviewUrls.value.length > 0) {
+                            confirmationImageUrl.value = filePreviewUrls.value[0]; // Utilise la première URL de prévisualisation
+                        } else {
+                            confirmationImageUrl.value = ''; // S'assure que c'est vide si aucune image n'était sélectionnée
+                        }
+                        // --- FIN DE LA MODIFICATION ---
 
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
                         confirmationPreviewText.value = previewText.value;
                         confirmationPromptText.value = promptText.value;
-                        confirmationVisible.value = true;
+                        
+                        // Le tip a été envoyé avec succès à GitHub
+                        // Nous affichons la confirmation et le loader pour le déploiement
+                        confirmationVisible.value = true; 
+                        isLoading.value = false; // Désactive le loader du bouton de soumission
+                        
                         console.log("Confirmation affichée. Redirection dans 5 secondes...");
 
                         setTimeout(() => {
@@ -522,7 +537,7 @@
                         categorie.value = 'Marketing Digital';
                         outil.value = '';
                         selectedFiles.value = [];
-                        filePreviewUrls.value = [];
+                        filePreviewUrls.value = []; // Cela effacera les aperçus pour la prochaine soumission
                         fileNamesForDocuments.value = []; 
                         if (fileInput.value) {
                             fileInput.value.value = null; 
@@ -534,7 +549,7 @@
                         console.error('Erreur irrécupérable lors de l\'envoi du tip:', err);
                         alert(`Échec de l'envoi du tip: ${err.message || err}. Vérifiez la console pour plus de détails.`);
                     } finally {
-                        isLoading.value = false;
+                        isLoading.value = false; // Assurez-vous que le loader est désactivé même en cas d'erreur
                         console.log("Fin du traitement du formulaire (isLoading = false).");
                     }
                 }
