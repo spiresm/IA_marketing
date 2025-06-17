@@ -133,14 +133,6 @@
             border-left: 5px solid var(--postit-yellow);
         }
 
-        /* Style pour le post-it */
-        .addition-card.post-it {
-            background-color: var(--postit-yellow);
-            border-left: 5px solid #f0e68c; /* Une nuance plus foncée */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            order: -2; /* S'affiche en premier */
-        }
-        
         /* Assurez-vous que cette carte n'apparaît pas si elle était ajoutée en dur */
         .addition-card.welcome-card {
             display: none; /* Cache explicitement la carte si elle était encore dans le HTML */
@@ -430,6 +422,59 @@
         .modal-button:hover {
             background-color: var(--dark-blue);
         }
+
+        /* Styles pour le conteneur du post-it (pour cas-usages.html ou similaire) */
+        .post-it-container {
+            display: flex;
+            justify-content: center; /* Centrer le post-it horizontalement */
+            margin: 30px auto; /* Marge au-dessus et en dessous, centré */
+            max-width: 400px; /* Largeur maximale pour le post-it */
+            perspective: 1000px; /* Pour un effet de rotation potentiel */
+        }
+
+        .post-it-content {
+            background-color: var(--postit-yellow); /* Couleur jaune du post-it */
+            padding: 20px 25px;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); /* Ombre pour l'effet 3D */
+            position: relative;
+            transform: rotate(2deg); /* Légère inclinaison pour l'effet post-it */
+            transform-origin: center center;
+            transition: transform 0.3s ease;
+            border: 1px solid #e0d970; /* Bordure légère */
+            text-align: center;
+        }
+
+        .post-it-content:hover {
+            transform: rotate(0deg) scale(1.02); /* Redresser légèrement et agrandir au survol */
+        }
+
+        .post-it-icon {
+            color: #a0a0a0; /* Couleur de la punaise */
+            font-size: 1.5em;
+            position: absolute;
+            top: 5px; /* Position en haut */
+            left: 50%; /* Centré horizontalement */
+            transform: translateX(-50%) rotate(-10deg); /* Légère rotation de la punaise */
+            z-index: 1; /* Pour qu'il soit au-dessus du texte */
+        }
+
+        .post-it-content p {
+            margin-top: 15px; /* Espace pour la punaise */
+            font-size: 1.1em;
+            color: #333;
+            line-height: 1.5;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif; /* Police style "écrit à la main" */
+            text-shadow: 1px 1px 0 rgba(255,255,255,0.7); /* Petit effet d'ombre sur le texte */
+        }
+
+        .post-it-meta {
+            display: block;
+            margin-top: 15px;
+            font-size: 0.85em;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -531,16 +576,13 @@
                     icon.className = 'fas fa-lightbulb icon';
                 } else if (type === 'galerie') {
                     icon.className = 'fas fa-image icon';
-                } else if (type === 'post-it') {
-                    icon.className = 'fas fa-thumbtack icon'; 
-                }
+                } 
+                // Le post-it n'est plus une carte générée dynamiquement ici
                 header.appendChild(icon);
 
                 const title = document.createElement("h4");
-                if (type !== 'post-it') {
-                    title.textContent = item.titre;
-                    header.appendChild(title);
-                }
+                title.textContent = item.titre;
+                header.appendChild(title);
                 card.appendChild(header);
 
                 if (type === 'galerie' && item.imageUrl) {
@@ -558,8 +600,6 @@
                     descriptionElement.textContent = item.description.substring(0, 150) + (item.description.length > 150 ? '...' : '');
                 } else if (item.prompt) {
                     descriptionElement.textContent = item.prompt.substring(0, 150) + (item.prompt.length > 150 ? '...' : '');
-                } else if (type === 'post-it') {
-                     descriptionElement.textContent = "Accélérez l'optimisation SEO de vos contenus web grâce à l'aide de ChatGPT, en quelques minutes.";
                 }
                 card.appendChild(descriptionElement);
 
@@ -572,8 +612,6 @@
                     category.textContent = "Cas d'usages";
                 } else if (type === 'galerie') {
                     category.textContent = "Galerie";
-                } else if (type === 'post-it') {
-                    category.textContent = "Astuce SEO";
                 }
                 meta.appendChild(category);
                 
@@ -582,11 +620,8 @@
                 if (item.date_ajout) {
                     const d = new Date(item.date_ajout);
                     date.textContent = `Ajouté le ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
-                } else if (type !== 'post-it') {
-                    date.textContent = `Date inconnue`;
                 } else {
-                    // Pour le post-it, utiliser la date actuelle
-                    date.textContent = `Ajouté le ${new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+                    date.textContent = `Date inconnue`;
                 }
                 meta.appendChild(date);
                 
@@ -606,10 +641,7 @@
 
                 loadingMessage.style.display = 'block';
                 container.innerHTML = ''; 
-
-                // Ajout du post-it en premier
-                const postItData = {}; 
-                container.appendChild(createCard(postItData, 'post-it'));
+                // Le post-it n'est plus ajouté ici dynamiquement. Il doit être dans cas-usages.html.
 
                 try {
                     const casUsagesResponse = await fetch(GET_TIPS_URL);
@@ -674,15 +706,12 @@
                         console.warn("Aucun élément de galerie trouvé pour l'affichage.");
                     }
 
-                    if (!latestCasUsage && !latestGalerieItem && container.children.length === 1) { // Check if *only* the post-it exists
-                        // If no dynamic cards and only the post-it, then show a message
-                        if (!latestCasUsage && !latestGalerieItem) { // Check if *any* dynamic cards were added
-                            const noAdditionsMessage = document.createElement('p');
-                            noAdditionsMessage.style.textAlign = 'center';
-                            noAdditionsMessage.style.color = '#777';
-                            noAdditionsMessage.textContent = 'Aucun ajout récent à afficher (hormis l\'astuce SEO).';
-                            container.appendChild(noAdditionsMessage);
-                        }
+                    if (!latestCasUsage && !latestGalerieItem) { 
+                        const noAdditionsMessage = document.createElement('p');
+                        noAdditionsMessage.style.textAlign = 'center';
+                        noAdditionsMessage.style.color = '#777';
+                        noAdditionsMessage.textContent = 'Aucun ajout récent à afficher.';
+                        container.appendChild(noAdditionsMessage);
                     }
 
                 } catch (error) {
@@ -833,8 +862,8 @@
                 }
                 document.getElementById(placeholderId).innerHTML = await res.text();
             } catch (error) {
-                console.error(`Erreur lors du chargement de ${url}:`, error);
-                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
+                    console.error(`Erreur lors du chargement de ${url}:`, error);
+                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
             }
         };
 
