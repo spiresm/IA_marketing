@@ -106,7 +106,7 @@
             border: 1px solid #eee;
         }
 
-        .document-list-container { /* Nouveau style pour la liste des documents */
+        .document-list-container {
             margin-top: 15px;
             padding: 10px;
             border: 1px solid #eee;
@@ -269,7 +269,7 @@
 
                 <div class="confirmation" v-if="confirmationVisible">
                     <p>✅ Tip / Prompt partagé avec succès !</p>
-                    <img v-if="confirmationImageUrl" :src="confirmationImageUrl" /> 
+                    <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
                     <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
                     <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
                     <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
@@ -306,13 +306,10 @@
     <script>
         const { ref, createApp, onMounted } = Vue;
 
-        const SAVE_TIP_URL = "/.netlify/functions/pushTip"; 
-        const PROXY_URL = "/.netlify/functions/proxy"; 
+        const SAVE_TIP_URL = "/.netlify/functions/pushTip";
+        const PROXY_URL = "/.netlify/functions/proxy";
 
         const TipForm = {
-            // NOTE IMPORTANTE : La propriété 'template' a été supprimée ici.
-            // Vue 3 va maintenant utiliser le HTML existant à l'intérieur de <div id="app">
-            // comme template pour ce composant. C'est la correction du problème précédent.
             setup() {
                 const auteur = ref('');
                 const titre = ref('');
@@ -322,11 +319,11 @@
                 const categorie = ref('Marketing Digital');
                 const outil = ref('');
                 const fileInput = ref(null);
-                const selectedFiles = ref([]); 
-                const filePreviewUrls = ref([]); 
-                const fileNamesForDocuments = ref([]); 
+                const selectedFiles = ref([]);
+                const filePreviewUrls = ref([]);
+                const fileNamesForDocuments = ref([]);
                 const confirmationVisible = ref(false);
-                const confirmationImageUrl = ref(''); 
+                const confirmationImageUrl = ref('');
                 const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
                 const confirmationPreviewText = ref('');
@@ -355,7 +352,7 @@
                             auteur.value = names[0];
                             console.log("Un seul profil trouvé, auteur auto-sélectionné:", auteur.value);
                         } else if (names.length > 1) {
-                            auteur.value = ''; 
+                            auteur.value = '';
                             console.log("Plusieurs profils trouvés, veuillez sélectionner un auteur.");
                         } else {
                             auteur.value = '';
@@ -398,7 +395,7 @@
                     const files = e.dataTransfer.files;
                     if (files.length) {
                         console.log("Fichiers déposés:", files);
-                        fileInput.value.files = files; 
+                        fileInput.value.files = files;
                         handleFiles(files);
                     } else {
                         console.log("Aucun fichier déposé.");
@@ -415,11 +412,10 @@
                     }
                 }
 
-                // Cette fonction prépare les aperçus ou les noms de fichiers
                 function handleFiles(files) {
                     selectedFiles.value = Array.from(files);
-                    filePreviewUrls.value = []; 
-                    fileNamesForDocuments.value = []; 
+                    filePreviewUrls.value = [];
+                    fileNamesForDocuments.value = [];
 
                     console.log("Fichiers à traiter dans handleFiles (pour aperçu et/ou noms):", selectedFiles.value);
 
@@ -428,7 +424,6 @@
                         if (file.type.startsWith('image/')) {
                             const reader = new FileReader();
                             reader.onload = (e) => {
-                                // Vérifiez si le résultat est valide avant de l'ajouter
                                 if (e.target.result && typeof e.target.result === 'string' && e.target.result.startsWith('data:image')) {
                                     filePreviewUrls.value.push(e.target.result);
                                     console.log(`Aperçu image généré pour ${file.name}`);
@@ -476,12 +471,27 @@
                             titre: titre.value,
                             description: description.value,
                             previewText: previewText.value,
-                            prompt: promptText.value, 
+                            prompt: promptText.value,
                             categorie: categorie.value,
-                            outil: outil.value, 
+                            outil: outil.value,
                         };
 
-                        console.log("Payload complet envoyé à la fonction pushTip (GitHub):", JSON.stringify(payload, null, 2));
+                        // --- DÉBUT : Ajout des données d'image au payload ---
+                        if (selectedFiles.value.length > 0 && selectedFiles.value[0].type.startsWith('image/')) {
+                            const firstImage = selectedFiles.value[0];
+                            const firstImageUrl = filePreviewUrls.value[0]; // C'est la data:URL
+
+                            if (firstImageUrl) {
+                                payload.imageData = firstImageUrl; // La data:URL complète
+                                payload.imageFileName = firstImage.name; // Le nom original du fichier
+                                console.log("Image détectée et ajoutée au payload pour envoi à la fonction Netlify.");
+                            } else {
+                                console.warn("Image sélectionnée mais Data URL non disponible pour l'envoi.");
+                            }
+                        }
+                        // --- FIN : Ajout des données d'image au payload ---
+
+                        console.log("Payload complet envoyé à la fonction pushTip:", JSON.stringify(payload, null, 2));
 
                         const tipResp = await fetch(SAVE_TIP_URL, {
                             method: 'POST',
@@ -489,7 +499,7 @@
                             body: JSON.stringify(payload)
                         });
 
-                        console.log("Réponse de la fonction pushTip (GitHub):", tipResp);
+                        console.log("Réponse de la fonction pushTip:", tipResp);
 
                         if (!tipResp.ok) {
                             const errorText = await tipResp.text();
@@ -499,16 +509,20 @@
 
                         const result = await tipResp.json();
                         console.log("Résultat de l'enregistrement du tip via GitHub:", result);
-                           
-                        // CORRECTION 2: S'assurer que confirmationImageUrl est défini APRES la réception de la réponse,
-                        // mais AVANT l'affichage de la confirmation, en utilisant l'aperçu local.
-                        if (filePreviewUrls.value.length > 0) {
+
+                        // Utilisez l'URL d'image retournée par la fonction Netlify si disponible,
+                        // sinon, utilisez l'aperçu local temporaire pour la confirmation.
+                        if (result.imageUrl) {
+                            confirmationImageUrl.value = result.imageUrl;
+                            console.log("Image de confirmation définie avec l'URL publique de GitHub:", result.imageUrl);
+                        } else if (filePreviewUrls.value.length > 0) {
                             confirmationImageUrl.value = filePreviewUrls.value[0];
-                            console.log("Image de confirmation définie avec l'URL d'aperçu.");
+                            console.log("Image de confirmation définie avec l'URL d'aperçu local.");
                         } else {
-                            confirmationImageUrl.value = ''; // Pas d'image sélectionnée
-                            console.log("Aucune image de confirmation définie (pas d'aperçu disponible).");
+                            confirmationImageUrl.value = '';
+                            console.log("Aucune image de confirmation disponible.");
                         }
+
 
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
@@ -531,11 +545,11 @@
                         outil.value = '';
                         selectedFiles.value = [];
                         filePreviewUrls.value = [];
-                        fileNamesForDocuments.value = []; 
+                        fileNamesForDocuments.value = [];
                         if (fileInput.value) {
-                            fileInput.value.value = null; 
+                            fileInput.value.value = null;
                         }
-                        fetchProfils(); 
+                        fetchProfils();
                         console.log("Formulaire réinitialisé.");
 
                     } catch (err) {
@@ -549,7 +563,7 @@
 
                 return {
                     auteur, titre, description, previewText, promptText, categorie, outil, fileInput,
-                    filePreviewUrls, fileNamesForDocuments, 
+                    filePreviewUrls, fileNamesForDocuments,
                     confirmationVisible,
                     confirmationImageUrl, confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
