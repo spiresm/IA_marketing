@@ -682,6 +682,8 @@
                         <option value="">Trier par date</option>
                         <option value="recent">Plus récent</option>
                         <option value="ancien">Plus ancien</option>
+                        <option value="heure-recent">Heure (plus récent)</option>
+                        <option value="heure-ancien">Heure (plus ancien)</option>
                     </select>
                     <select id="filtre-outil">
                         <option value="">Tous les outils</option>
@@ -728,11 +730,8 @@
         let allTips = []; // Ceci contiendra vos données de tips
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
-        // Ancienne déclaration de filtreAuteurSelect commentée/supprimée
-        // const filtreAuteurSelect = document.getElementById('filtre-auteur');
         const filtreCategorieSelect = document.getElementById('filtre-categorie');
         const filtreOutilSelect = document.getElementById('filtre-outil');
-        // Nouvelle déclaration pour le tri par date
         const filtreTriDateSelect = document.getElementById('filtre-tri-date');
 
         const previewTextInput = document.getElementById('preview-text');
@@ -743,7 +742,6 @@
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const bodyElement = document.body;
 
-        // NOUVELLE DECLARATION DE L'OVERLAY
         const previewOverlay = document.getElementById('previewOverlay');
 
 
@@ -773,7 +771,6 @@
                 loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
             ])
             .then(() => {
-                // S'assurer que les éléments du header (comme le lien actif) sont traités après son chargement
                 const activeLink = document.querySelector("nav a[href='galerie.html']");
                 if (activeLink) {
                     activeLink.classList.add("active");
@@ -795,7 +792,6 @@
                 setTimeout(() => msg.style.opacity = '0', 2000);
                 setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
             }
-            // Message de succès pour l'édition
             if (window.location.search.includes('editSuccess=1')) {
                 const msg = document.getElementById('success-message');
                 msg.textContent = '✅ Tip/Prompt modifié avec succès !';
@@ -804,10 +800,9 @@
                 setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
             }
 
-            setupFilters(); // Initialise les écouteurs d'événements pour les filtres
+            setupFilters();
         });
 
-        // Fonction utilitaire pour échapper le HTML
         function escapeHtml(text) {
             const map = {
                 '&': '&amp;',
@@ -819,29 +814,31 @@
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
-        // Nouvelle fonction pour appliquer les filtres et le tri
-        function applyFiltersAndSort() {
-            let filtered = [...allTips]; // Commencer avec tous les tips
+        // Fonction pour obtenir la valeur temporelle en secondes pour le tri
+        function getTimeInSeconds(dateString) {
+            const date = new Date(dateString);
+            // Calculer le nombre total de secondes depuis minuit
+            return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
+        }
 
-            // Appliquer le filtre par catégorie
+        function applyFiltersAndSort() {
+            let filtered = [...allTips];
+
             const categorie = filtreCategorieSelect.value;
             if (categorie) {
                 filtered = filtered.filter(tip => tip.categorie === categorie);
             }
 
-            // Appliquer le filtre par outil
             const outil = filtreOutilSelect.value;
             if (outil) {
                 filtered = filtered.filter(tip => tip.outil === outil);
             }
 
-            // Appliquer la recherche dans le texte de prévisualisation
             const searchText = previewTextInput.value.toLowerCase();
             if (searchText) {
                 filtered = filtered.filter(tip => tip.previewText && tip.previewText.toLowerCase().includes(searchText));
             }
 
-            // Appliquer le tri par date en utilisant 'dateCreation' si disponible, sinon 'date'
             const sortOrder = filtreTriDateSelect.value;
             if (sortOrder === 'recent') {
                 filtered.sort((a, b) => {
@@ -855,20 +852,30 @@
                     const dateB = new Date(b.dateCreation || b.date);
                     return dateA.getTime() - dateB.getTime();
                 });
+            } else if (sortOrder === 'heure-recent') {
+                filtered.sort((a, b) => {
+                    const timeA = getTimeInSeconds(a.dateCreation || a.date);
+                    const timeB = getTimeInSeconds(b.dateCreation || b.date);
+                    return timeB - timeA; // Plus récent (plus grande valeur de temps) en premier
+                });
+            } else if (sortOrder === 'heure-ancien') {
+                filtered.sort((a, b) => {
+                    const timeA = getTimeInSeconds(a.dateCreation || a.date);
+                    const timeB = getTimeInSeconds(b.dateCreation || b.date);
+                    return timeA - timeB; // Plus ancien (plus petite valeur de temps) en premier
+                });
             }
-
-            displayTips(filtered); // Afficher les tips filtrés et triés
+            
+            displayTips(filtered);
         }
 
-        // Fonction pour initialiser les écouteurs d'événements des filtres
         function setupFilters() {
             filtreCategorieSelect.addEventListener('change', applyFiltersAndSort);
             filtreOutilSelect.addEventListener('change', applyFiltersAndSort);
             previewTextInput.addEventListener('input', applyFiltersAndSort);
-            filtreTriDateSelect.addEventListener('change', applyFiltersAndSort); // Nouveau: écouteur pour le tri par date
+            filtreTriDateSelect.addEventListener('change', applyFiltersAndSort);
         }
 
-        // Fonction pour charger et afficher les tips
         async function loadAndDisplayTips() {
             galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
             try {
@@ -877,12 +884,11 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 allTips = await response.json();
-                // Assurez-vous que chaque tip a une propriété 'dateCreation' valide pour le tri
                 allTips = allTips.map(tip => ({
                     ...tip,
-                    dateCreation: tip.dateCreation || tip.date || new Date().toISOString() // Utilise dateCreation, puis date, sinon la date actuelle
+                    dateCreation: tip.dateCreation || tip.date || new Date().toISOString()
                 }));
-                applyFiltersAndSort(); // Afficher les tips initialement filtrés/triés
+                applyFiltersAndSort();
             } catch (error) {
                 console.error("Erreur lors du chargement des tips:", error);
                 errorDisplay.style.display = 'block';
@@ -890,11 +896,10 @@
             }
         }
 
-        // Fonction pour créer la carte d'un tip (vous devrez implémenter cette fonction)
         function createTipCard(tip) {
             const carteDiv = document.createElement('div');
             carteDiv.className = 'carte';
-            carteDiv.style.borderLeftColor = tip.color || '#0077b6'; // Utiliser une couleur par défaut si non définie
+            carteDiv.style.borderLeftColor = tip.color || '#0077b6';
 
             let previewPostIt = '';
             if (tip.previewText) {
@@ -903,192 +908,218 @@
 
             let imageUrlHtml = '';
             let documentUrlHtml = '';
-            let inlinePreviewIcons = '';
-
-            if (tip.imageUrl) {
-                inlinePreviewIcons += `<span class="icon-vignette" title="Contient une image"><i class="fas fa-image"></i></span>`;
-            }
-            if (tip.documentUrl) {
-                inlinePreviewIcons += `<span class="icon-vignette" title="Contient un document PDF"><i class="fas fa-file-pdf"></i></span>`;
-            }
+            let inlinePreviewIconsHtml = ''; // Initialize for inline icons
 
             carteDiv.innerHTML = `
-                ${previewPostIt}
                 <div class="infos-wrapper">
-                    <h2 class="tip-title">${escapeHtml(tip.titre)}</h2>
-                    <span class="outil-badge">${escapeHtml(tip.outil || 'Non spécifié')}</span>
-                    <div class="metadata-section">
-                        <span class="metadata-label">Auteur:</span>
-                        <span class="metadata-value auteur-value">${escapeHtml(tip.auteur || 'Inconnu')}</span>
-                        <span class="metadata-label">Catégorie:</span>
-                        <span class="metadata-value">${escapeHtml(tip.categorie || 'Non classé')}</span>
-                        <span class="metadata-label">Date:</span>
-                        <span class="metadata-value">${new Date(tip.dateCreation || tip.date).toLocaleDateString('fr-FR')}</span>
+                    <div class="top-info">
+                        <h2 class="tip-title">${escapeHtml(tip.titre)}</h2>
+                        <span class="outil-badge">${escapeHtml(tip.outil)}</span>
+                        <div class="metadata-section">
+                            <span class="metadata-label">Auteur:</span> <span class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</span>
+                            <span class="metadata-label">Catégorie:</span> <span class="metadata-value">${escapeHtml(tip.categorie)}</span>
+                            <span class="metadata-label">Date:</span> <span class="metadata-value">${new Date(tip.dateCreation).toLocaleDateString('fr-FR', {
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit', second: '2-digit'
+                            })}</span>
+                        </div>
                     </div>
+                    ${previewPostIt}
                     <div class="card-actions">
                         <div class="top-buttons-group">
-                            <button class="toggle-content-btn" data-tip-id="${tip.id}">Voir le Contenu</button>
-                            <button class="copier-btn" data-copy-text="${escapeHtml(tip.prompt || tip.description || '')}">Copier le Prompt</button>
-                            ${tip.id ? `<a href="editer-tip.html?id=${tip.id}" class="edit-btn">Éditer</a>` : ''}
-                            <div class="card-preview-icons-inline">
-                                ${inlinePreviewIcons}
-                            </div>
+                            <button class="toggle-content-btn" data-tip-id="${tip.id}">Voir le Tip</button>
+                            ${tip.prompt ? `<button class="copier-btn" data-prompt="${escapeHtml(tip.prompt)}">Copier le prompt</button>` : ''}
+                            <button class="edit-btn" data-tip-id="${tip.id}">Modifier</button>
                         </div>
-                        <button class="supprimer-btn" data-tip-id="${tip.id}"><i class="fas fa-trash-alt"></i></button>
+                        <div class="card-preview-icons-inline">
+                            ${tip.imageUrl ? '<span class="icon-vignette" title="Contient une image"><i class="fas fa-image"></i></span>' : ''}
+                            ${tip.documentUrl ? '<span class="icon-vignette" title="Contient un document"><i class="fas fa-file-alt"></i></span>' : ''}
+                        </div>
                     </div>
                 </div>
+                <button class="supprimer-btn" data-tip-id="${tip.id}"><i class="fas fa-trash-alt"></i></button>
             `;
 
-            // Ajout des écouteurs d'événements pour les boutons de la carte
-            carteDiv.querySelector('.toggle-content-btn').addEventListener('click', () => openPreviewPanel(tip));
-            carteDiv.querySelector('.copier-btn').addEventListener('click', (event) => copyPrompt(event.target));
-            const supprimerBtn = carteDiv.querySelector('.supprimer-btn');
-            if (supprimerBtn) {
-                supprimerBtn.addEventListener('click', (event) => confirmDeleteTip(event.currentTarget.dataset.tipId));
-            }
-            return carteDiv;
+            galerieDiv.appendChild(carteDiv);
         }
 
-        // Fonction pour afficher les tips dans la galerie
-        function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = ''; // Vider la galerie actuelle
-            if (tipsToDisplay.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip trouvé pour cette sélection.</p>';
-                return;
+        function displayTips(tips) {
+            galerieDiv.innerHTML = '';
+            if (tips.length === 0) {
+                galerieDiv.innerHTML = '<p style="text-align: center;">Aucun tip trouvé pour les critères sélectionnés.</p>';
+            } else {
+                tips.forEach(tip => createTipCard(tip));
             }
-            tipsToDisplay.forEach(tip => {
-                galerieDiv.appendChild(createTipCard(tip));
+            addCardEventListeners();
+        }
+
+        // Fonction pour ajouter les écouteurs d'événements aux boutons des cartes
+        function addCardEventListeners() {
+            document.querySelectorAll('.copier-btn').forEach(button => {
+                button.removeEventListener('click', handleCopyPrompt); // Nettoyer les écouteurs précédents
+                button.addEventListener('click', handleCopyPrompt);
+            });
+            document.querySelectorAll('.toggle-content-btn').forEach(button => {
+                button.removeEventListener('click', handleViewTip); // Nettoyer les écouteurs précédents
+                button.addEventListener('click', handleViewTip);
+            });
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.removeEventListener('click', handleEditTip); // Nettoyer les écouteurs précédents
+                button.addEventListener('click', handleEditTip);
+            });
+            document.querySelectorAll('.supprimer-btn').forEach(button => {
+                button.removeEventListener('click', handleDeleteTip); // Nettoyer les écouteurs précédents
+                button.addEventListener('click', handleDeleteTip);
             });
         }
 
-        // Fonction pour la copie du prompt
-        function copyPrompt(buttonElement) {
-            const textToCopy = buttonElement.dataset.copyText;
-            navigator.clipboard.writeText(textToCopy)
-                .then(() => {
-                    const originalText = buttonElement.textContent;
-                    buttonElement.textContent = 'Copié !';
-                    buttonElement.style.backgroundColor = '#28a745'; // Vert succès
-                    setTimeout(() => {
-                        buttonElement.textContent = originalText;
-                        buttonElement.style.backgroundColor = ''; // Revert to original
-                    }, 1500);
-                })
-                .catch(err => {
-                    console.error('Erreur lors de la copie du texte: ', err);
-                    alert('Échec de la copie du prompt.');
-                });
+        function handleCopyPrompt(event) {
+            const prompt = event.currentTarget.dataset.prompt;
+            navigator.clipboard.writeText(prompt).then(() => {
+                showSuccessMessage('Prompt copié !');
+            }).catch(err => {
+                console.error('Erreur lors de la copie:', err);
+                showErrorMessage('Erreur lors de la copie du prompt.');
+            });
         }
 
-        // Fonction pour confirmer et supprimer un tip
-        async function confirmDeleteTip(tipId) {
-            if (confirm("Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.")) {
+        function handleViewTip(event) {
+            const tipId = event.currentTarget.dataset.tipId;
+            const tip = allTips.find(t => t.id === tipId);
+            if (tip) {
+                previewPanelTitle.textContent = escapeHtml(tip.titre);
+                previewPanelContent.innerHTML = '';
+
+                // Ajouter le texte de prévisualisation dans un cartouche jaune si disponible
+                if (tip.previewText) {
+                    const previewTextCard = document.createElement('div');
+                    previewTextCard.className = 'preview-text-card-yellow';
+                    previewTextCard.innerHTML = `<strong>Prévisualisation:</strong><br>${escapeHtml(tip.previewText)}`;
+                    previewPanelContent.appendChild(previewTextCard);
+                }
+
+                // Ajouter la description dans un cartouche bleu si disponible
+                if (tip.description) {
+                    const descriptionCard = document.createElement('div');
+                    descriptionCard.className = 'content-card-blue';
+                    descriptionCard.innerHTML = `<strong>Description:</strong><br>${escapeHtml(tip.description)}`;
+                    previewPanelContent.appendChild(descriptionCard);
+                }
+                
+                // Ajouter l'exemple dans un cartouche bleu si disponible
+                if (tip.exemple) {
+                    const exampleCard = document.createElement('div');
+                    exampleCard.className = 'content-card-blue';
+                    exampleCard.innerHTML = `<strong>Exemple:</strong><br>${escapeHtml(tip.exemple)}`;
+                    previewPanelContent.appendChild(exampleCard);
+                }
+
+                // Afficher le prompt avec un bouton copier séparé
+                if (tip.prompt) {
+                    const promptLabel = document.createElement('p');
+                    promptLabel.innerHTML = '<strong>Prompt:</strong>';
+                    previewPanelContent.appendChild(promptLabel);
+
+                    const promptPre = document.createElement('pre');
+                    promptPre.className = 'prompt-content-pre';
+                    promptPre.textContent = tip.prompt; // Utiliser textContent pour ne pas interpréter le HTML
+                    previewPanelContent.appendChild(promptPre);
+
+                    const copyPromptBtnPanel = document.createElement('button');
+                    copyPromptBtnPanel.className = 'copy-panel-btn';
+                    copyPromptBtnPanel.textContent = 'Copier le prompt';
+                    copyPromptBtnPanel.addEventListener('click', () => {
+                        navigator.clipboard.writeText(tip.prompt).then(() => {
+                            showSuccessMessage('Prompt copié !');
+                        }).catch(err => {
+                            console.error('Erreur lors de la copie:', err);
+                            showErrorMessage('Erreur lors de la copie du prompt.');
+                        });
+                    });
+                    previewPanelContent.appendChild(copyPromptBtnPanel);
+                }
+
+                if (tip.imageUrl) {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.className = 'preview-panel-image-container';
+                    const imageElement = document.createElement('img');
+                    imageElement.src = tip.imageUrl;
+                    imageElement.alt = `Image pour ${tip.titre}`;
+                    imageElement.className = 'preview-panel-image';
+                    imageContainer.appendChild(imageElement);
+                    previewPanelContent.appendChild(imageContainer);
+                }
+
+                if (tip.documentUrl) {
+                    const documentLink = document.createElement('a');
+                    documentLink.href = tip.documentUrl;
+                    documentLink.textContent = 'Télécharger le document associé';
+                    documentLink.target = '_blank';
+                    documentLink.className = 'preview-panel-document-link';
+                    previewPanelContent.appendChild(documentLink);
+                }
+
+                previewPanel.classList.add('open');
+                previewOverlay.classList.add('open');
+                bodyElement.style.overflow = 'hidden';
+            }
+        }
+
+        function handleEditTip(event) {
+            const tipId = event.currentTarget.dataset.tipId;
+            window.location.href = `creer-tip.html?id=${tipId}`;
+        }
+
+        async function handleDeleteTip(event) {
+            const tipId = event.currentTarget.dataset.tipId;
+            if (confirm('Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.')) {
                 try {
                     const response = await fetch(`${apiBase}delete-tip`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ id: tipId }),
+                        body: JSON.stringify({ id: tipId })
                     });
 
                     if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || `Erreur HTTP! status: ${response.status}`);
+                        const errorText = await response.text();
+                        throw new Error(`Échec de la suppression du tip: ${response.status} ${response.statusText} - ${errorText}`);
                     }
 
-                    const result = await response.json();
-                    console.log(result.message);
-                    alert('Tip supprimé avec succès !');
+                    showSuccessMessage('Tip supprimé avec succès !');
                     loadAndDisplayTips(); // Recharger les tips après suppression
                 } catch (error) {
-                    console.error("Erreur lors de la suppression du tip:", error);
-                    alert(`Erreur lors de la suppression du tip: ${error.message}`);
+                    console.error("Erreur lors de la suppression:", error);
+                    showErrorMessage(`Erreur: ${error.message}`);
                 }
             }
         }
 
+        function showSuccessMessage(message) {
+            const msg = document.getElementById('success-message');
+            msg.textContent = `✅ ${message}`;
+            msg.style.backgroundColor = 'var(--success-bg)';
+            msg.style.color = 'var(--success-text)';
+            msg.style.opacity = '1';
+            setTimeout(() => msg.style.opacity = '0', 2000);
+        }
 
-        function openPreviewPanel(tip) {
-            previewPanelTitle.textContent = `Aperçu : ${tip.titre}`;
-            previewPanelContent.innerHTML = ''; // Vider le contenu précédent
-
-            // Ajouter le texte de prévisualisation (le "post-it" jaune)
-            if (tip.previewText) {
-                const previewTextElement = document.createElement('div');
-                previewTextElement.className = 'preview-text-card-yellow';
-                previewTextElement.innerHTML = `<strong>Aperçu :</strong><br>${escapeHtml(tip.previewText)}`;
-                previewPanelContent.appendChild(previewTextElement);
-            }
-
-            // Ajouter la description
-            if (tip.description) {
-                const descriptionElement = document.createElement('div');
-                descriptionElement.className = 'content-card-blue';
-                descriptionElement.innerHTML = `<strong>Description :</strong><br>${escapeHtml(tip.description)}`;
-                previewPanelContent.appendChild(descriptionElement);
-            }
-
-            // Ajouter l'exemple
-            if (tip.example) {
-                const exampleElement = document.createElement('div');
-                exampleElement.className = 'content-card-blue';
-                exampleElement.innerHTML = `<strong>Exemple :</strong><br>${escapeHtml(tip.example)}`;
-                previewPanelContent.appendChild(exampleElement);
-            }
-
-            // Ajouter le prompt
-            if (tip.prompt) {
-                const promptLabel = document.createElement('p');
-                promptLabel.innerHTML = '<strong>Prompt :</strong>';
-                previewPanelContent.appendChild(promptLabel);
-
-                // Bouton "Copier le prompt" dans le panneau
-                const copyButtonPanel = document.createElement('button');
-                copyButtonPanel.className = 'copy-panel-btn';
-                copyButtonPanel.textContent = 'Copier le Prompt';
-                copyButtonPanel.dataset.copyText = tip.prompt; // Store the prompt text
-                copyButtonPanel.addEventListener('click', (event) => copyPrompt(event.target));
-                previewPanelContent.appendChild(copyButtonPanel);
-
-                const promptElement = document.createElement('pre');
-                promptElement.className = 'prompt-content-pre';
-                promptElement.textContent = tip.prompt; // Use textContent for pre-formatted text
-                previewPanelContent.appendChild(promptElement);
-            }
-
-            if (tip.imageUrl) {
-                const imageContainer = document.createElement('div');
-                imageContainer.className = 'preview-panel-image-container';
-                const imageElement = document.createElement('img');
-                imageElement.src = tip.imageUrl;
-                imageElement.alt = `Image pour ${tip.titre}`;
-                imageElement.className = 'preview-panel-image';
-                imageContainer.appendChild(imageElement);
-                previewPanelContent.appendChild(imageContainer);
-            }
-
-            if (tip.documentUrl) {
-                const documentLink = document.createElement('a');
-                documentLink.href = tip.documentUrl;
-                documentLink.textContent = 'Télécharger le document associé';
-                documentLink.target = '_blank';
-                documentLink.className = 'preview-panel-document-link';
-                previewPanelContent.appendChild(documentLink);
-            }
-
-            previewPanel.classList.add('open');
-            previewOverlay.classList.add('open'); // Ouvrir l'overlay
-            bodyElement.style.overflow = 'hidden';
+        function showErrorMessage(message) {
+            const msg = document.getElementById('success-message'); // Réutiliser le même élément pour les erreurs
+            msg.textContent = `❌ ${message}`;
+            msg.style.backgroundColor = 'var(--error-bg)';
+            msg.style.color = 'var(--error-text)';
+            msg.style.opacity = '1';
+            setTimeout(() => msg.style.opacity = '0', 3000);
         }
 
         closePreviewBtn.addEventListener('click', () => {
             previewPanel.classList.remove('open');
-            previewOverlay.classList.remove('open'); // Fermer l'overlay
+            previewOverlay.classList.remove('open');
             bodyElement.style.overflow = '';
         });
 
-        // Écouteur pour fermer le panneau si on clique sur l'overlay
         previewOverlay.addEventListener('click', () => {
             previewPanel.classList.remove('open');
             previewOverlay.classList.remove('open');
