@@ -112,12 +112,13 @@
             transform: translateY(-8px);
             box-shadow: 0 12px 30px rgba(0,0,0,0.15);
         }
-        .article-card img {
+        /* Styles pour l'image retirés */
+        /* .article-card img {
             width: 100%;
             height: 180px;
             object-fit: cover;
             border-bottom: 1px solid #eee;
-        }
+        } */
         .article-card .content {
             padding: 18px;
             display: flex;
@@ -345,8 +346,10 @@
             height: 50px;
             animation: spin 1s linear infinite;
         }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        #modal-loader-overlay p {
+            margin-top: 15px;
+            font-size: 1.1rem;
+            color: #555;
         }
 
         /* --- Styles pour la bulle d'information initiale --- */
@@ -497,7 +500,7 @@
                 <div class="spinner"></div>
             </div>
         </div>
-        </main>
+    </main>
 
     <div id="footer-placeholder"></div>
 
@@ -546,7 +549,6 @@
 
 
     <script>
-        // const PROXY_URL = "/.netlify/functions/proxy"; // Commenté car nous n'utiliserons plus le backend pour les articles
         const ARTICLES_PER_LOAD = 9; // Nombre d'articles à charger à chaque fois
         
         // ARTICLES INITIAUX (réintégrés ici)
@@ -721,11 +723,8 @@
             card.className = "article-card";
             card.dataset.id = article.id; // Stocke l'ID de l'article pour l'édition/suppression
 
-            // Fallback image URL if article.imageUrl is empty or invalid
-            const imageUrl = (article.imageUrl && typeof article.imageUrl === 'string' && (article.imageUrl.startsWith('http') || article.imageUrl.startsWith('/') || article.imageUrl.startsWith('./') || article.imageUrl.startsWith('../'))) ? article.imageUrl : 'https://via.placeholder.com/300x180?text=Article';
-
+            // L'image est retirée comme demandé
             card.innerHTML = `
-                <img src="${imageUrl}" alt="${article.title || 'Article Image'}" onerror="this.onerror=null;this.src='https://via.placeholder.com/300x180?text=Erreur+image';">
                 <div class="content">
                     <h3>${article.title || 'Titre Inconnu'}</h3>
                     <p>${article.description || 'Pas de description disponible.'}</p>
@@ -819,7 +818,7 @@
             }
         });
 
-        // La soumission du formulaire est maintenant pour l'ajout local (non persistant)
+        // La soumission du formulaire sera désactivée/modifiée car nous n'avons plus de backend direct
         articleForm.addEventListener("submit", async (event) => {
             event.preventDefault();
             modalLoaderOverlay.style.display = 'flex'; // Affiche le loader dans la modale
@@ -831,7 +830,7 @@
                 category: document.getElementById("articleCategory").value,
                 source: document.getElementById("articleSource").value,
                 url: document.getElementById("articleUrl").value,
-                imageUrl: document.getElementById("articleImageUrl").value,
+                imageUrl: document.getElementById("articleImageUrl").value, // L'URL d'image est toujours capturée, même si non affichée.
                 description: document.getElementById("articleDescription").value,
                 date: new Date().toISOString().slice(0, 10) // Date actuelle au format AAAA-MM-JJ
             };
@@ -864,14 +863,15 @@
             }
         };
 
-        // Fonction pour mettre à jour la bulle de notification (maintenue mais non fonctionnelle sans backend)
+        // Fonction pour mettre à jour la bulle de notification (désormais inactive sans le PROXY_URL)
         async function mettreAJourBulleDemandes() {
+            // Cette fonction est maintenue mais sera inactive sans un PROXY_URL défini et fonctionnel.
+            // La bulle de notification pour les "Demandes IA" ne se mettra pas à jour dynamiquement.
             const notif = document.getElementById('notification-badge'); 
             if (notif) {
-                // Cette partie est commentée car elle nécessite un backend (`PROXY_URL`)
-                // Pour un site statique, vous pouvez définir la bulle manuellement ou la cacher
-                notif.style.display = 'none'; // Cache la bulle
-                console.warn("La bulle de notification des demandes IA n'est pas mise à jour car aucun backend n'est configuré.");
+                // Vous pouvez définir un nombre fixe ou masquer si vous n'avez plus de backend.
+                notif.style.display = 'none'; // Masquer la bulle car il n'y a plus de backend direct pour les demandes
+                console.warn("La bulle de notification des demandes IA n'est pas mise à jour, le backend n'est plus utilisé pour cette page.");
             }
         }
 
@@ -893,7 +893,6 @@
         // Au chargement de la page
         window.addEventListener("load", async () => {
             // Charger le header et le footer en parallèle
-            // Utilise la fonction loadComponent pour une meilleure gestion d'erreurs
             await Promise.all([
                 loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu"),
                 loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
@@ -905,7 +904,7 @@
             // Appeler la fonction de mise à jour de la bulle (elle gérera l'absence de PROXY_URL)
             mettreAJourBulleDemandes(); 
 
-            // Rendre le corps visible après le chargement initial
+            // Rendre le corps visible après le chargement initial et l'apparition de la modale
             document.body.classList.add("show");
             if (mainElement) {
                 mainElement.classList.add("show");
