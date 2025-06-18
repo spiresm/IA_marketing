@@ -3,32 +3,21 @@
 // Importation dynamique de node-fetch, nécessaire pour les modules ES
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
-// Ajoute ici l'importation pour l'API OpenAI si tu l'utilises
-// Par exemple: import OpenAI from 'openai';
-// Ou si tu utilises directement l'API de Google Gemini ou autre, importe le client nécessaire
-// Exemple pour OpenAI:
 import OpenAI from 'openai';
 
-// Initialise l'API Key pour OpenAI
-// Assure-toi que OPENAI_API_KEY est défini dans les variables d'environnement de Netlify
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 
 export const handler = async (event) => {
-    // URL de votre Google Apps Script pour les demandes IA
-    // Utilisez la variable d'environnement pour plus de sécurité et flexibilité
-    // IMPORTANT : ASSUREZ-VOUS QUE CELLE DE NETLIFY EST CORRECTE ET LA PLUS RÉCENTE
     const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8/exec';
 
     try {
-        // Récupère l'action depuis les paramètres de requête de l'URL
         const action = event.queryStringParameters?.action;
 
-        let targetUrl = ''; // L'URL vers laquelle la requête sera redirigée
-        let fetchMethod = event.httpMethod; // La méthode HTTP originale (GET, POST, etc.)
-        let requestBody = null; // Le corps de la requête que nous enverrons, initialisé à null par défaut
+        let targetUrl = '';
+        let fetchMethod = event.httpMethod;
+        let requestBody = null;
 
-        // Si aucune action n'est spécifiée, renvoie une erreur 400
         if (!action) {
             console.warn(`Proxy.mjs: Action manquante.`);
             return {
@@ -37,7 +26,6 @@ export const handler = async (event) => {
             };
         }
 
-        // Logique de routage basée sur l'action demandée
         switch (action) {
             case 'getProfils':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/getProfils`;
@@ -76,9 +64,8 @@ export const handler = async (event) => {
                 requestBody = null;
                 break;
 
-            case 'chatWithGPT': // <--- NOUVEAU CASE POUR LE CHATBOT
+            case 'chatWithGPT':
                 try {
-                    // Le message de l'utilisateur est dans le corps de la requête POST
                     const { message } = JSON.parse(event.body);
 
                     if (!message) {
@@ -88,19 +75,14 @@ export const handler = async (event) => {
                         };
                     }
 
-                    // *** REMPLACEZ CE BLOC PAR L'APPEL À VOTRE API GPT ***
-                    // Exemple avec OpenAI:
                     const completion = await openai.chat.completions.create({
-                        model: "gpt-3.5-turbo", // Ou le modèle que tu utilises (e.g., "gpt-4", "gemini-pro")
+                        model: "gpt-4o", // <-- CHANGEZ CETTE LIGNE
                         messages: [{ role: "user", content: message }],
-                        max_tokens: 300, // Limite la longueur de la réponse
-                        temperature: 0.7, // Contrôle la créativité (0.0 très factuel, 1.0 très créatif)
+                        max_tokens: 300,
+                        temperature: 0.7,
                     });
 
                     const reply = completion.choices[0].message.content;
-
-                    // Si tu n'as pas encore connecté l'API, tu peux utiliser une réponse de test temporaire :
-                    // const reply = `J'ai bien reçu votre message : "${message}". (Réponse de test)`
 
                     return {
                         statusCode: 200,
@@ -113,10 +95,8 @@ export const handler = async (event) => {
                         body: JSON.stringify({ reply: `Désolé, une erreur est survenue lors de la communication avec l'IA: ${chatError.message}` }),
                     };
                 }
-            // FIN DU NOUVEAU CASE POUR LE CHATBOT
 
             default:
-                // Si l'action n'est pas reconnue, renvoie une erreur 400
                 console.warn(`Proxy.mjs: Action non reconnue: ${action}`);
                 return {
                     statusCode: 400,
@@ -124,11 +104,6 @@ export const handler = async (event) => {
                 };
         }
 
-        // Si l'action a été gérée par un case spécifique (comme chatWithGPT qui retourne déjà une réponse),
-        // alors la suite du code n'est pas exécutée pour ces cas.
-        // Seules les actions qui définissent targetUrl et requestBody continueront ici.
-
-        // Options pour la requête fetch vers la cible
         const fetchOptions = {
             method: fetchMethod,
             headers: {},
