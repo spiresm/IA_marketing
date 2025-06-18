@@ -381,7 +381,73 @@
             color: #555;
         }
 
-        /* Responsive adjustments */
+        /* --- Styles pour la bulle d'information initiale --- */
+        .info-bubble-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Fond semi-transparent */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000; /* Assure que la bulle est au-dessus de tout le reste */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .info-bubble-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            text-align: center;
+            position: relative;
+            transform: translateY(20px); /* Légère animation d'apparition */
+            transition: transform 0.3s ease;
+        }
+
+        .info-bubble-overlay.visible .info-bubble-content {
+            transform: translateY(0);
+        }
+
+        .info-bubble-content h3 {
+            color: #003366;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .info-bubble-content p {
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .info-bubble-content button {
+            background-color: #0077b6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .info-bubble-content button:hover {
+            background-color: #005f8a;
+        }
+
+        /* Media Queries pour la responsivité */
         @media (max-width: 768px) {
             .filters {
                 flex-direction: column;
@@ -405,10 +471,35 @@
                 padding: 12px 15px;
                 font-size: 1em;
             }
+            /* Styles spécifiques pour les petites écrans de la bulle d'info */
+            .info-bubble-content {
+                margin: 20px;
+                padding: 20px;
+            }
+            .info-bubble-content h3 {
+                font-size: 1.3em;
+            }
+            .info-bubble-content p {
+                font-size: 0.9em;
+            }
+            .info-bubble-content button {
+                font-size: 1em;
+                padding: 10px 20px;
+            }
         }
     </style>
 </head>
 <body>
+    <div id="info-bubble-overlay" class="info-bubble-overlay">
+        <div class="info-bubble-content">
+            <h3>Bienvenue dans la Veille IA & Marketing !</h3>
+            <p>
+                Gardez un œil sur les dernières actualités et avancées en intelligence artificielle appliquées au marketing. Utilisez la barre de recherche pour trouver des articles spécifiques ou filtrez par catégories pour rester informé des tendances qui comptent.
+            </p>
+            <button id="info-bubble-close-btn">Compris !</button>
+        </div>
+    </div>
+
     <div id="header-placeholder"></div>
 
     <main>
@@ -518,6 +609,10 @@
         const modalStatusMessage = document.getElementById("modal-status-message");
         const modalLoaderOverlay = document.getElementById("modal-loader-overlay");
 
+        // Info bubble elements
+        const infoBubbleOverlay = document.getElementById("info-bubble-overlay");
+        const infoBubbleCloseBtn = document.getElementById("info-bubble-close-btn");
+
         let currentArticleId = null; // Pour l'édition: stocke l'ID de l'article en cours d'édition
 
         // Fonction pour normaliser les chaînes de caractères (minuscules, sans accents)
@@ -611,7 +706,7 @@
             } else {
                 loadMoreBtn.style.display = "none";
             }
-             if (filteredAndSearchedArticles.length === 0) {
+             if (filteredAndSearchedArticles.length === 0 && articlesToAdd.length === 0) { // Condition affinée pour le message d'absence d'articles
                 articlesList.innerHTML = '<p style="text-align: center; color: #666; width: 100%;">Aucun article ne correspond à vos critères.</p>';
                 loadMoreBtn.style.display = "none";
             }
@@ -744,6 +839,20 @@
             }
         }
 
+        // --- Logique d'affichage de la bulle d'information initiale ---
+        // Affiche toujours la bulle quand la page est chargée
+        infoBubbleCloseBtn.addEventListener('click', () => {
+            infoBubbleOverlay.classList.remove('visible');
+        });
+
+        // Fermer la bulle si l'utilisateur clique en dehors d'elle
+        infoBubbleOverlay.addEventListener('click', (event) => {
+            if (event.target === infoBubbleOverlay) {
+                infoBubbleOverlay.classList.remove('visible');
+            }
+        });
+        // --- Fin de la logique de la bulle d'information initiale ---
+
 
         // Au chargement de la page
         window.addEventListener("load", async () => {
@@ -756,13 +865,16 @@
             // Charger tous les articles disponibles (cette fonction affiche les articles)
             await fetchAllArticles();
             
-            mettreAJourBulleDemandes(); // Met à jour la bulle de notification après que le header soit chargé
+            // Mettre à jour la bulle de notification après que le header soit potentiellement chargé
+            mettreAJourBulleDemandes(); 
 
-            // Rendre le corps visible après le chargement initial
+            // Rendre le corps visible après le chargement initial et l'apparition de la modale
             document.body.classList.add("show");
             if (mainElement) {
                 mainElement.classList.add("show");
             }
+            // Afficher la bulle d'information après que le contenu principal soit visible
+            infoBubbleOverlay.classList.add('visible');
         });
     </script>
 </body>
