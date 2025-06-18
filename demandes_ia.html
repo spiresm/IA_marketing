@@ -649,7 +649,7 @@
                         <div class="modal-info-line"><strong>Durée :</strong> <span>${d.duree || 'N/A'}</span></div>
                         <div class="modal-info-line"><strong>Date :</strong> <span>${formattedDate}</span></div>
                         <div class="modal-info-line description"><strong>Briefing :</strong> <span>${d.description || 'N/A'}</span></div>
-                    `;
+                        `;
                     modal.style.display = "flex";
                 });
 
@@ -756,68 +756,62 @@
                     if (!response.ok) {
                         const errorText = await response.text();
                         console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
-                        showToast(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}.`, 'error');
-                        return;
-                    }
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        showToast(result.message || "Demande envoyée avec succès et mail transmis !", 'success');
-                        e.target.reset();
-                        afficherDemandes();
-                        mettreAJourBulleDemandes();
+                        showToast(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}`, 'error');
                     } else {
-                        console.error("Échec de l'envoi (réponse backend) :", result.message);
-                        showToast(`Échec de l'envoi : ${result.message || "Erreur inconnue."}`, 'error');
+                        const result = await response.json();
+                        if (result.success) {
+                            showToast("Demande envoyée avec succès !", 'success');
+                            e.target.reset(); // Réinitialiser le formulaire
+                            afficherDemandes(); // Rafraîchir la liste des demandes
+                            mettreAJourBulleDemandes();
+                        } else {
+                            console.error("Échec de l'envoi (réponse backend) :", result.message);
+                            showToast(`Échec de l'envoi : ${result.message || "Erreur inconnue."}`, 'error');
+                        }
                     }
-                } catch(e) {
-                    console.error("Erreur lors de l'envoi de la demande :", e);
-                    showToast("Erreur lors de l'envoi. Vérifiez la console pour plus de détails.", 'error');
+                } catch (error) {
+                    console.error("Erreur lors de l'envoi de la demande :", error);
+                    showToast("Erreur réseau ou interne lors de l'envoi de la demande.", 'error');
                 } finally {
                     submitBtn.textContent = originalBtnText;
                     submitBtn.disabled = false;
                 }
             });
 
-            // Événement pour fermer la modale
-            document.querySelector("#modal .close-modal").addEventListener("click", () => {
+            // Gestion de la modale de détails (pour les tickets)
+            document.querySelector(".close-modal").addEventListener("click", () => {
                 document.getElementById("modal").style.display = "none";
             });
-
-            // Fermer la modale en cliquant en dehors
-            document.getElementById("modal").addEventListener("click", (e) => {
-                if (e.target.id === "modal") {
+            window.addEventListener("click", (event) => {
+                if (event.target === document.getElementById("modal")) {
                     document.getElementById("modal").style.display = "none";
                 }
             });
 
-            // Gestion des filtres
-            document.getElementById("filtreDemandeur").addEventListener("change", (e) => {
-                e.target.dataset.currentValue = e.target.value; // Store selected value
-                afficherDemandes();
-            });
+            // --- MODIFICATION ICI : La modale d'information s'affiche à chaque fois ---
+            const infoModal = document.getElementById("infoModal");
+            const comprenezBtn = document.getElementById("comprendaBtn");
 
-            document.getElementById("filtreParChaine").addEventListener("change", (e) => {
-                e.target.dataset.currentValue = e.target.value; // Store selected value
-                afficherDemandes();
-            });
+            // Afficher la modale à chaque chargement de page
+            infoModal.classList.remove("hidden"); 
 
-            // Afficher les demandes au chargement initial
+            comprendaBtn.addEventListener("click", () => {
+                infoModal.classList.add("hidden");
+                // La ligne localStorage.setItem("infoModalSeen", "true"); a été retirée.
+            });
+            // --- FIN DE LA MODIFICATION ---
+
+            // Appeler afficherDemandes au chargement initial
             afficherDemandes();
 
-            // Gestion de la modale d'information initiale
-            const infoModal = document.getElementById('infoModal');
-            const comprenezBtn = document.getElementById('comprendaBtn');
-
-            // Vérifiez si l'utilisateur a déjà vu le message
-            if (localStorage.getItem('bienvenueMessageVu') === 'true') {
-                infoModal.classList.add('hidden');
-            }
-
-            comprenezBtn.addEventListener('click', () => {
-                infoModal.classList.add('hidden');
-                localStorage.setItem('bienvenueMessageVu', 'true');
+            // Écouteurs pour les filtres
+            document.getElementById("filtreDemandeur").addEventListener("change", (e) => {
+                e.target.dataset.currentValue = e.target.value; // Stocke la valeur sélectionnée
+                afficherDemandes();
+            });
+            document.getElementById("filtreParChaine").addEventListener("change", (e) => {
+                e.target.dataset.currentValue = e.target.value; // Stocke la valeur sélectionnée
+                afficherDemandes();
             });
         });
     </script>
