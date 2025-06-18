@@ -565,6 +565,106 @@
             transform: translateY(-1px);
         }
 
+        /* Styles pour la modale de bienvenue */
+        .modal {
+            display: none; /* Masqué par défaut */
+            position: fixed; /* Reste en place même en scrollant */
+            z-index: 1001; /* Doit être au-dessus de tout le reste, y compris le panneau latéral */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; /* Permet le défilement si le contenu est trop grand */
+            background-color: rgba(0, 0, 0, 0.6); /* Fond sombre semi-transparent */
+            animation: fadeIn 0.5s ease-out forwards; /* Animation d'apparition */
+            display: flex; /* Pour centrer le contenu */
+            justify-content: center; /* Centrage horizontal */
+            align-items: center; /* Centrage vertical */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto; /* Centrage */
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 500px; /* Largeur maximale pour la modale */
+            text-align: center;
+            position: relative;
+            animation: slideIn 0.5s ease-out forwards; /* Animation du contenu */
+        }
+
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #333;
+            text-decoration: none;
+        }
+
+        .modal-content h2 {
+            color: var(--primary-blue);
+            margin-top: 0;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            font-size: 1.1em;
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .modal-button {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-button:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+        }
+
+        /* Animations pour la modale */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Quand la modale est fermée, elle disparaît */
+        .modal.hidden {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
         /* Media queries pour la responsivité */
         @media (max-width: 992px) {
             .preview-panel {
@@ -727,6 +827,16 @@
         <div id="previewPanelContent" class="preview-panel-content">
         </div>
     </div>
+
+    <div id="welcomeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeWelcomeModal">&times;</span>
+            <h2>Bienvenue sur la Galerie des Tips et Prompts iMarketing !</h2>
+            <p>Découvrez des astuces et des prompts puissants pour booster votre marketing digital.</p>
+            <p>Utilisez les filtres pour trouver rapidement ce dont vous avez besoin.</p>
+            <button id="understandButton" class="modal-button">J'ai compris !</button>
+        </div>
+    </div>
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = []; // Ceci contiendra vos données de tips
@@ -809,7 +919,7 @@
         function escapeHtml(text) {
             // S'assure que text n'est pas null ou undefined avant d'appeler replace
             if (text === null || text === undefined) {
-                return ''; 
+                return '';
             }
             // Convertit en chaîne, au cas où ce serait un nombre ou autre type primitif
             text = String(text);
@@ -908,32 +1018,32 @@
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
                 const cardHtml = `
-                    <div class="carte" style="border-left-color: ${getCategoryColor(tip.categorie)};">
+                    <div class="carte" data-id="${escapeHtml(tip.id)}" style="border-left-color: ${escapeHtml(tip.couleur || var(--primary-blue))};">
                         <div class="infos-wrapper">
-                            <h3 class="tip-title">${escapeHtml(tip.titre)}</h3>
-                            <span class="outil-badge">${escapeHtml(tip.outil || 'Non spécifié')}</span>
-                            <div class="metadata-section">
-                                <span class="metadata-label">Auteur:</span>
-                                <span class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</span>
-                                <span class="metadata-label">Catégorie:</span>
-                                <span class="metadata-value">${escapeHtml(tip.categorie)}</span>
-                                <span class="metadata-label">Date:</span>
-                                <span class="metadata-value">${formattedDate}</span>
+                            <div class="top-row">
+                                <h2 class="tip-title">${escapeHtml(tip.titre)}</h2>
+                                <span class="outil-badge">${escapeHtml(tip.outil)}</span>
                             </div>
-
+                            <div class="metadata-section">
+                                <span class="metadata-label">Auteur:</span> <span class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</span>
+                                <span class="metadata-label">Catégorie:</span> <span class="metadata-value">${escapeHtml(tip.categorie)}</span>
+                                <span class="metadata-label">Date:</span> <span class="metadata-value">${formattedDate}</span>
+                            </div>
                             ${tip.previewText ? `<div class="preview-post-it">${escapeHtml(tip.previewText)}</div>` : ''}
-
                             <div class="card-actions">
                                 <div class="top-buttons-group">
-                                    <button class="toggle-content-btn" data-id="${tip.id}">Voir le contenu</button>
-                                    ${tip.prompt && tip.prompt.trim() !== '' ? `<button class="copier-btn" data-copy="${escapeHtml(tip.prompt)}">Copier le prompt</button>` : ''}
-                                    <button class="edit-btn" data-id="${tip.id}">Éditer</button>
+                                    <button class="toggle-content-btn" data-tip-id="${escapeHtml(tip.id)}">Afficher le contenu</button>
+                                    ${tip.prompt ? `<button class="copier-btn" data-clipboard-text="${escapeHtml(tip.prompt)}">Copier le prompt</button>` : ''}
+                                    <button class="edit-btn" data-tip-id="${escapeHtml(tip.id)}">Modifier</button>
                                     <div class="card-preview-icons-inline">
-                                        ${tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
-                                        ${tip.documentUrl ? `<i class="fas fa-file-alt icon-vignette" title="Contient un document"></i>` : ''}
+                                        ${tip.vignetteImage ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
+                                        ${tip.documentLink ? `<i class="fas fa-file-alt icon-vignette" title="Contient un document"></i>` : ''}
+                                        ${tip.prompt ? `<i class="fas fa-comment-dots icon-vignette" title="Contient un prompt"></i>` : ''}
+                                        ${tip.description ? `<i class="fas fa-info-circle icon-vignette" title="Contient une description"></i>` : ''}
+                                        ${tip.exemple ? `<i class="fas fa-lightbulb icon-vignette" title="Contient un exemple"></i>` : ''}
                                     </div>
                                 </div>
-                                <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
+                                <button class="supprimer-btn" data-id="${escapeHtml(tip.id)}"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </div>
                     </div>
@@ -941,160 +1051,63 @@
                 galerieDiv.insertAdjacentHTML('beforeend', cardHtml);
             });
 
-            // Attacher les gestionnaires d'événements après que les cartes sont ajoutées au DOM
-            attachEventListenersToCards();
-        }
-
-        function getCategoryColor(category) {
-            switch (category) {
-                case 'Marketing Digital': return '#0077b6'; // Primary Blue
-                case 'Réseaux Sociaux': return '#38a3a5'; // Teal
-                case 'SEO': return '#ffc300'; // Amber
-                case 'Contenu': return '#c70039'; // Dark Red
-                case 'Publicité': return '#8ac926'; // Lime Green
-                case 'Outils IA': return '#9d4edd'; // Purple
-                case 'Stratégie': return '#3c096c'; // Dark Purple
-                case 'Autre': return '#6c757d'; // Gray
-                default: return '#cccccc'; // Default Gray
-            }
-        }
-
-        function attachEventListenersToCards() {
+            // Attacher les écouteurs d'événements après que les cartes sont ajoutées
             document.querySelectorAll('.toggle-content-btn').forEach(button => {
-                button.onclick = (e) => openPreviewPanel(e.target.dataset.id);
+                button.addEventListener('click', (event) => {
+                    const tipId = event.target.dataset.tipId;
+                    openPreviewPanel(tipId);
+                });
             });
 
             document.querySelectorAll('.copier-btn').forEach(button => {
-                button.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target);
+                button.addEventListener('click', (event) => {
+                    const textToCopy = event.target.dataset.clipboardText;
+                    copyToClipboard(textToCopy, event.target);
+                });
             });
 
             document.querySelectorAll('.edit-btn').forEach(button => {
-                button.onclick = (e) => redirectToEditPage(e.target.dataset.id);
+                button.addEventListener('click', (event) => {
+                    const tipId = event.target.dataset.tipId;
+                    window.location.href = `modifier-tip.html?id=${tipId}`;
+                });
             });
 
             document.querySelectorAll('.supprimer-btn').forEach(button => {
-                button.onclick = (e) => confirmAndDeleteTip(e.target.dataset.id || e.target.closest('button').dataset.id);
+                button.addEventListener('click', (event) => {
+                    const tipId = event.target.dataset.id;
+                    confirmAndDeleteTip(tipId, event.target);
+                });
             });
         }
 
-        async function openPreviewPanel(tipId) {
-            console.log(`Opening preview panel for tip ID: ${tipId}`);
-            const tip = allTips.find(t => t.id === tipId);
-
-            if (tip) {
-                previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
-                let contentHtml = '';
-
-                if (tip.imageUrl) {
-                    contentHtml += `
-                        <div class="preview-panel-image-container">
-                            <img src="${escapeHtml(tip.imageUrl)}" alt="Image du tip" class="preview-panel-image" />
-                        </div>
-                    `;
-                }
-                if (tip.documentUrl && tip.documentFileName) {
-                    contentHtml += `
-                        <a href="${escapeHtml(tip.documentUrl)}" target="_blank" class="preview-panel-document-link">
-                            <i class="fas fa-file-alt"></i> Voir le document: ${escapeHtml(tip.documentFileName)}
-                        </a>
-                    `;
-                }
-                if (tip.previewText) {
-                    contentHtml += `
-                        <p><strong>Post-it:</strong></p>
-                        <div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>
-                    `;
-                }
-                if (tip.description) {
-                    contentHtml += `
-                        <p><strong>Description:</strong></p>
-                        <div class="content-card-blue">${escapeHtml(tip.description)}</div>
-                    `;
-                }
-                if (tip.prompt) {
-                    contentHtml += `
-                        <p><strong>Prompt:</strong></p>
-                        <button class="copy-panel-btn" data-copy="${escapeHtml(tip.prompt)}">Copier le prompt</button>
-                        <pre class="prompt-content-pre">${escapeHtml(tip.prompt)}</pre>
-                    `;
-                }
-                
-                // Add metadata to the panel
-                const dateObj = new Date(tip.dateCreation);
-                const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
-
-                contentHtml += `
-                    <div class="metadata-section" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-                        <span class="metadata-label">Auteur:</span>
-                        <span class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</span>
-                        <span class="metadata-label">Catégorie:</span>
-                        <span class="metadata-value">${escapeHtml(tip.categorie)}</span>
-                        <span class="metadata-label">Outil:</span>
-                        <span class="metadata-value">${escapeHtml(tip.outil || 'Non spécifié')}</span>
-                        <span class="metadata-label">Date de création:</span>
-                        <span class="metadata-value">${formattedDate}</span>
-                    </div>
-                `;
-
-                previewPanelContent.innerHTML = contentHtml;
-                previewPanel.classList.add('open');
-                previewOverlay.classList.add('open');
-                bodyElement.style.overflow = 'hidden'; // Prevent scrolling of main content
-
-                // Re-attach event listener for the copy button inside the panel
-                document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
-                    copyToClipboard(e.target.dataset.copy, e.target);
-                });
-
-            } else {
-                console.error("Tip not found for ID:", tipId);
-            }
-        }
-
-        function closePreviewPanel() {
-            previewPanel.classList.remove('open');
-            previewOverlay.classList.remove('open');
-            bodyElement.style.overflow = ''; // Restore scrolling
-        }
-
-        closePreviewBtn.addEventListener('click', closePreviewPanel);
-        previewOverlay.addEventListener('click', closePreviewPanel); // Close when clicking outside panel
-        // Close with Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && previewPanel.classList.contains('open')) {
-                closePreviewPanel();
-            }
-        });
-
-
-        async function copyToClipboard(text, buttonElement) {
+        async function copyToClipboard(text, button) {
             try {
                 await navigator.clipboard.writeText(text);
-                const originalText = buttonElement.textContent;
-                buttonElement.textContent = 'Copié !';
+                const originalText = button.textContent;
+                button.textContent = 'Copié !';
+                button.style.backgroundColor = '#28a745'; // Vert pour le succès
                 setTimeout(() => {
-                    buttonElement.textContent = originalText;
-                }, 1500);
+                    button.textContent = originalText;
+                    button.style.backgroundColor = 'var(--light-blue)';
+                }, 2000);
             } catch (err) {
-                console.error('Failed to copy: ', err);
-                alert('Échec de la copie.');
+                console.error('Erreur lors de la copie: ', err);
+                alert('La copie a échoué. Veuillez copier manuellement le texte.');
             }
         }
 
-        function redirectToEditPage(tipId) {
-            window.location.href = `modifier-tip.html?id=${tipId}`;
-        }
-
-        async function confirmAndDeleteTip(tipId) {
+        async function confirmAndDeleteTip(tipId, buttonElement) {
             if (confirm("Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.")) {
                 try {
+                    buttonElement.disabled = true; // Désactive le bouton
+                    buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; // Affiche un loader
                     const response = await fetch(`${apiBase}delete-tip`, {
-                        method: 'DELETE',
+                        method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ id: tipId })
+                        body: JSON.stringify({ id: tipId }),
                     });
 
                     if (!response.ok) {
@@ -1102,14 +1115,122 @@
                         throw new Error(errorData.message || `Erreur HTTP! status: ${response.status}`);
                     }
 
-                    alert("Tip supprimé avec succès !");
-                    loadAndDisplayTips(); // Recharger les tips après suppression
+                    // Supprimer la carte du DOM
+                    document.querySelector(`.carte[data-id="${tipId}"]`).remove();
+                    // Supprimer le tip de `allTips` pour que les filtres fonctionnent correctement
+                    allTips = allTips.filter(tip => tip.id !== tipId);
+                    applyFiltersAndSort(); // Réafficher pour mettre à jour le message "Aucun tip..." si nécessaire
+
+                    const msg = document.getElementById('success-message');
+                    msg.textContent = '🗑️ Tip/Prompt supprimé avec succès !';
+                    msg.style.opacity = '1';
+                    setTimeout(() => msg.style.opacity = '0', 2000);
+
                 } catch (error) {
-                    console.error("Erreur lors de la suppression du tip:", error);
-                    alert(`Échec de la suppression du tip: ${error.message}`);
+                    console.error("Erreur lors de la suppression:", error);
+                    errorDisplay.style.display = 'block';
+                    errorDisplay.textContent = `Erreur de suppression du tip: ${error.message}`;
+                    buttonElement.disabled = false; // Réactive le bouton
+                    buttonElement.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Rétablit l'icône
                 }
             }
         }
+
+        function openPreviewPanel(tipId) {
+            const tip = allTips.find(t => t.id === tipId);
+            if (!tip) {
+                console.error("Tip non trouvé pour l'ID:", tipId);
+                return;
+            }
+
+            previewPanelTitle.textContent = escapeHtml(tip.titre);
+            let contentHtml = '';
+
+            if (tip.vignetteImage) {
+                contentHtml += `<div class="preview-panel-image-container"><img src="${escapeHtml(tip.vignetteImage)}" alt="Vignette" class="preview-panel-image"></div>`;
+            }
+            
+            if (tip.previewText) {
+                contentHtml += `<h4>Texte de prévisualisation:</h4><div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>`;
+            }
+
+            if (tip.description) {
+                contentHtml += `<h4>Description:</h4><div class="content-card-blue">${escapeHtml(tip.description)}</div>`;
+            }
+            if (tip.exemple) {
+                contentHtml += `<h4>Exemple:</h4><div class="content-card-blue">${escapeHtml(tip.exemple)}</div>`;
+            }
+            if (tip.prompt) {
+                contentHtml += `<h4>Prompt:</h4><button class="copy-panel-btn" data-clipboard-text="${escapeHtml(tip.prompt)}">Copier le prompt</button><pre class="prompt-content-pre">${escapeHtml(tip.prompt)}</pre>`;
+            }
+            if (tip.documentLink) {
+                contentHtml += `<h4>Document lié:</h4><a href="${escapeHtml(tip.documentLink)}" target="_blank" class="preview-panel-document-link"><i class="fas fa-external-link-alt"></i> Voir le document</a>`;
+            }
+
+            previewPanelContent.innerHTML = contentHtml;
+            previewPanel.classList.add('open');
+            previewOverlay.classList.add('open');
+            bodyElement.style.overflow = 'hidden'; // Empêche le défilement du corps
+
+            // Attacher l'écouteur pour le bouton de copie du panneau si le prompt existe
+            const copyPanelBtn = previewPanelContent.querySelector('.copy-panel-btn');
+            if (copyPanelBtn) {
+                copyPanelBtn.addEventListener('click', (event) => {
+                    const textToCopy = event.target.dataset.clipboardText;
+                    copyToClipboard(textToCopy, event.target);
+                });
+            }
+        }
+
+        closePreviewBtn.addEventListener('click', () => {
+            previewPanel.classList.remove('open');
+            previewOverlay.classList.remove('open');
+            bodyElement.style.overflow = ''; // Rétablit le défilement du corps
+        });
+
+        previewOverlay.addEventListener('click', () => {
+            previewPanel.classList.remove('open');
+            previewOverlay.classList.remove('open');
+            bodyElement.style.overflow = '';
+        });
+
+        // --- Code pour la Modale de Bienvenue ---
+        const welcomeModal = document.getElementById('welcomeModal');
+        const closeWelcomeModalBtn = document.getElementById('closeWelcomeModal');
+        const understandButton = document.getElementById('understandButton');
+        const hasSeenWelcomeModal = localStorage.getItem('hasSeenWelcomeModal');
+
+        if (!hasSeenWelcomeModal) {
+            welcomeModal.style.display = 'flex'; // Affiche la modale au chargement si elle n'a jamais été vue
+        }
+
+        closeWelcomeModalBtn.addEventListener('click', () => {
+            welcomeModal.classList.add('hidden'); // Ajoute la classe pour l'animation de disparition
+            welcomeModal.addEventListener('animationend', () => {
+                welcomeModal.style.display = 'none'; // Cache la modale après l'animation
+                localStorage.setItem('hasSeenWelcomeModal', 'true'); // Stocke le fait que l'utilisateur l'a vue
+            }, { once: true }); // S'assure que l'écouteur n'est déclenché qu'une seule fois
+        });
+
+        understandButton.addEventListener('click', () => {
+            welcomeModal.classList.add('hidden'); // Ajoute la classe pour l'animation de disparition
+            welcomeModal.addEventListener('animationend', () => {
+                welcomeModal.style.display = 'none'; // Cache la modale après l'animation
+                localStorage.setItem('hasSeenWelcomeModal', 'true'); // Stocke le fait que l'utilisateur l'a vue
+            }, { once: true });
+        });
+
+        // Fermer la modale si l'utilisateur clique en dehors du contenu
+        welcomeModal.addEventListener('click', (event) => {
+            if (event.target === welcomeModal) {
+                welcomeModal.classList.add('hidden');
+                welcomeModal.addEventListener('animationend', () => {
+                    welcomeModal.style.display = 'none';
+                    localStorage.setItem('hasSeenWelcomeModal', 'true');
+                }, { once: true });
+            }
+        });
+        // --- Fin Code pour la Modale de Bienvenue ---
     </script>
 </body>
 </html>
