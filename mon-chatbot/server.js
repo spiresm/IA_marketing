@@ -2,20 +2,14 @@ require('dotenv').config(); // 🔐 Charge les variables d'environnement en loca
 
 const express = require('express');
 const bodyParser = require('body-parser');
-const OpenAI = require('openai');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const fetch = require('node-fetch'); // 📦 Pour faire des requêtes HTTP
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-
-// 🔐 Vérifie la présence de la clé API
-if (!process.env.OPENAI_API_KEY) {
-  console.error("❌ Clé API OpenAI manquante. Vérifie .env ou les variables Netlify.");
-  process.exit(1);
-}
 
 // 🧠 Chargement des connaissances (tableau de pages)
 let baseConnaissances = [];
@@ -27,12 +21,10 @@ try {
   console.warn("⚠️ Aucune base de connaissances trouvée. Le chatbot fonctionnera sans contexte enrichi.");
 }
 
-// 🔧 Configuration de l'API OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// 🌐 URL du webhook N8N
+const WEBHOOK_URL = 'https://ton-webhook-id.hooks.n8n.cloud/webhook/chatbot'; // 🔁 À remplacer par ta vraie URL N8N
 
-// 🧠 Endpoint principal avec injection du contexte
+// 🧠 Endpoint principal avec appel au webhook N8N
 app.post('/api/chat', async (req, res) => {
   const userMessage = req.body.message;
 
@@ -45,28 +37,25 @@ app.post('/api/chat', async (req, res) => {
     ? `Tu es un assistant IA pour un site d'équipe marketing. Utilise les informations suivantes issues du site pour répondre précisément aux questions des utilisateurs.\n\n${contexte}`
     : "Tu es un assistant IA pour un site d'équipe marketing.";
 
-  // 🧪 Log temporaire pour vérifier le prompt envoyé
-  console.log("\n🧠 Prompt système envoyé à OpenAI (extrait):\n", systemPrompt.slice(0, 1000), "\n");
-
   try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      temperature: 0.7,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
-      ],
+    const response = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: userMessage,
+        contexte: systemPrompt
+      })
     });
 
-    const reply = completion.choices[0].message.content;
-    res.json({ reply });
+    const data = await response.json();
+    res.json({ reply: data.reply || "Pas de réponse reçue." });
   } catch (error) {
-    console.error("❌ Erreur OpenAI :", error.message);
-    res.status(500).json({ reply: "Une erreur est survenue côté serveur." });
+    console.error("❌ Erreur lors de l’appel au webhook N8N :", error.message);
+    res.status(500).json({ reply: "Erreur lors de l'appel au moteur IA via N8N." });
   }
 });
 
-// 🌍 Sert l'interface HTML
+// 🌍 Sert l’interface HTML
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'chatbot.html'));
 });
