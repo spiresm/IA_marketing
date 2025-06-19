@@ -22,7 +22,7 @@ try {
 }
 
 // 🌐 URL du webhook N8N
-const WEBHOOK_URL = 'https://f54b-169-155-241-172.ngrok-free.app -> http://localhost:5678'; // 🔁 À remplacer par ta vraie URL N8N
+const WEBHOOK_URL = 'https://d345-169-155-241-172.ngrok-free.app -> http://localhost:5678'; // 🔁 À remplacer par ta vraie URL N8N
 
 // 🧠 Endpoint principal avec appel au webhook N8N
 app.post('/api/chat', async (req, res) => {
