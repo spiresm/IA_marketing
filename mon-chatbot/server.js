@@ -22,7 +22,7 @@ try {
 }
 
 // 🌐 URL du webhook N8N
-const WEBHOOK_URL = 'https://ton-webhook-id.hooks.n8n.cloud/webhook/chatbot'; // 🔁 À remplacer par ta vraie URL N8N
+const WEBHOOK_URL = 'http://localhost:5678/webhook/chatbot'; // 🔁 À remplacer par ta vraie URL N8N
 
 // 🧠 Endpoint principal avec appel au webhook N8N
 app.post('/api/chat', async (req, res) => {
