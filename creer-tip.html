@@ -421,7 +421,7 @@
         // Utilisez une URL de fonction Netlify pour l'upload (elle devra gérer les multiparts)
         // et une autre pour la récupération des auteurs.
         const SAVE_TIP_URL = "/.netlify/functions/submitTip"; // Votre fonction qui gère l'upload
-        const GET_PROFILS_URL = "/.netlify/functions/getAuteurs"; // Votre fonction pour les auteurs
+        const GET_PROFILS_URL = "/.netlify/functions/getProfils"; // <<< CHANGEMENT ICI: était getAuteurs
 
         const TipForm = {
             setup() {
@@ -455,19 +455,16 @@
                     console.log("Début du chargement des profils...");
                     isLoadingProfils.value = true;
                     try {
-                        // Utilisation directe de la fonction getAuteurs si elle existe, ou simulez
-                        // Si vous n'avez PAS de fonction getAuteurs, DÉCOMMENTEZ la ligne ci-dessous
-                        // et COMMENTEZ la ligne avec `fetch(GET_PROFILS_URL)`
-                        // const data = { auteurs: ["Jean Dupont", "Marie Curie", "Pierre Lefevre"] }; // Simulation
                         const response = await fetch(GET_PROFILS_URL);
-                        console.log("Réponse de la fonction getAuteurs pour les profils:", response);
+                        console.log("Réponse de la fonction Netlify pour les profils:", response);
                         if (!response.ok) {
                             const errorText = await response.text();
                             throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
                         }
                         const data = await response.json();
                         console.log("Données brutes des profils reçues:", data);
-                        const profilsList = Array.isArray(data) ? data : (data.auteurs || []); // S'attend à 'auteurs'
+                        // Assurez-vous que data est un tableau d'objets avec une propriété 'name' ou directement un tableau de noms
+                        const profilsList = Array.isArray(data) ? data : (data.profils || []); // S'attend à 'profils' ou un tableau direct
                         const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
 
@@ -475,7 +472,7 @@
                             auteur.value = names[0];
                             console.log("Un seul profil trouvé, auteur auto-sélectionné:", auteur.value);
                         } else if (names.length > 1) {
-                            auteur.value = '';
+                            auteur.value = ''; // Laisser vide pour que l'utilisateur choisisse
                             console.log("Plusieurs profils trouvés, veuillez sélectionner un auteur.");
                         } else {
                             auteur.value = '';
@@ -485,8 +482,7 @@
 
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
-                        // Afficher un message plus spécifique si la fonction n'existe pas
-                        alert(`Impossible de charger la liste des auteurs. Veuillez vérifier que la fonction Netlify "${GET_PROFILS_URL.split('/').pop()}" existe et est correctement déployée.`);
+                        alert(`Impossible de charger la liste des profils. Veuillez vérifier que la fonction Netlify "${GET_PROFILS_URL.split('/').pop()}" existe et est correctement déployée.`);
                     } finally {
                         isLoadingProfils.value = false;
                         console.log("Fin du chargement des profils.");
@@ -673,8 +669,8 @@
                             console.log("Utilisation des URL d'aperçu local pour la confirmation (backend n'a pas renvoyé d'URLs).", confirmationImageUrls.value);
                         }
                          if (confirmationImageUrls.value.length === 0) {
-                            console.log("Aucune image de confirmation disponible.");
-                        }
+                             console.log("Aucune image de confirmation disponible.");
+                         }
 
 
                         confirmationTitre.value = titre.value;
@@ -722,13 +718,27 @@
                     confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
                     lightboxVisible, lightboxImageUrl,
-                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm,
-                    openLightbox, closeLightbox, removeFile, getFileIcon // Exposer removeFile et getFileIcon
+                    openLightbox, closeLightbox,
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
+                    removeFile, getFileIcon, submitForm
                 };
             }
         };
 
         createApp(TipForm).mount('#app');
+        
+        fetch("footer.html")
+            .then(r => r.text())
+            .then(html => {
+                const footerPlaceholder = document.getElementById("footer-placeholder");
+                if (footerPlaceholder) {
+                    footerPlaceholder.innerHTML = html;
+                } else {
+                    console.warn("L'élément #footer-placeholder n'a pas été trouvé.");
+                }
+                console.log("Footer chargé.");
+            })
+            .catch(error => console.error("Erreur lors du chargement du footer:", error));
     </script>
 </body>
 </html>
