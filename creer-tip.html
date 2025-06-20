@@ -91,39 +91,70 @@
             background: #e0f7ff;
         }
 
-        .image-preview-container {
-            display: flex;
-            flex-wrap: wrap;
+        .file-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             gap: 10px;
             margin-top: 15px;
         }
 
-        .image-preview {
-            max-width: 100px;
-            max-height: 100px;
-            object-fit: contain;
-            border-radius: 5px;
+        .file-preview-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             border: 1px solid #eee;
+            border-radius: 5px;
+            overflow: hidden;
         }
 
-        .document-list-container {
-            margin-top: 15px;
-            padding: 10px;
-            border: 1px solid #eee;
-            border-radius: 4px;
-            background-color: #f9f9f9;
+        .file-preview-item img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
         }
-        .document-list-container ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
+
+        .file-preview-item .file-icon {
+            font-size: 2.5em;
+            color: #0077b6;
+            text-align: center;
+            line-height: 1; /* Aligner verticalement */
         }
-        .document-list-container li {
-            background-color: #e0f2f7;
-            padding: 5px 10px;
-            margin-bottom: 5px;
-            border-radius: 3px;
-            color: #0056b3;
+
+        .file-preview-item .file-name-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 0.7em;
+            padding: 3px 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        .remove-file-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 0.8em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 10;
         }
 
         button {
@@ -320,15 +351,13 @@
                         </div>
                     <input type="file" ref="fileInput" accept="image/*, .txt, .pdf" style="display:none" @change="onFileChange" multiple />
 
-                    <div class="image-preview-container">
-                        <img v-for="(url, index) in filePreviewUrls" :key="index" :src="url" class="image-preview" />
-                    </div>
-
-                    <div class="document-list-container" v-if="fileNamesForDocuments.length">
-                        <p>Documents sélectionnés :</p>
-                        <ul>
-                            <li v-for="(name, index) in fileNamesForDocuments" :key="'doc-' + index">{{ name }}</li>
-                        </ul>
+                    <div class="file-preview-grid">
+                        <div v-for="(file, index) in selectedFiles" :key="index" class="file-preview-item">
+                            <img v-if="file.type.startsWith('image/')" :src="file.previewUrl" class="image-preview" />
+                            <span v-else class="file-icon">{{ getFileIcon(file.type) }}</span>
+                            <span class="file-name-overlay">{{ file.name }}</span>
+                            <button type="button" class="remove-file-button" @click="removeFile(index)">&times;</button>
+                        </div>
                     </div>
 
                     <div v-if="isLoading" class="loader"></div>
@@ -380,10 +409,12 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script>
-        const { ref, createApp, onMounted, onUnmounted } = Vue; // Ajout de onUnmounted
+        const { ref, createApp, onMounted, onUnmounted } = Vue;
 
+        // URL de la fonction Netlify pour l'enregistrement du tip
+        // ATTENTION : Cette fonction devra être adaptée pour gérer les 'multipart/form-data'
         const SAVE_TIP_URL = "/.netlify/functions/pushTip";
-        const PROXY_URL = "/.netlify/functions/proxy";
+        const PROXY_URL = "/.netlify/functions/proxy"; // Pour récupérer les profils d'auteurs
 
         const TipForm = {
             setup() {
@@ -395,9 +426,7 @@
                 const categorie = ref('Marketing Digital');
                 const outil = ref('');
                 const fileInput = ref(null);
-                const selectedFiles = ref([]);
-                const filePreviewUrls = ref([]);
-                const fileNamesForDocuments = ref([]);
+                const selectedFiles = ref([]); // Maintenant un tableau pour plusieurs fichiers
                 const confirmationVisible = ref(false);
                 const confirmationImageUrl = ref('');
                 const confirmationTitre = ref('');
@@ -408,7 +437,6 @@
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
-                // NOUVELLES PROPRIÉTÉS pour la lightbox
                 const lightboxVisible = ref(false);
                 const lightboxImageUrl = ref('');
 
@@ -442,29 +470,24 @@
 
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
-                        // Commenté pour ne pas bloquer l'interface en cas d'erreur de chargement des profils
-                        // alert(`Impossible de charger la liste des auteurs. Vérifiez la console et les logs de votre fonction proxy Netlify pour plus de détails. Erreur: ${error.message}`);
                     } finally {
                         isLoadingProfils.value = false;
                         console.log("Fin du chargement des profils.");
                     }
                 }
 
-                // NOUVELLE FONCTION : ouvre la lightbox
                 function openLightbox(imageUrl) {
                     lightboxImageUrl.value = imageUrl;
                     lightboxVisible.value = true;
                     console.log("Lightbox ouverte pour:", imageUrl);
                 }
 
-                // NOUVELLE FONCTION : ferme la lightbox
                 function closeLightbox() {
                     lightboxVisible.value = false;
                     lightboxImageUrl.value = '';
                     console.log("Lightbox fermée.");
                 }
 
-                // NOUVELLE FONCTION : Gère la touche Échappe pour fermer la lightbox
                 function handleKeydown(event) {
                     if (event.key === 'Escape' && lightboxVisible.value) {
                         closeLightbox();
@@ -474,11 +497,9 @@
                 onMounted(() => {
                     console.log("Composant TipForm monté.");
                     fetchProfils();
-                    // Ajout de l'écouteur d'événement pour la touche Échappe
                     window.addEventListener('keydown', handleKeydown);
                 });
 
-                // onUnmounted est utile pour nettoyer les écouteurs d'événements
                 onUnmounted(() => {
                     window.removeEventListener('keydown', handleKeydown);
                 });
@@ -496,17 +517,15 @@
                 function onDragLeave(e) {
                     console.log("Événement dragleave détecté.");
                     e.currentTarget.classList.remove('dragover');
-                    // PAS de traitement de fichiers ici, c'est pour onDrop
                 }
 
-                // ** CORRECTION ICI : Logique de dépôt de fichiers **
                 function onDrop(e) {
                     console.log("Événement drop détecté.");
                     e.currentTarget.classList.remove('dragover');
-                    const files = e.dataTransfer.files; // Accès aux fichiers déposés
+                    const files = e.dataTransfer.files;
                     if (files.length) {
                         console.log("Fichiers déposés:", files);
-                        handleFiles(files); // Appelle votre fonction de traitement des fichiers
+                        addFiles(files);
                     } else {
                         console.log("Aucun fichier déposé.");
                     }
@@ -516,26 +535,26 @@
                     const files = e.target.files;
                     if (files) {
                         console.log("Fichiers sélectionnés via l'input:", files);
-                        handleFiles(files);
+                        addFiles(files);
                     } else {
                         console.log("Aucun fichier sélectionné via l'input.");
                     }
+                    // Réinitialiser la valeur de l'input pour permettre de sélectionner les mêmes fichiers à nouveau si nécessaire
+                    e.target.value = null;
                 }
 
-                function handleFiles(files) {
-                    selectedFiles.value = Array.from(files);
-                    filePreviewUrls.value = [];
-                    fileNamesForDocuments.value = [];
+                // Nouvelle fonction pour ajouter des fichiers, gère l'aperçu
+                function addFiles(files) {
+                    Array.from(files).forEach(file => {
+                        console.log(`Ajout du fichier: ${file.name}, Type: ${file.type}, Taille: ${file.size} octets`);
 
-                    console.log("Fichiers à traiter dans handleFiles (pour aperçu et/ou noms):", selectedFiles.value);
-
-                    selectedFiles.value.forEach(file => {
-                        console.log(`Traitement du fichier: ${file.name}, Type: ${file.type}, Taille: ${file.size} octets`);
+                        // Pour les images, crée une URL d'aperçu
                         if (file.type.startsWith('image/')) {
                             const reader = new FileReader();
                             reader.onload = (e) => {
                                 if (e.target.result && typeof e.target.result === 'string' && e.target.result.startsWith('data:image')) {
-                                    filePreviewUrls.value.push(e.target.result);
+                                    file.previewUrl = e.target.result; // Ajoute la propriété previewUrl à l'objet File
+                                    selectedFiles.value.push(file);
                                 } else {
                                     console.warn(`Résultat de lecture d'image non valide pour ${file.name}. Ignoré.`);
                                 }
@@ -546,27 +565,31 @@
                             };
                             reader.readAsDataURL(file);
                         } else {
-                            fileNamesForDocuments.value.push(file.name);
-                            console.log(`Le fichier ${file.name} est un document, ajout de son nom pour affichage.`);
+                            // Pour les documents, ajoute simplement le fichier au tableau
+                            selectedFiles.value.push(file);
                         }
                     });
+                    console.log("Fichiers actuellement sélectionnés:", selectedFiles.value);
+                }
+
+                function removeFile(index) {
+                    if (index >= 0 && index < selectedFiles.value.length) {
+                        const removedFile = selectedFiles.value.splice(index, 1);
+                        console.log(`Fichier supprimé de la sélection: ${removedFile[0].name}`);
+                    }
+                }
+
+                function getFileIcon(fileType) {
+                    if (fileType.includes('pdf')) return '📄'; // PDF
+                    if (fileType.includes('text')) return '📝'; // Text
+                    return '📁'; // Default for other documents
                 }
 
                 async function submitForm() {
                     console.log("Soumission du formulaire...");
-                    if (!auteur.value) {
-                        alert("Veuillez sélectionner un auteur.");
-                        console.warn("Soumission bloquée: Auteur manquant.");
-                        return;
-                    }
-                    if (!titre.value.trim()) {
-                        alert("Veuillez entrer le titre du tip.");
-                        console.warn("Soumission bloquée: Titre manquant.");
-                        return;
-                    }
-                    if (!description.value.trim()) {
-                        alert("Veuillez entrer la description du tip.");
-                        console.warn("Soumission bloquée: Description manquante.");
+                    if (!auteur.value || !titre.value.trim() || !description.value.trim()) {
+                        alert("Veuillez remplir tous les champs obligatoires (Auteur, Titre, Description).");
+                        console.warn("Soumission bloquée: Champs obligatoires manquants.");
                         return;
                     }
 
@@ -575,36 +598,26 @@
                     console.log("Formulaire en cours de traitement (isLoading = true).");
 
                     try {
-                        const payload = {
-                            auteur: auteur.value,
-                            titre: titre.value,
-                            description: description.value,
-                            previewText: previewText.value,
-                            prompt: promptText.value,
-                            categorie: categorie.value,
-                            outil: outil.value,
-                            dateCreation: new Date().toISOString(),
-                        };
+                        const formData = new FormData();
+                        formData.append('auteur', auteur.value);
+                        formData.append('titre', titre.value);
+                        formData.append('description', description.value);
+                        formData.append('previewText', previewText.value);
+                        formData.append('prompt', promptText.value);
+                        formData.append('categorie', categorie.value);
+                        formData.append('outil', outil.value);
+                        formData.append('dateCreation', new Date().toISOString());
 
-                        if (selectedFiles.value.length > 0 && selectedFiles.value[0].type.startsWith('image/')) {
-                            const firstImage = selectedFiles.value[0];
-                            const firstImageUrl = filePreviewUrls.value[0];
+                        // Ajout de tous les fichiers sélectionnés au FormData
+                        selectedFiles.value.forEach((file, index) => {
+                            formData.append(`files[${index}]`, file, file.name); // 'files[]' pour un tableau de fichiers
+                        });
 
-                            if (firstImageUrl) {
-                                payload.imageData = firstImageUrl;
-                                payload.imageFileName = firstImage.name;
-                                console.log("Image détectée et ajoutée au payload pour envoi à la fonction Netlify.");
-                            } else {
-                                console.warn("Image sélectionnée mais Data URL non disponible pour l'envoi.");
-                            }
-                        }
-
-                        console.log("Payload complet envoyé à la fonction pushTip:", JSON.stringify(payload, null, 2));
+                        console.log("Envoi du formulaire avec FormData...");
 
                         const tipResp = await fetch(SAVE_TIP_URL, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
+                            body: formData // Pas de Content-Type ici, le navigateur le gère automatiquement pour FormData
                         });
 
                         console.log("Réponse de la fonction pushTip:", tipResp);
@@ -618,17 +631,19 @@
                         const result = await tipResp.json();
                         console.log("Résultat de l'enregistrement du tip via GitHub:", result);
 
-                        if (result.imageUrl) {
-                            confirmationImageUrl.value = result.imageUrl;
-                            console.log("Image de confirmation définie avec l'URL publique de GitHub:", result.imageUrl);
-                        } else if (filePreviewUrls.value.length > 0) {
-                            confirmationImageUrl.value = filePreviewUrls.value[0];
+                        // Afficher l'aperçu de la première image si elle est retournée ou si elle est présente localement
+                        if (result.imageUrl && result.imageUrl.length > 0) {
+                            confirmationImageUrl.value = result.imageUrl[0]; // Supposons que l'API renvoie un tableau d'URLs
+                            console.log("Image de confirmation définie avec l'URL publique de GitHub:", confirmationImageUrl.value);
+                        } else if (selectedFiles.value.some(f => f.type.startsWith('image/') && f.previewUrl)) {
+                            // Cherche la première image qui a une previewUrl
+                            const firstImageWithPreview = selectedFiles.value.find(f => f.type.startsWith('image/') && f.previewUrl);
+                            confirmationImageUrl.value = firstImageWithPreview ? firstImageWithPreview.previewUrl : '';
                             console.log("Image de confirmation définie avec l'URL d'aperçu local.");
                         } else {
                             confirmationImageUrl.value = '';
                             console.log("Aucune image de confirmation disponible.");
                         }
-
 
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
@@ -649,17 +664,14 @@
                         promptText.value = '';
                         categorie.value = 'Marketing Digital';
                         outil.value = '';
-                        selectedFiles.value = [];
-                        filePreviewUrls.value = [];
-                        fileNamesForDocuments.value = [];
+                        selectedFiles.value = []; // Réinitialise tous les fichiers
                         if (fileInput.value) {
-                            fileInput.value.value = null;
+                            fileInput.value.value = null; // Important pour clear le champ input
                         }
                         fetchProfils();
                         console.log("Formulaire réinitialisé.");
 
-                    }
-                    catch (err) {
+                    } catch (err) {
                         console.error('Erreur irrécupérable lors de l\'envoi du tip:', err);
                         alert(`Échec de l'envoi du tip: ${err.message || err}. Vérifiez la console pour plus de détails.`);
                     } finally {
@@ -670,13 +682,13 @@
 
                 return {
                     auteur, titre, description, previewText, promptText, categorie, outil, fileInput,
-                    filePreviewUrls, fileNamesForDocuments,
+                    selectedFiles, // Exposé comme tableau unique
                     confirmationVisible,
                     confirmationImageUrl, confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
-                    lightboxVisible, lightboxImageUrl, // Exposer les nouvelles propriétés
-                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm, // ** onDrop est maintenant exposé **
-                    openLightbox, closeLightbox // Exposer les nouvelles fonctions
+                    lightboxVisible, lightboxImageUrl,
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm,
+                    openLightbox, closeLightbox, removeFile, getFileIcon
                 };
             }
         };
