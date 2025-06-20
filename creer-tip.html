@@ -371,28 +371,35 @@
                             @click="triggerFile"
                             @dragover.prevent="onDragOver"
                             @dragleave="onDragLeave"
-                            @drop.prevent="onDrop">
+                            @drop.prevent="onDrop"
+                            aria-live="polite"
+                            aria-atomic="true"
+                            tabindex="0"
+                            role="button"
+                            title="Cliquez ou déposez des fichiers ici">
                         Déposez ou cliquez pour ajouter des images ou documents (.txt, .pdf)
                     </div>
                     <input type="file" ref="fileInput" accept="image/*, .txt, .pdf" style="display:none" @change="onFileChange" multiple />
+                    <p v-if="fileUploadError" style="color: red; margin-top: 5px;">{{ fileUploadError }}</p>
+
 
                     <div class="file-preview-grid">
                         <div v-for="(fileObj, index) in selectedFiles" :key="fileObj.id" class="file-preview-item">
                             <img v-if="fileObj.type.startsWith('image/')" :src="fileObj.previewUrl" class="image-preview" :alt="fileObj.name" />
                             <span v-else class="file-icon">{{ getFileIcon(fileObj.type) }}</span>
-                            <span class="file-name-overlay">{{ fileObj.name }}</span>
-                            <button type="button" class="remove-file-button" @click="removeFile(fileObj.id)">&times;</button>
+                            <span class="file-name-overlay" :title="fileObj.name">{{ fileObj.name }}</span>
+                            <button type="button" class="remove-file-button" @click="removeFile(fileObj.id)" :aria-label="`Supprimer le fichier ${fileObj.name}`">&times;</button>
                         </div>
                     </div>
 
-                    <div v-if="isLoading" class="loader"></div>
+                    <div v-if="isLoading" class="loader" aria-label="Chargement en cours..."></div>
                     <button v-else type="submit" :disabled="!auteur || !titre || !description || isLoading">Partager le Tip / Prompt</button>
                 </form>
 
-                <div class="confirmation" v-if="confirmationVisible">
+                <div class="confirmation" v-if="confirmationVisible" role="status" aria-live="assertive">
                     <p>✅ Tip / Prompt partagé avec succès !</p>
                     <template v-if="confirmationImageUrls && confirmationImageUrls.length > 0">
-                        <img v-for="(url, index) in confirmationImageUrls" :key="'conf-img-' + index" :src="url" @click="openLightbox(url)" style="margin: 5px;"/>
+                        <img v-for="(url, index) in confirmationImageUrls" :key="'conf-img-' + index" :src="url" @click="openLightbox(url)" style="margin: 5px;" :alt="`Image de confirmation ${index + 1}`"/>
                     </template>
                     <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
                     <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
@@ -402,10 +409,10 @@
                 </div>
             </div>
 
-            <div class="lightbox-overlay" v-if="lightboxVisible" @click.self="closeLightbox">
-                <span class="lightbox-close" @click="closeLightbox">&times;</span>
+            <div class="lightbox-overlay" v-if="lightboxVisible" @click.self="closeLightbox" role="dialog" aria-modal="true" :aria-label="`Aperçu de l'image ${lightboxImageUrl.split('/').pop()}`">
+                <span class="lightbox-close" @click="closeLightbox" role="button" tabindex="0" aria-label="Fermer l'aperçu de l'image">&times;</span>
                 <div class="lightbox-content">
-                    <img :src="lightboxImageUrl" alt="Image en grand format" />
+                    <img :src="lightboxImageUrl" :alt="`Image en grand format : ${lightboxImageUrl.split('/').pop()}`" />
                 </div>
             </div>
 
@@ -444,7 +451,7 @@
         // --- CORRECTION CLÉ ICI : Noms des fonctions Netlify ---
         // L'URL de la fonction Netlify doit correspondre au nom de votre fichier de fonction.
         // Si votre fichier est netlify/functions/pushTip.mjs, l'URL est /.netlify/functions/pushTip
-        const SAVE_TIP_URL = "/.netlify/functions/pushTip"; 
+        const SAVE_TIP_URL = "/.netlify/functions/pushTip";
         // Si votre fichier est netlify/functions/getProfils.mjs, l'URL est /.netlify/functions/getProfils
         const GET_PROFILS_URL = "/.netlify/functions/getProfils";
 
@@ -461,6 +468,7 @@
 
                 const selectedFiles = ref([]);
                 let fileIdCounter = 0;
+                const fileUploadError = ref(''); // Pour afficher les erreurs de fichier à l'utilisateur
 
                 const confirmationVisible = ref(false);
                 const confirmationImageUrls = ref([]);
@@ -506,6 +514,7 @@
 
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
+                        // Afficher une erreur plus douce à l'utilisateur
                         alert(`Impossible de charger la liste des profils. Veuillez vérifier que la fonction Netlify "${GET_PROFILS_URL.split('/').pop()}" existe et est correctement déployée.`);
                     } finally {
                         isLoadingProfils.value = false;
@@ -580,6 +589,7 @@
                 }
 
                 function addFiles(files) {
+                    fileUploadError.value = ''; // Réinitialise l'erreur avant d'ajouter de nouveaux fichiers
                     for (let i = 0; i < files.length; i++) {
                         const file = files[i];
                         if (file.type.startsWith('image/') || file.type === 'text/plain' || file.type === 'application/pdf') {
@@ -599,18 +609,20 @@
                                         selectedFiles.value.push(newFileObj);
                                     } else {
                                         console.warn(`Résultat de lecture d'image non valide pour ${file.name}. Ignoré.`);
+                                        fileUploadError.value = `Impossible de prévisualiser l'image ${file.name}.`;
                                     }
                                 };
                                 reader.onerror = (error) => {
                                     console.error(`Erreur lecture fichier ${file.name}:`, error);
-                                    alert(`Erreur lors de la lecture de l'image ${file.name}.`);
+                                    fileUploadError.value = `Erreur lors de la lecture de l'image ${file.name}.`;
                                 };
                                 reader.readAsDataURL(file);
                             } else {
                                 selectedFiles.value.push(newFileObj);
                             }
                         } else {
-                            alert(`Le fichier "${file.name}" de type "${file.type}" n'est pas pris en charge. Seules les images, les fichiers .txt et .pdf sont autorisés.`);
+                            fileUploadError.value = `Le fichier "${file.name}" de type "${file.type}" n'est pas pris en charge. Seules les images, les fichiers .txt et .pdf sont autorisés.`;
+                            console.warn(fileUploadError.value);
                         }
                     }
                     console.log("selectedFiles après ajout:", selectedFiles.value);
@@ -619,6 +631,7 @@
                 function removeFile(fileIdToRemove) {
                     selectedFiles.value = selectedFiles.value.filter(fileObj => fileObj.id !== fileIdToRemove);
                     console.log(`Fichier avec ID ${fileIdToRemove} supprimé. selectedFiles:`, selectedFiles.value);
+                    fileUploadError.value = ''; // Effacer l'erreur si un fichier en cause est supprimé
                 }
 
                 function getFileIcon(fileType) {
@@ -629,11 +642,13 @@
 
                 async function submitForm() {
                     console.log("Soumission du formulaire...");
+                    // Validation côté client plus détaillée
                     if (!auteur.value || !titre.value.trim() || !description.value.trim()) {
                         alert("Veuillez remplir tous les champs obligatoires (Auteur, Titre, Description).");
                         console.warn("Soumission bloquée: Champs obligatoires manquants.");
                         return;
                     }
+                    // Vous pouvez ajouter d'autres validations ici, par exemple, longueur min/max pour titre/description
 
                     confirmationVisible.value = false;
                     isLoading.value = true;
@@ -650,19 +665,19 @@
                         formData.append('outil', outil.value);
                         formData.append('dateCreation', new Date().toISOString());
 
-                        selectedFiles.value.forEach((fileObj) => { // Supprime l'index car il n'est pas utilisé ici
+                        selectedFiles.value.forEach((fileObj) => {
                             formData.append(`files`, fileObj.file, fileObj.name);
                             console.log(`Ajout du fichier ${fileObj.name} à FormData.`);
                         });
 
                         console.log("Envoi de FormData à la fonction Netlify:", formData);
 
-                        const tipResp = await fetch(SAVE_TIP_URL, { 
+                        const tipResp = await fetch(SAVE_TIP_URL, {
                             method: 'POST',
                             body: formData
                         });
 
-                        console.log("Réponse brute de la fonction pushTip:", tipResp); 
+                        console.log("Réponse brute de la fonction pushTip:", tipResp);
 
                         if (!tipResp.ok) {
                             const errorText = await tipResp.text();
@@ -678,8 +693,10 @@
                             confirmationImageUrls.value = result.imageUrls;
                             console.log("Images de confirmation définies avec les URLs publiques de GitHub:", result.imageUrls);
                         } else if (result.imageUrl) {
+                             // Si backend renvoie une seule imageURL au lieu d'un tableau
                              confirmationImageUrls.value.push(result.imageUrl);
                         }
+                        // Fallback si le backend ne renvoie pas d'URLs d'images, utiliser les aperçus locaux
                         if (confirmationImageUrls.value.length === 0 && selectedFiles.value.some(f => f.type.startsWith('image/'))) {
                             confirmationImageUrls.value = selectedFiles.value
                                 .filter(f => f.type.startsWith('image/') && f.previewUrl)
@@ -714,6 +731,7 @@
                         if (fileInput.value) {
                             fileInput.value.value = null; // Réinitialise l'input type="file"
                         }
+                        fileUploadError.value = ''; // Réinitialiser l'erreur de fichier après soumission réussie
                         fetchProfils(); // Recharge les profils au cas où la liste aurait changé (moins courant, mais bonne pratique)
                         console.log("Formulaire réinitialisé.");
 
@@ -729,7 +747,7 @@
 
                 return {
                     auteur, titre, description, previewText, promptText, categorie, outil, fileInput,
-                    selectedFiles,
+                    selectedFiles, fileUploadError, // Exposer fileUploadError
                     confirmationVisible,
                     confirmationImageUrls,
                     confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
@@ -743,7 +761,7 @@
         };
 
         createApp(TipForm).mount('#app');
-        
+
         // Chargement du footer
         fetch("footer.html")
             .then(r => r.text())
