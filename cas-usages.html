@@ -455,10 +455,17 @@
             line-height: 1.6;
             color: #444;
             font-weight: normal;
+            /* Ajout pour gérer l'espacement des titres */
+            padding-bottom: 20px; 
         }
 
-        .preview-panel-content strong {
+        .preview-panel-content h4 {
+            margin-top: 20px;
+            margin-bottom: 10px;
             color: #333;
+            font-size: 1.1em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
         }
 
         /* Styles pour les images dans le panneau d'aperçu (vignette) */
@@ -498,6 +505,7 @@
             font-size: 0.9em;
             transition: background-color 0.2s, transform 0.1s;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            position: relative; /* Pour positionner le bouton à l'intérieur */
         }
 
         .preview-panel-pdf-square:hover {
@@ -508,6 +516,24 @@
         .preview-panel-pdf-square .fas {
             font-size: 3em; /* Grande icône PDF */
             margin-bottom: 5px; /* Espace entre l'icône et le texte */
+        }
+
+        /* Style du bouton "Télécharger" dans le carré PDF */
+        .download-button {
+            background-color: var(--error-text); /* Rouge du texte d'erreur */
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none; /* Pas de soulignement */
+            margin-top: 10px; /* Espacement sous l'icône */
+            transition: background-color 0.2s;
+        }
+
+        .download-button:hover {
+            background-color: #c02c3c; /* Rouge un peu plus foncé au survol */
         }
 
         /* Styles pour le cartouche jaune du texte de prévisualisation dans le panneau de droite */
@@ -938,8 +964,8 @@
                                     ${actualPromptContent && actualPromptContent.trim() !== '' ? `<button class="copier-btn" data-copy="${escapeHtml(actualPromptContent)}">Copier le prompt</button>` : ''}
                                     <button class="edit-btn" data-id="${tip.id}">Éditer</button>
                                     <div class="card-preview-icons-inline">
-                                        ${(tip.imageUrl || (tip.fileUrls && tip.fileUrls.length > 0)) ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
-                                        ${tip.documentUrl ? `<i class="fas fa-file-pdf icon-vignette" title="Contient un document"></i>` : ''}
+                                        ${(tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
+                                        ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<i class="fas fa-file-pdf icon-vignette" title="Contient un document"></i>` : ''}
                                     </div>
                                 </div>
                                 <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
@@ -991,52 +1017,43 @@
             const tip = allTips.find(t => t.id === tipId);
 
             if (tip) {
-                // Log the tip object to inspect its properties, especially documentUrl and fileUrls
-                console.log("Tip data for preview panel:", tip);
-
+                console.log("Tip data for preview panel:", tip); // Pour le débogage
+                
                 previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
                 let contentHtml = '';
 
                 // Déterminer le contenu du prompt pour le panneau, en privilégiant promptText puis prompt
                 const panelPromptContent = tip.promptText || tip.prompt;
 
-                // Gérer le tableau fileUrls pour afficher plusieurs images cliquables
-                // NOTE: `fileUrls` contient les images téléchargées par l'utilisateur
-                if (tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) {
-                    contentHtml += `<p><strong>Images associées:</strong></p><div class="preview-panel-image-container">`;
-                    tip.fileUrls.forEach(url => {
-                        // Rendre l'image cliquable pour l'ouvrir dans un nouvel onglet
+                // Section pour les images (fileUrls et imageUrl)
+                if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
+                    contentHtml += `<h4>Images associées:</h4><div class="preview-panel-image-container">`;
+                    if (tip.fileUrls && Array.isArray(tip.fileUrls)) {
+                        tip.fileUrls.forEach(url => {
+                            contentHtml += `
+                                <a href="${escapeHtml(url)}" target="_blank" style="display: inline-block; margin-right: 10px; margin-bottom: 10px;">
+                                    <img src="${escapeHtml(url)}" alt="Image du tip" class="preview-panel-image" />
+                                </a>
+                            `;
+                        });
+                    }
+                    if (tip.imageUrl && (!tip.fileUrls || tip.fileUrls.length === 0)) { // N'affiche imageUrl que si pas de fileUrls
                         contentHtml += `
-                            <a href="${escapeHtml(url)}" target="_blank" style="display: inline-block; margin-right: 10px; margin-bottom: 10px;">
-                                <img src="${escapeHtml(url)}" alt="Image du tip" class="preview-panel-image" />
-                            </a>
-                        `;
-                    });
-                    contentHtml += `</div>`;
-                }
-                // Optionnel : Si vous avez encore une propriété imageUrl pour la rétrocompatibilité
-                // et qu'il n'y a pas de fileUrls, vous pouvez la garder.
-                // NOTE: `imageUrl` pourrait être une image externe ou une ancienne façon de stocker une image unique.
-                else if (tip.imageUrl) { 
-                    contentHtml += `
-                        <p><strong>Image associée:</strong></p>
-                        <div class="preview-panel-image-container">
                             <a href="${escapeHtml(tip.imageUrl)}" target="_blank">
                                 <img src="${escapeHtml(tip.imageUrl)}" alt="Image du tip" class="preview-panel-image" />
                             </a>
-                        </div>
-                    `;
+                        `;
+                    }
+                    contentHtml += `</div>`;
                 }
 
-                // Afficher le carré PDF cliquable dans le panneau latéral
-                // La condition doit être stricte pour documentUrl et s'assurer qu'il ne se mélange pas avec les images.
+                // Section pour le document PDF
                 if (tip.documentUrl && tip.documentUrl.trim() !== '') { 
-                    contentHtml += `
-                        <p><strong>Document associé:</strong></p>
+                    contentHtml += `<h4>Document associé:</h4>
                         <div class="preview-panel-document-square-container">
                             <a href="${escapeHtml(tip.documentUrl)}" target="_blank" class="preview-panel-pdf-square">
                                 <i class="fas fa-file-pdf"></i>
-                                <span>PDF</span>
+                                <span class="download-button">Télécharger</span>
                             </a>
                             <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 5px;">${escapeHtml(tip.documentFileName || 'Document PDF')}</p>
                         </div>
@@ -1045,14 +1062,14 @@
 
                 if (tip.previewText) {
                     contentHtml += `
-                        <p><strong>Post-it:</strong></p>
+                        <h4>Post-it:</h4>
                         <div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>
                     `;
                 }
-                // Utilise la variable panelPromptContent qui vérifie les deux noms de champs
+                
                 if (panelPromptContent) { 
                     contentHtml += `
-                        <p><strong>Prompt:</strong></p>
+                        <h4>Prompt:</h4>
                         <button class="copy-panel-btn" data-copy="${escapeHtml(panelPromptContent)}">Copier le prompt</button>
                         <pre class="prompt-content-pre">${escapeHtml(panelPromptContent)}</pre>
                     `;
