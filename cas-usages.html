@@ -277,8 +277,14 @@
         .icon-vignette[title="Contient une image"] {
             color: #4CAF50; /* Vert pour l'icône image */
         }
-        .icon-vignette[title="Contient un document"] {
-            color: #dc3545; /* Rouge pour l'icône document */
+        /* Style pour l'icône PDF dans les vignettes de carte */
+        .icon-vignette.pdf-thumbnail {
+            width: 24px; /* Taille fixe pour la vignette PDF */
+            height: 24px;
+            object-fit: contain; /* Assure que l'image est contenue sans déformation */
+            vertical-align: middle; /* Alignement avec le texte */
+            border: 1px solid #ddd;
+            border-radius: 3px;
         }
 
 
@@ -477,7 +483,7 @@
             max-width: 200px; /* Taille maximale pour une vignette */
             height: auto;
             display: inline-block; /* Pour que text-align: center fonctionne */
-            border-radius: 8px;
+            border-radius: 8鳴;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
@@ -494,18 +500,21 @@
             flex-direction: column; /* Icône et texte empilés */
             justify-content: center;
             align-items: center;
-            width: 120px; /* Taille du carré */
-            height: 120px;
+            width: 150px; /* Taille du carré augmentée */
+            height: 150px; /* Taille du carré augmentée */
             background-color: #fcebeb; /* Fond rouge très clair */
             border: 1px solid #e0b4b8; /* Bordure rouge */
-            border-radius: 8px;
+            border-radius: 12px; /* Coins plus arrondis */
             text-decoration: none;
             color: var(--error-text); /* Couleur du texte et de l'icône (rouge foncé) */
             font-weight: bold;
-            font-size: 0.9em;
+            font-size: 1.1em; /* Taille de police légèrement augmentée */
             transition: background-color 0.2s, transform 0.1s;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            position: relative; /* Pour positionner le bouton à l'intérieur */
+            position: relative;
+            padding: 10px; /* Espacement interne */
+            box-sizing: border-box;
+            text-align: center; /* Centrer le texte */
         }
 
         .preview-panel-pdf-square:hover {
@@ -513,9 +522,24 @@
             transform: translateY(-2px);
         }
 
-        .preview-panel-pdf-square .fas {
-            font-size: 3em; /* Grande icône PDF */
-            /* margin-bottom: 5px; */ /* Retiré pour le positionnement du bouton */
+        /* Styles pour l'image PDF à l'intérieur du carré */
+        .preview-panel-pdf-square img {
+            max-width: 80px; /* Taille de l'image PDF */
+            max-height: 80px;
+            object-fit: contain;
+            margin-bottom: 8px; /* Espacement sous l'image */
+        }
+        
+        .preview-panel-pdf-square .file-name {
+            font-size: 0.8em; /* Plus petit pour le nom de fichier */
+            color: #666; /* Couleur un peu plus discrète */
+            word-break: break-all; /* Pour les noms de fichiers longs */
+            max-height: 2.4em; /* Limite à 3 lignes de texte */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
         }
 
         /* Style du bouton "Télécharger" dans le carré PDF */
@@ -531,6 +555,7 @@
             margin-top: 10px; /* Espacement sous l'icône */
             transition: background-color 0.2s;
             display: inline-block; /* Pour le padding et les marges */
+            white-space: nowrap; /* Empêche le retour à la ligne du texte */
         }
 
         .download-button:hover {
@@ -671,6 +696,23 @@
                 text-align: center;
                 transform: none; /* Retire la rotation sur mobile */
                 font-size: 1.1em;
+            }
+            /* Ajustements pour le carré PDF sur mobile */
+            .preview-panel-pdf-square {
+                width: 100px;
+                height: 100px;
+                font-size: 0.9em;
+            }
+            .preview-panel-pdf-square img { /* Cible l'image à l'intérieur */
+                max-width: 60px;
+                max-height: 60px;
+            }
+            .preview-panel-pdf-square .file-name {
+                font-size: 0.7em;
+            }
+            .download-button {
+                padding: 6px 12px;
+                font-size: 0.8em;
             }
         }
 
@@ -966,7 +1008,7 @@
                                     <button class="edit-btn" data-id="${tip.id}">Éditer</button>
                                     <div class="card-preview-icons-inline">
                                         ${(tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
-                                        ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<i class="fas fa-file-pdf icon-vignette" title="Contient un document"></i>` : ''}
+                                        ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
                                     </div>
                                 </div>
                                 <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
@@ -1048,15 +1090,15 @@
                     contentHtml += `</div>`;
                 }
 
-                // Section pour le document PDF
+                // Section pour le document PDF - Amélioration visuelle ici
                 if (tip.documentUrl && tip.documentUrl.trim() !== '') { 
                     contentHtml += `<h4>Document associé:</h4>
                         <div class="preview-panel-document-square-container">
                             <a href="${escapeHtml(tip.documentUrl)}" target="_blank" class="preview-panel-pdf-square">
-                                <i class="fas fa-file-pdf"></i>
+                                <img src="PDF_file_icon.svg.webp" alt="Icône PDF">
+                                <span class="file-name">${escapeHtml(tip.documentFileName || 'Document PDF')}</span>
                                 <span class="download-button">Télécharger</span>
                             </a>
-                            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 5px;">${escapeHtml(tip.documentFileName || 'Document PDF')}</p>
                         </div>
                     `;
                 }
