@@ -297,6 +297,7 @@
                 const texte = ref('');
                 const fileInput = ref(null);
                 const imagePreviewUrl = ref('');
+                const imageFile = ref(null); // Nouvelle ref pour stocker le fichier image
                 const confirmationVisible = ref(false);
                 const confirmationImageUrl = ref('');
                 const confirmationTexte = ref('');
@@ -304,7 +305,7 @@
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
-                // Les refs pour les filtres sont maintenues ici au cas où elles seraient utilisées ailleurs
+                // Ces refs de filtres sont maintenues ici au cas où elles seraient utilisées ailleurs
                 // ou si cette même logique Vue est partagée avec la page Galerie.
                 // Elles n'impactent pas le visuel ou le fonctionnel du formulaire de soumission ici.
                 const selectedFilterAuteur = ref('');
@@ -368,6 +369,7 @@
                 }
 
                 function handleFile(file) {
+                    imageFile.value = file; // Stocke le fichier dans la nouvelle ref
                     const reader = new FileReader();
                     reader.onload = () => { imagePreviewUrl.value = reader.result; };
                     reader.readAsDataURL(file);
@@ -396,13 +398,12 @@
                     isLoading.value = true;
 
                     let imageUrl = '';
-                    const file = fileInput.value?.files?.[0];
+                    const file = imageFile.value; // Utilise la ref 'imageFile'
 
                     try {
                         if (file) {
                             const base64 = await getBase64(file);
-                            // MODIFICATION ICI: fileBase64 devient fileContent
-                            const payload = { fileContent: base64, fileName: file.name };
+                            const payload = { fileContent: base64, fileName: file.name }; // Clé corrigée
                             const resp = await fetch('/.netlify/functions/uploadImage', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -442,13 +443,15 @@
                             window.location.href = "/galerie.html";
                         }, 5000);
 
+                        // Réinitialisation des champs du formulaire
                         auteur.value = '';
                         outil.value = 'Midjourney';
                         chaine.value = 'La Une';
                         texte.value = '';
                         imagePreviewUrl.value = '';
+                        imageFile.value = null; // Réinitialise la ref du fichier image
                         if (fileInput.value) {
-                            fileInput.value.value = null;
+                             fileInput.value.value = null; // Réinitialise l'input file lui-même
                         }
                         fetchProfils();
 
