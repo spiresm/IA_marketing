@@ -6,9 +6,9 @@
     <title>Partager un Tip / Prompt - iMarketing</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* AJOUTS/MODIFICATIONS ICI */
+        /* Styles pour le défilement et la mise en page générale */
         html, body {
-            height: 100%; /* S'assurer que le HTML et le body prennent toute la hauteur de la fenêtre */
+            height: 100%;
             overflow-y: auto; /* Permet le défilement vertical si le contenu dépasse */
             -webkit-overflow-scrolling: touch; /* Améliore le défilement sur les appareils iOS */
         }
@@ -415,6 +415,7 @@
     <div id="footer-placeholder"></div>
 
     <script>
+        // Chargement du header
         fetch("header.html")
             .then(r => r.text())
             .then(html => {
@@ -440,10 +441,11 @@
     <script>
         const { ref, createApp, onMounted, onUnmounted } = Vue;
 
-        // Utilisez une URL de fonction Netlify pour l'upload (elle devra gérer les multiparts)
-        // et une autre pour la récupération des auteurs.
-        const SAVE_TIP_URL = "/.netlify/functions/submitTip"; // Votre fonction qui gère l'upload
-        const GET_PROFILS_URL = "/.netlify/functions/getProfils"; // <<< CHANGEMENT ICI: était getAuteurs
+        // **CORRECTION ICI :** L'URL de la fonction Netlify doit correspondre au nom de votre fichier de fonction.
+        // Si votre fichier est netlify/functions/pushTip.mjs, l'URL est /.netlify/functions/pushTip
+        const SAVE_TIP_URL = "/.netlify/functions/pushTip"; // <--- C'est la ligne clé modifiée
+
+        const GET_PROFILS_URL = "/.netlify/functions/getProfils";
 
         const TipForm = {
             setup() {
@@ -456,12 +458,11 @@
                 const outil = ref('');
                 const fileInput = ref(null);
 
-                // selectedFiles contiendra des objets { id, file, previewUrl, name, type }
                 const selectedFiles = ref([]);
-                let fileIdCounter = 0; // Pour générer des IDs uniques pour les fichiers
+                let fileIdCounter = 0;
 
                 const confirmationVisible = ref(false);
-                const confirmationImageUrls = ref([]); // Maintenant un tableau pour plusieurs images
+                const confirmationImageUrls = ref([]);
                 const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
                 const confirmationPreviewText = ref('');
@@ -485,8 +486,7 @@
                         }
                         const data = await response.json();
                         console.log("Données brutes des profils reçues:", data);
-                        // Assurez-vous que data est un tableau d'objets avec une propriété 'name' ou directement un tableau de noms
-                        const profilsList = Array.isArray(data) ? data : (data.profils || []); // S'attend à 'profils' ou un tableau direct
+                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
                         const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
 
@@ -494,7 +494,7 @@
                             auteur.value = names[0];
                             console.log("Un seul profil trouvé, auteur auto-sélectionné:", auteur.value);
                         } else if (names.length > 1) {
-                            auteur.value = ''; // Laisser vide pour que l'utilisateur choisisse
+                            auteur.value = '';
                             console.log("Plusieurs profils trouvés, veuillez sélectionner un auteur.");
                         } else {
                             auteur.value = '';
@@ -571,8 +571,6 @@
                     if (files) {
                         console.log("Fichiers sélectionnés via l'input:", files);
                         addFiles(files);
-                        // Réinitialiser l'input file pour permettre la sélection des mêmes fichiers
-                        // après suppression si nécessaire, ou pour déclencher le change si on sélectionne les mêmes
                         e.target.value = null;
                     } else {
                         console.log("Aucun fichier sélectionné via l'input.");
@@ -582,10 +580,9 @@
                 function addFiles(files) {
                     for (let i = 0; i < files.length; i++) {
                         const file = files[i];
-                        // Limiter les types de fichiers acceptés
                         if (file.type.startsWith('image/') || file.type === 'text/plain' || file.type === 'application/pdf') {
                             const newFileObj = {
-                                id: fileIdCounter++, // ID unique
+                                id: fileIdCounter++,
                                 file: file,
                                 previewUrl: null,
                                 name: file.name,
@@ -608,7 +605,7 @@
                                 };
                                 reader.readAsDataURL(file);
                             } else {
-                                selectedFiles.value.push(newFileObj); // Pour les documents, pas de prévisualisation d'image
+                                selectedFiles.value.push(newFileObj);
                             }
                         } else {
                             alert(`Le fichier "${file.name}" de type "${file.type}" n'est pas pris en charge. Seules les images, les fichiers .txt et .pdf sont autorisés.`);
@@ -625,7 +622,7 @@
                 function getFileIcon(fileType) {
                     if (fileType === 'text/plain') return 'TXT';
                     if (fileType === 'application/pdf') return 'PDF';
-                    return '📄'; // Icône générique pour d'autres documents
+                    return '📄';
                 }
 
                 async function submitForm() {
@@ -651,20 +648,19 @@
                         formData.append('outil', outil.value);
                         formData.append('dateCreation', new Date().toISOString());
 
-                        // AJOUT IMPORTANT : Ajouter tous les fichiers sélectionnés à FormData
                         selectedFiles.value.forEach((fileObj, index) => {
-                            formData.append(`files`, fileObj.file, fileObj.name); // 'files' est le nom du champ, le 3ème argument est le nom du fichier
+                            formData.append(`files`, fileObj.file, fileObj.name);
                             console.log(`Ajout du fichier ${fileObj.name} à FormData.`);
                         });
 
                         console.log("Envoi de FormData à la fonction Netlify:", formData);
 
-                        const tipResp = await fetch(SAVE_TIP_URL, {
+                        const tipResp = await fetch(SAVE_TIP_URL, { // Utilisation de SAVE_TIP_URL corrigée
                             method: 'POST',
-                            body: formData // PAS de Content-Type ici, le navigateur le met automatiquement pour FormData
+                            body: formData
                         });
 
-                        console.log("Réponse brute de la fonction submitTip:", tipResp);
+                        console.log("Réponse brute de la fonction pushTip:", tipResp); // Log actualisé
 
                         if (!tipResp.ok) {
                             const errorText = await tipResp.text();
@@ -675,15 +671,13 @@
                         const result = await tipResp.json();
                         console.log("Résultat de l'enregistrement du tip via Netlify Function:", result);
 
-                        // Gérer les URLs des images de confirmation (maintenant un tableau)
                         confirmationImageUrls.value = [];
                         if (result.imageUrls && Array.isArray(result.imageUrls)) {
                             confirmationImageUrls.value = result.imageUrls;
                             console.log("Images de confirmation définies avec les URLs publiques de GitHub:", result.imageUrls);
-                        } else if (result.imageUrl) { // Si l'ancienne structure renvoie une seule image
+                        } else if (result.imageUrl) {
                              confirmationImageUrls.value.push(result.imageUrl);
                         }
-                        // Si le backend ne renvoie pas d'URLs, mais que des images ont été sélectionnées, utilisez les aperçus locaux
                         if (confirmationImageUrls.value.length === 0 && selectedFiles.value.some(f => f.type.startsWith('image/'))) {
                             confirmationImageUrls.value = selectedFiles.value
                                 .filter(f => f.type.startsWith('image/') && f.previewUrl)
@@ -714,12 +708,12 @@
                         promptText.value = '';
                         categorie.value = 'Marketing Digital';
                         outil.value = '';
-                        selectedFiles.value = []; // Vider complètement les fichiers sélectionnés
-                        confirmationImageUrls.value = []; // Vider les images de confirmation
+                        selectedFiles.value = [];
+                        confirmationImageUrls.value = [];
                         if (fileInput.value) {
-                            fileInput.value.value = null; // Réinitialiser l'input file
+                            fileInput.value.value = null;
                         }
-                        fetchProfils(); // Recharger les profils au cas où
+                        fetchProfils();
                         console.log("Formulaire réinitialisé.");
 
                     }
@@ -734,9 +728,9 @@
 
                 return {
                     auteur, titre, description, previewText, promptText, categorie, outil, fileInput,
-                    selectedFiles, // Maintenant, c'est cette référence qui contient tous les fichiers (images et docs)
+                    selectedFiles,
                     confirmationVisible,
-                    confirmationImageUrls, // Maintenant un tableau
+                    confirmationImageUrls,
                     confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
                     lightboxVisible, lightboxImageUrl,
@@ -749,6 +743,7 @@
 
         createApp(TipForm).mount('#app');
         
+        // Chargement du footer
         fetch("footer.html")
             .then(r => r.text())
             .then(html => {
