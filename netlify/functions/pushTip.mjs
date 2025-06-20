@@ -2,79 +2,229 @@
 
 import { Octokit } from "@octokit/core";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
-// REMARQUE : 'Buffer', 'multiparty' et 'fs' sont commentés ou supprimés
-// car cette version est pour le débogage et n'utilise pas la gestion de fichiers.
-// import { Buffer } from 'buffer'; 
-// import multiparty from 'multiparty';
-// import fs from 'fs/promises';
+import { Buffer } from 'buffer';
+import multiparty from 'multiparty';
+import fs from 'fs/promises';
 
 const MyOctokit = Octokit.plugin(restEndpointMethods);
 
 export async function handler(event, context) {
     // --------------------------------------------------------------------------
-    // DÉBUT : VERIFICATION ET DÉBOGAGE DES VARIABLES D'ENVIRONNEMENT
+    // DÉBUT : CHEMINS DÉFINIS DIRECTEMENT DANS LE CODE (Option 2)
+    // REMPLACEZ LES VALEURS PAR VOS CHEMINS RÉELS DANS VOTRE DÉPÔT GITHUB
+    // --------------------------------------------------------------------------
+    const GITHUB_IMAGE_PATH_CONST = 'assets/images'; // Exemple : 'assets/images'
+    const GITHUB_TIPS_PATH_CONST = 'data/tips.json'; // Exemple : 'data/tips.json'
+    const GITHUB_DOC_PATH_CONST = 'assets/documents'; // Chemin pour les documents (texte, PDF), peut être ajusté
+
+    // --------------------------------------------------------------------------
+    // DÉBUT : Variables d'environnement Netlify (celles qui DOIVENT être définies dans Netlify)
     // --------------------------------------------------------------------------
     const { 
         GITHUB_TOKEN, 
-        GITHUB_OWNER,       
-        GITHUB_REPO,        
-        GITHUB_IMAGE_PATH,  
-        GITHUB_TIPS_PATH,   
-        // Variables Google Sheets - à inclure si elles sont censées être là pour la fonction
+        GITHUB_OWNER,       // Correspond à 'GITHUB_OWNER' dans Netlify
+        GITHUB_REPO,        // Correspond à 'GITHUB_REPO' dans Netlify
+        // Les variables Google Sheets - à inclure si votre fonction interagit avec Sheets
         GOOGLE_SHEET_ID_TIPS,
         GOOGLE_SERVICE_ACCOUNT_EMAIL,
         GOOGLE_PRIVATE_KEY
     } = process.env;
 
-    // Logs de débogage pour voir quelle variable est manquante
-    console.log('--- DÉBUGAGE VARIABLES D\'ENVIRONNEMENT ---');
-    console.log('GITHUB_TOKEN:', GITHUB_TOKEN ? 'DÉFINI' : 'NON DÉFINI');
-    console.log('GITHUB_OWNER:', GITHUB_OWNER ? 'DÉFINI' : 'NON DÉFINI');
-    console.log('GITHUB_REPO:', GITHUB_REPO ? 'DÉFINI' : 'NON DÉFINI');
-    console.log('GITHUB_IMAGE_PATH:', GITHUB_IMAGE_PATH ? 'DÉFINI' : 'NON DÉFINI');
-    console.log('GITHUB_TIPS_PATH:', GITHUB_TIPS_PATH ? 'DÉFINI' : 'NON DÉFINI');
-    console.log('GOOGLE_SHEET_ID_TIPS:', GOOGLE_SHEET_ID_TIPS ? 'DÉFINI' : 'NON DÉFINI');
-    console.log('GOOGLE_SERVICE_ACCOUNT_EMAIL:', GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'DÉFINI' : 'NON DÉFINI');
-    console.log('GOOGLE_PRIVATE_KEY:', GOOGLE_PRIVATE_KEY ? 'DÉFINI (présent)' : 'NON DÉFINI');
-    console.log('-------------------------------------------');
-
-    // Vérification stricte des variables d'environnement
-    if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO || !GITHUB_IMAGE_PATH || !GITHUB_TIPS_PATH || 
+    // Vérification des variables d'environnement critiques (celles de Netlify)
+    if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO || 
         !GOOGLE_SHEET_ID_TIPS || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
-        console.error('❌ pushTip: Une ou plusieurs variables d\'environnement critiques sont manquantes. Veuillez vérifier la configuration Netlify.');
-        return { 
-            statusCode: 500, 
-            body: 'Variables d\'environnement critiques manquantes.' 
-        };
+        console.error('❌ pushTip: Variables d\'environnement critiques manquantes. Veuillez vérifier Netlify.');
+        return { statusCode: 500, body: 'Variables d\'environnement critiques manquantes.' };
     }
     // --------------------------------------------------------------------------
-    // FIN : VERIFICATION ET DÉBOGAGE DES VARIABLES D'ENVIRONNEMENT
+    // FIN : Variables d'environnement Netlify
     // --------------------------------------------------------------------------
 
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
-    // --------------------------------------------------------------------------
-    // TOUT LE CODE LIÉ À 'multiparty', AU PARSING DE FICHIERS,
-    // ET À LA MANIPULATION DE GITHUB POUR LES FICHIERS EST COMMENTÉ ICI.
-    // --------------------------------------------------------------------------
-    
-    // Si la fonction atteint ce point, cela signifie que toutes les variables d'environnement
-    // sont correctement chargées par l'environnement Netlify.
-    console.log('✅ pushTip: Toutes les variables d\'environnement critiques sont définies ! La fonction a atteint le point de succès temporaire.');
+    let fields;
+    let files;
+    let newTip = {};
 
-    // Simule une réponse de succès sans réellement traiter le tip ou les fichiers
-    return {
-        statusCode: 200,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            message: 'Fonction de débogage exécutée avec succès. Variables d\'environnement présentes.',
-            debugInfo: 'Le problème n\'est PAS lié aux variables d\'environnement manquantes au démarrage.'
-        }),
-    };
+    // Gérer l'encodage base64 de l'event.body pour multiparty
+    const bodyBuffer = event.isBase64Encoded ? Buffer.from(event.body, 'base64') : Buffer.from(event.body);
 
-    // --------------------------------------------------------------------------
-    // FIN DU CODE COMMENTÉ POUR LE DÉBOGAGE
-    // --------------------------------------------------------------------------
+    try {
+        const form = new multiparty.Form();
+        const { fields: parsedFields, files: parsedFiles } = await new Promise((resolve, reject) => {
+            // Passer le Buffer au lieu de l'event.body brut
+            form.parse(bodyBuffer, (err, fields, files) => {
+                if (err) {
+                    console.error('❌ pushTip: Erreur de parsing du formulaire:', err);
+                    return reject(err);
+                }
+                resolve({ fields, files });
+            });
+        });
+
+        fields = parsedFields;
+        files = parsedFiles;
+
+        // Mapper les champs du formulaire vers newTip
+        for (const key in fields) {
+            if (fields[key] && fields[key].length > 0) {
+                newTip[key] = fields[key][0]; // Prend la première valeur pour chaque champ
+            }
+        }
+
+        if (files && files.files && files.files.length > 0) {
+            console.log("📡 pushTip: Fichier(s) détecté(s) pour traitement.");
+        }
+
+    } catch (e) {
+        console.error('❌ pushTip: Erreur de parsing du multipart/form-data:', e);
+        return { statusCode: 400, body: JSON.stringify({ message: 'Corps de la requête invalide. Attendu multipart/form-data.' }) };
+    }
+
+    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
+    let uploadedImageUrl = null;
+    let uploadedImageUrls = [];
+
+    try {
+        // --- DÉBUT : GESTION DE L'UPLOAD D'IMAGES ET DE DOCUMENTS ---
+        if (files && files.files && files.files.length > 0) {
+            console.log(`📡 pushTip: ${files.files.length} fichiers trouvés, tentative d'upload sur GitHub...`);
+            for (const file of files.files) {
+                const mimeType = file.headers['content-type'];
+                // Inclure les types MIME spécifiques que vous souhaitez gérer
+                if (mimeType.startsWith('image/') || mimeType === 'text/plain' || mimeType === 'application/pdf') { 
+                    console.log(`📡 pushTip: Traitement du fichier: ${file.originalFilename} (${mimeType})`);
+                    const fileBuffer = await fs.promises.readFile(file.path); // Lire le fichier depuis le chemin temporaire
+                    const base64Data = fileBuffer.toString('base64');
+
+                    const uniqueFileName = `${Date.now()}-${file.originalFilename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                    
+                    let filePathInRepo;
+                    let fileBaseUrl;
+                    if (mimeType.startsWith('image/')) {
+                        filePathInRepo = `${GITHUB_IMAGE_PATH_CONST}/${uniqueFileName}`; // Utilisation de la constante
+                        fileBaseUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${GITHUB_IMAGE_PATH_CONST}`; // Utilisation de la constante
+                    } else { // Documents (txt, pdf)
+                        filePathInRepo = `${GITHUB_DOC_PATH_CONST}/${uniqueFileName}`; // Utilisation de la constante
+                        fileBaseUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${GITHUB_DOC_PATH_CONST}`; // Utilisation de la constante
+                    }
+
+                    try {
+                        const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
+                            owner: GITHUB_OWNER, 
+                            repo: GITHUB_REPO,   
+                            path: filePathInRepo,
+                            message: `Ajout du fichier ${file.originalFilename} pour le tip: ${newTip.titre || 'Sans titre'}`,
+                            content: base64Data,
+                            branch: 'main',
+                        });
+                        const currentFileUrl = `${fileBaseUrl}/${uniqueFileName}`;
+                        uploadedImageUrls.push(currentFileUrl); // Stocke toutes les URLs de fichiers (images et documents)
+                        console.log(`✅ pushTip: Fichier uploadé avec succès: ${currentFileUrl}`);
+                    } catch (fileUploadError) {
+                        console.error(`❌ pushTip: Erreur lors de l'upload du fichier ${file.originalFilename} à GitHub:`, fileUploadError);
+                        // Ne pas bloquer l'exécution si un seul fichier échoue
+                    }
+                } else {
+                    console.log(`⚠️ pushTip: Fichier non-pris en charge ignoré: ${file.originalFilename} (${mimeType})`);
+                }
+            }
+            newTip.fileUrls = uploadedImageUrls; // Attache toutes les URLs à l'objet du nouveau tip
+            // Définir uploadedImageUrl comme la première image si elle existe
+            uploadedImageUrl = uploadedImageUrls.length > 0 && uploadedImageUrls[0].startsWith(`https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${GITHUB_IMAGE_PATH_CONST}`) ? uploadedImageUrls[0] : null;
+
+        }
+        // --- FIN : GESTION DE L'UPLOAD D'IMAGES/DOCUMENTS ---
+
+
+        // --- DÉBUT : GESTION DU FICHIER JSON DES TIPS ---
+        const jsonFilePath = GITHUB_TIPS_PATH_CONST; // Chemin du fichier JSON, tiré de la constante
+
+        let existingContent = '';
+        let existingSha = null;
+
+        try {
+            // Récupérer le contenu actuel du fichier JSON des tips
+            const { data } = await octokit.rest.repos.getContent({
+                owner: GITHUB_OWNER, 
+                repo: GITHUB_REPO,   
+                path: jsonFilePath,
+                branch: 'main',
+            });
+            existingContent = Buffer.from(data.content, 'base64').toString('utf8');
+            existingSha = data.sha;
+            console.log("💾 pushTip: Fichier JSON existant récupéré. SHA:", existingSha);
+        } catch (e) {
+            if (e.status === 404) {
+                console.log("💾 pushTip: Le fichier JSON des tips n'existe pas encore, il sera créé.");
+            } else {
+                console.error("❌ pushTip: Erreur lors de la récupération du fichier JSON existant:", e);
+                throw e; // Relaunch the error
+            }
+        }
+
+        let allTips = [];
+        if (existingContent) {
+            try {
+                allTips = JSON.parse(existingContent);
+                if (!Array.isArray(allTips)) {
+                    console.warn("💾 pushTip: Le contenu JSON existant n'est pas un tableau. Il sera écrasé.");
+                    allTips = []; // Réinitialise si le contenu n'est pas un tableau valide
+                }
+            } catch (jsonParseError) {
+                console.error("❌ pushTip: Erreur de parsing du JSON existant. Le fichier sera initialisé.", jsonParseError);
+                allTips = []; // Initialise à un tableau vide en cas d'erreur de parsing
+            }
+        }
+
+        // Ajouter le nouveau tip
+        newTip.id = Date.now().toString(); // Assure un ID unique basé sur le timestamp
+        newTip.date_creation = new Date().toISOString(); // Date de soumission
+        newTip.date_modification = new Date().toISOString(); // Date de modification (initialement la même que la création)
+
+        // Assurez-vous que ces champs existent et sont non vides pour éviter des erreurs plus tard
+        if (!newTip.previewText) newTip.previewText = "";
+        if (!newTip.promptText) newTip.promptText = "";
+        if (!newTip.categorie) newTip.categorie = "Autre";
+        if (!newTip.outil) newTip.outil = "";
+
+        allTips.push(newTip);
+
+        const updatedContent = JSON.stringify(allTips, null, 2); // Formatage joli pour la lisibilité
+
+        const commitMessage = `Ajout du tip "${newTip.titre || 'Sans titre'}" par ${newTip.auteur || 'Inconnu'}`;
+
+        // Mettre à jour (ou créer) le fichier JSON des tips sur GitHub
+        await octokit.rest.repos.createOrUpdateFileContents({
+            owner: GITHUB_OWNER, 
+            repo: GITHUB_REPO,   
+            path: jsonFilePath,
+            message: commitMessage,
+            content: Buffer.from(updatedContent).toString('base64'),
+            sha: existingSha, // Nécessaire pour mettre à jour un fichier existant, null pour la création
+            branch: 'main',
+        });
+        console.log("💾 pushTip: Fichier JSON des tips mis à jour sur GitHub.");
+        // --- FIN : GESTION DU FICHIER JSON DES TIPS ---
+
+        return {
+            statusCode: 200,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                message: 'Tip ajouté avec succès !',
+                tip: newTip,
+                imageUrl: uploadedImageUrl, // L'URL de la première image (si une image est uploadée)
+                imageUrls: newTip.fileUrls // Toutes les URLs de fichiers (images et documents)
+            }),
+        };
+
+    } catch (error) {
+        console.error('❌ pushTip: Erreur critique lors de l\'ajout du tip à GitHub:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: `Erreur interne du serveur lors de l'interaction avec GitHub: ${error.message || error}` }),
+        };
+    }
 }
