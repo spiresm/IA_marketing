@@ -5,6 +5,7 @@ import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Buffer } from 'buffer';
 import multiparty from 'multiparty';
 import fs from 'fs/promises';
+import { Readable } from 'stream'; // <--- NOUVEL IMPORT NÉCESSAIRE pour créer un stream
 
 const MyOctokit = Octokit.plugin(restEndpointMethods);
 
@@ -22,8 +23,8 @@ export async function handler(event, context) {
     // --------------------------------------------------------------------------
     const { 
         GITHUB_TOKEN, 
-        GITHUB_OWNER,       // Correspond à 'GITHUB_OWNER' dans Netlify
-        GITHUB_REPO,        // Correspond à 'GITHUB_REPO' dans Netlify
+        GITHUB_OWNER,     // Correspond à 'GITHUB_OWNER' dans Netlify
+        GITHUB_REPO,      // Correspond à 'GITHUB_REPO' dans Netlify
         // Les variables Google Sheets - à inclure si votre fonction interagit avec Sheets
         GOOGLE_SHEET_ID_TIPS,
         GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -48,14 +49,23 @@ export async function handler(event, context) {
     let files;
     let newTip = {};
 
-    // Gérer l'encodage base64 de l'event.body pour multiparty
-    const bodyBuffer = event.isBase64Encoded ? Buffer.from(event.body, 'base64') : Buffer.from(event.body);
+    // --- CORRECTION CLÉ ICI ---
+    // Créer un stream Readable à partir du corps de l'événement Netlify
+    const requestStream = new Readable();
+    // Pousser le corps décodé dans le stream
+    requestStream.push(event.isBase64Encoded ? Buffer.from(event.body, 'base64') : Buffer.from(event.body, 'utf8'));
+    requestStream.push(null); // Signaler la fin du stream
+
+    // Attacher les en-têtes et la méthode HTTP de l'événement au stream,
+    // car multiparty en a besoin pour le parsing.
+    requestStream.headers = event.headers;
+    requestStream.method = event.httpMethod;
 
     try {
         const form = new multiparty.Form();
         const { fields: parsedFields, files: parsedFiles } = await new Promise((resolve, reject) => {
-            // Passer le Buffer au lieu de l'event.body brut
-            form.parse(bodyBuffer, (err, fields, files) => {
+            // Passer le stream de requête à multiparty.form.parse()
+            form.parse(requestStream, (err, fields, files) => {
                 if (err) {
                     console.error('❌ pushTip: Erreur de parsing du formulaire:', err);
                     return reject(err);
@@ -80,7 +90,17 @@ export async function handler(event, context) {
 
     } catch (e) {
         console.error('❌ pushTip: Erreur de parsing du multipart/form-data:', e);
-        return { statusCode: 400, body: JSON.stringify({ message: 'Corps de la requête invalide. Attendu multipart/form-data.' }) };
+        // Amélioration du message d'erreur pour le client si c'est une erreur de parsing
+        let errorMessage = 'Erreur lors du traitement des fichiers uploadés.';
+        if (e.message && e.message.includes('Unexpected end of form')) {
+            errorMessage = 'Le fichier est peut-être corrompu ou incomplet.';
+        } else if (e.message) {
+            errorMessage = `Erreur de parsing: ${e.message}`;
+        }
+        return { 
+            statusCode: 400, 
+            body: JSON.stringify({ message: errorMessage }) 
+        };
     }
 
     const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
@@ -96,7 +116,7 @@ export async function handler(event, context) {
                 // Inclure les types MIME spécifiques que vous souhaitez gérer
                 if (mimeType.startsWith('image/') || mimeType === 'text/plain' || mimeType === 'application/pdf') { 
                     console.log(`📡 pushTip: Traitement du fichier: ${file.originalFilename} (${mimeType})`);
-                    const fileBuffer = await fs.promises.readFile(file.path); // Lire le fichier depuis le chemin temporaire
+                    const fileBuffer = await fs.readFile(file.path); // Utiliser fs.readFile de fs/promises
                     const base64Data = fileBuffer.toString('base64');
 
                     const uniqueFileName = `${Date.now()}-${file.originalFilename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
