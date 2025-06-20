@@ -441,10 +441,11 @@
     <script>
         const { ref, createApp, onMounted, onUnmounted } = Vue;
 
-        // **CORRECTION ICI :** L'URL de la fonction Netlify doit correspondre au nom de votre fichier de fonction.
+        // --- CORRECTION CLÉ ICI : Noms des fonctions Netlify ---
+        // L'URL de la fonction Netlify doit correspondre au nom de votre fichier de fonction.
         // Si votre fichier est netlify/functions/pushTip.mjs, l'URL est /.netlify/functions/pushTip
-        const SAVE_TIP_URL = "/.netlify/functions/pushTip"; // <--- C'est la ligne clé modifiée
-
+        const SAVE_TIP_URL = "/.netlify/functions/pushTip"; 
+        // Si votre fichier est netlify/functions/getProfils.mjs, l'URL est /.netlify/functions/getProfils
         const GET_PROFILS_URL = "/.netlify/functions/getProfils";
 
         const TipForm = {
@@ -486,6 +487,7 @@
                         }
                         const data = await response.json();
                         console.log("Données brutes des profils reçues:", data);
+                        // Assurez-vous que `data` est un tableau ou contient une propriété `profils` qui est un tableau
                         const profilsList = Array.isArray(data) ? data : (data.profils || []);
                         const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
@@ -571,7 +573,7 @@
                     if (files) {
                         console.log("Fichiers sélectionnés via l'input:", files);
                         addFiles(files);
-                        e.target.value = null;
+                        e.target.value = null; // Réinitialise l'input file pour permettre de re-sélectionner le même fichier si besoin
                     } else {
                         console.log("Aucun fichier sélectionné via l'input.");
                     }
@@ -622,7 +624,7 @@
                 function getFileIcon(fileType) {
                     if (fileType === 'text/plain') return 'TXT';
                     if (fileType === 'application/pdf') return 'PDF';
-                    return '📄';
+                    return '📄'; // Icône par défaut pour les autres types de fichiers
                 }
 
                 async function submitForm() {
@@ -648,19 +650,19 @@
                         formData.append('outil', outil.value);
                         formData.append('dateCreation', new Date().toISOString());
 
-                        selectedFiles.value.forEach((fileObj, index) => {
+                        selectedFiles.value.forEach((fileObj) => { // Supprime l'index car il n'est pas utilisé ici
                             formData.append(`files`, fileObj.file, fileObj.name);
                             console.log(`Ajout du fichier ${fileObj.name} à FormData.`);
                         });
 
                         console.log("Envoi de FormData à la fonction Netlify:", formData);
 
-                        const tipResp = await fetch(SAVE_TIP_URL, { // Utilisation de SAVE_TIP_URL corrigée
+                        const tipResp = await fetch(SAVE_TIP_URL, { 
                             method: 'POST',
                             body: formData
                         });
 
-                        console.log("Réponse brute de la fonction pushTip:", tipResp); // Log actualisé
+                        console.log("Réponse brute de la fonction pushTip:", tipResp); 
 
                         if (!tipResp.ok) {
                             const errorText = await tipResp.text();
@@ -688,7 +690,6 @@
                              console.log("Aucune image de confirmation disponible.");
                          }
 
-
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
                         confirmationPreviewText.value = previewText.value;
@@ -711,9 +712,9 @@
                         selectedFiles.value = [];
                         confirmationImageUrls.value = [];
                         if (fileInput.value) {
-                            fileInput.value.value = null;
+                            fileInput.value.value = null; // Réinitialise l'input type="file"
                         }
-                        fetchProfils();
+                        fetchProfils(); // Recharge les profils au cas où la liste aurait changé (moins courant, mais bonne pratique)
                         console.log("Formulaire réinitialisé.");
 
                     }
