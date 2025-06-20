@@ -1,6 +1,5 @@
 // netlify/functions/compressImage.js
-
-const sharp = require('sharp'); // This line should be declared ONLY ONCE
+const sharp = require('sharp');
 
 exports.handler = async (event, context) => {
     // --- TEMPORARY DEBUG LOGS (REMOVE AFTER SUCCESSFUL DEPLOYMENT) ---
@@ -69,40 +68,64 @@ exports.handler = async (event, context) => {
         // Convert pure Base64 string to a binary Buffer, which Sharp expects
         const imageBuffer = Buffer.from(base64Data, 'base64');
 
-        let compressedBuffer;
+        let processedImageBuffer;
         const outputMimeType = 'image/jpeg'; // Force output format to JPEG for lossy compression
 
+        // Définition de la hauteur maximale pour le redimensionnement
+        const MAX_HEIGHT = 500;
+
         try {
-            // Use Sharp for image compression
-            compressedBuffer = await sharp(imageBuffer)
+            // Crée un pipeline Sharp
+            let sharpPipeline = sharp(imageBuffer);
+
+            // Récupère les métadonnées pour déterminer le redimensionnement nécessaire
+            const metadata = await sharpPipeline.metadata();
+
+            let newWidth = metadata.width;
+            let newHeight = metadata.height;
+
+            // Applique le redimensionnement si la hauteur dépasse MAX_HEIGHT
+            if (metadata.height > MAX_HEIGHT) {
+                newHeight = MAX_HEIGHT;
+                // Calcule la nouvelle largeur pour maintenir les proportions
+                newWidth = Math.round(metadata.width * (MAX_HEIGHT / metadata.height));
+                
+                sharpPipeline = sharpPipeline.resize(newWidth, newHeight, {
+                    fit: 'inside', // S'assure que l'image tient dans les dimensions sans être coupée
+                    withoutEnlargement: true // N'agrandit pas l'image si elle est déjà plus petite
+                });
+            }
+
+            // Applique la compression JPEG
+            processedImageBuffer = await sharpPipeline
                 .jpeg({
                     quality: quality,
                     progressive: true,
-                    chromaSubsampling: '4:4:4'
+                    chromaSubsampling: '4:4:4' // Utilise 4:4:4 pour potentiellement une meilleure qualité de couleur, mais un fichier plus grand
                 })
-                .toBuffer(); // Convert compressed image to Buffer
+                .toBuffer(); // Convertit l'image traitée en Buffer
+
         } catch (sharpError) {
-            // Handle Sharp-specific compression errors (e.g., unsupported format)
-            console.error('Sharp compression failed:', sharpError);
+            // Handle Sharp-specific compression/resize errors
+            console.error('Sharp processing failed:', sharpError);
             return {
                 statusCode: 500,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: 'Image compression failed with Sharp. Check image format or data.', error: sharpError.message }),
+                body: JSON.stringify({ message: 'Image processing failed with Sharp (resize or compression). Check image format or data.', error: sharpError.message }),
             };
         }
 
         // Return the response to the client
-        // The binary body of the compressed image must be Base64 encoded for Netlify Functions.
         return {
             statusCode: 200, // Success
             headers: {
                 'Content-Type': outputMimeType, // MIME type of the returned image (e.g., image/jpeg)
-                'Content-Length': compressedBuffer.length, // Size of the compressed file
+                'Content-Length': processedImageBuffer.length, // Size of the processed file
                 'Access-Control-Allow-Origin': '*', // For CORS: allow requests from any origin (for development)
                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type',
             },
-            body: compressedBuffer.toString('base64'), // Compressed image content Base64 encoded
+            body: processedImageBuffer.toString('base64'), // Processed image content Base64 encoded
             isBase64Encoded: true, // Crucial: indicates to Netlify that the response body is Base64 encoded
         };
 
