@@ -1,10 +1,14 @@
 // netlify/functions/rate-tip.mjs
-import { Octokit } from "@octokit/core";
-import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
-import { Buffer } from 'buffer';
-import fetch from 'node-fetch'; // Nécessaire pour télécharger le contenu si > 1MB
 
-const MyOctokit = Octokit.plugin(restEndpointMethods);
+// --- CHANGEMENT ICI : Importer Octokit depuis @octokit/rest ---
+// import { Octokit } from "@octokit/core"; // ANCIEN
+// import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods"; // ANCIEN
+import { Octokit } from "@octokit/rest"; // NOUVEAU: Importe la version complète avec toutes les méthodes REST
+
+import { Buffer } from 'buffer';
+import fetch from 'node-fetch';
+
+// const MyOctokit = Octokit.plugin(restEndpointMethods); // ANCIEN: Plus nécessaire avec @octokit/rest
 
 export const handler = async (event, context) => {
     console.log("--- Début de l'exécution de rate-tip ---");
@@ -68,7 +72,9 @@ export const handler = async (event, context) => {
         };
     }
 
-    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
+    // --- CHANGEMENT ICI : Initialisation d'Octokit ---
+    // const octokit = new MyOctokit({ auth: GITHUB_TOKEN }); // ANCIEN
+    const octokit = new Octokit({ auth: GITHUB_TOKEN }); // NOUVEAU: Initialisation directe avec la version complète
 
     try {
         // 1. Récupérer le contenu actuel du fichier
@@ -124,6 +130,7 @@ export const handler = async (event, context) => {
 
         // 2. Mettre à jour le fichier sur GitHub
         console.log(`📡 rate-tip: Tentative de mise à jour du fichier ${TIPS_FILE_PATH} sur GitHub.`);
+        // La méthode updateFile sera maintenant disponible
         await octokit.rest.repos.updateFile({
             owner: OWNER,
             repo: REPO,
@@ -158,7 +165,7 @@ export const handler = async (event, context) => {
         if (error.status === 409) {
             errorMessage = 'Conflit de version du fichier. Veuillez réessayer.';
             console.error('⚠️ rate-tip: Conflit de version du fichier. SHA mismatch.');
-        } else if (error.message.includes('sha')) {
+        } else if (error.message && error.message.includes('sha')) { // Vérifier si l'erreur mentionne 'sha'
             errorMessage = 'Erreur de synchronisation du fichier. Veuillez réessayer.';
             console.error('⚠️ rate-tip: SHA invalide ou manquant dans la requête GitHub.');
         } else if (error.status === 404) {
