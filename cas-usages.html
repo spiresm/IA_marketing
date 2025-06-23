@@ -562,7 +562,7 @@
             background-color: #c02c3c; /* Rouge un peu plus foncé au survol */
         }
 
-        /* Styles pour le cartouche jaune du texte de prévisualisation dans le panneau de droite */
+        /* Style pour le cartouche jaune du texte de prévisualisation dans le panneau de droite */
         .preview-text-card-yellow {
             background-color: var(--postit-yellow);
             color: #333;
@@ -857,7 +857,7 @@
             .finally(() => {
                 bodyElement.classList.add("show");
                 mainElement.classList.add("show");
-                loadAndDisplayTips();
+                loadAndDisplayTips(); // Chargement initial des tips
             });
 
             if (window.location.search.includes('success=1')) {
@@ -920,14 +920,16 @@
             const sortOrder = filtreTriDateSelect.value;
             if (sortOrder === 'recent') {
                 filtered.sort((a, b) => {
-                    const dateA = new Date(a.dateCreation || a.date);
-                    const dateB = new Date(b.dateCreation || b.date);
+                    // Utilise date_creation (du backend) en priorité, puis date si présent
+                    const dateA = new Date(a.date_creation || a.date); 
+                    const dateB = new Date(b.date_creation || b.date);
                     return dateB.getTime() - dateA.getTime(); // Trie du plus récent au plus ancien (décroissant)
                 });
             } else if (sortOrder === 'ancien') {
                 filtered.sort((a, b) => {
-                    const dateA = new Date(a.dateCreation || a.date);
-                    const dateB = new Date(b.dateCreation || b.date);
+                    // Utilise date_creation (du backend) en priorité, puis date si présent
+                    const dateA = new Date(a.date_creation || a.date);
+                    const dateB = new Date(b.date_creation || b.date);
                     return dateA.getTime() - dateB.getTime(); // Trie du plus ancien au plus récent (croissant)
                 });
             }
@@ -949,17 +951,24 @@
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                allTips = await response.json();
-                allTips = allTips.map(tip => ({
-                    ...tip,
-                    // Assurez-vous que dateCreation existe et est une chaîne valide pour toLocaleDateString
-                    // Fournit une date par défaut si dateCreation et date sont absents
-                    dateCreation: tip.dateCreation || tip.date || new Date().toISOString(),
-                    // Gérer le titre non défini
-                    titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
-                    // Gérer l'auteur non défini
-                    auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu"
-                }));
+                const tipsRaw = await response.json(); // Renommé pour plus de clarté
+
+                // Mapping pour s'assurer de la présence des champs nécessaires et harmoniser les noms
+                allTips = tipsRaw.map(tip => {
+                    const mappedTip = {
+                        ...tip,
+                        // Harmonise : utilise date_creation du backend
+                        date_creation: tip.date_creation || tip.date || new Date().toISOString(), // Fallback si absente (pour anciens tips)
+                        // Gérer le titre non défini
+                        titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
+                        // Gérer l'auteur non défini
+                        auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu"
+                    };
+                    // Supprimer l'ancienne propriété 'date' si 'date_creation' est maintenant préférée
+                    if (mappedTip.date) delete mappedTip.date; 
+                    return mappedTip;
+                });
+
                 applyFiltersAndSort();
             } catch (error) {
                 console.error("Erreur lors du chargement des tips:", error);
@@ -978,7 +987,8 @@
             }
 
             tipsToDisplay.forEach(tip => {
-                const dateObj = new Date(tip.dateCreation);
+                // Utilise tip.date_creation pour l'affichage
+                const dateObj = new Date(tip.date_creation); 
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
@@ -1057,6 +1067,7 @@
 
         async function openPreviewPanel(tipId) {
             console.log(`Opening preview panel for tip ID: ${tipId}`);
+            // Important : Utilise la propriété date_creation ici pour trouver le tip
             const tip = allTips.find(t => t.id === tipId);
 
             if (tip) {
@@ -1119,7 +1130,8 @@
                 }
                 
                 // Add metadata to the panel
-                const dateObj = new Date(tip.dateCreation);
+                // Utilise tip.date_creation pour l'affichage
+                const dateObj = new Date(tip.date_creation); 
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
