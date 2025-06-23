@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Galerie des Tips et Prompts - iMarketing</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Cas d'usages - iMarketing</title> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* Variables CSS pour faciliter la gestion des couleurs */
         :root {
@@ -348,6 +347,7 @@
             padding: 0 5px;
             align-self: flex-start; 
             margin-top: 5px;
+            margin-left: auto; /* Pousser la poubelle à droite */
         }
 
         .supprimer-btn:hover {
@@ -751,6 +751,23 @@
                 padding: 6px 12px;
                 font-size: 0.8em;
             }
+
+            /* Styles spécifiques mobile pour les étoiles */
+            .rating-widget {
+                order: unset; /* Réinitialiser l'ordre sur mobile */
+                margin-right: 0;
+                justify-content: center; /* Centrer les étoiles interactives sur mobile */
+            }
+            .rating-static {
+                justify-content: center; /* Centrer les étoiles statiques sur mobile */
+            }
+            #filtre-rating-container {
+                flex-direction: column; /* Empiler les éléments du filtre de note sur mobile */
+                align-items: stretch;
+            }
+            #filtre-rating-slider {
+                width: 100%;
+            }
         }
 
         /* Styles pour le footer */
@@ -766,6 +783,78 @@
         footer p {
             margin: 0;
             font-size: 0.9em;
+        }
+
+        /* --- Nouveaux Styles pour le système de rating par étoiles --- */
+        .rating-widget {
+            display: inline-flex; /* Utilisez inline-flex pour que les étoiles s'alignent et que le bloc soit inline */
+            font-size: 1.4em; /* Taille des étoiles */
+            cursor: pointer;
+            order: 2; /* Positionner le widget de notation après le bouton "Copier" */
+            margin-right: 10px; /* Espace entre le copier-btn et le rating */
+            align-items: center;
+        }
+
+        .rating-widget .star {
+            color: #ccc; /* Couleur par défaut des étoiles vides */
+            transition: color 0.2s ease-in-out, transform 0.1s ease;
+            margin-right: 2px; /* Espacement entre les étoiles */
+        }
+
+        .rating-widget .star.rated, /* quand elle a été cliquée */
+        .rating-widget .star:hover, /* quand on la survole */
+        .rating-widget .star:hover ~ .star { /* les étoiles précédentes quand on survole */
+            color: #FFD700; /* Couleur or pour les étoiles notées ou survolées */
+        }
+
+        .rating-widget .star:hover {
+            transform: scale(1.1); /* Légère animation au survol */
+        }
+
+        /* Style pour l'affichage statique des notes (quand il n'y a pas de vote possible) */
+        .rating-static {
+            display: flex;
+            align-items: center;
+            font-size: 1.2em; /* Plus petit pour l'affichage statique */
+            color: #FFD700; /* Toujours en or */
+            gap: 2px;
+            white-space: nowrap;
+        }
+        .rating-static .star-static {
+            color: #FFD700; /* Étoile pleine pour l'affichage statique */
+        }
+        .rating-static .star-empty {
+            color: #ccc; /* Étoile vide pour l'affichage statique */
+        }
+        .rating-static .rating-value {
+            margin-left: 5px;
+            font-size: 0.9em;
+            color: #555;
+            font-weight: bold;
+        }
+
+        /* Style pour le filtre de notation */
+        #filtre-rating-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex: 1; /* Permet au conteneur de prendre de la place */
+            min-width: 150px; /* Assure une taille minimale */
+            padding: 8px 0; /* Padding pour l'alignement */
+        }
+        #filtre-rating-container label {
+            font-size: 0.9em;
+            color: #555;
+            white-space: nowrap;
+        }
+        #filtre-rating-value {
+            font-weight: bold;
+            color: var(--primary-blue);
+            min-width: 25px; /* Pour éviter que le texte ne bouge */
+            text-align: center;
+        }
+        #filtre-rating-slider {
+            flex-grow: 1; /* Permet au slider de prendre le reste de l'espace */
         }
     </style>
 </head>
@@ -789,10 +878,9 @@
                         <option>Autre</option>
                     </select>
                     <select id="filtre-tri-date">
-                        <option value="">Trier par date</option>
                         <option value="recent" selected>Plus récent</option>
                         <option value="ancien">Plus ancien</option>
-                    </select>
+                        <option value="top-rated">Mieux notés</option> </select>
                     <select id="filtre-outil">
                         <option value="">Tous les outils</option>
                         <option>ChatGPT</option>
@@ -807,6 +895,11 @@
                         <option>Jasper</option>
                         <option>Autre</option>
                     </select>
+                    <div id="filtre-rating-container">
+                        <label for="filtre-rating-slider">Note min:</label>
+                        <span id="filtre-rating-value">0</span><i class="fas fa-star" style="color: #FFD700; margin-left: 3px;"></i>
+                        <input type="range" id="filtre-rating-slider" min="0" max="5" step="0.5" value="0">
+                    </div>
                 </div>
                 <div class="action-buttons">
                 </div>
@@ -848,8 +941,9 @@
         const filtreCategorieSelect = document.getElementById('filtre-categorie');
         const filtreOutilSelect = document.getElementById('filtre-outil');
         const filtreTriDateSelect = document.getElementById('filtre-tri-date');
-
         const previewTextInput = document.getElementById('preview-text');
+        const filtreRatingSlider = document.getElementById('filtre-rating-slider');
+        const filtreRatingValueDisplay = document.getElementById('filtre-rating-value');
 
         const previewPanel = document.getElementById('previewPanel');
         const previewPanelTitle = document.getElementById('previewPanelTitle');
@@ -886,7 +980,8 @@
                 loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
             ])
             .then(() => {
-                const activeLink = document.querySelector("nav a[href='galerie.html']");
+                // MISE À JOUR : Changer 'galerie.html' par 'cas-usages.html' pour le lien actif
+                const activeLink = document.querySelector("nav a[href='cas-usages.html']");
                 if (activeLink) {
                     activeLink.classList.add("active");
                 }
@@ -895,10 +990,9 @@
                 console.error("General issue loading components:", error);
             })
             .finally(() => {
-                // Ceci est la correction pour la page blanche : les éléments body et main sont rendus visibles.
                 bodyElement.classList.add("show");
                 mainElement.classList.add("show");
-                loadAndDisplayTips(); // Ceci charge les tips une fois les composants structurels chargés
+                loadAndDisplayTips();
             });
 
             if (window.location.search.includes('success=1')) {
@@ -921,22 +1015,35 @@
 
         // --- Correction de la fonction escapeHtml ---
         function escapeHtml(text) {
-            // S'assure que text n'est pas null ou undefined avant d'appeler replace
             if (text === null || text === undefined) {
                 return ''; 
             }
-            // Convertit en chaîne, au cas où ce serait un nombre ou autre type primitif
             text = String(text);
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
                 '>': '&gt;',
                 '"': '&quot;'
-                // Ligne suivante commentée pour ne plus échapper l'apostrophe
-                // "'": '&#039;'
             };
-            // Utilise une fonction de remplacement pour gérer les caractères dans la map
-            return text.replace(/[&<>"]/g, function(m) { return map[m]; }); // L'apostrophe est retirée de la regex
+            return text.replace(/[&<>"]/g, function(m) { return map[m]; });
+        }
+
+        // Fonction pour générer le HTML des étoiles
+        function generateStarsHtml(rating, interactive = true, tipId = '') {
+            let starsHtml = '';
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 !== 0;
+
+            for (let i = 1; i <= 5; i++) {
+                if (i <= fullStars) {
+                    starsHtml += `<i class="fas fa-star ${interactive ? 'star' : 'star-static'}" data-rating="${i}" ${interactive ? `data-tip-id="${tipId}"` : ''}></i>`;
+                } else if (hasHalfStar && i === fullStars + 1) {
+                    starsHtml += `<i class="fas fa-star-half-alt ${interactive ? 'star' : 'star-static'}" data-rating="${i}" ${interactive ? `data-tip-id="${tipId}"` : ''}></i>`;
+                } else {
+                    starsHtml += `<i class="far fa-star ${interactive ? 'star' : 'star-static star-empty'}" data-rating="${i}" ${interactive ? `data-tip-id="${tipId}"` : ''}></i>`;
+                }
+            }
+            return starsHtml;
         }
 
         function applyFiltersAndSort() {
@@ -954,24 +1061,36 @@
 
             const searchText = previewTextInput.value.toLowerCase();
             if (searchText) {
-                // S'assure que previewText existe avant d'appeler toLowerCase ou includes
                 filtered = filtered.filter(tip => tip.previewText && String(tip.previewText).toLowerCase().includes(searchText));
             }
 
             const sortOrder = filtreTriDateSelect.value;
-            if (sortOrder === 'recent') {
-                filtered.sort((a, b) => {
-                    const dateA = new Date(a.dateCreation || a.date);
-                    const dateB = new Date(b.dateCreation || b.date);
-                    return dateB.getTime() - dateA.getTime(); // Trie du plus récent au plus ancien (décroissant)
-                });
-            } else if (sortOrder === 'ancien') {
-                filtered.sort((a, b) => {
-                    const dateA = new Date(a.dateCreation || a.date);
-                    const dateB = new Date(b.dateCreation || b.date);
-                    return dateA.getTime() - dateB.getTime(); // Trie du plus ancien au plus récent (croissant)
-                });
+            const minRating = parseFloat(filtreRatingSlider.value);
+
+            // Nouveau filtre par note minimale
+            if (minRating > 0) {
+                filtered = filtered.filter(tip => (tip.averageRating || 0) >= minRating);
             }
+
+            filtered.sort((a, b) => {
+                if (sortOrder === 'recent') {
+                    const dateA = new Date(a.dateCreation || a.date);
+                    const dateB = new Date(b.dateCreation || b.date);
+                    return dateB.getTime() - dateA.getTime();
+                } else if (sortOrder === 'ancien') {
+                    const dateA = new Date(a.dateCreation || a.date);
+                    const dateB = new Date(b.dateCreation || b.date);
+                    return dateA.getTime() - dateB.getTime();
+                } else if (sortOrder === 'top-rated') {
+                    const ratingA = a.averageRating || 0;
+                    const ratingB = b.averageRating || 0;
+                    if (ratingB !== ratingA) {
+                        return ratingB - ratingA;
+                    }
+                    return (b.ratingCount || 0) - (a.ratingCount || 0);
+                }
+                return 0;
+            });
             
             displayTips(filtered);
         }
@@ -981,6 +1100,13 @@
             filtreOutilSelect.addEventListener('change', applyFiltersAndSort);
             previewTextInput.addEventListener('input', applyFiltersAndSort);
             filtreTriDateSelect.addEventListener('change', applyFiltersAndSort);
+
+            // Écouteurs pour le nouveau filtre de notation
+            filtreRatingSlider.addEventListener('input', () => {
+                filtreRatingValueDisplay.textContent = filtreRatingSlider.value;
+                applyFiltersAndSort();
+            });
+            filtreRatingSlider.addEventListener('change', applyFiltersAndSort); 
         }
 
         async function loadAndDisplayTips() {
@@ -993,25 +1119,23 @@
                 allTips = await response.json();
                 allTips = allTips.map(tip => ({
                     ...tip,
-                    // Assurez-vous que dateCreation existe et est une chaîne valide pour toLocaleDateString
-                    // Fournit une date par défaut si dateCreation et date sont absents
-                    dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(), // Correction ici
-                    // Gérer le titre non défini
+                    dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
                     titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
-                    // Gérer l'auteur non défini
-                    auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu"
+                    auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
+                    averageRating: tip.averageRating !== undefined ? tip.averageRating : 0,
+                    ratingCount: tip.ratingCount !== undefined ? tip.ratingCount : 0
                 }));
                 applyFiltersAndSort();
             } catch (error) {
                 console.error("Erreur lors du chargement des tips:", error);
                 errorDisplay.style.display = 'block';
                 errorDisplay.textContent = `Erreur de chargement des tips: ${error.message}`;
-                galerieDiv.innerHTML = ''; // Clear loader
+                galerieDiv.innerHTML = '';
             }
         }
 
         function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = ''; // Nettoie la galerie actuelle
+            galerieDiv.innerHTML = '';
 
             if (tipsToDisplay.length === 0) {
                 galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos filtres.</p>';
@@ -1023,10 +1147,8 @@
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
-                // Déterminer le contenu du prompt, en privilégiant promptText puis prompt
                 const actualPromptContent = tip.promptText || tip.prompt;
 
-                // Créer le lien vers la page equipe.html en passant le nom de l'auteur
                 const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}">${escapeHtml(tip.auteur)}</a>`;
 
                 const cardHtml = `
@@ -1054,6 +1176,13 @@
                                         ${(tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
                                         ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
                                     </div>
+                                    <div class="rating-widget" data-tip-id="${tip.id}">
+                                        ${generateStarsHtml(tip.averageRating, true, tip.id)}
+                                    </div>
+                                    <div class="rating-static">
+                                        ${generateStarsHtml(tip.averageRating, false)} 
+                                        <span class="rating-value">(${parseFloat(tip.averageRating || 0).toFixed(1)} / ${tip.ratingCount || 0})</span>
+                                    </div>
                                 </div>
                                 <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
                             </div>
@@ -1063,21 +1192,21 @@
                 galerieDiv.insertAdjacentHTML('beforeend', cardHtml);
             });
 
-            // Attacher les gestionnaires d'événements après que les cartes sont ajoutées au DOM
             attachEventListenersToCards();
+            attachRatingEventListeners();
         }
 
         function getCategoryColor(category) {
             switch (category) {
-                case 'Marketing Digital': return '#0077b6'; // Primary Blue
-                case 'Réseaux Sociaux': return '#38a3a5'; // Teal
-                case 'SEO': return '#ffc300'; // Amber
-                case 'Contenu': return '#c70039'; // Dark Red
-                case 'Publicité': return '#8ac926'; // Lime Green
-                case 'Outils IA': return '#9d4edd'; // Purple
-                case 'Stratégie': return '#3c096c'; // Dark Purple
-                case 'Autre': return '#6c757d'; // Gray
-                default: return '#cccccc'; // Default Gray
+                case 'Marketing Digital': return '#0077b6';
+                case 'Réseaux Sociaux': return '#38a3a5';
+                case 'SEO': return '#ffc300';
+                case 'Contenu': return '#c70039';
+                case 'Publicité': return '#8ac926';
+                case 'Outils IA': return '#9d4edd';
+                case 'Stratégie': return '#3c096c';
+                case 'Autre': return '#6c757d';
+                default: return '#cccccc';
             }
         }
 
@@ -1099,23 +1228,65 @@
             });
         }
 
+        function attachRatingEventListeners() {
+            document.querySelectorAll('.rating-widget .star').forEach(star => {
+                star.addEventListener('click', async function() {
+                    const newRating = parseInt(this.dataset.rating);
+                    const tipIdToRate = this.dataset.tipId;
+                    
+                    if (!tipIdToRate || tipIdToRate.startsWith('temp-id-')) {
+                        alert("Impossible de noter ce tip : ID invalide ou temporaire.");
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`${apiBase}rate-tip`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ id: tipIdToRate, rating: newRating })
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.message || 'Erreur lors de l\'enregistrement de la note.');
+                        }
+
+                        const result = await response.json();
+                        alert(`Votre note de ${newRating} étoiles a été enregistrée ! Nouvelle note moyenne : ${result.newAverageRating.toFixed(1)} (${result.newRatingCount} votes).`);
+                        
+                        const ratedTip = allTips.find(p => p.id === tipIdToRate);
+                        if (ratedTip) {
+                            ratedTip.averageRating = result.newAverageRating;
+                            ratedTip.ratingCount = result.newRatingCount;
+                            applyFiltersAndSort();
+                        }
+
+                    } catch (error) {
+                        console.error("Erreur lors de la notation du tip:", error);
+                        alert(`Impossible de noter le tip : ${error.message}`);
+                    }
+                });
+            });
+        }
+
+
         async function openPreviewPanel(tipId) {
             console.log(`Opening preview panel for tip ID: ${tipId}`);
             const tip = allTips.find(t => t.id === tipId);
 
             if (tip) {
-                console.log("Tip data for preview panel:", tip); // Pour le débogage
+                console.log("Tip data for preview panel:", tip);
                 
                 previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
                 let contentHtml = '';
 
-                // Déterminer le contenu du prompt pour le panneau, en privilégiant promptText puis prompt
                 const panelPromptContent = tip.promptText || tip.prompt;
 
-                // Section pour les images (fileUrls et imageUrl)
                 if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
                     contentHtml += `<h4>Images associées:</h4><div class="preview-panel-image-container">`;
-                    let imageCounter = 1; // Initialiser le compteur d'images
+                    let imageCounter = 1;
                     if (tip.fileUrls && Array.isArray(tip.fileUrls)) {
                         tip.fileUrls.forEach(url => {
                             contentHtml += `
@@ -1128,7 +1299,7 @@
                             `;
                         });
                     }
-                    if (tip.imageUrl && (!tip.fileUrls || tip.fileUrls.length === 0)) { // N'affiche imageUrl que si pas de fileUrls
+                    if (tip.imageUrl && (!tip.fileUrls || tip.fileUrls.length === 0)) {
                         contentHtml += `
                             <div class="preview-panel-image-wrapper">
                                 <div class="image-number-badge">${imageCounter++}</div>
@@ -1141,7 +1312,6 @@
                     contentHtml += `</div>`;
                 }
 
-                // Section pour le document PDF - Amélioration visuelle ici
                 if (tip.documentUrl && tip.documentUrl.trim() !== '') { 
                     contentHtml += `<h4>Document associé:</h4>
                         <div class="preview-panel-document-square-container">
@@ -1169,12 +1339,10 @@
                     `;
                 }
                 
-                // Add metadata to the panel
                 const dateObj = new Date(tip.dateCreation);
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
-                // Créer le lien vers la page equipe.html en passant le nom de l'auteur pour le panneau d'aperçu aussi
                 const auteurPanelLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
 
                 contentHtml += `
@@ -1190,12 +1358,21 @@
                     </div>
                 `;
 
+                // Ajout de l'affichage de la note dans le panneau latéral
+                contentHtml += `
+                    <h4 style="margin-top: 20px;">Note du Tip:</h4>
+                    <div class="rating-static" style="justify-content: flex-start; margin-bottom: 20px;">
+                        ${generateStarsHtml(tip.averageRating, false)} 
+                        <span class="rating-value">(${parseFloat(tip.averageRating || 0).toFixed(1)} / ${tip.ratingCount || 0} votes)</span>
+                    </div>
+                `;
+
+
                 previewPanelContent.innerHTML = contentHtml;
                 previewPanel.classList.add('open');
                 previewOverlay.classList.add('open');
-                bodyElement.style.overflow = 'hidden'; // Prevent scrolling of main content
+                bodyElement.style.overflow = 'hidden';
 
-                // Re-attach event listener for the copy button inside the panel
                 document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
                     copyToClipboard(e.target.dataset.copy, e.target);
                 });
@@ -1208,12 +1385,11 @@
         function closePreviewPanel() {
             previewPanel.classList.remove('open');
             previewOverlay.classList.remove('open');
-            bodyElement.style.overflow = ''; // Restore scrolling
+            bodyElement.style.overflow = '';
         }
 
         closePreviewBtn.addEventListener('click', closePreviewPanel);
-        previewOverlay.addEventListener('click', closePreviewPanel); // Close when clicking outside panel
-        // Close with Escape key
+        previewOverlay.addEventListener('click', closePreviewPanel);
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && previewPanel.classList.contains('open')) {
                 closePreviewPanel();
@@ -1256,7 +1432,7 @@
                     }
 
                     alert("Tip supprimé avec succès !");
-                    loadAndDisplayTips(); // Recharger les tips après suppression
+                    loadAndDisplayTips();
                 } catch (error) {
                     console.error("Erreur lors de la suppression du tip:", error);
                     alert(`Échec de la suppression du tip: ${error.message}`);
