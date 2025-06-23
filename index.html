@@ -673,7 +673,7 @@
                     if (!casUsagesResponse.ok) {
                         throw new Error(`Erreur lors du chargement des cas d'usages: ${casUsagesResponse.statusText}`);
                     }
-                    const casUsages = await casUsagesResponse.json();
+                    let casUsages = await casUsagesResponse.json();
                     if (!Array.isArray(casUsages)) {
                         throw new Error("Les données des cas d'usages ne sont pas un tableau.");
                     }
@@ -682,37 +682,54 @@
                     if (!promptsResponse.ok) {
                         throw new Error(`Erreur lors du chargement des prompts de la galerie: ${promptsResponse.statusText}`);
                     }
-                    const prompts = await promptsResponse.json();
+                    let prompts = await promptsResponse.json();
                     if (!Array.isArray(prompts)) {
                         throw new Error("Les données des prompts ne sont pas un tableau.");
                     }
                     
                     loadingMessage.style.display = 'none';
 
-                    // Fusionner tous les tips et prompts en une seule liste
-                    const allItems = [
-                        ...casUsages.map(item => ({ ...item, type: 'cas-usage' })),
-                        ...prompts.map(item => ({ ...item, type: 'galerie' }))
-                    ];
+                    // --- Harmonisation des dates pour les deux sources et ajout d'une date effective ---
+                    casUsages = casUsages.map(item => ({ 
+                        ...item, 
+                        // date_creation > dateCreation > date_ajout > date > date très ancienne par défaut
+                        effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString()) 
+                    }));
 
-                    // Trier tous les items par date, du plus récent au plus ancien
-                    allItems.sort((a, b) => {
-                        // Utilise la même logique d'harmonisation de date que dans cas-usages.html
-                        const dateA = new Date(a.date_creation || a.dateCreation || a.date_ajout || a.date || new Date(0).toISOString());
-                        const dateB = new Date(b.date_creation || b.dateCreation || b.date_ajout || b.date || new Date(0).toISOString());
+                    prompts = prompts.map(item => ({ 
+                        ...item, 
+                        // date_creation > dateCreation > date_ajout > date > date très ancienne par défaut
+                        effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString()) 
+                    }));
 
-                        // Gère les dates invalides pour s'assurer qu'elles sont traitées comme très anciennes
-                        const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
-                        const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
 
-                        return timeB - timeA; // Trie descendant (plus récent en premier)
-                    });
+                    // Trier les cas d'usages par date effective (du plus récent au plus ancien)
+                    casUsages.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
+                    
+                    // Filtrer les prompts pour n'inclure que ceux avec une image et les trier par date effective
+                    const imagePrompts = prompts.filter(item => item.imageUrl);
+                    imagePrompts.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
 
-                    // Afficher uniquement le tout premier élément (le plus récent)
-                    if (allItems.length > 0) {
-                        const latestItem = allItems[0];
-                        container.appendChild(createCard(latestItem, latestItem.type));
+                    const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
+                    const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
+
+                    let itemsDisplayed = 0;
+
+                    if (latestCasUsage) {
+                        container.appendChild(createCard(latestCasUsage, 'cas-usage'));
+                        itemsDisplayed++;
                     } else {
+                        console.warn("Aucun cas d'usage trouvé pour l'affichage.");
+                    }
+
+                    if (latestGalerieItem) {
+                        container.appendChild(createCard(latestGalerieItem, 'galerie'));
+                        itemsDisplayed++;
+                    } else {
+                        console.warn("Aucun élément de galerie trouvé pour l'affichage.");
+                    }
+
+                    if (itemsDisplayed === 0) { // Si aucun des deux n'a pu être affiché
                         const noAdditionsMessage = document.createElement('p');
                         noAdditionsMessage.style.textAlign = 'center';
                         noAdditionsMessage.style.color = '#777';
@@ -767,7 +784,7 @@
                     });
 
                     if (!response.ok) {
-                        throw new Error(`Erreur HTTP: ${response.status}`);
+                        throw new Error(`HTTP error: ${response.status}`);
                     }
 
                     const data = await response.json();
