@@ -700,7 +700,12 @@
                 gap: 5px;
             }
             .card-actions {
+                /* Sur mobile, on veut que les éléments des actions de carte s'alignent mieux */
+                flex-direction: row; /* Aligner les boutons horizontalement */
+                flex-wrap: wrap; /* Permettre le passage à la ligne */
+                justify-content: center; /* Centrer les boutons */
                 align-items: center;
+                gap: 10px; /* Réduire l'espace si nécessaire */
             }
             .top-buttons-group {
                 flex-direction: column;
@@ -716,6 +721,7 @@
             .supprimer-btn {
                 width: auto;
                 align-self: center;
+                margin-left: 0; /* Réinitialiser la marge pour la poubelle sur mobile */
             }
             .create-tip-button-container {
                 margin-top: 15px;
@@ -758,8 +764,10 @@
                 margin-right: 0;
                 justify-content: center; /* Centrer les étoiles interactives sur mobile */
             }
-            .rating-static {
-                justify-content: center; /* Centrer les étoiles statiques sur mobile */
+            .rating-static { /* Maintenant combiné avec rating-widget */
+                order: unset; /* Réinitialiser l'ordre sur mobile */
+                margin-right: 0;
+                justify-content: center; /* Centrer les étoiles interactives sur mobile */
             }
             #filtre-rating-container {
                 flex-direction: column; /* Empiler les éléments du filtre de note sur mobile */
@@ -786,51 +794,38 @@
         }
 
         /* --- Nouveaux Styles pour le système de rating par étoiles --- */
-        .rating-widget {
-            display: inline-flex; /* Utilisez inline-flex pour que les étoiles s'alignent et que le bloc soit inline */
-            font-size: 1.4em; /* Taille des étoiles */
-            cursor: pointer;
-            order: 2; /* Positionner le widget de notation après le bouton "Copier" */
-            margin-right: 10px; /* Espace entre le copier-btn et le rating */
+        /* Conteneur unique pour les étoiles et la note */
+        .rating-display-group {
+            display: flex;
             align-items: center;
+            gap: 5px; /* Espacement entre les étoiles et le texte de la note */
+            font-size: 1.4em; /* Taille des étoiles */
+            white-space: nowrap; /* Empêche le retour à la ligne */
+            order: 3; /* Positionnement après les boutons d'action */
+            margin-right: 10px; /* Espace si d'autres éléments suivent */
         }
 
-        .rating-widget .star {
+        .rating-display-group .star {
             color: #ccc; /* Couleur par défaut des étoiles vides */
             transition: color 0.2s ease-in-out, transform 0.1s ease;
-            margin-right: 2px; /* Espacement entre les étoiles */
+            cursor: pointer; /* Indique que les étoiles sont interactives */
         }
 
-        .rating-widget .star.rated, /* quand elle a été cliquée */
-        .rating-widget .star:hover, /* quand on la survole */
-        .rating-widget .star:hover ~ .star { /* les étoiles précédentes quand on survole */
+        .rating-display-group .star.rated,
+        .rating-display-group .star:hover,
+        .rating-display-group .star:hover ~ .star {
             color: #FFD700; /* Couleur or pour les étoiles notées ou survolées */
         }
 
-        .rating-widget .star:hover {
+        .rating-display-group .star:hover {
             transform: scale(1.1); /* Légère animation au survol */
         }
-
-        /* Style pour l'affichage statique des notes (quand il n'y a pas de vote possible) */
-        .rating-static {
-            display: flex;
-            align-items: center;
-            font-size: 1.2em; /* Plus petit pour l'affichage statique */
-            color: #FFD700; /* Toujours en or */
-            gap: 2px;
-            white-space: nowrap;
-        }
-        .rating-static .star-static {
-            color: #FFD700; /* Étoile pleine pour l'affichage statique */
-        }
-        .rating-static .star-empty {
-            color: #ccc; /* Étoile vide pour l'affichage statique */
-        }
-        .rating-static .rating-value {
-            margin-left: 5px;
-            font-size: 0.9em;
+        
+        .rating-display-group .rating-value {
+            font-size: 0.7em; /* Taille du texte de la note (e.g., (0.0 / 0)) */
             color: #555;
             font-weight: bold;
+            margin-left: 5px; /* Espacement du texte par rapport aux étoiles */
         }
 
         /* Style pour le filtre de notation */
@@ -880,7 +875,8 @@
                     <select id="filtre-tri-date">
                         <option value="recent" selected>Plus récent</option>
                         <option value="ancien">Plus ancien</option>
-                        <option value="top-rated">Mieux notés</option> </select>
+                        <option value="top-rated">Mieux notés</option>
+                    </select>
                     <select id="filtre-outil">
                         <option value="">Tous les outils</option>
                         <option>ChatGPT</option>
@@ -980,8 +976,7 @@
                 loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
             ])
             .then(() => {
-                // MISE À JOUR : Changer 'galerie.html' par 'cas-usages.html' pour le lien actif
-                const activeLink = document.querySelector("nav a[href='cas-usages.html']");
+                const activeLink = document.querySelector("nav a[href='cas-usages.html']"); // CIBLE cas-usages.html
                 if (activeLink) {
                     activeLink.classList.add("active");
                 }
@@ -1013,7 +1008,6 @@
             setupFilters();
         });
 
-        // --- Correction de la fonction escapeHtml ---
         function escapeHtml(text) {
             if (text === null || text === undefined) {
                 return ''; 
@@ -1029,17 +1023,23 @@
         }
 
         // Fonction pour générer le HTML des étoiles
+        // Retourne un string HTML pour 5 étoiles interactives ou statiques
         function generateStarsHtml(rating, interactive = true, tipId = '') {
             let starsHtml = '';
-            const fullStars = Math.floor(rating);
-            const hasHalfStar = rating % 1 !== 0;
+            // Limiter la note à 5 étoiles
+            const cappedRating = Math.min(Math.max(rating, 0), 5); // Assure que la note est entre 0 et 5
+            const fullStars = Math.floor(cappedRating);
+            const hasHalfStar = cappedRating % 1 !== 0;
 
             for (let i = 1; i <= 5; i++) {
                 if (i <= fullStars) {
+                    // Étoile pleine
                     starsHtml += `<i class="fas fa-star ${interactive ? 'star' : 'star-static'}" data-rating="${i}" ${interactive ? `data-tip-id="${tipId}"` : ''}></i>`;
                 } else if (hasHalfStar && i === fullStars + 1) {
+                    // Demi-étoile
                     starsHtml += `<i class="fas fa-star-half-alt ${interactive ? 'star' : 'star-static'}" data-rating="${i}" ${interactive ? `data-tip-id="${tipId}"` : ''}></i>`;
                 } else {
+                    // Étoile vide
                     starsHtml += `<i class="far fa-star ${interactive ? 'star' : 'star-static star-empty'}" data-rating="${i}" ${interactive ? `data-tip-id="${tipId}"` : ''}></i>`;
                 }
             }
@@ -1067,7 +1067,6 @@
             const sortOrder = filtreTriDateSelect.value;
             const minRating = parseFloat(filtreRatingSlider.value);
 
-            // Nouveau filtre par note minimale
             if (minRating > 0) {
                 filtered = filtered.filter(tip => (tip.averageRating || 0) >= minRating);
             }
@@ -1101,7 +1100,6 @@
             previewTextInput.addEventListener('input', applyFiltersAndSort);
             filtreTriDateSelect.addEventListener('change', applyFiltersAndSort);
 
-            // Écouteurs pour le nouveau filtre de notation
             filtreRatingSlider.addEventListener('input', () => {
                 filtreRatingValueDisplay.textContent = filtreRatingSlider.value;
                 applyFiltersAndSort();
@@ -1176,11 +1174,8 @@
                                         ${(tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
                                         ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
                                     </div>
-                                    <div class="rating-widget" data-tip-id="${tip.id}">
-                                        ${generateStarsHtml(tip.averageRating, true, tip.id)}
-                                    </div>
-                                    <div class="rating-static">
-                                        ${generateStarsHtml(tip.averageRating, false)} 
+                                    <div class="rating-display-group" data-tip-id="${tip.id}">
+                                        ${generateStarsHtml(tip.averageRating, true, tip.id)} 
                                         <span class="rating-value">(${parseFloat(tip.averageRating || 0).toFixed(1)} / ${tip.ratingCount || 0})</span>
                                     </div>
                                 </div>
@@ -1228,11 +1223,12 @@
             });
         }
 
+        // MISE À JOUR : Gestion des étoiles avec un seul conteneur
         function attachRatingEventListeners() {
-            document.querySelectorAll('.rating-widget .star').forEach(star => {
+            document.querySelectorAll('.rating-display-group .star').forEach(star => {
                 star.addEventListener('click', async function() {
                     const newRating = parseInt(this.dataset.rating);
-                    const tipIdToRate = this.dataset.tipId;
+                    const tipIdToRate = this.closest('.rating-display-group').dataset.tipId; // Récupère l'ID du tip du conteneur parent
                     
                     if (!tipIdToRate || tipIdToRate.startsWith('temp-id-')) {
                         alert("Impossible de noter ce tip : ID invalide ou temporaire.");
@@ -1260,7 +1256,7 @@
                         if (ratedTip) {
                             ratedTip.averageRating = result.newAverageRating;
                             ratedTip.ratingCount = result.newRatingCount;
-                            applyFiltersAndSort();
+                            applyFiltersAndSort(); // Re-appliquer filtres et tri pour que la carte se mette à jour
                         }
 
                     } catch (error) {
@@ -1358,10 +1354,10 @@
                     </div>
                 `;
 
-                // Ajout de l'affichage de la note dans le panneau latéral
+                // Ajout de l'affichage de la note dans le panneau latéral (affichage statique)
                 contentHtml += `
                     <h4 style="margin-top: 20px;">Note du Tip:</h4>
-                    <div class="rating-static" style="justify-content: flex-start; margin-bottom: 20px;">
+                    <div class="rating-display-group" style="justify-content: flex-start; margin-bottom: 20px;">
                         ${generateStarsHtml(tip.averageRating, false)} 
                         <span class="rating-value">(${parseFloat(tip.averageRating || 0).toFixed(1)} / ${tip.ratingCount || 0} votes)</span>
                     </div>
