@@ -33,9 +33,9 @@
         body.dark-mode {
             --primary-blue: #4FA2F4; /* Un bleu légèrement plus clair pour le mode sombre */
             --dark-blue: #2A7DCF;
-            --light-bg: #1a1a1a;     /* Fond sombre */
+            --light-bg: #1a1a1a;       /* Fond sombre */
             --white-card-bg: #2b2b2b; /* Fond des cartes/conteneurs sombres */
-            --text-color: #f0f0f0;   /* Texte clair */
+            --text-color: #f0f0f0;    /* Texte clair */
             --light-text-color: #b0b0b0; /* Texte secondaire plus clair */
             --border-color: #555;    /* Bordures sombres */
             --focus-border-color: #4FA2F4; /* Bordure focus mode sombre */
@@ -294,6 +294,7 @@
         .result-info span {
             font-weight: 700;
             color: var(--primary-blue);
+            font-size: 1em;
         }
 
         /* Styles pour le Drag & Drop */
@@ -333,6 +334,17 @@
             font-weight: 600;
             color: var(--text-color); /* Utilise la variable */
             font-size: 0.95em;
+        }
+
+        /* Nouveau style pour le message de limite de taille */
+        .size-limit-info {
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: var(--light-text-color);
+            text-align: center;
+        }
+        .size-limit-info strong {
+            color: var(--primary-blue);
         }
 
         /* Loader */
@@ -434,6 +446,7 @@
                         <p>Glissez & déposez votre image ici, ou cliquez pour sélectionner</p>
                         <p id="fileNameDisplay"></p>
                     </div>
+                    <p class="size-limit-info">Taille maximale recommandée : **6 Mo**</p>
                 </div>
 
                 <div class="form-group">
@@ -480,7 +493,6 @@
         const compressedSize = document.getElementById('compressedSize');
         const reduction = document.getElementById('reduction');
         const compressedImageContainer = document.getElementById('compressedImageContainer');
-        // ATTENTION : downloadBtn est maintenant un <button>
         const downloadBtn = document.getElementById('downloadBtn');
         const messageDiv = document.getElementById('message');
         const dropArea = document.getElementById('dropArea');
@@ -500,9 +512,20 @@
 
         // Gère la sélection d'un fichier (via input ou drag/drop)
         function handleFileSelection(file) {
+            // Vérifier la taille du fichier avant de le traiter
+            const MAX_FILE_SIZE_MB = 6; // Limite de 6 Mo
+            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                showMessage(`Le fichier est trop volumineux. La taille maximale recommandée est de ${MAX_FILE_SIZE_MB} Mo.`, 'error');
+                selectedFile = null;
+                fileNameDisplay.textContent = '';
+                compressedImageContainer.style.display = 'none';
+                downloadBtn.style.display = 'none';
+                return; // Arrête le traitement
+            }
+
             if (file && file.type.startsWith('image/')) {
                 selectedFile = file;
-                showMessage(`Fichier sélectionné : ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(2)} KB)`, 'info');
+                showMessage(`Fichier sélectionné : ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} Mo)`, 'info');
                 fileNameDisplay.textContent = selectedFile.name; // Affiche le nom du fichier
                 compressedImageContainer.style.display = 'none'; // Cache la section de résultat précédente
                 downloadBtn.style.display = 'none'; // Cache le bouton de téléchargement
@@ -567,20 +590,17 @@
                 return;
             }
 
-            // Désactive le bouton et affiche un message de chargement
             compressBtn.disabled = true;
             compressBtn.textContent = 'Compression en cours...';
             showMessage('Compression en cours...', 'info');
 
             const reader = new FileReader();
 
-            // Quand le fichier est lu en Base64
             reader.onload = async (e) => {
-                const base64Image = e.target.result; // L'image au format Base64
-                const quality = qualityRange.value; // La qualité sélectionnée par l'utilisateur
+                const base64Image = e.target.result;
+                const quality = qualityRange.value;
 
                 try {
-                    // Envoie l'image Base64 et la qualité à la fonction Netlify de compression
                     const response = await fetch(`${apiBase}compressImage`, {
                         method: 'POST',
                         headers: {
@@ -588,84 +608,74 @@
                         },
                         body: JSON.stringify({
                             image: base64Image,
-                            quality: parseInt(quality, 10) // S'assurer que la qualité est un nombre entier
+                            quality: parseInt(quality, 10)
                         }),
                     });
 
                     if (!response.ok) {
-                        const errorBody = await response.text(); // Récupère le message d'erreur du serveur
+                        const errorBody = await response.text();
                         throw new Error(`Erreur du serveur: ${response.status} - ${errorBody}`);
                     }
 
-                    // Récupère la réponse sous forme de Blob (fichier binaire)
                     const blob = await response.blob();
-                    compressedBlob = blob; // Stocke le blob pour le bouton de téléchargement
+                    compressedBlob = blob;
 
                     if (!blob || blob.size === 0) {
                         throw new Error('Réponse vide ou invalide de la fonction Netlify.');
                     }
 
-                    // Calcule les tailles et la réduction
-                    const compressedSizeKB = (blob.size / 1024).toFixed(2);
-                    const originalSizeKB = (selectedFile.size / 1024).toFixed(2);
-                    const reductionPercentage = originalSizeKB > 0 ? (((originalSizeKB - compressedSizeKB) / originalSizeKB) * 100).toFixed(2) : 0;
+                    const compressedSizeMB = (blob.size / 1024 / 1024).toFixed(2);
+                    const originalSizeMB = (selectedFile.size / 1024 / 1024).toFixed(2);
+                    const reductionPercentage = originalSizeMB > 0 ? (((originalSizeMB - compressedSizeMB) / originalSizeMB) * 100).toFixed(2) : 0;
 
-                    // Affiche l'image compressée et les informations
-                    compressedImage.src = URL.createObjectURL(blob); // Crée une URL temporaire pour afficher l'image
-                    compressedSize.textContent = `${compressedSizeKB} KB`;
+                    compressedImage.src = URL.createObjectURL(blob);
+                    compressedSize.textContent = `${compressedSizeMB} Mo`;
                     reduction.textContent = `${reductionPercentage}%`;
 
-                    compressedImageContainer.style.display = 'block'; // Affiche la section de résultat
-                    downloadBtn.style.display = 'inline-block'; // Affiche le bouton de téléchargement
+                    compressedImageContainer.style.display = 'block';
+                    downloadBtn.style.display = 'inline-block';
                     showMessage('Image compressée avec succès ! Vous pouvez maintenant la télécharger.', 'success');
 
                 } catch (error) {
                     console.error('Erreur lors de la compression de l\'image:', error);
                     showMessage(`Erreur de compression: ${error.message}. Vérifiez la console pour plus de détails.`, 'error');
                 } finally {
-                    // Réactive le bouton et réinitialise son texte
                     compressBtn.disabled = false;
                     compressBtn.textContent = 'Compresser l\'image';
                 }
             };
 
-            // Lit le fichier sélectionné comme une URL de données (Base64)
             reader.readAsDataURL(selectedFile);
         });
 
-        // Gère le clic sur le bouton de téléchargement
         downloadBtn.addEventListener('click', () => {
             if (compressedBlob) {
                 const url = URL.createObjectURL(compressedBlob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `compressed_${selectedFile.name.replace(/\.[^/.]+$/, "")}.jpeg`; // Nom du fichier
-                document.body.appendChild(a); // Ajoute le lien au DOM
-                a.click(); // Simule le clic pour déclencher le téléchargement
-                document.body.removeChild(a); // Supprime le lien après le clic
-                URL.revokeObjectURL(url); // Libère la mémoire
+                a.download = `compressed_${selectedFile.name.replace(/\.[^/.]+$/, "")}.jpeg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
 
-                // Redirige vers la galerie après un court délai
                 setTimeout(() => {
-                    window.location.href = 'index.html'; // Changement ici pour rediriger vers index.html
-                }, 500); // 500 ms (0.5 seconde) de délai. Ajustez si nécessaire.
+                    window.location.href = 'index.html';
+                }, 500);
             } else {
                 showMessage('Aucune image compressée à télécharger.', 'warning');
             }
         });
 
 
-        // Met à jour l'affichage de la qualité au fur et à mesure que le slider est déplacé
         qualityRange.addEventListener('input', () => {
             qualityValueSpan.textContent = qualityRange.value;
         });
-        // Initialise l'affichage de la qualité au chargement de la page
         qualityValueSpan.textContent = qualityRange.value;
 
 
-        // Fonctions pour le mode sombre
         function initializeDarkMode() {
-            const toggle = document.getElementById('darkModeToggle'); // S'assure que le toggle existe
+            const toggle = document.getElementById('darkModeToggle');
             if (!toggle) {
                 console.warn("DarkModeToggle non trouvé. Le mode sombre ne sera pas activé via le toggle.");
                 return;
@@ -673,23 +683,19 @@
 
             const body = document.body;
 
-            // 1. Vérifier la préférence stockée dans localStorage
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme) {
-                body.classList.add(savedTheme); // 'light-mode' ou 'dark-mode'
+                body.classList.add(savedTheme);
                 if (savedTheme === 'dark-mode') {
                     toggle.checked = true;
                 }
             } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                // 2. Si aucune préférence, vérifier la préférence système de l'utilisateur
                 body.classList.add('dark-mode');
                 toggle.checked = true;
             } else {
-                // Par défaut, s'assurer que c'est le mode clair
                 body.classList.add('light-mode');
             }
 
-            // Écouter les changements du toggle
             toggle.addEventListener('change', () => {
                 if (toggle.checked) {
                     body.classList.remove('light-mode');
@@ -702,9 +708,7 @@
                 }
             });
 
-            // Optionnel : Écouter les changements de préférence système en temps réel
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-                // Ne basculer que si l'utilisateur n'a pas déjà une préférence manuelle dans localStorage
                 if (!localStorage.getItem('theme')) {
                     if (event.matches) {
                         body.classList.remove('light-mode');
@@ -718,7 +722,6 @@
                 }
             });
         }
-        // La fonction initializeDarkMode() est appelée après le chargement du header dans la promesse fetch
     </script>
 </body>
 </html>
