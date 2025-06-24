@@ -267,6 +267,9 @@
                         <label for="texte">Prompt</label>
                         <textarea id="texte" v-model="texte" rows="4" required></textarea>
 
+                        <label for="description">Description</label>
+                        <textarea id="description" v-model="description" rows="3"></textarea>
+
                         <label>Image</label>
                         <div id="drop-zone"
                              @click="triggerFile"
@@ -283,9 +286,10 @@
                     </form>
 
                     <div class="confirmation" v-if="confirmationVisible">
-                        <p>✅ Prompt partagé avec succès vers la <strong>galerie</strong> !</p>
+                        <p>✅ Prompt partagé avec succès vers la **galerie** !</p>
                         <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
                         <p style="white-space: pre-wrap;">{{ confirmationTexte }}</p>
+                        <p style="white-space: pre-wrap; font-style: italic;">{{ confirmationDescription }}</p>
                         <p style="margin-top: 15px; color: #0077b6;">Redirection vers la galerie dans 5 secondes...</p>
                     </div>
                 </div>
@@ -295,19 +299,18 @@
                 const outil = ref('Midjourney');
                 const chaine = ref('La Une');
                 const texte = ref('');
+                const description = ref(''); // Nouvelle ref pour la description
                 const fileInput = ref(null);
                 const imagePreviewUrl = ref('');
-                const imageFile = ref(null); // Nouvelle ref pour stocker le fichier image
+                const imageFile = ref(null);
                 const confirmationVisible = ref(false);
                 const confirmationImageUrl = ref('');
                 const confirmationTexte = ref('');
+                const confirmationDescription = ref(''); // Nouvelle ref pour afficher la description de confirmation
                 const isLoading = ref(false);
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
-                // Ces refs de filtres sont maintenues ici au cas où elles seraient utilisées ailleurs
-                // ou si cette même logique Vue est partagée avec la page Galerie.
-                // Elles n'impactent pas le visuel ou le fonctionnel du formulaire de soumission ici.
                 const selectedFilterAuteur = ref('');
                 const selectedFilterOutil = ref('');
                 const selectedFilterChaine = ref('');
@@ -369,7 +372,7 @@
                 }
 
                 function handleFile(file) {
-                    imageFile.value = file; // Stocke le fichier dans la nouvelle ref
+                    imageFile.value = file;
                     const reader = new FileReader();
                     reader.onload = () => { imagePreviewUrl.value = reader.result; };
                     reader.readAsDataURL(file);
@@ -398,12 +401,12 @@
                     isLoading.value = true;
 
                     let imageUrl = '';
-                    const file = imageFile.value; // Utilise la ref 'imageFile'
+                    const file = imageFile.value;
 
                     try {
                         if (file) {
                             const base64 = await getBase64(file);
-                            const payload = { fileContent: base64, fileName: file.name }; // Clé corrigée
+                            const payload = { fileContent: base64, fileName: file.name };
                             const resp = await fetch('/.netlify/functions/uploadImage', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -426,6 +429,7 @@
                                 outil: outil.value,
                                 chaine: chaine.value,
                                 texte: texte.value,
+                                description: description.value, // Ajoutez la description ici
                                 imageUrl
                             })
                         });
@@ -437,6 +441,7 @@
 
                         confirmationImageUrl.value = imageUrl;
                         confirmationTexte.value = texte.value;
+                        confirmationDescription.value = description.value; // Affiche la description dans la confirmation
                         confirmationVisible.value = true;
 
                         setTimeout(() => {
@@ -448,10 +453,11 @@
                         outil.value = 'Midjourney';
                         chaine.value = 'La Une';
                         texte.value = '';
+                        description.value = ''; // Réinitialise la description
                         imagePreviewUrl.value = '';
-                        imageFile.value = null; // Réinitialise la ref du fichier image
+                        imageFile.value = null;
                         if (fileInput.value) {
-                             fileInput.value.value = null; // Réinitialise l'input file lui-même
+                             fileInput.value.value = null;
                         }
                         fetchProfils();
 
@@ -464,11 +470,10 @@
                 }
 
                 return {
-                    auteur, outil, chaine, texte, fileInput,
+                    auteur, outil, chaine, texte, description, fileInput, // Ajoutez description ici
                     imagePreviewUrl, confirmationVisible,
-                    confirmationImageUrl, confirmationTexte,
+                    confirmationImageUrl, confirmationTexte, confirmationDescription, // Ajoutez confirmationDescription ici
                     isLoading, profilsAuteurs, isLoadingProfils,
-                    // Ces refs de filtres sont toujours déclarées mais non utilisées dans le template de cette page.
                     selectedFilterAuteur, selectedFilterOutil, selectedFilterChaine,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
                 };
