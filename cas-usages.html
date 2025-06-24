@@ -486,10 +486,15 @@
         }
 
         /* Styles pour les images dans le panneau d'aperçu (vignette) */
+        .preview-panel-image-container { /* Ancien conteneur pour toutes les images */
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px; /* Espacement entre les images */
+            margin-bottom: 20px;
+        }
         .preview-panel-image-wrapper { /* Nouveau conteneur pour chaque image avec le numéro */
             position: relative;
             display: inline-block;
-            margin: 0 10px 20px 0; /* Espacement entre les images */
             vertical-align: top; /* Alignement pour éviter les sauts de ligne inattendus */
         }
 
@@ -844,7 +849,7 @@
             <button class="close-preview-btn" id="closePreviewBtn"><i class="fas fa-times"></i></button>
         </div>
         <div id="previewPanelContent" class="preview-panel-content">
-        </div>
+            </div>
     </div>
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
@@ -855,9 +860,6 @@
         const filtreOutilSelect = document.getElementById('filtre-outil');
         const filtreTriDateSelect = document.getElementById('filtre-tri-date');
         const previewTextInput = document.getElementById('preview-text');
-        // Les lignes suivantes sont supprimées car elles sont liées au système de notation :
-        // const filtreRatingSlider = document.getElementById('filtre-rating-slider');
-        // const filtreRatingValueDisplay = document.getElementById('filtre-rating-value');
 
         const previewPanel = document.getElementById('previewPanel');
         const previewPanelTitle = document.getElementById('previewPanelTitle');
@@ -940,9 +942,6 @@
             return text.replace(/[&<>"]/g, function(m) { return map[m]; });
         }
 
-        // Fonction pour générer le HTML des étoiles - SUPPRIMÉE
-        // function generateStarsHtml(rating, interactive = true, tipId = '') { ... }
-
         function applyFiltersAndSort() {
             let filtered = [...allTips];
 
@@ -962,12 +961,7 @@
             }
 
             const sortOrder = filtreTriDateSelect.value;
-            // Suppression du filtre par note min
-            // const minRating = parseFloat(filtreRatingSlider.value);
-            // if (minRating > 0) {
-            //     filtered = filtered.filter(tip => (tip.averageRating || 0) >= minRating);
-            // }
-
+            
             filtered.sort((a, b) => {
                 if (sortOrder === 'recent') {
                     const dateA = new Date(a.dateCreation || a.date);
@@ -978,15 +972,6 @@
                     const dateB = new Date(b.dateCreation || b.date);
                     return dateA.getTime() - dateB.getTime();
                 }
-                // Suppression du tri par mieux notés
-                // else if (sortOrder === 'top-rated') {
-                //     const ratingA = a.averageRating || 0;
-                //     const ratingB = b.averageRating || 0;
-                //     if (ratingB !== ratingA) {
-                //         return ratingB - ratingA;
-                //     }
-                //     return (b.ratingCount || 0) - (a.ratingCount || 0);
-                // }
                 return 0;
             });
             
@@ -998,13 +983,6 @@
             filtreOutilSelect.addEventListener('change', applyFiltersAndSort);
             previewTextInput.addEventListener('input', applyFiltersAndSort);
             filtreTriDateSelect.addEventListener('change', applyFiltersAndSort);
-
-            // Suppression des écouteurs d'événements pour le slider de notation
-            // filtreRatingSlider.addEventListener('input', () => {
-            //     filtreRatingValueDisplay.textContent = filtreRatingSlider.value;
-            //     applyFiltersAndSort();
-            // });
-            // filtreRatingSlider.addEventListener('change', applyFiltersAndSort);
         }
 
         async function loadAndDisplayTips() {
@@ -1020,9 +998,7 @@
                     dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
                     titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
                     auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
-                    // Suppression des propriétés de notation
-                    // averageRating: tip.averageRating !== undefined ? tip.averageRating : 0,
-                    // ratingCount: tip.ratingCount !== undefined ? tip.ratingCount : 0
+                    description: tip.description || '' // S'assurer que la description existe, même vide
                 }));
                 applyFiltersAndSort();
             } catch (error) {
@@ -1075,7 +1051,7 @@
                                         ${(tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
                                         ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
                                     </div>
-                                    </div>
+                                </div>
                                 <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </div>
@@ -1085,8 +1061,6 @@
             });
 
             attachEventListenersToCards();
-            // Suppression de l'appel à attachRatingEventListeners()
-            // attachRatingEventListeners();
         }
 
         function getCategoryColor(category) {
@@ -1121,10 +1095,6 @@
             });
         }
 
-        // MISE À JOUR : Gestion des étoiles avec un seul conteneur - FONCTION ENTIÈREMENT SUPPRIMÉE
-        // function attachRatingEventListeners() { ... }
-
-
         async function openPreviewPanel(tipId) {
             console.log(`Opening preview panel for tip ID: ${tipId}`);
             const tip = allTips.find(t => t.id === tipId);
@@ -1135,7 +1105,24 @@
                 previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
                 let contentHtml = '';
 
+                // Add Description section
+                if (tip.description && tip.description.trim() !== '') {
+                    contentHtml += `
+                        <h4>Description:</h4>
+                        <div class="content-card-blue">${escapeHtml(tip.description)}</div>
+                    `;
+                }
+
+
                 const panelPromptContent = tip.promptText || tip.prompt;
+                
+                if (panelPromptContent) {
+                    contentHtml += `
+                        <h4>Prompt:</h4>
+                        <button class="copy-panel-btn" data-copy="${escapeHtml(panelPromptContent)}">Copier le prompt</button>
+                        <pre class="prompt-content-pre">${escapeHtml(panelPromptContent)}</pre>
+                    `;
+                }
 
                 if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
                     contentHtml += `<h4>Images associées:</h4><div class="preview-panel-image-container">`;
@@ -1184,14 +1171,6 @@
                     `;
                 }
                 
-                if (panelPromptContent) {
-                    contentHtml += `
-                        <h4>Prompt:</h4>
-                        <button class="copy-panel-btn" data-copy="${escapeHtml(panelPromptContent)}">Copier le prompt</button>
-                        <pre class="prompt-content-pre">${escapeHtml(panelPromptContent)}</pre>
-                    `;
-                }
-                
                 const dateObj = new Date(tip.dateCreation);
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
@@ -1210,16 +1189,6 @@
                         <span class="metadata-value">${formattedDate}</span>
                     </div>
                 `;
-
-                // Suppression de l'affichage de la note dans le panneau latéral
-                // contentHtml += `
-                //     <h4 style="margin-top: 20px;">Note du Tip:</h4>
-                //     <div class="rating-display-group" style="justify-content: flex-start; margin-bottom: 20px;">
-                //         ${generateStarsHtml(tip.averageRating, false)}
-                //         <span class="rating-value">(${parseFloat(tip.averageRating || 0).toFixed(1)} / ${tip.ratingCount || 0} votes)</span>
-                //     </div>
-                // `;
-
 
                 previewPanelContent.innerHTML = contentHtml;
                 previewPanel.classList.add('open');
