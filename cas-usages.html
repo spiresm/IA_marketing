@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cas d'usages - iMarketing</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         /* Variables CSS pour faciliter la gestion des couleurs */
         :root {
@@ -31,6 +35,7 @@
             transition: opacity 0.5s ease-in;
             margin: 0;
             font-family: 'Inter', sans-serif; /* Utilisation de la police Inter */
+            font-weight: 400; /* Assure une épaisseur normale */
             background-color: var(--background-grey);
             min-height: 100vh;
             display: flex;
@@ -1063,8 +1068,24 @@
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                allTips = await response.json();
-                allTips = allTips.map(tip => ({
+                let fetchedTips = await response.json();
+                
+                // --- Ajout d'un tip de démonstration avec une vidéo YouTube ---
+                const demoTip = {
+                    id: 'demo-youtube-tip',
+                    titre: 'Démonstration : Vidéo YouTube intégrée',
+                    auteur: 'IA Démo',
+                    categorie: 'Outils IA',
+                    outil: 'YouTube',
+                    dateCreation: new Date().toISOString(),
+                    previewText: 'Cliquez pour voir une vidéo YouTube intégrée dans le panneau latéral !',
+                    description: 'Ceci est un exemple de tip montrant comment une vidéo YouTube est intégrée directement dans le panneau d\'aperçu. Cette vidéo explique comment utiliser les outils IA pour le marketing.',
+                    urls: ['https://www.youtube.com/watch?v=6DEhiHOrMzI'] // L'URL de la vidéo que l'utilisateur a donnée
+                };
+                fetchedTips.unshift(demoTip); // Ajoute le tip de démo au début de la liste
+
+
+                allTips = fetchedTips.map(tip => ({
                     ...tip,
                     dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
                     titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
@@ -1171,11 +1192,11 @@
         }
 
         async function openPreviewPanel(tipId) {
-            console.log(`Opening preview panel for tip ID: ${tipId}`);
+            console.log(`Tentative d'ouverture du panneau d'aperçu pour le tip ID: ${tipId}`);
             const tip = allTips.find(t => t.id === tipId);
 
             if (tip) {
-                console.log("Tip data for preview panel:", tip);
+                console.log("Données du tip pour le panneau d'aperçu:", tip);
                 
                 previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
                 let contentHtml = '';
@@ -1196,8 +1217,8 @@
                         const youtubeId = getYouTubeVideoId(url);
                         if (youtubeId) {
                             hasEmbeddableVideo = true;
-                            // Utilisation de l'URL d'intégration standard de YouTube
-                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`; 
+                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`;
+                            console.log(`Détection d'une vidéo YouTube. ID: ${youtubeId}, URL d'intégration: ${embedUrl}`); 
                             linksHtml += `
                                 <div class="video-responsive">
                                     <iframe 
@@ -1206,7 +1227,7 @@
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                                         allowfullscreen
                                         title="YouTube video player"
-                                        onerror="console.error('Failed to load YouTube embed for ID: ${youtubeId}. Check video availability or network. URL tried: ${embedUrl}');"
+                                        onerror="console.error('Échec du chargement de l\'intégration YouTube pour l\'ID: ${youtubeId}. Vérifiez la disponibilité de la vidéo ou le réseau. URL tentée: ${embedUrl}');"
                                     ></iframe>
                                 </div>
                             `;
@@ -1309,7 +1330,7 @@
                 });
 
             } else {
-                console.error("Tip not found for ID:", tipId);
+                console.error("Tip non trouvé pour l'ID:", tipId);
             }
         }
 
