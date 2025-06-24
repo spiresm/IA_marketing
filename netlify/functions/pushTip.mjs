@@ -3,9 +3,7 @@
 import { Octokit } from "@octokit/core";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Buffer } from 'buffer';
-// Pas besoin de 'multiparty' ou 'fs/promises' si vous traitez le corps de l'événement directement ou utilisez parse-multipart
-// parse-multipart est souvent intégré dans l'environnement Netlify Functions pour gérer les payloads multipart
-import { parse as parseMultipart } from 'parse-multipart';
+import { parse as parseMultipart } from 'parse-multipart'; // Correct import for parse-multipart
 
 const MyOctokit = Octokit.plugin(restEndpointMethods);
 
@@ -35,18 +33,33 @@ export async function handler(event, context) {
 
     try {
         const contentType = event.headers['content-type'];
+        
+        // --- C'EST ICI LA CLÉ DE LA CORRECTION ---
+        // parse-multipart.getBoundary attend un string complet comme 'multipart/form-data; boundary=something'
+        // Vérifiez que contentType est bien une chaîne et contient 'multipart/form-data'
         if (!contentType || !contentType.includes('multipart/form-data')) {
+            console.error('❌ pushTip: Content-Type incorrect ou manquant:', contentType);
             return { statusCode: 400, body: JSON.stringify({ message: 'Content-Type must be multipart/form-data.' }) };
         }
-
+        
         const boundary = parseMultipart.getBoundary(contentType);
-        const parts = parseMultipart(Buffer.from(event.body, 'base64'), boundary);
+        
+        // Assurez-vous que le corps de l'événement est correctement décodé
+        // Netlify encode souvent le corps des requêtes en base64
+        const bodyBuffer = Buffer.from(event.body, 'base64');
+        const parts = parseMultipart(bodyBuffer, boundary);
+
+        if (!parts || parts.length === 0) {
+            console.warn('⚠️ pushTip: Aucune partie trouvée dans la requête multipart.');
+        }
 
         for (const part of parts) {
             if (part.filename) {
                 uploadedFileParts.push(part); // C'est une partie fichier
+                console.log(`Debug: Fichier part.name: ${part.name}, filename: ${part.filename}, type: ${part.type}`);
             } else {
                 incomingTipData[part.name] = part.data.toString('utf8'); // C'est une partie champ
+                console.log(`Debug: Champ part.name: ${part.name}, value: ${incomingTipData[part.name]}`);
             }
         }
 
@@ -62,7 +75,7 @@ export async function handler(event, context) {
         console.error('❌ pushTip: Erreur de parsing du multipart/form-data:', e);
         return {
             statusCode: 400,
-            body: JSON.stringify({ message: `Erreur lors du traitement du formulaire: ${e.message || e}` })
+            body: JSON.stringify({ message: `Erreur lors du traitement du formulaire: ${e.message || 'Problème lors du parsing du corps de la requête.'}` })
         };
     }
 
@@ -72,12 +85,17 @@ export async function handler(event, context) {
     try {
         // --- DÉBUT : GESTION DE L'UPLOAD D'IMAGES ET DE DOCUMENTS ---
         for (const filePart of uploadedFileParts) {
-            const mimeType = filePart.type; // Le type MIME est dans 'part.type' avec parse-multipart
+            // parse-multipart place le type MIME dans 'type' et le nom de champ dans 'name'
+            const mimeType = filePart.type; 
+            const fieldName = filePart.name; // Le nom du champ 'files' du formulaire client
+            
             if (mimeType.startsWith('image/') || mimeType === 'text/plain' || mimeType === 'application/pdf') {
                 console.log(`📡 pushTip: Traitement du fichier: ${filePart.filename} (${mimeType})`);
 
                 // Générer un nom de fichier unique et sûr sans 'uuid'
-                const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${filePart.filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+                // Remplacer les caractères non alphanumériques, points, tirets par '_'
+                const sanitizedFilename = filePart.filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+                const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${sanitizedFilename}`;
 
                 let filePathInRepo;
                 let fileBaseUrl;
@@ -103,12 +121,15 @@ export async function handler(event, context) {
                     console.log(`✅ pushTip: Fichier uploadé avec succès: ${currentFileUrl}`);
                 } catch (fileUploadError) {
                     console.error(`❌ pushTip: Erreur lors de l'upload du fichier ${filePart.filename} à GitHub:`, fileUploadError);
+                    // Continuer le traitement des autres fichiers et du tip principal si possible,
+                    // mais retourner un code d'erreur si l'upload de fichier est critique.
+                    // Pour l'instant, on log l'erreur et on continue.
                 }
             } else {
                 console.log(`⚠️ pushTip: Fichier non-pris en charge ignoré: ${filePart.filename} (${mimeType})`);
             }
         }
-        // --- FIN : GESTION DE L'UPLOAD D'IMAGES/DOCUMENTS ---
+        // --- FIN : GESTION DE L'UPLOAD D'IMAGES ET DE DOCUMENTS ---
 
         // --- DÉBUT : GESTION DU FICHIER JSON DES TIPS ---
         const jsonFilePath = GITHUB_TIPS_PATH_CONST;
@@ -139,7 +160,7 @@ export async function handler(event, context) {
                         console.log("💾 pushTip: Le fichier JSON des tips n'existe pas encore, il sera créé.");
                     } else {
                         console.error("❌ pushTip: Erreur lors de la récupération du fichier JSON existant:", e);
-                        throw e;
+                        throw e; // Renvoyer l'erreur pour retenter ou échouer
                     }
                 }
 
@@ -221,6 +242,7 @@ export async function handler(event, context) {
                 if (error.status === 409 && retries < MAX_RETRIES - 1) {
                     console.warn(`⚠️ pushTip: Conflit de version détecté pour ${jsonFilePath}. Tentative ${retries + 1}/${MAX_RETRIES}. Récupération du SHA le plus récent...`);
                     retries++;
+                    // Ne pas renvoyer l'erreur ici, laisser la boucle réessayer
                 } else {
                     console.error('❌ pushTip: Erreur critique lors de l\'ajout/mise à jour du tip:', error);
                     return {
@@ -247,15 +269,15 @@ export async function handler(event, context) {
             body: JSON.stringify({
                 message: 'Tip ajouté/mis à jour avec succès !',
                 tip: finalTipData,
-                imageUrls: finalTipData.fileUrls
+                imageUrls: finalTipData.fileUrls // S'assurer que 'fileUrls' est bien un tableau ici
             }),
         };
 
     } catch (error) {
-        console.error('❌ pushTip: Erreur générale inattendue:', error);
+        console.error('❌ pushTip: Erreur générale inattendue ou non gérée:', error);
         return {
             statusCode: error.status || 500,
-            body: JSON.stringify({ message: `Erreur interne du serveur: ${error.message || error}` }),
+            body: JSON.stringify({ message: `Erreur interne du serveur: ${error.message || 'Une erreur inattendue est survenue.'}` }),
         };
     }
 }
