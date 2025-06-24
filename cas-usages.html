@@ -506,7 +506,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
-        /* Styles pour les vignettes YouTube */
+        /* Styles pour les vignettes YouTube - Non utilisés pour le lecteur, mais conservés pour le fallback ou d'autres usages si nécessaire */
         .youtube-vignette-wrapper {
             position: relative;
             display: inline-block;
@@ -516,7 +516,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             border-radius: 8px;
             overflow: hidden;
-            max-width: 200px; /* Limite la largeur de la vignette pour correspondre aux autres images */
+            max-width: 200px; /* Limite la largeur de la vignette */
         }
         .youtube-vignette-wrapper:hover .play-button {
             opacity: 1;
@@ -538,6 +538,29 @@
             transition: opacity 0.2s;
             pointer-events: none; /* Pour que le clic passe à l'a */
             text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Styles pour le lecteur vidéo YouTube embarqué */
+        .video-responsive {
+            position: relative;
+            padding-bottom: 56.25%; /* Ratio 16:9 (hauteur/largeur) pour les vidéos */
+            height: 0;
+            overflow: hidden;
+            max-width: 100%;
+            background: #000;
+            margin-bottom: 20px; /* Espacement après la vidéo */
+            border-radius: 8px; /* Bords arrondis pour le conteneur */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* Ombre légère */
+        }
+        .video-responsive iframe,
+        .video-responsive object,
+        .video-responsive embed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none; /* Supprime la bordure par défaut de l'iframe */
         }
 
 
@@ -1214,18 +1237,21 @@
 
                 // URLs (avec gestion spécifique YouTube)
                 if (tip.urls && tip.urls.length > 0) {
-                    contentHtml += `<h4>Liens associés:</h4><div class="preview-panel-image-container">`; // Réutilise le conteneur flex pour l'alignement
+                    contentHtml += `<h4>Liens associés:</h4>`; 
                     tip.urls.forEach((url, index) => {
                         const youtubeId = getYouTubeVideoId(url);
                         if (youtubeId) {
                             // C'est la LIGNE CORRIGÉE utilisant i.ytimg.com et le template string correct
-                            const thumbnailUrl = `https://i.ytimg.com/vi/${youtubeId}/mqdefault.jpg`;
+                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`; // URL d'intégration YouTube
                             contentHtml += `
-                                <div class="youtube-vignette-wrapper">
-                                    <a href="${escapeHtml(url)}" target="_blank">
-                                        <img src="${escapeHtml(thumbnailUrl)}" alt="Vignette YouTube" class="youtube-vignette" onerror="this.src='https://via.placeholder.com/200x112?text=Vidéo+YouTube'; console.error('Failed to load YouTube thumbnail for ID: ${youtubeId}');" />
-                                        <i class="fab fa-youtube play-button"></i>
-                                    </a>
+                                <div class="video-responsive">
+                                    <iframe 
+                                        src="${escapeHtml(embedUrl)}" 
+                                        frameborder="0" 
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowfullscreen
+                                        title="YouTube video player"
+                                    ></iframe>
                                 </div>
                             `;
                         } else if (url.trim() !== '') { // S'assure que l'URL n'est pas vide
@@ -1235,7 +1261,7 @@
                             `;
                         }
                     });
-                    contentHtml += `</div>`;
+                    // contentHtml += `</div>`; // Pas besoin de fermer le conteneur flex si les vidéos sont affichées en bloc
                 }
 
                 // Post-it (previewText)
