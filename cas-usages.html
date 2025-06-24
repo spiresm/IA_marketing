@@ -887,9 +887,6 @@
                     <i class="fas fa-cut"></i> Compresser une image
                 </a>
             </div>
-
-            <!-- ANCIEN EMPLACEMENT DU LECTEUR VIDÉO PRINCIPAL - SUPPRIMÉ -->
-
         </div>
 
         <div class="galerie-container">
@@ -996,7 +993,7 @@
             }
             text = String(text);
             const map = {
-                '&': '&amp;',
+                '&': '&amp;', // <-- Correction ici : l'esperluette doit être échappée
                 '<': '&lt;',
                 '>': '&gt;',
                 '"': '&quot;'
@@ -1190,6 +1187,41 @@
                         <div class="content-card-blue">${escapeHtml(tip.description)}</div>
                     `;
                 }
+                
+                // URLs (avec gestion spécifique YouTube) - DÉPLACÉ ICI
+                if (tip.urls && tip.urls.length > 0) {
+                    let hasEmbeddableVideo = false;
+                    let linksHtml = '';
+                    tip.urls.forEach((url, index) => {
+                        const youtubeId = getYouTubeVideoId(url);
+                        if (youtubeId) {
+                            hasEmbeddableVideo = true;
+                            // Utilisation de l'URL d'intégration standard de YouTube
+                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`; 
+                            linksHtml += `
+                                <div class="video-responsive">
+                                    <iframe 
+                                        src="${escapeHtml(embedUrl)}" 
+                                        frameborder="0" 
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowfullscreen
+                                        title="YouTube video player"
+                                        onerror="console.error('Failed to load YouTube embed for ID: ${youtubeId}. Check video availability or network. URL tried: ${embedUrl}');"
+                                    ></iframe>
+                                </div>
+                            `;
+                        } else if (url.trim() !== '') { // S'assure que l'URL n'est pas vide
+                            // C'est une autre URL, affiche juste un lien texte ou une icône générique
+                            linksHtml += `
+                                <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
+                            `;
+                        }
+                    });
+                    if (hasEmbeddableVideo || linksHtml.trim() !== '') {
+                        contentHtml += `<h4>Liens/Vidéos associées:</h4>${linksHtml}`;
+                    }
+                }
+
 
                 const panelPromptContent = tip.promptText || tip.prompt;
                 
@@ -1237,35 +1269,6 @@
                             </a>
                         </div>
                     `;
-                }
-
-                // URLs (avec gestion spécifique YouTube)
-                if (tip.urls && tip.urls.length > 0) {
-                    contentHtml += `<h4>Liens associés:</h4>`; 
-                    tip.urls.forEach((url, index) => {
-                        const youtubeId = getYouTubeVideoId(url);
-                        if (youtubeId) {
-                            // C'est LA LIGNE CLÉ CORRIGÉE : Utilisation de l'URL d'intégration standard de YouTube
-                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`; 
-                            contentHtml += `
-                                <div class="video-responsive">
-                                    <iframe 
-                                        src="${escapeHtml(embedUrl)}" 
-                                        frameborder="0" 
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                        allowfullscreen
-                                        title="YouTube video player"
-                                        onerror="console.error('Failed to load YouTube embed for ID: ${youtubeId}. Check video availability or network. URL tried: ${embedUrl}');"
-                                    ></iframe>
-                                </div>
-                            `;
-                        } else if (url.trim() !== '') { // S'assure que l'URL n'est pas vide
-                            // C'est une autre URL, affiche juste un lien texte ou une icône générique
-                            contentHtml += `
-                                <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
-                            `;
-                        }
-                    });
                 }
 
                 // Post-it (previewText)
@@ -1327,7 +1330,16 @@
 
         async function copyToClipboard(text, buttonElement) {
             try {
-                await navigator.clipboard.writeText(text);
+                // Utiliser document.execCommand pour la compatibilité dans les iframes du Canvas
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed'; // Évite le défilement
+                textarea.style.opacity = 0; // Rend invisible
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+
                 const originalText = buttonElement.textContent;
                 buttonElement.textContent = 'Copié !';
                 setTimeout(() => {
@@ -1338,6 +1350,8 @@
                 // Utiliser une méthode alternative pour l'alerte, car `alert()` est désactivé
                 // Pour cet exemple, je vais simplement logguer, mais une implémentation réelle nécessiterait une modale custom.
                 console.warn('Veuillez copier manuellement : ', text);
+                // Pour un feedback utilisateur, vous pourriez afficher un message temporaire en HTML
+                // Par exemple, créer un div qui apparaît et disparaît.
             }
         }
 
@@ -1347,8 +1361,8 @@
 
         async function confirmAndDeleteTip(tipId) {
             // Remplacer `confirm()` par une modale personnalisée si possible
-            // Pour l'instant, je vais laisser le `confirm` existant mais noter que c'est une zone à améliorer.
-            // Note: `confirm()` est désactivé dans cet environnement. Je vais simuler une confirmation.
+            // Note: `confirm()` est désactivé dans cet environnement. Je vais simuler une confirmation et logguer.
+            // En production, vous devrez implémenter une modale HTML/CSS/JS pour demander confirmation.
             const userConfirmed = true; // Simuler une confirmation pour la démonstration
             console.log("Simulating confirmation for deletion. In a real app, this would be a custom modal.");
 
