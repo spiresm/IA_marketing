@@ -5,7 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Partager un Tip / Prompt - iMarketing</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        /* Variables CSS pour faciliter la gestion des couleurs */
+        :root {
+            --primary-blue: #0077b6;
+            --dark-blue: #005f8a;
+            --light-blue: #64B5F6;
+            --lighter-blue: #42A5F5;
+            --background-grey: #f0f2f5;
+            --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+            --card-hover-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            --success-bg: #d4edda;
+            --success-text: #155724;
+            --error-bg: #f8d7da;
+            --error-text: #dc3545;
+            --postit-yellow: #FFFAA0;
+            --light-blue-card: #E0F2F7;
+            --grey-text: #555;
+            --border-color: #ddd;
+        }
+
         /* Styles pour le défilement et la mise en page générale */
         html, body {
             height: 100%;
@@ -17,7 +40,8 @@
             opacity: 0;
             transition: opacity 0.5s ease;
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', sans-serif; /* Utilisation de la police Inter */
+            font-weight: 400; /* Assure une épaisseur normale */
             background-color: #f0f2f5;
             display: flex; /* Utiliser flexbox pour le layout principal */
             flex-direction: column; /* Organiser les éléments en colonne */
@@ -92,6 +116,59 @@
             outline: none;
             box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.2);
         }
+
+        /* Styles pour les champs URL dynamiques */
+        .url-input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px; /* Espace entre les groupes d'URL */
+        }
+
+        .url-input-group input[type="url"] {
+            flex-grow: 1; /* Permet à l'input de prendre l'espace disponible */
+            margin-bottom: 0; /* Supprime la marge en bas de l'input */
+        }
+        
+        .url-action-buttons {
+            display: flex;
+            justify-content: flex-end; /* Alignement à droite des boutons d'ajout/suppression */
+            gap: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+        }
+
+        .add-url-button, .remove-url-button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .add-url-button {
+            background-color: #28a745; /* Vert pour l'ajout */
+            color: white;
+            border: none;
+        }
+
+        .add-url-button:hover {
+            background-color: #218838;
+            transform: translateY(-1px);
+        }
+
+        .remove-url-button {
+            background-color: #dc3545; /* Rouge pour la suppression */
+            color: white;
+            border: none;
+        }
+
+        .remove-url-button:hover {
+            background-color: #c82333;
+            transform: translateY(-1px);
+        }
+
 
         #drop-zone {
             border: 2px dashed #0077b6;
@@ -180,7 +257,7 @@
             background-color: red;
         }
 
-        button {
+        button[type="submit"] {
             width: 100%;
             padding: 12px;
             background: #0077b6;
@@ -193,11 +270,11 @@
             transition: background 0.2s;
         }
 
-        button:hover {
+        button[type="submit"]:hover {
             background: #005f8a;
         }
 
-        button:disabled {
+        button[type="submit"]:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
         }
@@ -367,6 +444,17 @@
                         <option>Autre</option>
                     </select>
 
+                    <!-- NOUVELLE SECTION POUR LES LIENS/URLS -->
+                    <label>Lien(s) associé(s) (optionnel)</label>
+                    <div v-for="(url, index) in urls" :key="index" class="url-input-group">
+                        <input type="url" v-model="urls[index]" :placeholder="`Lien ${index + 1}`" />
+                        <button type="button" @click="removeUrlField(index)" class="remove-url-button">X</button>
+                    </div>
+                    <div class="url-action-buttons">
+                        <button type="button" @click="addUrlField" class="add-url-button">Ajouter un lien</button>
+                    </div>
+                    <!-- FIN SECTION LIENS -->
+
                     <label>Images / Documents (optionnel)</label>
                     <div id="drop-zone"
                             @click="triggerFile"
@@ -401,6 +489,14 @@
                     <p>✅ Tip / Prompt partagé avec succès !</p>
                     <template v-if="confirmationImageUrls && confirmationImageUrls.length > 0">
                         <img v-for="(url, index) in confirmationImageUrls" :key="'conf-img-' + index" :src="url" @click="openLightbox(url)" style="margin: 5px;" :alt="`Image de confirmation ${index + 1}`"/>
+                    </template>
+                    <template v-if="confirmationUrls && confirmationUrls.length > 0 && confirmationUrls[0].trim() !== ''">
+                        <h4 style="margin-top: 15px; margin-bottom: 5px; color: #333;">Lien(s) enregistré(s):</h4>
+                        <ul>
+                            <li v-for="(url, index) in confirmationUrls" :key="'conf-url-' + index" style="list-style-type: disc; margin-left: 20px;">
+                                <a :href="url" target="_blank" style="color: var(--primary-blue); word-break: break-all;">{{ url }}</a>
+                            </li>
+                        </ul>
                     </template>
                     <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
                     <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
@@ -450,10 +546,7 @@
         const { ref, createApp, onMounted, onUnmounted } = Vue;
 
         // --- CORRECTION CLÉ ICI : Noms des fonctions Netlify ---
-        // L'URL de la fonction Netlify doit correspondre au nom de votre fichier de fonction.
-        // Si votre fichier est netlify/functions/pushTip.mjs, l'URL est /.netlify/functions/pushTip
         const SAVE_TIP_URL = "/.netlify/functions/pushTip";
-        // Si votre fichier est netlify/functions/getProfils.mjs, l'URL est /.netlify/functions/getProfils
         const GET_PROFILS_URL = "/.netlify/functions/getProfils";
 
         const TipForm = {
@@ -466,6 +559,7 @@
                 const categorie = ref('Marketing Digital');
                 const outil = ref('');
                 const fileInput = ref(null);
+                const urls = ref(['']); // Commence avec un champ URL vide
 
                 const selectedFiles = ref([]);
                 let fileIdCounter = 0;
@@ -473,6 +567,7 @@
 
                 const confirmationVisible = ref(false);
                 const confirmationImageUrls = ref([]);
+                const confirmationUrls = ref([]); // Nouveau pour les URLs de confirmation
                 const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
                 const confirmationPreviewText = ref('');
@@ -516,11 +611,26 @@
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
                         // Afficher une erreur plus douce à l'utilisateur
-                        alert(`Impossible de charger la liste des profils. Veuillez vérifier que la fonction Netlify "${GET_PROFILS_URL.split('/').pop()}" existe et est correctement déployée.`);
+                        // Remplacer alert() par un log pour compatibilité Canvas
+                        console.error(`Impossible de charger la liste des profils. Veuillez vérifier que la fonction Netlify "${GET_PROFILS_URL.split('/').pop()}" existe et est correctement déployée. Détails: ${error.message}`);
                     } finally {
                         isLoadingProfils.value = false;
                         console.log("Fin du chargement des profils.");
                     }
+                }
+
+                function addUrlField() {
+                    urls.value.push('');
+                    console.log("Champ URL ajouté. URLs:", urls.value);
+                }
+
+                function removeUrlField(index) {
+                    urls.value.splice(index, 1);
+                    // S'assurer qu'il y a toujours au moins un champ URL si la liste devient vide après suppression
+                    if (urls.value.length === 0) {
+                        urls.value.push('');
+                    }
+                    console.log(`Champ URL à l'index ${index} supprimé. URLs:`, urls.value);
                 }
 
                 function openLightbox(imageUrl) {
@@ -645,7 +755,8 @@
                     console.log("Soumission du formulaire...");
                     // Validation côté client plus détaillée
                     if (!auteur.value || !titre.value.trim() || !description.value.trim()) {
-                        alert("Veuillez remplir tous les champs obligatoires (Auteur, Titre, Description).");
+                        // Remplacer alert() par un log pour compatibilité Canvas
+                        console.error("Veuillez remplir tous les champs obligatoires (Auteur, Titre, Description).");
                         console.warn("Soumission bloquée: Champs obligatoires manquants.");
                         return;
                     }
@@ -666,12 +777,26 @@
                         formData.append('outil', outil.value);
                         formData.append('dateCreation', new Date().toISOString());
 
+                        // Ajout des URLs
+                        const filteredUrls = urls.value.filter(url => url.trim() !== '');
+                        if (filteredUrls.length > 0) {
+                            formData.append('urls', JSON.stringify(filteredUrls)); // Envoyer comme JSON string
+                            console.log("URLs ajoutées à FormData:", filteredUrls);
+                        } else {
+                            formData.append('urls', '[]'); // Envoyer un tableau vide si aucune URL valide
+                            console.log("Aucune URL valide à ajouter à FormData.");
+                        }
+
+
                         selectedFiles.value.forEach((fileObj) => {
                             formData.append(`files`, fileObj.file, fileObj.name);
                             console.log(`Ajout du fichier ${fileObj.name} à FormData.`);
                         });
 
-                        console.log("Envoi de FormData à la fonction Netlify:", formData);
+                        console.log("Envoi de FormData à la fonction Netlify. Contenu FormData (ne montre pas les fichiers directement):");
+                        // Pour déboguer FormData, vous pouvez itérer sur ses entrées
+                        // for (let pair of formData.entries()) { console.log(pair[0]+ ': ' + pair[1]); }
+
 
                         const tipResp = await fetch(SAVE_TIP_URL, {
                             method: 'POST',
@@ -704,9 +829,18 @@
                                 .map(f => f.previewUrl);
                             console.log("Utilisation des URL d'aperçu local pour la confirmation (backend n'a pas renvoyé d'URLs).", confirmationImageUrls.value);
                         }
-                           if (confirmationImageUrls.value.length === 0) {
-                               console.log("Aucune image de confirmation disponible.");
-                           }
+                        if (confirmationImageUrls.value.length === 0) {
+                            console.log("Aucune image de confirmation disponible.");
+                        }
+
+                        // Récupération des URLs de confirmation (nouvellement ajoutées)
+                        confirmationUrls.value = result.urls || [];
+                        if (confirmationUrls.value.length === 0) {
+                             console.log("Aucune URL de confirmation disponible.");
+                        } else {
+                             console.log("URLs de confirmation disponibles:", confirmationUrls.value);
+                        }
+                        
 
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
@@ -721,7 +855,8 @@
 
                     } catch (error) {
                         console.error("Erreur lors de la soumission du formulaire:", error);
-                        alert(`Une erreur est survenue lors de l'envoi du tip. Veuillez réessayer. Détails : ${error.message}`);
+                        // Remplacer alert() par un log pour compatibilité Canvas
+                        console.error(`Une erreur est survenue lors de l'envoi du tip. Veuillez réessayer. Détails : ${error.message}`);
                     } finally {
                         isLoading.value = false;
                         console.log("Fin du traitement du formulaire (isLoading = false).");
@@ -730,9 +865,10 @@
 
                 return {
                     auteur, titre, description, previewText, promptText, categorie, outil, fileInput,
-                    selectedFiles,
+                    urls, addUrlField, removeUrlField, // Ajout des fonctions et du ref pour les URLs
+                    selectedFiles, fileUploadError,
                     confirmationVisible,
-                    confirmationImageUrls,
+                    confirmationImageUrls, confirmationUrls, // Ajout de confirmationUrls
                     confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
                     lightboxVisible, lightboxImageUrl,
