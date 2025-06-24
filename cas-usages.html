@@ -516,12 +516,13 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             border-radius: 8px;
             overflow: hidden;
+            max-width: 200px; /* Limite la largeur de la vignette pour correspondre aux autres images */
         }
         .youtube-vignette-wrapper:hover .play-button {
             opacity: 1;
         }
         .youtube-vignette {
-            max-width: 200px;
+            width: 100%; /* S'assure que l'image remplit le wrapper */
             height: auto;
             display: block;
             border-radius: 8px;
@@ -968,7 +969,7 @@
             }
             text = String(text);
             const map = {
-                '&': '&amp;',
+                '&': '&amp;', // Corriger l'échappement des entités HTML pour &
                 '<': '&lt;',
                 '>': '&gt;',
                 '"': '&quot;'
@@ -979,6 +980,7 @@
         // Fonction utilitaire pour extraire l'ID d'une vidéo YouTube
         function getYouTubeVideoId(url) {
             let videoId = null;
+            // Expressions régulières pour couvrir diverses formes d'URL YouTube
             const youtubeRegex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
             const match = url.match(youtubeRegex);
             if (match && match[1]) {
@@ -1098,7 +1100,7 @@
                                         ${(tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
                                         ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
                                         ${(tip.urls && tip.urls.some(url => getYouTubeVideoId(url))) ? `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>` : ''}
-                                        ${(tip.urls && tip.urls.some(url => !getYouTubeVideoId(url))) ? `<i class="fas fa-link icon-vignette" title="Contient un lien externe"></i>` : ''}
+                                        ${(tip.urls && tip.urls.some(url => !getYouTubeVideoId(url) && url.trim() !== '')) ? `<i class="fas fa-link icon-vignette" title="Contient un lien externe"></i>` : ''}
                                     </div>
                                 </div>
                                 <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
@@ -1176,28 +1178,24 @@
                 if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
                     contentHtml += `<h4>Images associées:</h4><div class="preview-panel-image-container">`;
                     let imageCounter = 1;
+                    const imageUrlsToDisplay = [];
                     if (tip.fileUrls && Array.isArray(tip.fileUrls)) {
-                        tip.fileUrls.forEach(url => {
-                            contentHtml += `
-                                <div class="preview-panel-image-wrapper">
-                                    <div class="image-number-badge">${imageCounter++}</div>
-                                    <a href="${escapeHtml(url)}" target="_blank">
-                                        <img src="${escapeHtml(url)}" alt="Image du tip" class="preview-panel-image" />
-                                    </a>
-                                </div>
-                            `;
-                        });
+                        imageUrlsToDisplay.push(...tip.fileUrls);
                     }
-                    if (tip.imageUrl && (!tip.fileUrls || tip.fileUrls.length === 0)) { // S'assure que imageUrl n'est pas dupliqué si déjà dans fileUrls
+                    if (tip.imageUrl && !imageUrlsToDisplay.includes(tip.imageUrl)) { // Éviter les doublons
+                        imageUrlsToDisplay.push(tip.imageUrl);
+                    }
+
+                    imageUrlsToDisplay.forEach(url => {
                         contentHtml += `
                             <div class="preview-panel-image-wrapper">
                                 <div class="image-number-badge">${imageCounter++}</div>
-                                <a href="${escapeHtml(tip.imageUrl)}" target="_blank">
-                                    <img src="${escapeHtml(tip.imageUrl)}" alt="Image du tip" class="preview-panel-image" />
+                                <a href="${escapeHtml(url)}" target="_blank">
+                                    <img src="${escapeHtml(url)}" alt="Image du tip" class="preview-panel-image" />
                                 </a>
                             </div>
                         `;
-                    }
+                    });
                     contentHtml += `</div>`;
                 }
 
@@ -1221,7 +1219,8 @@
                         const youtubeId = getYouTubeVideoId(url);
                         if (youtubeId) {
                             // C'est une URL YouTube, affiche la vignette
-                            const thumbnailUrl = `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`; // Ou 'hqdefault.jpg' pour une meilleure qualité
+                            // Utilisez la bonne URL de vignette YouTube
+                            const thumbnailUrl = `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`; // Correction ici!
                             contentHtml += `
                                 <div class="youtube-vignette-wrapper">
                                     <a href="${escapeHtml(url)}" target="_blank">
@@ -1230,7 +1229,7 @@
                                     </a>
                                 </div>
                             `;
-                        } else {
+                        } else if (url.trim() !== '') { // S'assure que l'URL n'est pas vide
                             // C'est une autre URL, affiche juste un lien texte ou une icône générique
                             contentHtml += `
                                 <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
@@ -1272,6 +1271,7 @@
                 previewOverlay.classList.add('open');
                 bodyElement.style.overflow = 'hidden';
 
+                // Re-attacher l'écouteur pour le bouton de copie dans le panneau après que le HTML soit mis à jour
                 document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
                     copyToClipboard(e.target.dataset.copy, e.target);
                 });
