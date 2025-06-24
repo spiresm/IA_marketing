@@ -506,6 +506,40 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
+        /* Styles pour les vignettes YouTube */
+        .youtube-vignette-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 0 10px 20px 0;
+            vertical-align: top;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .youtube-vignette-wrapper:hover .play-button {
+            opacity: 1;
+        }
+        .youtube-vignette {
+            max-width: 200px;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+        }
+        .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em;
+            color: white;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+            pointer-events: none; /* Pour que le clic passe à l'a */
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+
         .image-number-badge { /* Styles pour le numéro dans le cercle bleu */
             position: absolute;
             top: -10px;
@@ -942,6 +976,17 @@
             return text.replace(/[&<>"]/g, function(m) { return map[m]; });
         }
 
+        // Fonction utilitaire pour extraire l'ID d'une vidéo YouTube
+        function getYouTubeVideoId(url) {
+            let videoId = null;
+            const youtubeRegex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+            const match = url.match(youtubeRegex);
+            if (match && match[1]) {
+                videoId = match[1];
+            }
+            return videoId;
+        }
+
         function applyFiltersAndSort() {
             let filtered = [...allTips];
 
@@ -998,7 +1043,9 @@
                     dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
                     titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
                     auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
-                    description: tip.description || '' // S'assurer que la description existe, même vide
+                    description: tip.description || '', // S'assurer que la description existe, même vide
+                    // S'assurer que 'urls' est un tableau, même s'il est vide
+                    urls: Array.isArray(tip.urls) ? tip.urls : (tip.url ? [tip.url] : [])
                 }));
                 applyFiltersAndSort();
             } catch (error) {
@@ -1050,6 +1097,8 @@
                                     <div class="card-preview-icons-inline">
                                         ${(tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
                                         ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
+                                        ${(tip.urls && tip.urls.some(url => getYouTubeVideoId(url))) ? `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>` : ''}
+                                        ${(tip.urls && tip.urls.some(url => !getYouTubeVideoId(url))) ? `<i class="fas fa-link icon-vignette" title="Contient un lien externe"></i>` : ''}
                                     </div>
                                 </div>
                                 <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
@@ -1113,7 +1162,6 @@
                     `;
                 }
 
-
                 const panelPromptContent = tip.promptText || tip.prompt;
                 
                 if (panelPromptContent) {
@@ -1123,7 +1171,8 @@
                         <pre class="prompt-content-pre">${escapeHtml(panelPromptContent)}</pre>
                     `;
                 }
-
+                
+                // Images
                 if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
                     contentHtml += `<h4>Images associées:</h4><div class="preview-panel-image-container">`;
                     let imageCounter = 1;
@@ -1139,7 +1188,7 @@
                             `;
                         });
                     }
-                    if (tip.imageUrl && (!tip.fileUrls || tip.fileUrls.length === 0)) {
+                    if (tip.imageUrl && (!tip.fileUrls || tip.fileUrls.length === 0)) { // S'assure que imageUrl n'est pas dupliqué si déjà dans fileUrls
                         contentHtml += `
                             <div class="preview-panel-image-wrapper">
                                 <div class="image-number-badge">${imageCounter++}</div>
@@ -1152,6 +1201,7 @@
                     contentHtml += `</div>`;
                 }
 
+                // Documents
                 if (tip.documentUrl && tip.documentUrl.trim() !== '') {
                     contentHtml += `<h4>Document associé:</h4>
                         <div class="preview-panel-document-square-container">
@@ -1164,6 +1214,33 @@
                     `;
                 }
 
+                // URLs (avec gestion spécifique YouTube)
+                if (tip.urls && tip.urls.length > 0) {
+                    contentHtml += `<h4>Liens associés:</h4><div class="preview-panel-image-container">`; // Réutilise le conteneur flex pour l'alignement
+                    tip.urls.forEach((url, index) => {
+                        const youtubeId = getYouTubeVideoId(url);
+                        if (youtubeId) {
+                            // C'est une URL YouTube, affiche la vignette
+                            const thumbnailUrl = `https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`; // Ou 'hqdefault.jpg' pour une meilleure qualité
+                            contentHtml += `
+                                <div class="youtube-vignette-wrapper">
+                                    <a href="${escapeHtml(url)}" target="_blank">
+                                        <img src="${escapeHtml(thumbnailUrl)}" alt="Vignette YouTube" class="youtube-vignette" />
+                                        <i class="fab fa-youtube play-button"></i>
+                                    </a>
+                                </div>
+                            `;
+                        } else {
+                            // C'est une autre URL, affiche juste un lien texte ou une icône générique
+                            contentHtml += `
+                                <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
+                            `;
+                        }
+                    });
+                    contentHtml += `</div>`;
+                }
+
+                // Post-it (previewText)
                 if (tip.previewText) {
                     contentHtml += `
                         <h4>Post-it:</h4>
