@@ -336,15 +336,19 @@
             font-size: 0.95em;
         }
 
-        /* Nouveau style pour le message de limite de taille */
-        .size-limit-info {
-            margin-top: 10px;
-            font-size: 0.85em;
-            color: var(--light-text-color);
+        /* Nouveaux styles pour le bloc d'avertissement de taille */
+        #sizeLimitWarning {
+            background-color: var(--error-bg); /* Utilise la couleur d'arrière-plan d'erreur */
+            color: var(--error-text);         /* Utilise la couleur de texte d'erreur */
+            border: 1px solid var(--error-text); /* Bordure basée sur la couleur de texte d'erreur */
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 15px; /* Marge pour le séparer de la zone de dépôt */
+            font-size: 0.9em;
+            font-weight: bold;
             text-align: center;
-        }
-        .size-limit-info strong {
-            color: var(--primary-blue);
+            display: none; /* Caché par défaut, affiché par JS */
+            animation: fadeIn 0.5s ease-out; /* Animation d'apparition */
         }
 
         /* Loader */
@@ -446,7 +450,9 @@
                         <p>Glissez & déposez votre image ici, ou cliquez pour sélectionner</p>
                         <p id="fileNameDisplay"></p>
                     </div>
-                    <p class="size-limit-info">Taille maximale recommandée : **6 Mo**</p>
+                    <div id="sizeLimitWarning" class="alert-error">
+                        Attention : La taille maximale recommandée pour l'image est de **6 Mo**. Des fichiers plus grands pourraient ne pas être traités.
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -498,6 +504,7 @@
         const dropArea = document.getElementById('dropArea');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
         const qualityValueSpan = document.getElementById('qualityValue');
+        const sizeLimitWarning = document.getElementById('sizeLimitWarning'); // Nouveau: référence au bloc d'avertissement
 
         let selectedFile = null; // Variable pour stocker le fichier image sélectionné
         let compressedBlob = null; // Variable pour stocker le Blob de l'image compressée
@@ -512,28 +519,35 @@
 
         // Gère la sélection d'un fichier (via input ou drag/drop)
         function handleFileSelection(file) {
-            // Vérifier la taille du fichier avant de le traiter
-            const MAX_FILE_SIZE_MB = 6; // Limite de 6 Mo
-            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-                showMessage(`Le fichier est trop volumineux. La taille maximale recommandée est de ${MAX_FILE_SIZE_MB} Mo.`, 'error');
+            sizeLimitWarning.style.display = 'none'; // Cache l'avertissement au début du traitement d'un nouveau fichier
+
+            if (!file || !file.type.startsWith('image/')) {
                 selectedFile = null;
+                showMessage('Veuillez sélectionner un fichier image valide (JPEG, PNG, GIF, etc.).', 'warning');
                 fileNameDisplay.textContent = '';
                 compressedImageContainer.style.display = 'none';
                 downloadBtn.style.display = 'none';
-                return; // Arrête le traitement
+                return;
             }
 
-            if (file && file.type.startsWith('image/')) {
+            const MAX_FILE_SIZE_MB = 6;
+            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                // Affiche le nouveau bloc d'avertissement rouge
+                sizeLimitWarning.style.display = 'block';
+                showMessage('Le fichier est trop volumineux et pourrait ne pas être traité.', 'error'); // Message général
+                // On permet de sélectionner le fichier, mais on avertit fortement
                 selectedFile = file;
-                showMessage(`Fichier sélectionné : ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} Mo)`, 'info');
-                fileNameDisplay.textContent = selectedFile.name; // Affiche le nom du fichier
-                compressedImageContainer.style.display = 'none'; // Cache la section de résultat précédente
-                downloadBtn.style.display = 'none'; // Cache le bouton de téléchargement
-            } else {
-                selectedFile = null;
-                showMessage('Veuillez sélectionner un fichier image valide (JPEG, PNG, GIF, etc.).', 'warning');
-                fileNameDisplay.textContent = ''; // Efface le nom du fichier
+                fileNameDisplay.textContent = `${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} Mo)`;
+                compressedImageContainer.style.display = 'none';
+                downloadBtn.style.display = 'none';
+                return; // On avertit mais on continue si l'utilisateur veut quand même essayer
             }
+
+            selectedFile = file;
+            showMessage(`Fichier sélectionné : ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} Mo)`, 'info');
+            fileNameDisplay.textContent = selectedFile.name;
+            compressedImageContainer.style.display = 'none';
+            downloadBtn.style.display = 'none';
         }
 
         // Écouteur pour le changement de fichier via l'input
@@ -542,10 +556,9 @@
         });
 
         // --- Logique Drag & Drop ---
-        // Empêche le comportement par défaut du navigateur pour le drag/drop
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, preventDefaults, false);
-            document.body.addEventListener(eventName, preventDefaults, false); // Important pour l'ensemble du body
+            document.body.addEventListener(eventName, preventDefaults, false);
         });
 
         function preventDefaults(e) {
@@ -553,17 +566,14 @@
             e.stopPropagation();
         }
 
-        // Met en surbrillance la zone de dépôt quand un fichier est glissé dessus
         ['dragenter', 'dragover'].forEach(eventName => {
             dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'), false);
         });
 
-        // Supprime la surbrillance quand le fichier quitte la zone ou est déposé
         ['dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'), false);
         });
 
-        // Gère le dépôt du fichier
         dropArea.addEventListener('drop', handleDrop, false);
 
         function handleDrop(e) {
@@ -574,16 +584,13 @@
             }
         }
 
-        // Permet de cliquer sur la zone de dépôt pour ouvrir le sélecteur de fichier
         dropArea.addEventListener('click', () => {
             fileInput.click();
         });
         // --- FIN Logique Drag & Drop ---
 
-        // URL de base pour vos fonctions Netlify
         const apiBase = window.location.origin + '/.netlify/functions/';
 
-        // Gère le clic sur le bouton de compression
         compressBtn.addEventListener('click', async (event) => {
             if (!selectedFile) {
                 showMessage('Veuillez d\'abord sélectionner ou glisser-déposer une image.', 'warning');
@@ -593,6 +600,7 @@
             compressBtn.disabled = true;
             compressBtn.textContent = 'Compression en cours...';
             showMessage('Compression en cours...', 'info');
+            sizeLimitWarning.style.display = 'none'; // Cache l'avertissement pendant la compression
 
             const reader = new FileReader();
 
@@ -638,7 +646,7 @@
 
                 } catch (error) {
                     console.error('Erreur lors de la compression de l\'image:', error);
-                    showMessage(`Erreur de compression: ${error.message}. Vérifiez la console pour plus de détails.`, 'error');
+                    showMessage(`Erreur de compression: ${error.message}. Veuillez essayer avec une image plus petite ou une qualité inférieure.`, 'error');
                 } finally {
                     compressBtn.disabled = false;
                     compressBtn.textContent = 'Compresser l\'image';
