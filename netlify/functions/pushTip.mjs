@@ -3,281 +3,269 @@
 import { Octokit } from "@octokit/core";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Buffer } from 'buffer';
-import { parse as parseMultipart } from 'parse-multipart'; // Correct import for parse-multipart
+import multiparty from 'multiparty';
+import fs from 'fs/promises';
+import { Readable } from 'stream';
 
 const MyOctokit = Octokit.plugin(restEndpointMethods);
 
 export async function handler(event, context) {
-    const GITHUB_IMAGE_PATH_CONST = 'assets/images';
-    const GITHUB_TIPS_PATH_CONST = 'data/all-tips.json';
-    const GITHUB_DOC_PATH_CONST = 'assets/documents';
+    const GITHUB_IMAGE_PATH_CONST = 'assets/images';
+    const GITHUB_TIPS_PATH_CONST = 'data/all-tips.json'; // IMPORTANT : Assurez-vous que c'est bien 'all-tips.json' comme discuté
+    const GITHUB_DOC_PATH_CONST = 'assets/documents';
 
-    const {
-        GITHUB_TOKEN,
-        GITHUB_OWNER,
-        GITHUB_REPO
-    } = process.env;
+    const { 
+        GITHUB_TOKEN, 
+        GITHUB_OWNER, 
+        GITHUB_REPO, 
+        GOOGLE_SHEET_ID_TIPS,
+        GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        GOOGLE_PRIVATE_KEY
+    } = process.env;
 
-    // --- Validation des variables d'environnement ---
-    if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO) {
-        console.error('❌ pushTip: Variables d\'environnement GitHub critiques manquantes. Veuillez vérifier Netlify.');
-        return { statusCode: 500, body: 'Variables d\'environnement critiques manquantes.' };
-    }
+    if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO || 
+        !GOOGLE_SHEET_ID_TIPS || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
+        console.error('❌ pushTip: Variables d\'environnement critiques manquantes. Veuillez vérifier Netlify.');
+        return { statusCode: 500, body: 'Variables d\'environnement critiques manquantes.' };
+    }
 
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
-    }
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: 'Method Not Allowed' };
+    }
 
-    let incomingTipData = {};
-    let uploadedFileParts = []; // Pour stocker les parties de fichiers du formulaire
+    let fields;
+    let files;
+    let newTip = {};
 
-    try {
-        const contentType = event.headers['content-type'];
-        
-        // --- C'EST ICI LA CLÉ DE LA CORRECTION ---
-        // parse-multipart.getBoundary attend un string complet comme 'multipart/form-data; boundary=something'
-        // Vérifiez que contentType est bien une chaîne et contient 'multipart/form-data'
-        if (!contentType || !contentType.includes('multipart/form-data')) {
-            console.error('❌ pushTip: Content-Type incorrect ou manquant:', contentType);
-            return { statusCode: 400, body: JSON.stringify({ message: 'Content-Type must be multipart/form-data.' }) };
-        }
-        
-        const boundary = parseMultipart.getBoundary(contentType);
-        
-        // Assurez-vous que le corps de l'événement est correctement décodé
-        // Netlify encode souvent le corps des requêtes en base64
-        const bodyBuffer = Buffer.from(event.body, 'base64');
-        const parts = parseMultipart(bodyBuffer, boundary);
+    const requestStream = new Readable();
+    requestStream.push(event.isBase64Encoded ? Buffer.from(event.body, 'base64') : Buffer.from(event.body, 'utf8'));
+    requestStream.push(null);
+    requestStream.headers = event.headers;
+    requestStream.method = event.httpMethod;
 
-        if (!parts || parts.length === 0) {
-            console.warn('⚠️ pushTip: Aucune partie trouvée dans la requête multipart.');
-        }
+    try {
+        const form = new multiparty.Form();
+        const { fields: parsedFields, files: parsedFiles } = await new Promise((resolve, reject) => {
+            form.parse(requestStream, (err, fields, files) => {
+                if (err) {
+                    console.error('❌ pushTip: Erreur de parsing du formulaire:', err);
+                    return reject(err);
+                }
+                resolve({ fields, files });
+            });
+        });
 
-        for (const part of parts) {
-            if (part.filename) {
-                uploadedFileParts.push(part); // C'est une partie fichier
-                console.log(`Debug: Fichier part.name: ${part.name}, filename: ${part.filename}, type: ${part.type}`);
-            } else {
-                incomingTipData[part.name] = part.data.toString('utf8'); // C'est une partie champ
-                console.log(`Debug: Champ part.name: ${part.name}, value: ${incomingTipData[part.name]}`);
-            }
-        }
+        fields = parsedFields;
+        files = parsedFiles;
 
-        if (!incomingTipData.auteur || !incomingTipData.titre || !incomingTipData.description) {
-            return { statusCode: 400, body: JSON.stringify({ message: 'Champs obligatoires (auteur, titre, description) manquants.' }) };
-        }
+        for (const key in fields) {
+            if (fields[key] && fields[key].length > 0) {
+                newTip[key] = fields[key][0];
+            }
+        }
 
-        if (uploadedFileParts.length > 0) {
-            console.log(`📡 pushTip: ${uploadedFileParts.length} fichier(s) détecté(s) pour traitement.`);
-        }
+        if (files && files.files && files.files.length > 0) {
+            console.log("📡 pushTip: Fichier(s) détecté(s) pour traitement.");
+        }
 
-    } catch (e) {
-        console.error('❌ pushTip: Erreur de parsing du multipart/form-data:', e);
-        return {
-            statusCode: 400,
-            body: JSON.stringify({ message: `Erreur lors du traitement du formulaire: ${e.message || 'Problème lors du parsing du corps de la requête.'}` })
-        };
-    }
+    } catch (e) {
+        console.error('❌ pushTip: Erreur de parsing du multipart/form-data:', e);
+        let errorMessage = 'Erreur lors du traitement des fichiers uploadés.';
+        if (e.message && e.message.includes('Unexpected end of form')) {
+            errorMessage = 'Le fichier est peut-être corrompu ou incomplet.';
+        } else if (e.message) {
+            errorMessage = `Erreur de parsing: ${e.message}`;
+        }
+        return { 
+            statusCode: 400, 
+            body: JSON.stringify({ message: errorMessage }) 
+        };
+    }
 
-    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
-    let uploadedFileUrls = [];
+    const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
+    let uploadedImageUrl = null;
+    let uploadedImageUrls = [];
 
-    try {
-        // --- DÉBUT : GESTION DE L'UPLOAD D'IMAGES ET DE DOCUMENTS ---
-        for (const filePart of uploadedFileParts) {
-            // parse-multipart place le type MIME dans 'type' et le nom de champ dans 'name'
-            const mimeType = filePart.type; 
-            const fieldName = filePart.name; // Le nom du champ 'files' du formulaire client
-            
-            if (mimeType.startsWith('image/') || mimeType === 'text/plain' || mimeType === 'application/pdf') {
-                console.log(`📡 pushTip: Traitement du fichier: ${filePart.filename} (${mimeType})`);
+    try {
+        // --- DÉBUT : GESTION DE L'UPLOAD D'IMAGES ET DE DOCUMENTS ---
+        if (files && files.files && files.files.length > 0) {
+            console.log(`📡 pushTip: ${files.files.length} fichiers trouvés, tentative d'upload sur GitHub...`);
+            for (const file of files.files) {
+                const mimeType = file.headers['content-type'];
+                if (mimeType.startsWith('image/') || mimeType === 'text/plain' || mimeType === 'application/pdf') { 
+                    console.log(`📡 pushTip: Traitement du fichier: ${file.originalFilename} (${mimeType})`);
+                    const fileBuffer = await fs.readFile(file.path);
+                    const base64Data = fileBuffer.toString('base64');
 
-                // Générer un nom de fichier unique et sûr sans 'uuid'
-                // Remplacer les caractères non alphanumériques, points, tirets par '_'
-                const sanitizedFilename = filePart.filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-                const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}-${sanitizedFilename}`;
+                    const uniqueFileName = `${Date.now()}-${file.originalFilename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                    
+                    let filePathInRepo;
+                    let fileBaseUrl;
+                    if (mimeType.startsWith('image/')) {
+                        filePathInRepo = `${GITHUB_IMAGE_PATH_CONST}/${uniqueFileName}`;
+                        fileBaseUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${GITHUB_IMAGE_PATH_CONST}`;
+                    } else {
+                        filePathInRepo = `${GITHUB_DOC_PATH_CONST}/${uniqueFileName}`;
+                        fileBaseUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${GITHUB_DOC_PATH_CONST}`;
+                    }
 
-                let filePathInRepo;
-                let fileBaseUrl;
-                if (mimeType.startsWith('image/')) {
-                    filePathInRepo = `${GITHUB_IMAGE_PATH_CONST}/${uniqueFileName}`;
-                    fileBaseUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${GITHUB_IMAGE_PATH_CONST}`;
-                } else {
-                    filePathInRepo = `${GITHUB_DOC_PATH_CONST}/${uniqueFileName}`;
-                    fileBaseUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${GITHUB_DOC_PATH_CONST}`;
-                }
+                    try {
+                        const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
+                            owner: GITHUB_OWNER, 
+                            repo: GITHUB_REPO,   
+                            path: filePathInRepo,
+                            message: `Ajout du fichier ${file.originalFilename} pour le tip: ${newTip.titre || 'Sans titre'}`,
+                            content: base64Data,
+                            branch: 'main',
+                        });
+                        const currentFileUrl = `${fileBaseUrl}/${uniqueFileName}`;
+                        uploadedImageUrls.push(currentFileUrl);
+                        console.log(`✅ pushTip: Fichier uploadé avec succès: ${currentFileUrl}`);
+                    } catch (fileUploadError) {
+                        console.error(`❌ pushTip: Erreur lors de l'upload du fichier ${file.originalFilename} à GitHub:`, fileUploadError);
+                        // Ne pas bloquer l'exécution si un seul fichier échoue
+                    }
+                } else {
+                    console.log(`⚠️ pushTip: Fichier non-pris en charge ignoré: ${file.originalFilename} (${mimeType})`);
+                }
+            }
+            newTip.fileUrls = uploadedImageUrls;
+            uploadedImageUrl = uploadedImageUrls.length > 0 && uploadedImageUrls[0].startsWith(`https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${GITHUB_IMAGE_PATH_CONST}`) ? uploadedImageUrls[0] : null;
 
-                try {
-                    await octokit.rest.repos.createOrUpdateFileContents({
-                        owner: GITHUB_OWNER,
-                        repo: GITHUB_REPO,
-                        path: filePathInRepo,
-                        message: `Add file ${filePart.filename} for tip: ${incomingTipData.titre || 'Untitled'}`,
-                        content: filePart.data.toString('base64'), // Le contenu est directement dans part.data
-                        branch: 'main',
-                    });
-                    const currentFileUrl = `${fileBaseUrl}/${uniqueFileName}`;
-                    uploadedFileUrls.push(currentFileUrl);
-                    console.log(`✅ pushTip: Fichier uploadé avec succès: ${currentFileUrl}`);
-                } catch (fileUploadError) {
-                    console.error(`❌ pushTip: Erreur lors de l'upload du fichier ${filePart.filename} à GitHub:`, fileUploadError);
-                    // Continuer le traitement des autres fichiers et du tip principal si possible,
-                    // mais retourner un code d'erreur si l'upload de fichier est critique.
-                    // Pour l'instant, on log l'erreur et on continue.
-                }
-            } else {
-                console.log(`⚠️ pushTip: Fichier non-pris en charge ignoré: ${filePart.filename} (${mimeType})`);
-            }
-        }
-        // --- FIN : GESTION DE L'UPLOAD D'IMAGES ET DE DOCUMENTS ---
+        }
+        // --- FIN : GESTION DE L'UPLOAD D'IMAGES/DOCUMENTS ---
 
-        // --- DÉBUT : GESTION DU FICHIER JSON DES TIPS ---
-        const jsonFilePath = GITHUB_TIPS_PATH_CONST;
-        const MAX_RETRIES = 5;
-        let retries = 0;
-        let commitSuccessful = false;
-        let finalTipData = null;
 
-        while (retries < MAX_RETRIES && !commitSuccessful) {
-            try {
-                let existingContent = '[]'; // Default to empty array for new file
-                let existingSha = null;
-                let allTips = [];
+        const jsonFilePath = GITHUB_TIPS_PATH_CONST;
 
-                // 1. Récupérer le contenu actuel du fichier JSON des tips
-                try {
-                    const { data } = await octokit.rest.repos.getContent({
-                        owner: GITHUB_OWNER,
-                        repo: GITHUB_REPO,
-                        path: jsonFilePath,
-                        branch: 'main',
-                    });
-                    existingContent = Buffer.from(data.content, 'base64').toString('utf8');
-                    existingSha = data.sha;
-                    console.log(`💾 pushTip (Tentative ${retries + 1}): Fichier JSON existant récupéré. SHA: ${existingSha}`);
-                } catch (e) {
-                    if (e.status === 404) {
-                        console.log("💾 pushTip: Le fichier JSON des tips n'existe pas encore, il sera créé.");
-                    } else {
-                        console.error("❌ pushTip: Erreur lors de la récupération du fichier JSON existant:", e);
-                        throw e; // Renvoyer l'erreur pour retenter ou échouer
-                    }
-                }
+        let existingContent = '';
+        let existingSha = null;
+        let allTips = [];
 
-                try {
-                    allTips = JSON.parse(existingContent);
-                    if (!Array.isArray(allTips)) {
-                        console.warn("💾 pushTip: Le contenu JSON existant n'est pas un tableau. Il sera réinitialisé.");
-                        allTips = [];
-                    }
-                } catch (jsonParseError) {
-                    console.error("❌ pushTip: Erreur de parsing du JSON existant. Le fichier sera initialisé.", jsonParseError);
-                    allTips = [];
-                }
+        // AJOUT : Variable pour le nombre de tentatives en cas de conflit
+        const MAX_RETRIES = 3;
+        let retries = 0;
+        let commitSuccessful = false;
 
-                const now = new Date().toISOString();
+        while (retries < MAX_RETRIES && !commitSuccessful) {
+            try {
+                // 1. Récupérer le contenu actuel du fichier JSON des tips (à chaque tentative)
+                try {
+                    const { data } = await octokit.rest.repos.getContent({
+                        owner: GITHUB_OWNER, 
+                        repo: GITHUB_REPO,   
+                        path: jsonFilePath,
+                        branch: 'main',
+                    });
+                    existingContent = Buffer.from(data.content, 'base64').toString('utf8');
+                    existingSha = data.sha;
+                    console.log(`💾 pushTip (Tentative ${retries + 1}): Fichier JSON existant récupéré. SHA: ${existingSha}`);
+                } catch (e) {
+                    if (e.status === 404) {
+                        console.log("💾 pushTip: Le fichier JSON des tips n'existe pas encore, il sera créé.");
+                        existingContent = ''; // S'assurer que le contenu est vide pour une nouvelle création
+                        existingSha = null; // S'assurer que le SHA est null pour une nouvelle création
+                    } else {
+                        console.error("❌ pushTip: Erreur lors de la récupération du fichier JSON existant:", e);
+                        throw e; // Relaunch the error
+                    }
+                }
 
-                // Rechercher si le tip existe déjà par son ID (si envoyé par le frontend)
-                // Pour le formulaire "Partager un Tip", incomingTipData.id sera vide.
-                let tipIndex = -1;
-                if (incomingTipData.id) {
-                    tipIndex = allTips.findIndex(tip => tip.id === incomingTipData.id);
-                }
+                allTips = [];
+                if (existingContent) {
+                    try {
+                        allTips = JSON.parse(existingContent);
+                        if (!Array.isArray(allTips)) {
+                            console.warn("💾 pushTip: Le contenu JSON existant n'est pas un tableau. Il sera écrasé.");
+                            allTips = [];
+                        }
+                    } catch (jsonParseError) {
+                        console.error("❌ pushTip: Erreur de parsing du JSON existant. Le fichier sera initialisé.", jsonParseError);
+                        allTips = [];
+                    }
+                }
 
-                if (tipIndex !== -1) {
-                    // C'est une MISE À JOUR d'un tip existant
-                    const existingTip = allTips[tipIndex];
-                    console.log(`🔄 pushTip: Mise à jour du tip existant avec ID: ${existingTip.id}`);
+                // Assurez-vous d'ajouter le nouveau tip à la version la plus récente des tips
+                // Si c'est une re-tentative, le tip pourrait déjà être là si on n'est pas attentif.
+                // Une meilleure approche serait de passer newTip à chaque itération.
+                // Pour l'instant, on part du principe que newTip est unique à chaque soumission.
+                // Si `newTip.id` est un Date.now(), il sera toujours unique pour cette tentative.
+                // Vérifions si le tip avec le même ID existe déjà (utile si l'ID est généré une seule fois au début)
+                if (!newTip.id) {
+                    newTip.id = Date.now().toString();
+                    newTip.date_creation = new Date().toISOString();
+                    newTip.date_modification = new Date().toISOString();
+                    if (!newTip.previewText) newTip.previewText = "";
+                    if (!newTip.promptText) newTip.promptText = "";
+                    if (!newTip.categorie) newTip.categorie = "Autre";
+                    if (!newTip.outil) newTip.outil = "";
+                }
 
-                    // Mettre à jour les propriétés du tip existant, MAIS PRÉSERVER la date_creation
-                    finalTipData = {
-                        ...existingTip, // Garde toutes les propriétés existantes
-                        auteur: incomingTipData.auteur || existingTip.auteur,
-                        titre: incomingTipData.titre || existingTip.titre,
-                        description: incomingTipData.description || existingTip.description,
-                        previewText: incomingTipData.previewText !== undefined ? incomingTipData.previewText : (existingTip.previewText || ''),
-                        promptText: incomingTipData.promptText !== undefined ? incomingTipData.promptText : (existingTip.promptText || ''),
-                        categorie: incomingTipData.categorie || existingTip.categorie || 'Autre',
-                        outil: incomingTipData.outil || existingTip.outil || '',
-                        date_modification: now, // Met à jour la date de modification
-                        fileUrls: uploadedFileUrls.length > 0 ? uploadedFileUrls : (existingTip.fileUrls || []), // Met à jour les URLs de fichiers
-                        // date_creation est implicitement conservée car non écrasée ici
-                    };
-                    allTips[tipIndex] = finalTipData; // Remplace le tip dans le tableau
-                } else {
-                    // C'est une NOUVELLE CRÉATION de tip
-                    console.log('✨ pushTip: Création d\'un nouveau tip.');
-                    finalTipData = {
-                        id: `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`, // ID simple unique
-                        auteur: incomingTipData.auteur || 'Inconnu',
-                        titre: incomingTipData.titre,
-                        description: incomingTipData.description,
-                        previewText: incomingTipData.previewText || '',
-                        promptText: incomingTipData.promptText || '',
-                        categorie: incomingTipData.categorie || 'Autre',
-                        outil: incomingTipData.outil || '',
-                        date_creation: now, // Date de création fixée ici à la première création
-                        date_modification: now, // Date de modification initiale (même que création)
-                        fileUrls: uploadedFileUrls
-                    };
-                    allTips.push(finalTipData); // Ajoute le nouveau tip
-                }
+                const tipExists = allTips.some(tip => tip.id === newTip.id);
+                if (!tipExists) {
+                    allTips.push(newTip);
+                } else {
+                    console.log(`⚠️ pushTip: Le tip avec l'ID ${newTip.id} existe déjà dans le tableau récupéré. Mise à jour ou Ignorance de l'ajout.`);
+                    // Optionnel: Si l'ID est le même, vous pourriez vouloir mettre à jour le tip existant au lieu d'en ajouter un nouveau.
+                    // Pour l'instant, on laisse tel quel pour s'assurer que le push se fasse.
+                }
 
-                const updatedContent = JSON.stringify(allTips, null, 2);
-                const commitMessage = `feat: ${tipIndex !== -1 ? 'Update' : 'Add'} tip "${finalTipData.titre}" by ${finalTipData.auteur}`;
 
-                await octokit.rest.repos.createOrUpdateFileContents({
-                    owner: GITHUB_OWNER,
-                    repo: GITHUB_REPO,
-                    path: jsonFilePath,
-                    message: commitMessage,
-                    content: Buffer.from(updatedContent).toString('base64'),
-                    sha: existingSha,
-                    branch: 'main',
-                });
-                console.log("✅ pushTip: Fichier JSON des tips mis à jour sur GitHub.");
-                commitSuccessful = true;
+                const updatedContent = JSON.stringify(allTips, null, 2);
+                const commitMessage = `Ajout du tip "${newTip.titre || 'Sans titre'}" par ${newTip.auteur || 'Inconnu'}`;
 
-            } catch (error) {
-                if (error.status === 409 && retries < MAX_RETRIES - 1) {
-                    console.warn(`⚠️ pushTip: Conflit de version détecté pour ${jsonFilePath}. Tentative ${retries + 1}/${MAX_RETRIES}. Récupération du SHA le plus récent...`);
-                    retries++;
-                    // Ne pas renvoyer l'erreur ici, laisser la boucle réessayer
-                } else {
-                    console.error('❌ pushTip: Erreur critique lors de l\'ajout/mise à jour du tip:', error);
-                    return {
-                        statusCode: error.status || 500,
-                        body: JSON.stringify({ message: `Erreur interne du serveur lors de l'interaction avec GitHub: ${error.message || error}` }),
-                    };
-                }
-            }
-        }
+                // 2. Tenter de mettre à jour le fichier JSON avec le SHA actuel
+                await octokit.rest.repos.createOrUpdateFileContents({
+                    owner: GITHUB_OWNER, 
+                    repo: GITHUB_REPO,   
+                    path: jsonFilePath,
+                    message: commitMessage,
+                    content: Buffer.from(updatedContent).toString('base64'),
+                    sha: existingSha, // Le SHA récupéré à la début de cette tentative
+                    branch: 'main',
+                });
+                console.log("✅ pushTip: Fichier JSON des tips mis à jour sur GitHub.");
+                commitSuccessful = true; // Succès, sortir de la boucle
 
-        if (!commitSuccessful) {
-            console.error('❌ pushTip: Échec de la mise à jour du fichier JSON après plusieurs tentatives en raison de conflits.');
-            return {
-                statusCode: 500,
-                body: JSON.stringify({ message: 'Échec de la mise à jour du tip en raison de conflits répétés.' }),
-            };
-        }
+            } catch (error) {
+                if (error.status === 409 && retries < MAX_RETRIES - 1) {
+                    console.warn(`⚠️ pushTip: Conflit de version détecté pour ${jsonFilePath}. Tentative ${retries + 1}/${MAX_RETRIES}. Récupération du SHA le plus récent...`);
+                    retries++;
+                    // Le `while` loop va re-tenter avec le nouveau SHA
+                } else {
+                    console.error('❌ pushTip: Erreur critique lors de l\'ajout du tip à GitHub:', error);
+                    return {
+                        statusCode: error.status || 500,
+                        body: JSON.stringify({ message: `Erreur interne du serveur lors de l'interaction avec GitHub: ${error.message || error}` }),
+                    };
+                }
+            }
+        }
 
-        // --- FIN : GESTION DU FICHIER JSON DES TIPS ---
+        if (!commitSuccessful) {
+            console.error('❌ pushTip: Échec de la mise à jour du fichier JSON après plusieurs tentatives en raison de conflits.');
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ message: 'Échec de la mise à jour du tip en raison de conflits répétés.' }),
+            };
+        }
 
-        return {
-            statusCode: 200,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                message: 'Tip ajouté/mis à jour avec succès !',
-                tip: finalTipData,
-                imageUrls: finalTipData.fileUrls // S'assurer que 'fileUrls' est bien un tableau ici
-            }),
-        };
+        return {
+            statusCode: 200,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                message: 'Tip ajouté avec succès !',
+                tip: newTip,
+                imageUrl: uploadedImageUrl,
+                imageUrls: newTip.fileUrls
+            }),
+        };
 
-    } catch (error) {
-        console.error('❌ pushTip: Erreur générale inattendue ou non gérée:', error);
-        return {
-            statusCode: error.status || 500,
-            body: JSON.stringify({ message: `Erreur interne du serveur: ${error.message || 'Une erreur inattendue est survenue.'}` }),
-        };
-    }
+    } catch (error) { // Ce bloc catch gère les erreurs qui ne sont PAS des conflits 409
+        console.error('❌ pushTip: Erreur inattendue avant la gestion des conflits ou après les retries:', error);
+        return {
+            statusCode: error.status || 500,
+            body: JSON.stringify({ message: `Erreur interne du serveur: ${error.message || error}` }),
+        };
+    }
 }
