@@ -7,6 +7,11 @@
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
+    <!-- Google Fonts - Inter (pour assurer la police désirée) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
     <style>
         /* Variables CSS */
         :root {
@@ -32,7 +37,8 @@
             opacity: 0;
             transition: opacity 0.5s ease-in;
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', sans-serif; /* Utilisation de la police Inter */
+            font-weight: 400; /* Assure une épaisseur normale pour le corps */
             background-color: var(--background-grey);
             min-height: 100vh;
             display: flex;
@@ -123,8 +129,7 @@
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             cursor: pointer;
             border: 1px solid var(--border-color);
-            /* height: 420px; Supprimé ou commenté pour laisser la hauteur s'adapter au contenu */
-            /* overflow: hidden; Supprimé, le contenu doit s'afficher entièrement */
+            /* height: auto; pour permettre à la hauteur de s'adapter au contenu */
         }
 
         .addition-card.cas-usage {
@@ -159,31 +164,20 @@
             flex-grow: 1;
         }
 
-        /* Modifications ici : Suppression des propriétés de troncature */
         .addition-card p {
             font-size: 0.9em;  
             line-height: 1.5;
             color: var(--grey-text);
             margin-bottom: 15px;
             flex-grow: 1;  
-            /* max-height: 80px; Supprimé */
-            /* overflow: hidden; Supprimé */
-            /* text-overflow: ellipsis; Supprimé */
-            /* display: -webkit-box; Supprimé */
-            /* -webkit-line-clamp: 4; Supprimé */
-            /* -webkit-box-orient: vertical; Supprimé */
         }
 
-        /* Les ajustements spécifiques n'ont plus besoin des propriétés de troncature */
         .addition-card.cas-usage p {
             font-size: 0.95em;  
-            /* max-height: 90px; Supprimé */
-            /* -webkit-line-clamp: 4; Supprimé */
         }
         
         .addition-card.galerie p {
-            /* max-height: 60px; Supprimé */
-            /* -webkit-line-clamp: 3; Supprimé */
+            /* Styles spécifiques si nécessaires, mais pas de max-height/truncation */
         }
 
 
@@ -200,6 +194,29 @@
             object-fit: cover;  
             border-radius: 5px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* NOUVEAU STYLE POUR LE PETIT LECTEUR VIDÉO DANS LA CARTE */
+        .card-small-video-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* Ratio 16:9 */
+            margin-top: 10px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            border-radius: 5px;
+            background-color: #000; /* Couleur de fond avant chargement */
+            flex-shrink: 0; /* Ne pas laisser le conteneur vidéo rétrécir */
+        }
+
+        .card-small-video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 5px; /* Assure les coins arrondis de l'iframe */
         }
 
         .card-meta {
@@ -232,7 +249,7 @@
         /* Styles pour les boutons "Voir..." */
         .view-button {
             display: block;  
-            width: calc(100% - 20px);  
+            width: calc(100% - 0px);  /* Ajusté pour le padding de la carte */
             padding: 10px;
             margin-top: auto;  
             background-color: var(--primary-blue);
@@ -503,7 +520,6 @@
 
     <footer class="footer">
         Auteur : Steeve Pires Madeira / Marketing - R&D format
-
     </footer>
 
     <div id="chatbot-fab">
@@ -561,6 +577,17 @@
                 }
             }
 
+            // Fonction utilitaire pour extraire l'ID d'une vidéo YouTube
+            function getYouTubeVideoId(url) {
+                let videoId = null;
+                const youtubeRegex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+                const match = url.match(youtubeRegex);
+                if (match && match[1]) {
+                    videoId = match[1];
+                }
+                return videoId;
+            }
+
             const createCard = (item, type) => {
                 const card = document.createElement("div");
                 card.className = `addition-card ${type}`;
@@ -573,13 +600,45 @@
                     icon.className = 'fas fa-lightbulb icon';
                 } else if (type === 'galerie') {
                     icon.className = 'fas fa-image icon';
-                } 
+                }   
                 header.appendChild(icon);
 
                 const title = document.createElement("h4");
                 title.textContent = item.titre;
                 header.appendChild(title);
                 card.appendChild(header);
+                
+                const descriptionElement = document.createElement("p");
+                descriptionElement.textContent = item.description || item.prompt || ''; // Utilise la description ou le prompt, ou vide si rien
+                card.appendChild(descriptionElement);
+
+                // --- NOUVEAU : Lecteur vidéo YouTube en petit dans la carte ---
+                const firstYoutubeUrl = item.urls ? item.urls.find(url => getYouTubeVideoId(url)) : null;
+
+                if (firstYoutubeUrl) {
+                    const youtubeId = getYouTubeVideoId(firstYoutubeUrl);
+                    // Utilisez 'controls=0' pour un look plus épuré si désiré, ou 'controls=1' pour afficher les contrôles.
+                    // J'ai choisi controls=0 pour le format compact
+                    const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&controls=0&modestbranding=1&rel=0&showinfo=0`; 
+
+                    const videoContainer = document.createElement('div');
+                    videoContainer.className = 'card-small-video-container'; // Nouvelle classe CSS
+
+                    const iframe = document.createElement('iframe');
+                    iframe.src = embedUrl;
+                    iframe.frameBorder = "0";
+                    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+                    iframe.allowFullscreen = true;
+                    iframe.title = `Vidéo intégrée pour ${item.titre}`;
+                    iframe.onerror = () => {
+                        console.error(`Erreur de chargement de l'iframe vidéo pour ${item.titre}, ID: ${youtubeId}`);
+                        videoContainer.style.display = 'none'; // Masque le conteneur si la vidéo ne charge pas
+                    };
+
+                    videoContainer.appendChild(iframe);
+                    card.appendChild(videoContainer);
+                }
+                // --- FIN NOUVEAU LECTEUR VIDÉO ---
 
                 if (type === 'galerie' && item.imageUrl) {
                     const imgContainer = document.createElement('div');
@@ -591,11 +650,6 @@
                     card.appendChild(imgContainer);
                 }
                 
-                const descriptionElement = document.createElement("p");
-                // La description est maintenant affichée en entier, sans troncature JavaScript
-                descriptionElement.textContent = item.description || item.prompt || ''; // Utilise la description ou le prompt, ou vide si rien
-                card.appendChild(descriptionElement);
-
                 const meta = document.createElement('div');
                 meta.className = 'card-meta';
 
@@ -689,25 +743,59 @@
                     
                     loadingMessage.style.display = 'none';
 
-                    // --- Harmonisation des dates pour les deux sources et ajout d'une date effective ---
-                    casUsages = casUsages.map(item => ({ 
-                        ...item, 
-                        // date_creation > dateCreation > date_ajout > date > date très ancienne par défaut
-                        effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString()) 
-                    }));
+                    // --- Harmonisation et parsing des URLs pour les deux sources ---
+                    casUsages = casUsages.map(item => {
+                        let itemUrls = [];
+                        if (Array.isArray(item.urls)) {
+                            itemUrls = item.urls;
+                        } else if (typeof item.urls === 'string' && item.urls.startsWith('[')) {
+                            try {
+                                const parsed = JSON.parse(item.urls);
+                                if (Array.isArray(parsed)) {
+                                    itemUrls = parsed;
+                                }
+                            } catch (e) {
+                                console.error("Erreur de parsing des URLs du cas d'usage:", e, item.urls);
+                            }
+                        } else if (item.url) {
+                            itemUrls = [item.url];
+                        }
+                        return {    
+                            ...item,    
+                            urls: itemUrls, // Assure que les URLs sont un tableau
+                            effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString())    
+                        };
+                    });
 
-                    prompts = prompts.map(item => ({ 
-                        ...item, 
-                        // date_creation > dateCreation > date_ajout > date > date très ancienne par défaut
-                        effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString()) 
-                    }));
+                    prompts = prompts.map(item => {
+                         let itemUrls = [];
+                        if (Array.isArray(item.urls)) {
+                            itemUrls = item.urls;
+                        } else if (typeof item.urls === 'string' && item.urls.startsWith('[')) {
+                            try {
+                                const parsed = JSON.parse(item.urls);
+                                if (Array.isArray(parsed)) {
+                                    itemUrls = parsed;
+                                }
+                            } catch (e) {
+                                console.error("Erreur de parsing des URLs du prompt:", e, item.urls);
+                            }
+                        } else if (item.url) {
+                            itemUrls = [item.url];
+                        }
+                        return {    
+                            ...item,    
+                            urls: itemUrls, // Assure que les URLs sont un tableau
+                            effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString())    
+                        };
+                    });
 
 
                     // Trier les cas d'usages par date effective (du plus récent au plus ancien)
                     casUsages.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
                     
                     // Filtrer les prompts pour n'inclure que ceux avec une image et les trier par date effective
-                    const imagePrompts = prompts.filter(item => item.imageUrl);
+                    const imagePrompts = prompts.filter(item => item.imageUrl || (item.urls && item.urls.some(url => getYouTubeVideoId(url)))); // Inclure aussi si une URL YouTube est présente
                     imagePrompts.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
 
                     const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
