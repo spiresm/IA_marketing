@@ -1080,20 +1080,40 @@
                     dateCreation: new Date().toISOString(),
                     previewText: 'Cliquez pour voir une vidéo YouTube intégrée dans le panneau latéral !',
                     description: 'Ceci est un exemple de tip montrant comment une vidéo YouTube est intégrée directement dans le panneau d\'aperçu. Cette vidéo explique comment utiliser les outils IA pour le marketing.',
-                    urls: ['https://www.youtube.com/watch?v=6DEhiHOrMzI'] // L'URL de la vidéo que l'utilisateur a donnée
+                    urls: ['https://www.youtube.com/watch?v=6DEhiHOrMzI'] // L'URL de la vidéo qui fonctionne
                 };
                 fetchedTips.unshift(demoTip); // Ajoute le tip de démo au début de la liste
 
 
-                allTips = fetchedTips.map(tip => ({
-                    ...tip,
-                    dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
-                    titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
-                    auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
-                    description: tip.description || '', // S'assurer que la description existe, même vide
-                    // S'assurer que 'urls' est un tableau, même si elle est vide ou seulement une chaîne
-                    urls: Array.isArray(tip.urls) ? tip.urls : (tip.url ? [tip.url] : [])
-                }));
+                allTips = fetchedTips.map(tip => {
+                    let tipUrls = [];
+                    if (Array.isArray(tip.urls)) {
+                        tipUrls = tip.urls;
+                    } else if (typeof tip.urls === 'string' && tip.urls.startsWith('[')) {
+                        // Tente de parser si c'est une chaîne qui ressemble à un tableau JSON
+                        try {
+                            const parsed = JSON.parse(tip.urls);
+                            if (Array.isArray(parsed)) {
+                                tipUrls = parsed;
+                            } else {
+                                console.warn("Parsed URLs string is not an array:", parsed);
+                            }
+                        } catch (e) {
+                            console.error("Erreur de parsing de la chaîne URLs:", e, tip.urls);
+                        }
+                    } else if (tip.url) { // Fallback pour une seule URL si 'urls' n'est pas trouvée ou n'est pas un array/string JSON
+                        tipUrls = [tip.url];
+                    }
+
+                    return {
+                        ...tip,
+                        dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
+                        titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
+                        auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
+                        description: tip.description || '',
+                        urls: tipUrls // Utilise les URLs parsées/normalisées
+                    };
+                });
                 applyFiltersAndSort();
             } catch (error) {
                 console.error("Erreur lors du chargement des tips:", error);
