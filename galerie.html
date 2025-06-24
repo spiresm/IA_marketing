@@ -49,6 +49,18 @@
             background: white;
             border-radius: 12px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            position: relative; /* Ajouté pour positionner le panneau latéral */
+            display: flex; /* Permet à la galerie et au panneau latéral d'être côte à côte */
+            min-height: 500px; /* Hauteur minimale pour le container de la galerie */
+        }
+
+        /* Conteneur pour les cartes de la galerie */
+        #galerie-cards-wrapper {
+            flex-grow: 1; /* Prend l'espace disponible */
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-right: 20px; /* Espace entre les cartes et le panneau latéral */
         }
 
         /* Conteneur des filtres et boutons d'action */
@@ -58,6 +70,7 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 15px;
+            margin-bottom: 20px; /* Ajouté pour séparer des cartes */
         }
 
         #filters {
@@ -107,9 +120,9 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
-            padding: 20px 0;
             position: relative;
             z-index: 1;
+            /* La suppression du padding-bottom: 20px; est faite via le déplacement des cartes dans #galerie-cards-wrapper */
         }
 
         /* ************************************************* */
@@ -128,6 +141,7 @@
             box-sizing: border-box;
             width: 100%;
             z-index: 1;
+            cursor: pointer; /* Indique que la carte est cliquable */
         }
 
         .carte:hover {
@@ -358,6 +372,95 @@
             background-color: #005f8a;
         }
 
+        /* --- Styles du panneau latéral de détails --- */
+        .side-panel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: flex-end; /* Aligne le panneau à droite */
+            z-index: 1500; /* Moins que la bulle d'info si elle doit être au-dessus */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .side-panel-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .side-panel {
+            background-color: #ffffff;
+            width: 350px; /* Largeur du panneau */
+            max-width: 90%; /* Pour les petits écrans */
+            height: 100%;
+            padding: 25px;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+            transform: translateX(100%); /* Commence hors de l'écran */
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Pour les contenus longs */
+            box-sizing: border-box;
+        }
+
+        .side-panel-overlay.visible .side-panel {
+            transform: translateX(0); /* Glisse en place */
+        }
+
+        .side-panel .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.8em;
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            cursor: pointer;
+            color: #666;
+            transition: color 0.2s;
+            z-index: 10;
+        }
+
+        .side-panel .close-btn:hover {
+            color: #333;
+        }
+
+        .side-panel h3 {
+            color: #0077b6;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            text-align: center;
+        }
+
+        .side-panel img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .side-panel p {
+            margin-bottom: 10px;
+            line-height: 1.5;
+            color: #333;
+            font-size: 0.95em;
+            white-space: pre-wrap; /* Préserve les retours à la ligne */
+            word-break: break-word; /* Casse les mots longs */
+        }
+
+        .side-panel p strong {
+            color: #005f8a;
+            display: block; /* Mettre le label sur une nouvelle ligne */
+            margin-bottom: 5px;
+        }
+
         /* Styles spécifiques pour les petites écrans */
         @media (max-width: 768px) {
             .info-bubble-content {
@@ -374,6 +477,31 @@
                 font-size: 1em;
                 padding: 10px 20px;
             }
+            .galerie-container {
+                flex-direction: column; /* Les cartes et le panneau se superposent */
+            }
+            #galerie-cards-wrapper {
+                padding-right: 0;
+            }
+            .side-panel {
+                width: 100%; /* Le panneau prend toute la largeur */
+                height: 80%; /* Occupe 80% de la hauteur sur mobile */
+                position: fixed; /* Reste en bas */
+                bottom: 0;
+                left: 0;
+                top: auto;
+                transform: translateY(100%); /* Commence hors de l'écran par le bas */
+                box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.2);
+                border-top-left-radius: 15px;
+                border-top-right-radius: 15px;
+            }
+            .side-panel-overlay.visible .side-panel {
+                transform: translateY(0); /* Glisse en place depuis le bas */
+            }
+            .side-panel .close-btn {
+                top: 10px;
+                right: 15px;
+            }
         }
     </style>
 </head>
@@ -386,6 +514,18 @@
             </p>
             <button id="info-bubble-close-btn">Compris !</button>
         </div>
+    </div>
+
+    <div id="side-panel-overlay" class="side-panel-overlay">
+        <div class="side-panel">
+            <button class="close-btn" id="side-panel-close-btn">&times;</button>
+            <h3 id="panel-auteur"></h3>
+            <img id="panel-image" src="" alt="Image du prompt" />
+            <p><strong>Outil :</strong> <span id="panel-outil"></span></p>
+            <p><strong>Chaîne :</strong> <span id="panel-chaine"></span></p>
+            <p><strong>Prompt :</strong> <span id="panel-prompt-text"></span></p>
+            <p><strong>Description :</strong> <span id="panel-description"></span></p>
+            </div>
     </div>
 
     <div id="header-placeholder"></div>
@@ -433,8 +573,10 @@
         <div class="galerie-container">
             <div id="success-message"></div>
 
-            <div id="galerie">
-                <p>Chargement des prompts...</p>
+            <div id="galerie-cards-wrapper">
+                <div id="galerie">
+                    <p>Chargement des prompts...</p>
+                </div>
             </div>
         </div>
     </main>
@@ -466,6 +608,22 @@
                 }
             });
             // --- Fin de la logique de la bulle d'information ---
+
+            // --- Logique du panneau latéral ---
+            const sidePanelOverlay = document.getElementById('side-panel-overlay');
+            const sidePanelCloseBtn = document.getElementById('side-panel-close-btn');
+
+            sidePanelCloseBtn.addEventListener('click', () => {
+                sidePanelOverlay.classList.remove('visible');
+            });
+
+            sidePanelOverlay.addEventListener('click', (event) => {
+                if (event.target === sidePanelOverlay) {
+                    sidePanelOverlay.classList.remove('visible');
+                }
+            });
+            // --- Fin de la logique du panneau latéral ---
+
 
             fetch("header.html")
                 .then(res => res.ok ? res.text() : Promise.reject(res))
@@ -536,6 +694,9 @@
                 carte.className = 'carte';
                 const promptId = prompt.id || `temp-id-${Math.random().toString(36).substring(2, 9)}`;
                 carte.dataset.promptId = promptId;
+                // Stocke l'objet prompt entier sur la carte pour un accès facile
+                carte.dataset.promptData = JSON.stringify(prompt);
+
 
                 const chaineColor = getChaineColor(prompt.chaine);
                 carte.style.borderLeftColor = chaineColor;
@@ -594,7 +755,8 @@
                 const copierBtn = document.createElement('button');
                 copierBtn.className = 'copier-btn';
                 copierBtn.innerHTML = '<i class="fas fa-copy"></i> Copier le prompt'; // Ajout de l'icône ici
-                copierBtn.onclick = () => {
+                copierBtn.onclick = (e) => {
+                    e.stopPropagation(); // Empêche le clic sur la carte d'ouvrir le panneau
                     navigator.clipboard.writeText(prompt.texte || '').then(() => {
                         alert('Prompt copié !');
                     }).catch(err => {
@@ -608,7 +770,7 @@
                 supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
                 supprimerBtn.title = "Supprimer ce prompt";
                 supprimerBtn.onclick = async (e) => {
-                    e.stopPropagation();
+                    e.stopPropagation(); // Empêche le clic sur la carte d'ouvrir le panneau
                     if (confirm('Êtes-vous sûr de vouloir supprimer ce prompt ? Cette action est irréversible.')) {
                         try {
                             if (!promptId || promptId.startsWith('temp-id-')) {
@@ -645,6 +807,11 @@
                 carte.appendChild(infosWrapper);
                 galerieDiv.appendChild(carte);
 
+                // *** AJOUT ICI : Écouteur d'événements pour ouvrir le panneau latéral ***
+                carte.addEventListener('click', () => {
+                    afficherDetailsPrompt(prompt);
+                });
+
                 // Assurez-vous que la hauteur du left-panel est ajustée après l'ajout des éléments
                 // Cela est important pour que l'image puisse remplir toute la hauteur
                 // UTILISEZ setTimeout pour que le calcul de offsetHeight se fasse après le rendu initial du infosWrapper
@@ -666,7 +833,7 @@
                 case 'Auvio': return 'black';
                 case 'vivacité': return 'orange';
                 case 'Musiq3': return 'hotpink';
-                case 'Auvio Kids': return 'hotpink'; // Ajoutez la couleur pour Auvio Kids si nécessaire
+                case 'Auvio Kids': return 'hotpink';
                 default: return '#6c757d'; // Couleur par défaut
             }
         }
@@ -683,7 +850,8 @@
                 promptsFiltres = promptsFiltres.filter(prompt => {
                     const auteur = (prompt.auteur || '').toLowerCase();
                     const texte = (prompt.texte || '').toLowerCase();
-                    return auteur.includes(searchKeyword) || texte.includes(searchKeyword);
+                    const description = (prompt.description || '').toLowerCase(); // Incluez la description dans la recherche
+                    return auteur.includes(searchKeyword) || texte.includes(searchKeyword) || description.includes(searchKeyword);
                 });
             }
 
@@ -713,6 +881,20 @@
             document.getElementById('filtre-outil').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-chaine').addEventListener('change', filtrerEtTrierPrompts);
             document.getElementById('filtre-tri').addEventListener('change', filtrerEtTrierPrompts);
+        }
+
+        // Nouvelle fonction pour afficher les détails du prompt dans le panneau latéral
+        function afficherDetailsPrompt(prompt) {
+            const sidePanelOverlay = document.getElementById('side-panel-overlay');
+            document.getElementById('panel-auteur').textContent = prompt.auteur || 'N/A';
+            document.getElementById('panel-image').src = prompt.imageUrl || `https://via.placeholder.com/300x200?text=Image`;
+            document.getElementById('panel-image').alt = prompt.texte || 'Image du prompt';
+            document.getElementById('panel-outil').textContent = prompt.outil || 'N/A';
+            document.getElementById('panel-chaine').textContent = prompt.chaine || 'N/A';
+            document.getElementById('panel-prompt-text').textContent = prompt.texte || 'Aucun prompt fourni.';
+            document.getElementById('panel-description').textContent = prompt.description || 'Aucune description fournie.'; // Affiche la description
+
+            sidePanelOverlay.classList.add('visible');
         }
     </script>
 </body>
