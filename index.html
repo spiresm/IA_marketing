@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cas d'usages - iMarketing</title>
+    <title>Accueil - Espace IA</title>
+    <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
     <style>
-        /* Variables CSS pour faciliter la gestion des couleurs */
+        /* Variables CSS */
         :root {
             --primary-blue: #0077b6;
             --dark-blue: #005f8a;
             --light-blue: #64B5F6;
             --lighter-blue: #42A5F5;
             --background-grey: #f0f2f5;
-            --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-            --card-hover-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            --card-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+            --card-hover-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
             --success-bg: #d4edda;
             --success-text: #155724;
             --error-bg: #f8d7da;
@@ -49,1325 +51,845 @@
             opacity: 1;
         }
 
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
         #header-placeholder {
             width: 100%;
         }
 
-        /* Conteneur des contrôles en haut (filtres et boutons) */
-        .header-controls-container {
-            max-width: 960px;
-            margin: 20px auto 25px auto;
-            padding: 0 20px;
-            box-sizing: border-box;
+        /* La section de bienvenue (ancienne) ne doit plus être visible */
+        .section.welcome-section {
+            display: none;  
+        }
+        
+        .footer {
+            margin-top: auto;
+            padding: 20px;
+            text-align: center;
+            background-color: var(--dark-blue);
+            color: white;
+            font-size: 0.9em;
         }
 
-        /* Conteneur principal de la galerie (la "box" blanche) */
-        .galerie-container {
-            max-width: 960px;
-            margin: 0px auto;
+        /* Styles pour la section des derniers ajouts - Cartes Modernes */
+        .latest-additions-section {
+            max-width: 900px;
+            margin: 20px auto;
             padding: 20px;
-            background: white;
-            border-radius: 12px;
+            background: #ffffff;
+            border-radius: 10px;
             box-shadow: var(--card-shadow);
         }
 
-        /* Conteneur des filtres et boutons d'action */
-        .filters-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
+        .latest-additions-section h2 {
+            text-align: center;
+            color: var(--primary-blue);
+            margin-bottom: 30px;
         }
 
-        #filters {
+        .latest-additions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        .addition-card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            padding: 20px;
             display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+            flex-direction: column;
+            justify-content: space-between;  
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            /* height: 420px; Supprimé ou commenté pour laisser la hauteur s'adapter au contenu */
+            /* overflow: hidden; Supprimé, le contenu doit s'afficher entièrement */
+        }
+
+        .addition-card.cas-usage {
+            border-left: 5px solid var(--light-blue);
+        }
+
+        .addition-card.galerie {
+            border-left: 5px solid var(--postit-yellow);
+        }
+
+        .addition-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--card-hover-shadow);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-header .icon {
+            font-size: 1.8em;
+            margin-right: 15px;
+            color: var(--primary-blue);
+        }
+
+        .card-header h4 {
+            margin: 0;
+            color: var(--dark-blue);
+            font-size: 1.2em;
             flex-grow: 1;
-            min-width: 0;
+        }
+
+        /* Modifications ici : Suppression des propriétés de troncature */
+        .addition-card p {
+            font-size: 0.9em;  
+            line-height: 1.5;
+            color: var(--grey-text);
+            margin-bottom: 15px;
+            flex-grow: 1;  
+            /* max-height: 80px; Supprimé */
+            /* overflow: hidden; Supprimé */
+            /* text-overflow: ellipsis; Supprimé */
+            /* display: -webkit-box; Supprimé */
+            /* -webkit-line-clamp: 4; Supprimé */
+            /* -webkit-box-orient: vertical; Supprimé */
+        }
+
+        /* Les ajustements spécifiques n'ont plus besoin des propriétés de troncature */
+        .addition-card.cas-usage p {
+            font-size: 0.95em;  
+            /* max-height: 90px; Supprimé */
+            /* -webkit-line-clamp: 4; Supprimé */
         }
         
-        #filters select,
-        #filters input[type="text"] {
-            padding: 8px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 0.9em;
-            flex: 1;
-            min-width: 120px;
-            box-sizing: border-box; /* Important pour le padding */
-        }
-        #preview-text {
-            min-width: 180px;
-            max-width: 250px;
+        .addition-card.galerie p {
+            /* max-height: 60px; Supprimé */
+            /* -webkit-line-clamp: 3; Supprimé */
         }
 
-        /* Styles pour les boutons d'action et "Créer un Tip" */
-        .action-buttons, .create-tip-button-container {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-            align-items: center;
-        }
-        .create-tip-button-container { /* Modifié pour aligner les boutons */
-            margin-top: 20px;
-            margin-bottom: 30px;
-            display: flex; /* Utilise flex pour aligner les boutons enfants */
-            justify-content: center; /* Centrer le bouton */
-            gap: 15px; /* Espacement entre les boutons */
-            flex-wrap: wrap; /* Permet aux boutons de passer à la ligne sur petits écrans */
+
+        .addition-card .card-image-container {
+            text-align: center;
+            margin-top: 10px;
+            margin-bottom: 15px;
+            flex-shrink: 0;  
         }
 
-        .action-buttons a, .create-tip-button, .compress-image-button { /* Ajout de .compress-image-button */
-            background: var(--primary-blue);
-            color: white;
-            text-decoration: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: background 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        .create-tip-button, .compress-image-button { /* Ajout de .compress-image-button */
-            padding: 12px 25px;
-            font-size: 1.1em;
-            display: flex; /* Pour aligner l'icône et le texte */
-            align-items: center;
-            gap: 8px; /* Espacement entre l'icône et le texte */
-        }
-
-        .action-buttons a:hover, .create-tip-button:hover, .compress-image-button:hover { /* Ajout de .compress-image-button */
-            background: var(--dark-blue);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        /* Galerie en colonne */
-        #galerie {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            padding: 20px 0;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* Styles pour chaque carte de tip */
-        .carte {
-            background: #fff;
-            border-left: 5px solid transparent; /* Couleur définie par JS */
-            border-radius: 12px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-            display: flex; /* Permet la disposition des éléments */
-            align-items: flex-start; /* Aligne les éléments en haut */
-            padding: 0;
-            position: relative;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
-            box-sizing: border-box;
-            width: 100%;
-            z-index: 1;
-        }
-        .carte:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            z-index: 100;
-        }
-
-        /* Conteneur pour toutes les informations textuelles sur la carte */
-        .infos-wrapper {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            min-width: 0;
-            padding: 15px;
-            width: 100%;
-            position: relative; /* Pour positionner le post-it à l'intérieur */
-        }
-
-        .tip-title {
-            font-size: 1.3em;
-            color: var(--dark-blue);
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-
-        .outil-badge {
-            background-color: #e0f2f7;
-            color: var(--primary-blue);
-            font-size: 0.85em;
-            font-weight: bold;
-            padding: 4px 8px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            white-space: nowrap;
-            text-transform: uppercase;
-            align-self: flex-start;
-        }
-
-        /* Section des métadonnées (Auteur, Catégorie) */
-        .metadata-section {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 2px 10px;
-            font-size: 0.9em;
-            color: var(--grey-text);
-            margin-bottom: 4px;
-            padding-bottom: 2px;
-            border-bottom: 1px solid #eee;
-        }
-        .metadata-label {
-            font-weight: bold;
-            color: #333;
-            white-space: nowrap;
-        }
-        /* Style pour le nom de l'auteur cliquable */
-        .metadata-value.auteur-value a {
-            color: var(--primary-blue); /* Couleur du lien */
-            text-decoration: none;
-            font-weight: bold; /* Rendre le nom de l'auteur en gras */
-        }
-        .metadata-value.auteur-value a:hover {
-            text-decoration: underline;
-        }
-        .metadata-value {
-            color: #666;
-            word-break: break-word;
-        }
-
-        /* Le texte de prévisualisation sur la carte (post-it) */
-        .preview-post-it {
-            position: absolute;
-            top: 60px; /* Ajusté pour être plus bas */
-            right: 15px;
-            background-color: var(--postit-yellow);
-            color: #333;
-            padding: 10px;
+        .addition-card .card-image-container img {
+            max-width: 100%;
+            height: 200px;  
+            object-fit: cover;  
             border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            font-size: 1em;
-            font-weight: bold;
-            z-index: 2;
-            white-space: pre-wrap;
-            word-break: break-word;
-            max-width: 150px;
-            transform: rotate(2deg);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        /* Boutons d'action sur la carte */
-        .card-actions {
+        .card-meta {
             display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            margin-top: 15px;
-            padding-top: 5px;
-            width: 100%;
-        }
-
-        .top-buttons-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 5px;
+            flex-wrap: wrap;  
+            justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-        }
-
-        /* Les icônes de vignettes en ligne */
-        .card-preview-icons-inline {
-            display: flex; /* Assurez-vous qu'il est visible quand il contient des icônes */
-            gap: 5px; /* Espacement entre les icônes */
-            margin-left: 10px; /* Espacement par rapport aux boutons */
-        }
-        .icon-vignette {
-            color: #888; /* Couleur par défaut pour les icônes */
-            font-size: 1.2em;
-        }
-        .icon-vignette[title="Contient une image"] {
-            color: #4CAF50; /* Vert pour l'icône image */
-        }
-        /* Style pour l'icône PDF dans les vignettes de carte */
-        .icon-vignette.pdf-thumbnail {
-            width: 24px; /* Taille fixe pour la vignette PDF */
-            height: 24px;
-            object-fit: contain; /* Assure que l'image est contenue sans déformation */
-            vertical-align: middle; /* Alignement avec le texte */
-            border: 1px solid #ddd;
-            border-radius: 3px;
-        }
-
-
-        /* Styles spécifiques pour le bouton "Copier le prompt" */
-        .copier-btn {
-            background-color: var(--light-blue);
-            color: white;
-            border: none;
-            padding: 7px 14px;
-            border-radius: 6px;
-            cursor: pointer;
             font-size: 0.85em;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-            flex-shrink: 0;
-            white-space: nowrap;
+            color: #888;
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px;
+            margin-top: 15px;
+            flex-shrink: 0;  
+        }
+        
+        .card-meta div {
+            margin-right: 10px;
+            margin-bottom: 5px;
         }
 
-        .copier-btn:hover {
-            background-color: var(--lighter-blue);
-            transform: translateY(-1px);
+        .card-meta .category {
+            font-style: italic;
+            color: var(--primary-blue);
         }
 
-        .toggle-content-btn, .edit-btn {
+        .card-meta .date {
+            font-weight: bold;
+        }
+
+        /* Styles pour les boutons "Voir..." */
+        .view-button {
+            display: block;  
+            width: calc(100% - 20px);  
+            padding: 10px;
+            margin-top: auto;  
             background-color: var(--primary-blue);
             color: white;
             border: none;
-            padding: 7px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85em;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
-
-        .toggle-content-btn:hover, .edit-btn:hover {
-            background: var(--dark-blue);
-            transform: translateY(-1px);
-        }
-
-        /* Styles pour le bouton supprimer (corbeille) */
-        .supprimer-btn {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 1.3em;
-            cursor: pointer;
-            transition: color 0.2s, transform 0.1s;
-            padding: 0 5px;
-            align-self: flex-start;
-            margin-top: 5px;
-            margin-left: auto; /* Pousser la poubelle à droite */
-        }
-
-        .supprimer-btn:hover {
-            color: var(--error-text);
-            transform: translateY(-1px);
-        }
-
-        #success-message {
-            background-color: var(--success-bg);
-            color: var(--success-text);
-            border: 1px solid #c3e6cb;
-            padding: 10px 20px;
-            border-radius: 8px;
+            border-radius: 5px;
             text-align: center;
-            margin-bottom: 20px;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
+            text-decoration: none;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            flex-shrink: 0;  
         }
 
-        /* Styles pour le loader */
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 50px auto;
+        .view-button:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Message d'erreur */
-        .error-message {
-            text-align: center;
-            color: var(--error-text);
-            margin-top: 20px;
-            padding: 15px;
-            background-color: var(--error-bg);
-            border: 1px solid #f5c6cb;
-            border-radius: 8px;
-        }
-
-        /* Styles for the new right-side preview panel */
-        .preview-panel {
+        /* Styles pour le Chatbot */
+        #chatbot-container {
             position: fixed;
-            top: 0;
-            right: -760px; /* Masqué par défaut */
-            width: 740px;
-            max-width: 90%;
-            height: 100%;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+            width: 300px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 10px;
             background-color: #fff;
-            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
-            transition: right 0.3s ease-in-out;
-            z-index: 1000;
-            display: flex;
+            display: none;  
             flex-direction: column;
-            padding: 20px;
-            box-sizing: border-box;
-            overflow-y: auto;
+            max-height: 80vh;
+            overflow: hidden;
         }
 
-        .preview-panel.open {
-            right: 0;
-        }
-
-        /* Overlay pour la fermeture au clic dans le vide */
-        .preview-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.4); /* Assombrir l'arrière-plan */
-            z-index: 999; /* Juste en dessous du panneau, au-dessus du reste */
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-        }
-
-        .preview-overlay.open {
-            opacity: 1;
-            visibility: visible;
-        }
-
-
-        .preview-panel-header {
+        #chatbot-header {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 15px;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
+            cursor: pointer;
         }
 
-        .preview-panel-header h3 {
+        #chatbot-header h3 {
             margin: 0;
-            color: #333;
-            font-size: 1.2em;
+            font-size: 1.1em;
         }
 
-        .close-preview-btn {
+        #chatbot-toggle {
             background: none;
             border: none;
+            color: white;
             font-size: 1.5em;
             cursor: pointer;
-            color: #888;
-            transition: color 0.2s;
+            padding: 0 5px;
         }
 
-        .close-preview-btn:hover {
-            color: #333;
-        }
-
-        .preview-panel-content {
+        #chatbot-body {
             flex-grow: 1;
-            font-size: 1em;
-            line-height: 1.6;
-            color: #444;
-            font-weight: normal;
-            /* Ajout pour gérer l'espacement des titres */
-            padding-bottom: 20px;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
         }
 
-        .preview-panel-content h4 {
-            margin-top: 20px;
+        #chatbot-messages {
             margin-bottom: 10px;
-            color: #333;
-            font-size: 1.1em;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
-        }
-
-        /* Styles pour les images dans le panneau d'aperçu (vignette) */
-        .preview-panel-image-container { /* Ancien conteneur pour toutes les images */
             display: flex;
-            flex-wrap: wrap;
-            gap: 15px; /* Espacement entre les images */
-            margin-bottom: 20px;
-        }
-        .preview-panel-image-wrapper { /* Nouveau conteneur pour chaque image avec le numéro */
-            position: relative;
-            display: inline-block;
-            vertical-align: top; /* Alignement pour éviter les sauts de ligne inattendus */
+            flex-direction: column;
         }
 
-        .preview-panel-image {
-            max-width: 200px;
-            height: auto;
-            display: block; /* Pour que le numéro puisse se positionner par rapport à l'image */
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+            word-wrap: break-word;
         }
 
-        /* Styles pour les vignettes YouTube - Non utilisés pour le lecteur, mais conservés pour le fallback ou d'autres usages si nécessaire */
-        .youtube-vignette-wrapper {
-            position: relative;
-            display: inline-block;
-            margin: 0 10px 20px 0;
-            vertical-align: top;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            overflow: hidden;
-            max-width: 200px; /* Limite la largeur de la vignette */
-        }
-        .youtube-vignette-wrapper:hover .play-button {
-            opacity: 1;
-        }
-        .youtube-vignette {
-            width: 100%; /* S'assure que l'image remplit le wrapper */
-            height: auto;
-            display: block;
-            border-radius: 8px;
-        }
-        .play-button {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 3em;
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--light-blue);
             color: white;
-            opacity: 0.8;
-            transition: opacity 0.2s;
-            pointer-events: none; /* Pour que le clic passe à l'a */
-            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+            border-bottom-right-radius: 2px;
         }
 
-        /* Styles pour le lecteur vidéo YouTube embarqué */
-        .video-responsive {
-            position: relative;
-            padding-bottom: 56.25%; /* Ratio 16:9 (hauteur/largeur) pour les vidéos */
-            height: 0;
-            overflow: hidden;
-            max-width: 100%;
-            background: #000;
-            margin-bottom: 20px; /* Espacement après la vidéo */
-            border-radius: 8px; /* Bords arrondis pour le conteneur */
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* Ombre légère */
-        }
-        .video-responsive iframe,
-        .video-responsive object,
-        .video-responsive embed {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: none; /* Supprime la bordure par défaut de l'iframe */
+        .message.bot {
+            align-self: flex-start;
+            background-color: #e0e0e0;
+            color: #333;
+            border-bottom-left-radius: 2px;
         }
 
+        #chatbot-input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #eee;
+            background-color: #fff;
+        }
 
-        .image-number-badge { /* Styles pour le numéro dans le cercle bleu */
-            position: absolute;
-            top: -10px;
-            left: -10px;
+        #chatbot-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            margin-right: 10px;
+            font-size: 0.9em;
+        }
+
+        #chatbot-send-button {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        #chatbot-send-button:hover {
+            background-color: var(--dark-blue);
+        }
+
+        #chatbot-loading {
+            text-align: center;
+            font-size: 0.9em;
+            color: #777;
+            padding: 5px;
+        }
+        #chatbot-fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
             background-color: var(--primary-blue);
             color: white;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 60px;
+            height: 60px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-weight: bold;
-            font-size: 0.9em;
-            z-index: 10; /* Pour s'assurer qu'il est au-dessus de l'image */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 2em;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: background-color 0.3s ease;
         }
 
+        #chatbot-fab:hover {
+            background-color: var(--dark-blue);
+        }
 
-        /* Styles pour le carré PDF cliquable dans le panneau latéral */
-        .preview-panel-document-square-container {
-            display: flex;
-            flex-direction: column;
+        /* Styles pour la Modale de Bienvenue */
+        .modal {
+            display: none;  
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+            justify-content: center;
             align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+            position: relative;
+            text-align: center;
+        }
+
+        .modal-header {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 10px 20px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            margin: -20px -20px 20px -20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .modal-body p {
+            line-height: 1.6;
+            color: var(--grey-text);
             margin-bottom: 20px;
         }
 
-        .preview-panel-pdf-square {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            width: 150px;
-            height: 150px;
-            background-color: #fcebeb;
-            border: 1px solid #e0b4b8;
-            border-radius: 12px;
-            text-decoration: none;
-            color: var(--error-text);
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
             font-weight: bold;
-            font-size: 1.1em;
-            transition: background-color 0.2s, transform 0.1s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            position: relative;
-            padding: 10px;
-            box-sizing: border-box;
-            text-align: center;
-        }
-
-        .preview-panel-pdf-square:hover {
-            background-color: #f7dcdc;
-            transform: translateY(-2px);
-        }
-
-        /* Styles pour l'image PDF à l'intérieur du carré */
-        .preview-panel-pdf-square img {
-            max-width: 80px;
-            max-height: 80px;
-            object-fit: contain;
-            margin-bottom: 8px;
-        }
-        
-        .preview-panel-pdf-square .file-name {
-            font-size: 0.8em;
-            color: #666;
-            word-break: break-all;
-            max-height: 2.4em;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-        }
-
-        /* Style du bouton "Télécharger" dans le carré PDF */
-        .download-button {
-            background-color: var(--error-text);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 5px;
-            font-size: 0.9em;
-            font-weight: bold;
+            position: absolute;
+            top: 5px;
+            right: 15px;
             cursor: pointer;
+            z-index: 10;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #000;
             text-decoration: none;
-            margin-top: 10px;
-            transition: background-color 0.2s;
-            display: inline-block;
-            white-space: nowrap;
+            cursor: pointer;
         }
 
-        .download-button:hover {
-            background-color: #c02c3c;
-        }
-
-        /* Style pour le cartouche jaune du texte de prévisualisation dans le panneau de droite */
-        .preview-text-card-yellow {
-            background-color: var(--postit-yellow);
-            color: #333;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: 0.95em;
-            line-height: 1.5;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        /* Style pour les cartouches bleus clairs pour Description, Exemple */
-        .content-card-blue {
-            background-color: var(--light-blue-card);
-            color: var(--dark-blue);
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: 0.9em;
-            line-height: 1.4;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        /* Style pour le prompt (revenir au style initial) */
-        .prompt-content-pre {
-            background-color: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.9em;
-            margin-top: 5px;
-            font-weight: normal;
-            margin-bottom: 15px;
-        }
-
-        /* Style pour le bouton Copier dans le panneau latéral */
-        .copy-panel-btn {
-            background-color: var(--light-blue);
+        .modal-button {
+            background-color: var(--primary-blue);
             color: white;
+            padding: 10px 20px;
             border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 0.9em;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-            margin-top: -10px;
-            margin-bottom: 15px;
-            align-self: flex-start;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
         }
 
-        .copy-panel-btn:hover {
-            background-color: var(--lighter-blue);
-            transform: translateY(-1px);
-        }
-
-        /* Media queries pour la responsivité */
-        @media (max-width: 992px) {
-            .preview-panel {
-                width: 100%;
-                right: -100%;
-            }
-            .preview-panel.open {
-                right: 0;
-            }
-        }
-        @media (max-width: 768px) {
-            .filters-header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            #filters {
-                flex-direction: column;
-                gap: 15px;
-            }
-            #filters input, #filters select {
-                min-width: unset;
-                max-width: unset;
-                width: 100%;
-            }
-            .action-buttons {
-                flex-direction: column;
-                width: 100%;
-                justify-content: center;
-            }
-            .action-buttons a {
-                width: 100%;
-                text-align: center;
-            }
-            .infos-wrapper {
-                padding: 15px;
-                width: auto;
-            }
-            .metadata-section {
-                grid-template-columns: 1fr;
-                gap: 5px;
-            }
-            .card-actions {
-                /* Sur mobile, on veut que les éléments des actions de carte s'alignent mieux */
-                flex-direction: row; /* Aligner les boutons horizontalement */
-                flex-wrap: wrap; /* Permettre le passage à la ligne */
-                justify-content: center; /* Centrer les boutons */
-                align-items: center;
-                gap: 10px; /* Réduire l'espace si nécessaire */
-            }
-            .top-buttons-group {
-                flex-direction: column;
-                gap: 5px;
-                width: 100%;
-                justify-content: center;
-                margin-bottom: 5px;
-            }
-            .toggle-content-btn, .copier-btn, .edit-btn {
-                width: 100%;
-                text-align: center;
-            }
-            .supprimer-btn {
-                width: auto;
-                align-self: center;
-                margin-left: 0; /* Réinitialiser la marge pour la poubelle sur mobile */
-            }
-            .create-tip-button-container {
-                margin-top: 15px;
-                margin-bottom: 20px;
-                flex-direction: column; /* Force les boutons à s'empiler */
-            }
-            .create-tip-button, .compress-image-button { /* Ajuste la largeur des boutons */
-                width: 100%;
-                justify-content: center; /* Centre le texte et l'icône */
-            }
-            .preview-post-it {
-                position: static;
-                margin-top: 10px;
-                max-width: unset;
-                text-align: center;
-                transform: none;
-                font-size: 1.1em;
-            }
-            /* Ajustements pour le carré PDF sur mobile */
-            .preview-panel-pdf-square {
-                width: 100px;
-                height: 100px;
-                font-size: 0.9em;
-            }
-            .preview-panel-pdf-square img {
-                max-width: 60px;
-                max-height: 60px;
-            }
-            .preview-panel-pdf-square .file-name {
-                font-size: 0.7em;
-            }
-            .download-button {
-                padding: 6px 12px;
-                font-size: 0.8em;
-            }
-        }
-
-        /* Styles pour le footer */
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 20px;
-            margin-top: 40px;
-            width: 100%;
-        }
-
-        footer p {
-            margin: 0;
-            font-size: 0.9em;
+        .modal-button:hover {
+            background-color: var(--dark-blue);
         }
     </style>
 </head>
 <body>
+    <div id="loader">
+        Chargement...
+    </div>
+
     <div id="header-placeholder"></div>
 
-    <main>
-        <div class="header-controls-container">
-            <div class="filters-header">
-                <div id="filters">
-                    <input type="text" id="preview-text" placeholder="Rechercher dans le texte de prévisualisation..." />
-                    <select id="filtre-categorie">
-                        <option value="">Toutes les catégories</option>
-                        <option>Marketing Digital</option>
-                        <option>Réseaux Sociaux</option>
-                        <option>SEO</option>
-                        <option>Contenu</option>
-                        <option>Publicité</option>
-                        <option>Outils IA</option>
-                        <option>Stratégie</option>
-                        <option>Autre</option>
-                    </select>
-                    <select id="filtre-tri-date">
-                        <option value="recent" selected>Plus récent</option>
-                        <option value="ancien">Plus ancien</option>
-                    </select>
-                    <select id="filtre-outil">
-                        <option value="">Tous les outils</option>
-                        <option>ChatGPT</option>
-                        <option>Claude</option>
-                        <option>Midjourney</option>
-                        <option>DALL-E</option>
-                        <option>Stable Diffusion</option>
-                        <option>RunwayML</option>
-                        <option>Adobe Firefly</option>
-                        <option>Canva AI</option>
-                        <option>GrammarlyGO</option>
-                        <option>Jasper</option>
-                        <option>Autre</option>
-                    </select>
-                </div>
-                <div class="action-buttons">
-                </div>
+    <div id="welcomeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <div class="modal-header">
+                <h2>Bienvenue sur l'Espace IA Marketing</h2>
             </div>
-            <div class="create-tip-button-container">
-                <a href="creer-tip.html" class="create-tip-button">Créer un Tip</a>
-                <a href="compresseur.html" class="compress-image-button">
-                    <i class="fas fa-cut"></i> Compresser une image
-                </a>
+            <div class="modal-body">
+                <p>Cette plateforme collaborative vous permet de découvrir, partager et capitaliser sur les usages de l’intelligence artificielle au sein de notre organisation. Que vous cherchiez des outils, des prompts, des cas d’usage inspirants ou que vous souhaitez contribuer avec vos propres astuces, tout est centralisé ici pour accompagner votre montée en compétence et faciliter l’adoption de l’IA au quotidien. Explorez les différentes sections pour trouver des ressources, ajouter vos propres contributions ou poser des questions à notre chatbot IA intégré !</p>
+                <button class="modal-button" id="confirmWelcome">Compris !</button>
             </div>
         </div>
-
-        <div class="galerie-container">
-            <div id="success-message"></div>
-            <div id="galerie">
-                <div class="loader"></div> <p style="text-align: center;">Chargement des tips...</p>
-            </div>
-            <div id="error-display" class="error-message" style="display: none;"></div>
-        </div>
-    </main>
-
-    <div id="footer-placeholder"></div>
-
-    <div id="previewOverlay" class="preview-overlay"></div>
-
-    <div id="previewPanel" class="preview-panel">
-        <div class="preview-panel-header">
-            <h3 id="previewPanelTitle">Aperçu du contenu</h3>
-            <button class="close-preview-btn" id="closePreviewBtn"><i class="fas fa-times"></i></button>
-        </div>
-        <div id="previewPanelContent" class="preview-panel-content">
-            </div>
     </div>
+
+
+    <div class="latest-additions-section">
+        <h2>Derniers ajouts</h2>
+        <div id="latest-additions-grid" class="latest-additions-grid">
+            <p id="post-it-loading-message" style="text-align: center; color: #777;">Chargement des derniers ajouts...</p>
+        </div>
+    </div>
+
+    <footer class="footer">
+        Auteur : Steeve Pires Madeira / Marketing - R&D format
+
+    </footer>
+
+    <div id="chatbot-fab">
+        <i class="fas fa-comment-dots"></i>
+    </div>
+
+    <div id="chatbot-container">
+        <div id="chatbot-header">
+            <h3>Assistant IA</h3>
+            <button id="chatbot-toggle"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="chatbot-body">
+            <div id="chatbot-messages">
+                <div class="message bot">Bonjour ! Comment puis-je vous aider aujourd'hui ?</div>
+            </div>
+            <div id="chatbot-loading" style="display:none;">L'IA réfléchit...</div>
+        </div>
+        <div id="chatbot-input-container">
+            <input type="text" id="chatbot-input" placeholder="Tapez votre message..." />
+            <button id="chatbot-send-button"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
     <script>
-        const apiBase = window.location.origin + '/.netlify/functions/';
-        let allTips = []; // Ceci contiendra vos données de tips
-        const galerieDiv = document.getElementById('galerie');
-        const errorDisplay = document.getElementById('error-display');
-        const filtreCategorieSelect = document.getElementById('filtre-categorie');
-        const filtreOutilSelect = document.getElementById('filtre-outil');
-        const filtreTriDateSelect = document.getElementById('filtre-tri-date');
-        const previewTextInput = document.getElementById('preview-text');
-
-        const previewPanel = document.getElementById('previewPanel');
-        const previewPanelTitle = document.getElementById('previewPanelTitle');
-        const previewPanelContent = document.getElementById('previewPanelContent');
-        const closePreviewBtn = document.getElementById('closePreviewBtn');
-        const bodyElement = document.body;
-
-        const previewOverlay = document.getElementById('previewOverlay');
-
-
+        const PROXY_URL = "/.netlify/functions/proxy";
+        const GET_TIPS_URL = "/.netlify/functions/get-tips";
+        const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";    
+        
         document.addEventListener("DOMContentLoaded", () => {
+            const loader = document.getElementById("loader");
+            const body = document.body;
             const headerPlaceholder = document.getElementById("header-placeholder");
-            const footerPlaceholder = document.getElementById("footer-placeholder");
-            const mainElement = document.querySelector("main");
 
-            const loadComponent = async (url, placeholderId, errorMessage) => {
-                console.log(`Attempting to load ${url} into #${placeholderId}`);
+            const chatbotFab = document.getElementById('chatbot-fab');
+            const chatbotContainer = document.getElementById('chatbot-container');
+            const chatbotToggle = document.getElementById('chatbot-toggle');
+            const chatbotInput = document.getElementById('chatbot-input');
+            const chatbotSendButton = document.getElementById('chatbot-send-button');
+            const chatbotMessages = document.getElementById('chatbot-messages');
+            const chatbotLoading = document.getElementById('chatbot-loading');
+
+            const welcomeModal = document.getElementById('welcomeModal');
+            const closeButton = document.querySelector('.close-button');
+            const confirmWelcomeButton = document.getElementById('confirmWelcome');
+
+
+            function appendMessage(text, ...classes) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', ...classes);
+                messageDiv.textContent = text;
+                if (chatbotMessages) {
+                    chatbotMessages.appendChild(messageDiv);
+                } else {
+                    console.warn("chatbotMessages element not found when trying to append message.");
+                }
+            }
+
+            const createCard = (item, type) => {
+                const card = document.createElement("div");
+                card.className = `addition-card ${type}`;
+
+                const header = document.createElement('div');
+                header.className = 'card-header';
+
+                const icon = document.createElement('i');
+                if (type === 'cas-usage') {
+                    icon.className = 'fas fa-lightbulb icon';
+                } else if (type === 'galerie') {
+                    icon.className = 'fas fa-image icon';
+                } 
+                header.appendChild(icon);
+
+                const title = document.createElement("h4");
+                title.textContent = item.titre;
+                header.appendChild(title);
+                card.appendChild(header);
+
+                if (type === 'galerie' && item.imageUrl) {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'card-image-container';
+                    const img = document.createElement('img');
+                    img.src = item.imageUrl;
+                    img.alt = `Vignette de ${item.titre}`;
+                    imgContainer.appendChild(img);
+                    card.appendChild(imgContainer);
+                }
+                
+                const descriptionElement = document.createElement("p");
+                // La description est maintenant affichée en entier, sans troncature JavaScript
+                descriptionElement.textContent = item.description || item.prompt || ''; // Utilise la description ou le prompt, ou vide si rien
+                card.appendChild(descriptionElement);
+
+                const meta = document.createElement('div');
+                meta.className = 'card-meta';
+
+                // Ajout de l'auteur
+                if (item.auteur) {
+                    const authorDiv = document.createElement("div");
+                    authorDiv.innerHTML = `<strong>Auteur:</strong> ${item.auteur}`;
+                    meta.appendChild(authorDiv);
+                }
+
+                // Ajout de la catégorie
+                const categoryDiv = document.createElement("div");
+                categoryDiv.className = "category";
+                if (type === 'cas-usage') {
+                    categoryDiv.innerHTML = `<strong>Catégorie:</strong> Cas d'usages`;
+                } else if (type === 'galerie') {
+                    categoryDiv.innerHTML = `<strong>Catégorie:</strong> Galerie`;
+                }
+                meta.appendChild(categoryDiv);
+
+                // Ajout de l'outil
+                if (item.outil) {
+                    const toolDiv = document.createElement("div");
+                    toolDiv.innerHTML = `<strong>Outil:</strong> ${item.outil}`;
+                    meta.appendChild(toolDiv);
+                }
+                
+                // Ajout de la date
+                const dateDiv = document.createElement("div");
+                dateDiv.className = "date";
+                // Harmonisation des dates pour les cartes d'accueil
+                const dateToUse = item.date_creation || item.dateCreation || item.date_ajout || item.date;
+                if (dateToUse) {
+                    const d = new Date(dateToUse);
+                    dateDiv.textContent = `Ajouté le ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+                } else {
+                    dateDiv.textContent = `Date inconnue`;
+                }
+                meta.appendChild(dateDiv);
+                
+                card.appendChild(meta);  
+
+                // Ajout du bouton "Voir..." pour les cartes de type 'cas-usage'
+                if (type === 'cas-usage') {
+                    const button = document.createElement('a');
+                    button.href = "cas-usages.html";  
+                    button.className = "view-button";  
+                    button.textContent = "Voir le Tip";
+                    card.appendChild(button);
+                } else if (type === 'galerie') {  
+                    const button = document.createElement('a');
+                    button.href = "galerie.html";  
+                    button.className = "view-button";  
+                    button.textContent = "Voir la galerie";
+                    card.appendChild(button);
+                }
+
+                return card;
+            };
+
+            async function displayLatestAdditions() {
+                const container = document.getElementById("latest-additions-grid");
+                const loadingMessage = document.getElementById("post-it-loading-message");
+
+                if (!container || !loadingMessage) {
+                    console.error("Conteneur ou message de chargement des derniers ajouts non trouvé !");
+                    return;
+                }
+
+                loadingMessage.style.display = 'block';
+                container.innerHTML = '';  
+                
                 try {
-                    const res = await fetch(url);
-                    if (!res.ok) {
-                        const errorDetail = await res.text();
-                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                    const casUsagesResponse = await fetch(GET_TIPS_URL);
+                    if (!casUsagesResponse.ok) {
+                        throw new Error(`Erreur lors du chargement des cas d'usages: ${casUsagesResponse.statusText}`);
                     }
-                    document.getElementById(placeholderId).innerHTML = await res.text();
-                    console.log(`${url} loaded successfully.`);
+                    let casUsages = await casUsagesResponse.json();
+                    if (!Array.isArray(casUsages)) {
+                        throw new Error("Les données des cas d'usages ne sont pas un tableau.");
+                    }
+
+                    const promptsResponse = await fetch(GET_PROMPTS_URL);
+                    if (!promptsResponse.ok) {
+                        throw new Error(`Erreur lors du chargement des prompts de la galerie: ${promptsResponse.statusText}`);
+                    }
+                    let prompts = await promptsResponse.json();
+                    if (!Array.isArray(prompts)) {
+                        throw new Error("Les données des prompts ne sont pas un tableau.");
+                    }
+                    
+                    loadingMessage.style.display = 'none';
+
+                    // --- Harmonisation des dates pour les deux sources et ajout d'une date effective ---
+                    casUsages = casUsages.map(item => ({ 
+                        ...item, 
+                        // date_creation > dateCreation > date_ajout > date > date très ancienne par défaut
+                        effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString()) 
+                    }));
+
+                    prompts = prompts.map(item => ({ 
+                        ...item, 
+                        // date_creation > dateCreation > date_ajout > date > date très ancienne par défaut
+                        effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString()) 
+                    }));
+
+
+                    // Trier les cas d'usages par date effective (du plus récent au plus ancien)
+                    casUsages.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
+                    
+                    // Filtrer les prompts pour n'inclure que ceux avec une image et les trier par date effective
+                    const imagePrompts = prompts.filter(item => item.imageUrl);
+                    imagePrompts.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
+
+                    const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
+                    const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
+
+                    let itemsDisplayed = 0;
+
+                    if (latestCasUsage) {
+                        container.appendChild(createCard(latestCasUsage, 'cas-usage'));
+                        itemsDisplayed++;
+                    } else {
+                        console.warn("Aucun cas d'usage trouvé pour l'affichage.");
+                    }
+
+                    if (latestGalerieItem) {
+                        container.appendChild(createCard(latestGalerieItem, 'galerie'));
+                        itemsDisplayed++;
+                    } else {
+                        console.warn("Aucun élément de galerie trouvé pour l'affichage.");
+                    }
+
+                    if (itemsDisplayed === 0) { // Si aucun des deux n'a pu être affiché
+                        const noAdditionsMessage = document.createElement('p');
+                        noAdditionsMessage.style.textAlign = 'center';
+                        noAdditionsMessage.style.color = '#777';
+                        noAdditionsMessage.textContent = 'Aucun ajout récent à afficher.';
+                        container.appendChild(noAdditionsMessage);
+                    }
+
                 } catch (error) {
-                    console.error(`Error loading ${url}:`, error);
-                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
+                    console.error("Erreur lors de la récupération ou de l'affichage des derniers ajouts:", error);
+                    loadingMessage.textContent = "Erreur lors du chargement des derniers ajouts. Veuillez réessayer.";
+                    loadingMessage.style.color = 'red';
+                    loadingMessage.style.display = 'block';
                 }
-            };
+            }
 
-            Promise.all([
-                loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu"),
-                loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
-            ])
-            .then(() => {
-                const activeLink = document.querySelector("nav a[href='cas-usages.html']"); // CIBLE cas-usages.html
-                if (activeLink) {
-                    activeLink.classList.add("active");
+            async function mettreAJourBulleDemandes() {
+                const notif = document.getElementById("notif-count");
+                if (!notif) {
+                    console.warn("Élément #notif-count non trouvé. La bulle de notification ne peut pas être mise à jour.");
+                    return;
                 }
-            })
-            .catch(error => {
-                console.error("General issue loading components:", error);
-            })
-            .finally(() => {
-                bodyElement.classList.add("show");
-                mainElement.classList.add("show");
-                loadAndDisplayTips();
-            });
-
-            if (window.location.search.includes('success=1')) {
-                const msg = document.getElementById('success-message');
-                msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
-                msg.style.opacity = '1';
-                setTimeout(() => msg.style.opacity = '0', 2000);
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-            }
-            if (window.location.search.includes('editSuccess=1')) {
-                const msg = document.getElementById('success-message');
-                msg.textContent = '✅ Tip/Prompt modifié avec succès !';
-                msg.style.opacity = '1';
-                setTimeout(() => msg.style.opacity = '0', 2000);
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-            }
-
-            setupFilters();
-        });
-
-        function escapeHtml(text) {
-            if (text === null || text === undefined) {
-                return '';
-            }
-            text = String(text);
-            const map = {
-                '&': '&',
-                '<': '<',
-                '>': '>',
-                '"': '"'
-            };
-            return text.replace(/[&<>"]/g, function(m) { return map[m]; });
-        }
-
-        // Fonction utilitaire pour extraire l'ID d'une vidéo YouTube
-        function getYouTubeVideoId(url) {
-            let videoId = null;
-            // Expressions régulières pour couvrir diverses formes d'URL YouTube
-            // Supporte les formats:
-            // img.youtube.com/vi/9
-            // img.youtube.com0
-            // img.youtube.com1
-            // img.youtube.com2
-            const youtubeRegex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-            const match = url.match(youtubeRegex);
-            if (match && match[1]) {
-                videoId = match[1];
-            }
-            return videoId;
-        }
-
-        function applyFiltersAndSort() {
-            let filtered = [...allTips];
-
-            const categorie = filtreCategorieSelect.value;
-            if (categorie) {
-                filtered = filtered.filter(tip => tip.categorie === categorie);
-            }
-
-            const outil = filtreOutilSelect.value;
-            if (outil) {
-                filtered = filtered.filter(tip => tip.outil === outil);
-            }
-
-            const searchText = previewTextInput.value.toLowerCase();
-            if (searchText) {
-                filtered = filtered.filter(tip => tip.previewText && String(tip.previewText).toLowerCase().includes(searchText));
-            }
-
-            const sortOrder = filtreTriDateSelect.value;
-            
-            filtered.sort((a, b) => {
-                if (sortOrder === 'recent') {
-                    const dateA = new Date(a.dateCreation || a.date);
-                    const dateB = new Date(b.dateCreation || b.date);
-                    return dateB.getTime() - dateA.getTime();
-                } else if (sortOrder === 'ancien') {
-                    const dateA = new Date(a.dateCreation || a.date);
-                    const dateB = new Date(b.dateCreation || b.date);
-                    return dateA.getTime() - dateB.getTime();
-                }
-                return 0;
-            });
-            
-            displayTips(filtered);
-        }
-
-        function setupFilters() {
-            filtreCategorieSelect.addEventListener('change', applyFiltersAndSort);
-            filtreOutilSelect.addEventListener('change', applyFiltersAndSort);
-            previewTextInput.addEventListener('input', applyFiltersAndSort);
-            filtreTriDateSelect.addEventListener('change', applyFiltersAndSort);
-        }
-
-        async function loadAndDisplayTips() {
-            galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
-            try {
-                const response = await fetch(`${apiBase}get-tips`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                allTips = await response.json();
-                allTips = allTips.map(tip => ({
-                    ...tip,
-                    dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
-                    titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
-                    auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
-                    description: tip.description || '', // S'assurer que la description existe, même vide
-                    // S'assurer que 'urls' est un tableau, même si elle est vide ou seulement une chaîne
-                    urls: Array.isArray(tip.urls) ? tip.urls : (tip.url ? [tip.url] : [])
-                }));
-                applyFiltersAndSort();
-            } catch (error) {
-                console.error("Erreur lors du chargement des tips:", error);
-                errorDisplay.style.display = 'block';
-                errorDisplay.textContent = `Erreur de chargement des tips: ${error.message}`;
-                galerieDiv.innerHTML = '';
-            }
-        }
-
-        function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = '';
-
-            if (tipsToDisplay.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos filtres.</p>';
-                return;
-            }
-
-            tipsToDisplay.forEach(tip => {
-                const dateObj = new Date(tip.dateCreation);
-                const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
-
-                const actualPromptContent = tip.promptText || tip.prompt;
-
-                const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}">${escapeHtml(tip.auteur)}</a>`;
-
-                const cardHtml = `
-                    <div class="carte" style="border-left-color: ${getCategoryColor(tip.categorie)};">
-                        <div class="infos-wrapper">
-                            <h3 class="tip-title">${escapeHtml(tip.titre)}</h3>
-                            <span class="outil-badge">${escapeHtml(tip.outil || 'Non spécifié')}</span>
-                            <div class="metadata-section">
-                                <span class="metadata-label">Auteur:</span>
-                                <span class="metadata-value auteur-value">${auteurLink}</span>
-                                <span class="metadata-label">Catégorie:</span>
-                                <span class="metadata-value">${escapeHtml(tip.categorie)}</span>
-                                <span class="metadata-label">Date:</span>
-                                <span class="metadata-value">${formattedDate}</span>
-                            </div>
-
-                            ${tip.previewText ? `<div class="preview-post-it">${escapeHtml(tip.previewText)}</div>` : ''}
-
-                            <div class="card-actions">
-                                <div class="top-buttons-group">
-                                    <button class="toggle-content-btn" data-id="${tip.id}">Voir le Tip</button>
-                                    ${actualPromptContent && actualPromptContent.trim() !== '' ? `<button class="copier-btn" data-copy="${escapeHtml(actualPromptContent)}">Copier le prompt</button>` : ''}
-                                    <button class="edit-btn" data-id="${tip.id}">Éditer</button>
-                                    <div class="card-preview-icons-inline">
-                                        ${(tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
-                                        ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
-                                        ${(tip.urls && tip.urls.some(url => getYouTubeVideoId(url))) ? `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>` : ''}
-                                        ${(tip.urls && tip.urls.some(url => !getYouTubeVideoId(url) && url.trim() !== '')) ? `<i class="fas fa-link icon-vignette" title="Contient un lien externe"></i>` : ''}
-                                    </div>
-                                </div>
-                                <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                galerieDiv.insertAdjacentHTML('beforeend', cardHtml);
-            });
-
-            attachEventListenersToCards();
-        }
-
-        function getCategoryColor(category) {
-            switch (category) {
-                case 'Marketing Digital': return '#0077b6';
-                case 'Réseaux Sociaux': return '#38a3a5';
-                case 'SEO': return '#ffc300';
-                case 'Contenu': return '#c70039';
-                case 'Publicité': return '#8ac926';
-                case 'Outils IA': return '#9d4edd';
-                case 'Stratégie': return '#3c096c';
-                case 'Autre': return '#6c757d';
-                default: return '#cccccc';
-            }
-        }
-
-        function attachEventListenersToCards() {
-            document.querySelectorAll('.toggle-content-btn').forEach(button => {
-                button.onclick = (e) => openPreviewPanel(e.target.dataset.id);
-            });
-
-            document.querySelectorAll('.copier-btn').forEach(button => {
-                button.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target);
-            });
-
-            document.querySelectorAll('.edit-btn').forEach(button => {
-                button.onclick = (e) => redirectToEditPage(e.target.dataset.id);
-            });
-
-            document.querySelectorAll('.supprimer-btn').forEach(button => {
-                button.onclick = (e) => confirmAndDeleteTip(e.target.dataset.id || e.target.closest('button').dataset.id);
-            });
-        }
-
-        async function openPreviewPanel(tipId) {
-            console.log(`Opening preview panel for tip ID: ${tipId}`);
-            const tip = allTips.find(t => t.id === tipId);
-
-            if (tip) {
-                console.log("Tip data for preview panel:", tip);
-                
-                previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
-                let contentHtml = '';
-
-                // Add Description section
-                if (tip.description && tip.description.trim() !== '') {
-                    contentHtml += `
-                        <h4>Description:</h4>
-                        <div class="content-card-blue">${escapeHtml(tip.description)}</div>
-                    `;
-                }
-
-                const panelPromptContent = tip.promptText || tip.prompt;
-                
-                if (panelPromptContent) {
-                    contentHtml += `
-                        <h4>Prompt:</h4>
-                        <button class="copy-panel-btn" data-copy="${escapeHtml(panelPromptContent)}">Copier le prompt</button>
-                        <pre class="prompt-content-pre">${escapeHtml(panelPromptContent)}</pre>
-                    `;
-                }
-                
-                // Images
-                if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
-                    contentHtml += `<h4>Images associées:</h4><div class="preview-panel-image-container">`;
-                    let imageCounter = 1;
-                    const imageUrlsToDisplay = [];
-                    if (tip.fileUrls && Array.isArray(tip.fileUrls)) {
-                        imageUrlsToDisplay.push(...tip.fileUrls);
-                    }
-                    if (tip.imageUrl && !imageUrlsToDisplay.includes(tip.imageUrl)) { // Éviter les doublons
-                        imageUrlsToDisplay.push(tip.imageUrl);
-                    }
-
-                    imageUrlsToDisplay.forEach(url => {
-                        contentHtml += `
-                            <div class="preview-panel-image-wrapper">
-                                <div class="image-number-badge">${imageCounter++}</div>
-                                <a href="${escapeHtml(url)}" target="_blank">
-                                    <img src="${escapeHtml(url)}" alt="Image du tip" class="preview-panel-image" />
-                                </a>
-                            </div>
-                        `;
-                    });
-                    contentHtml += `</div>`;
-                }
-
-                // Documents
-                if (tip.documentUrl && tip.documentUrl.trim() !== '') {
-                    contentHtml += `<h4>Document associé:</h4>
-                        <div class="preview-panel-document-square-container">
-                            <a href="${escapeHtml(tip.documentUrl)}" target="_blank" class="preview-panel-pdf-square">
-                                <img src="PDF_file_icon.svg.webp" alt="Icône PDF">
-                                <span class="file-name">${escapeHtml(tip.documentFileName || 'Document PDF')}</span>
-                                <span class="download-button">Télécharger</span>
-                            </a>
-                        </div>
-                    `;
-                }
-
-                // URLs (avec gestion spécifique YouTube)
-                if (tip.urls && tip.urls.length > 0) {
-                    contentHtml += `<h4>Liens associés:</h4>`; 
-                    tip.urls.forEach((url, index) => {
-                        const youtubeId = getYouTubeVideoId(url);
-                        if (youtubeId) {
-                            // C'est LA LIGNE CLÉ : l'URL d'intégration YouTube officielle
-                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`; 
-                            contentHtml += `
-                                <div class="video-responsive">
-                                    <iframe 
-                                        src="${escapeHtml(embedUrl)}" 
-                                        frameborder="0" 
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                        allowfullscreen
-                                        title="YouTube video player"
-                                        onerror="console.error('Failed to load YouTube embed for ID: ${youtubeId}. Check video availability or network.');"
-                                    ></iframe>
-                                </div>
-                            `;
-                        } else if (url.trim() !== '') { // S'assure que l'URL n'est pas vide
-                            // C'est une autre URL, affiche juste un lien texte ou une icône générique
-                            contentHtml += `
-                                <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
-                            `;
-                        }
-                    });
-                }
-
-                // Post-it (previewText)
-                if (tip.previewText) {
-                    contentHtml += `
-                        <h4>Post-it:</h4>
-                        <div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>
-                    `;
-                }
-                
-                const dateObj = new Date(tip.dateCreation);
-                const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
-
-                const auteurPanelLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
-
-                contentHtml += `
-                    <div class="metadata-section" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-                        <span class="metadata-label">Auteur:</span>
-                        <span class="metadata-value auteur-value">${auteurPanelLink}</span>
-                        <span class="metadata-label">Catégorie:</span>
-                        <span class="metadata-value">${escapeHtml(tip.categorie)}</span>
-                        <span class="metadata-label">Outil:</span>
-                        <span class="metadata-value">${escapeHtml(tip.outil || 'Non spécifié')}</span>
-                        <span class="metadata-label">Date de création:</span>
-                        <span class="metadata-value">${formattedDate}</span>
-                    </div>
-                `;
-
-                previewPanelContent.innerHTML = contentHtml;
-                previewPanel.classList.add('open');
-                previewOverlay.classList.add('open');
-                bodyElement.style.overflow = 'hidden';
-
-                // Re-attacher l'écouteur pour le bouton de copie dans le panneau après que le HTML soit mis à jour
-                document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
-                    copyToClipboard(e.target.dataset.copy, e.target);
-                });
-
-            } else {
-                console.error("Tip not found for ID:", tipId);
-            }
-        }
-
-        function closePreviewPanel() {
-            previewPanel.classList.remove('open');
-            previewOverlay.classList.remove('open');
-            bodyElement.style.overflow = '';
-        }
-
-        closePreviewBtn.addEventListener('click', closePreviewPanel);
-        previewOverlay.addEventListener('click', closePreviewPanel);
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && previewPanel.classList.contains('open')) {
-                closePreviewPanel();
-            }
-        });
-
-
-        async function copyToClipboard(text, buttonElement) {
-            try {
-                await navigator.clipboard.writeText(text);
-                const originalText = buttonElement.textContent;
-                buttonElement.textContent = 'Copié !';
-                setTimeout(() => {
-                    buttonElement.textContent = originalText;
-                }, 1500);
-            } catch (err) {
-                console.error('Failed to copy: ', err);
-                alert('Échec de la copie.');
-            }
-        }
-
-        function redirectToEditPage(tipId) {
-            window.location.href = `modifier-tip.html?id=${tipId}`;
-        }
-
-        async function confirmAndDeleteTip(tipId) {
-            if (confirm("Êtes-vous sûr de vouloir supprimer ce tip ? Cette action est irréversible.")) {
                 try {
-                    const response = await fetch(`${apiBase}delete-tip`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ id: tipId })
+                    const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    const demandes = await res.json();
+                    const demandesArray = demandes.data || demandes;
+                    const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
+                    notif.textContent = demandesNonTraitees.length;
+                    notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
+                } catch (e) {
+                    console.error("Erreur lors de la mise à jour du compteur de demandes :", e);
+                    notif.style.display = "none";
+                }
+            }
+            
+            async function sendMessage() {
+                const messageText = chatbotInput.value.trim();
+                if (messageText === "") return;
+
+                appendMessage(messageText, 'user');
+                chatbotInput.value = '';
+                chatbotLoading.style.display = 'block';
+                chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+
+                try {
+                    const response = await fetch(`${PROXY_URL}?action=chatWithGPT`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: messageText })
                     });
 
                     if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || `Erreur HTTP! status: ${response.status}`);
+                        throw new Error(`HTTP error: ${response.status}`);
                     }
 
-                    alert("Tip supprimé avec succès !");
-                    loadAndDisplayTips();
+                    const data = await response.json();
+                    appendMessage(data.reply, 'bot');
                 } catch (error) {
-                    console.error("Erreur lors de la suppression du tip:", error);
-                    alert(`Échec de la suppression du tip: ${error.message}`);
+                    console.error('Erreur lors de la communication avec le chatbot :', error);
+                    appendMessage("Désolé, je n'ai pas pu communiquer avec l'IA. Veuillez réessayer.", 'bot', 'error-message');
+                } finally {
+                    chatbotLoading.style.display = 'none';
+                    chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
                 }
             }
-        }
+
+            // Load header component and handle page display
+            loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu")
+            .then(() => {
+                mettreAJourBulleDemandes();
+
+                const path = location.pathname.split("/").pop();
+                const links = document.querySelectorAll("nav a");
+                links.forEach(link => {
+                    if (path === "" || path === "index.html") {
+                        if (link.getAttribute("href") === "index.html") {
+                            link.classList.add("active");
+                        }
+                    } else if (link.getAttribute("href") === path) {
+                        link.classList.add("active");
+                    }
+                });
+
+                loader.classList.add("hidden");
+                body.classList.add("show");
+
+                if (welcomeModal) {
+                    welcomeModal.style.display = 'flex';  
+                } else {
+                    console.warn("Welcome modal element not found.");
+                }
+
+                displayLatestAdditions();  
+            })
+            .catch(error => {
+                console.error("Erreur générale lors du chargement des composants :", error);
+                loader.classList.add("hidden");
+                body.classList.add("show");
+            });
+
+            // Modal event listeners
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                });
+            }
+            if (confirmWelcomeButton) {
+                confirmWelcomeButton.addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                });
+            }
+            window.addEventListener('click', (event) => {
+                if (event.target === welcomeModal) {
+                    welcomeModal.style.display = 'none';
+                }
+            });
+
+            // Chatbot event listeners
+            if (chatbotFab) {
+                chatbotFab.addEventListener('click', () => {
+                    chatbotContainer.style.display = chatbotContainer.style.display === 'flex' ? 'none' : 'flex';
+                    if (chatbotContainer.style.display === 'flex') {
+                        chatbotInput.focus();
+                    }
+                });
+            }
+
+            if (chatbotToggle) {
+                chatbotToggle.addEventListener('click', () => {
+                    chatbotContainer.style.display = 'none';
+                });
+            }
+
+            if (chatbotSendButton && chatbotInput) {
+                chatbotSendButton.addEventListener('click', sendMessage);
+                chatbotInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        sendMessage();
+                    }
+                });
+            } else {
+                console.warn("Chatbot elements (send button or input) not found.");
+            }
+        });
+
+        async function loadComponent(url, placeholderId, errorMessage) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+            } catch (error) {
+                    console.error(`Erreur lors du chargement de ${url}:`, error);
+                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
+            }
+        };
+
     </script>
 </body>
 </html>
