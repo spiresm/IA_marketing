@@ -141,7 +141,7 @@
             box-sizing: border-box;
             width: 100%;
             z-index: 1;
-            cursor: pointer; /* Indique que la carte est cliquable */
+            /* cursor: pointer;  Retiré car le bouton "+ d'infos" gère l'ouverture */
         }
 
         .carte:hover {
@@ -258,9 +258,10 @@
             margin-top: auto;
             justify-content: flex-start;
             padding-top: 5px;
+            flex-wrap: wrap; /* Permet aux boutons de passer à la ligne si pas assez d'espace */
         }
 
-        .copier-btn {
+        .copier-btn, .details-btn { /* Appliquer des styles similaires aux deux boutons */
             background-color: #0077b6;
             color: white;
             border: none;
@@ -274,9 +275,17 @@
             white-space: nowrap;
         }
 
-        .copier-btn:hover {
+        .copier-btn:hover, .details-btn:hover {
             background-color: #005f8a;
             transform: translateY(-1px);
+        }
+
+        .details-btn {
+            background-color: #6c757d; /* Couleur différente pour le bouton "Plus d'infos" */
+        }
+
+        .details-btn:hover {
+            background-color: #5a6268;
         }
 
         .supprimer-btn {
@@ -406,6 +415,7 @@
             flex-direction: column;
             overflow-y: auto; /* Pour les contenus longs */
             box-sizing: border-box;
+            position: relative; /* Pour positionner le bouton de fermeture */
         }
 
         .side-panel-overlay.visible .side-panel {
@@ -460,6 +470,25 @@
             display: block; /* Mettre le label sur une nouvelle ligne */
             margin-bottom: 5px;
         }
+
+        .panel-copy-btn {
+            background-color: #0077b6;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            margin-top: 20px; /* Espace au-dessus du bouton */
+            width: 100%; /* Pleine largeur */
+        }
+
+        .panel-copy-btn:hover {
+            background-color: #005f8a;
+        }
+
 
         /* Styles spécifiques pour les petites écrans */
         @media (max-width: 768px) {
@@ -525,7 +554,8 @@
             <p><strong>Chaîne :</strong> <span id="panel-chaine"></span></p>
             <p><strong>Prompt :</strong> <span id="panel-prompt-text"></span></p>
             <p><strong>Description :</strong> <span id="panel-description"></span></p>
-            </div>
+            <button class="panel-copy-btn" id="panel-copy-button"><i class="fas fa-copy"></i> Copier le prompt</button>
+        </div>
     </div>
 
     <div id="header-placeholder"></div>
@@ -612,6 +642,7 @@
             // --- Logique du panneau latéral ---
             const sidePanelOverlay = document.getElementById('side-panel-overlay');
             const sidePanelCloseBtn = document.getElementById('side-panel-close-btn');
+            const panelCopyButton = document.getElementById('panel-copy-button'); // Nouveau : bouton copier du panneau
 
             sidePanelCloseBtn.addEventListener('click', () => {
                 sidePanelOverlay.classList.remove('visible');
@@ -752,6 +783,16 @@
                 const cardActions = document.createElement('div');
                 cardActions.className = 'card-actions';
 
+                // Bouton "+ d'infos"
+                const detailsBtn = document.createElement('button');
+                detailsBtn.className = 'details-btn';
+                detailsBtn.innerHTML = '<i class="fas fa-info-circle"></i> + d\'infos';
+                detailsBtn.onclick = (e) => {
+                    e.stopPropagation(); // Empêche le clic sur la carte elle-même de s'activer
+                    afficherDetailsPrompt(prompt);
+                };
+                cardActions.appendChild(detailsBtn);
+
                 const copierBtn = document.createElement('button');
                 copierBtn.className = 'copier-btn';
                 copierBtn.innerHTML = '<i class="fas fa-copy"></i> Copier le prompt'; // Ajout de l'icône ici
@@ -807,10 +848,14 @@
                 carte.appendChild(infosWrapper);
                 galerieDiv.appendChild(carte);
 
-                // *** AJOUT ICI : Écouteur d'événements pour ouvrir le panneau latéral ***
-                carte.addEventListener('click', () => {
+                // --- IMPORTANT : Retirer l'écouteur de clic sur la carte si le bouton "+ d'infos" est présent ---
+                // Si vous préférez que le clic sur n'importe quelle partie de la carte ouvre le panneau,
+                // vous pouvez laisser l'écouteur ici et retirer le bouton "+ d'infos".
+                // Sinon, assurez-vous que seul le bouton déclenche le panneau.
+                // Ici, j'ai choisi de laisser le bouton gérer l'ouverture, donc j'ai commenté/retiré l'ancien écouteur sur la carte.
+                /* carte.addEventListener('click', () => {
                     afficherDetailsPrompt(prompt);
-                });
+                }); */
 
                 // Assurez-vous que la hauteur du left-panel est ajustée après l'ajout des éléments
                 // Cela est important pour que l'image puisse remplir toute la hauteur
@@ -850,7 +895,7 @@
                 promptsFiltres = promptsFiltres.filter(prompt => {
                     const auteur = (prompt.auteur || '').toLowerCase();
                     const texte = (prompt.texte || '').toLowerCase();
-                    const description = (prompt.description || '').toLowerCase(); // Incluez la description dans la recherche
+                    const description = (prompt.description || '').toLowerCase();
                     return auteur.includes(searchKeyword) || texte.includes(searchKeyword) || description.includes(searchKeyword);
                 });
             }
@@ -883,16 +928,33 @@
             document.getElementById('filtre-tri').addEventListener('change', filtrerEtTrierPrompts);
         }
 
-        // Nouvelle fonction pour afficher les détails du prompt dans le panneau latéral
+        // Fonction pour afficher les détails du prompt dans le panneau latéral
         function afficherDetailsPrompt(prompt) {
             const sidePanelOverlay = document.getElementById('side-panel-overlay');
+            const panelCopyButton = document.getElementById('panel-copy-button'); // Récupère le bouton ici
+
             document.getElementById('panel-auteur').textContent = prompt.auteur || 'N/A';
             document.getElementById('panel-image').src = prompt.imageUrl || `https://via.placeholder.com/300x200?text=Image`;
             document.getElementById('panel-image').alt = prompt.texte || 'Image du prompt';
             document.getElementById('panel-outil').textContent = prompt.outil || 'N/A';
-            document.getElementById('panel-chaine').textContent = prompt.chaine || 'N/A';
+
+            // Applique la couleur à la chaîne dans le panneau latéral
+            const panelChaineSpan = document.getElementById('panel-chaine');
+            panelChaineSpan.textContent = prompt.chaine || 'N/A';
+            panelChaineSpan.style.color = getChaineColor(prompt.chaine);
+
+
             document.getElementById('panel-prompt-text').textContent = prompt.texte || 'Aucun prompt fourni.';
-            document.getElementById('panel-description').textContent = prompt.description || 'Aucune description fournie.'; // Affiche la description
+            document.getElementById('panel-description').textContent = prompt.description || 'Aucune description fournie.';
+
+            // Associe l'événement de copie au bouton du panneau latéral
+            panelCopyButton.onclick = () => {
+                navigator.clipboard.writeText(prompt.texte || '').then(() => {
+                    alert('Prompt copié !');
+                }).catch(err => {
+                    console.error('Erreur de copie:', err);
+                });
+            };
 
             sidePanelOverlay.classList.add('visible');
         }
