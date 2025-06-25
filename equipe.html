@@ -11,47 +11,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Styles spécifiques à cette page (s'il y en a) */
-        /* Supprimez les styles du body et main s'ils sont déjà dans style.css */
-        /* et assurez-vous que style.css utilise body.show et main.show */
+        /* Styles spécifiques à cette page - Gardez ici UNIQUEMENT ce qui est propre à la page équipe */
+        /* et qui n'est pas déjà dans style.css ou le CSS du header. */
 
-        /* Styles pour le loader - Ces styles devraient être dans style.css */
-        #loader {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 10000;
-            opacity: 1;
-            transition: opacity 0.3s ease-out;
-        }
-        #loader.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .loader-content {
-            text-align: center;
-            font-size: 1.2rem;
-            color: #333;
-        }
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #0077b6; /* Couleur de votre thème */
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin-top: 10px;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        /* Exemple: Si vous avez une règle .equipe-grid spécifique ici, elle reste. */
+        /* Supprimé les styles conflictuels pour body, main, et loader qui devraient être dans style.css */
 
         .container {
             max-width: 900px;
@@ -546,7 +510,7 @@
                     const data = await res.json();
                     if (data.success) {
                         console.log("Équipe: Note enregistrée avec succès pour", p.name);
-                        p.note = content; // Met à jour localement le profil
+                        p.note = content;
                         noteBadge.style.display = content ? 'inline-block' : 'none';
                         noteEditor.classList.remove("open");
                     } else {
@@ -572,7 +536,7 @@
                     const data = await res.json();
                     if (data.success) {
                         console.log("Équipe: Note effacée avec succès pour", p.name);
-                        p.note = ""; // Met à jour localement le profil
+                        p.note = "";
                         noteBadge.style.display = 'none';
                         noteEditor.classList.remove("open");
                     } else {
@@ -588,7 +552,7 @@
             div.querySelector(".close-note").addEventListener("click", e => {
                 e.stopPropagation();
                 console.log("Équipe: Clic sur 'Retour note' pour", p.name);
-                textarea.value = p.note || ''; // Restaure la note originale
+                textarea.value = p.note || '';
                 noteEditor.classList.remove("open");
             });
 
@@ -604,16 +568,15 @@
                 if (confirm(`Supprimer définitivement ${p.name} ?`)) {
                     try {
                         const res = await fetch(`${PROXY_URL}?action=deleteProfil`, {
-                            method: "POST", // Assurez-vous que votre fonction Netlify accepte POST pour la suppression
+                            method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ id: p.id })
                         });
                         const data = await res.json();
                         if (data.success) {
                             console.log("Équipe: Profil supprimé avec succès:", p.name);
-                            profils = profils.filter(profile => profile.id !== p.id); // Met à jour le tableau local
-                            renderProfils(); // Re-rend les profils
-                            // Si le panneau latéral était ouvert pour ce profil, fermez-le
+                            profils = profils.filter(profile => profile.id !== p.id);
+                            renderProfils();
                             if (sidePanel.classList.contains("show") && panelContent.dataset.id === p.id) {
                                 sidePanel.classList.remove("show");
                             }
@@ -628,14 +591,11 @@
                 }
             });
 
-            // Écouteur pour ouvrir le panneau latéral (détails du profil)
             div.addEventListener("click", async e => {
-                // Évite l'ouverture du panneau si un bouton d'action a été cliqué
                 if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
                     console.log("Équipe: Ouverture du panneau latéral pour", p.name);
-                    panelContent.dataset.id = p.id; // Stocke l'ID du profil affiché
+                    panelContent.dataset.id = p.id;
 
-                    // Chargement et affichage des données dans le panneau
                     await updateSidePanelContent(p);
                     sidePanel.classList.add("show");
                 }
@@ -643,29 +603,23 @@
 
             fragment.appendChild(div);
         });
-        listContainer.appendChild(fragment); // Ajoute tous les éléments d'un coup au DOM
+        listContainer.appendChild(fragment);
         console.log("Équipe: Rendu des profils terminé.");
     }
 
-    /**
-     * Met à jour le contenu du panneau latéral avec les détails du profil sélectionné,
-     * y compris les images de la galerie et les TIPS.
-     * @param {Object} profil - L'objet profil à afficher.
-     */
     async function updateSidePanelContent(profil) {
         const profilNameNormalized = normalizeString(profil.name || '');
 
-        // --- Section Galerie d'images ---
         const imagesByAuthor = galleryPrompts
             .filter(prompt => normalizeString(prompt.auteur || '') === profilNameNormalized)
             .map(prompt => prompt.imageUrl)
-            .filter(Boolean); // Filtrer les URL vides ou nulles
+            .filter(Boolean);
 
         console.log(`DEBUG: Images de galerie trouvées pour "${profil.name}" :`, imagesByAuthor);
 
         let gallerySection = '';
         if (imagesByAuthor.length > 0) {
-            const lastTwoImages = imagesByAuthor.slice(-2); // Les 2 dernières images
+            const lastTwoImages = imagesByAuthor.slice(-2);
             const imagesHtml = lastTwoImages.map(imgSrc => {
                 const fallbackSrc = 'https://via.placeholder.com/150x100?text=Erreur+image';
                 const displaySrc = (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) ? imgSrc : fallbackSrc;
@@ -689,17 +643,15 @@
             `;
         }
 
-        // --- Nouvelle section TIPS ---
         const tipsFromAuthor = sharedTips
             .filter(tip => {
-                // S'assurer que le tip est bien de la page 'cas-usages' et de l'auteur
                 const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages');
                 const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
                 return isByThisAuthor && isFromCorrectPage;
             })
-            .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage)); // Tri du plus récent au plus ancien
+            .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage));
 
-        const latestTips = tipsFromAuthor.slice(0, 3); // Les 3 derniers tips
+        const latestTips = tipsFromAuthor.slice(0, 3);
 
         let tipsSection = '';
         if (latestTips.length > 0) {
@@ -730,7 +682,6 @@
             `;
         }
 
-        // --- Contenu principal du panneau latéral ---
         const toolsList = (Array.isArray(profil.tools) ? profil.tools : []).map(t => `<li>${t}</li>`).join('');
         const hasNote = (profil.note || '').trim() !== '';
 
@@ -745,13 +696,11 @@
         `;
     }
 
-    // --- Gestionnaire d'événements pour le panneau latéral ---
     closePanelBtn.addEventListener("click", () => {
         console.log("Équipe: Clic sur le bouton de fermeture du panneau.");
         sidePanel.classList.remove("show");
     });
 
-    // Ferme le panneau si l'utilisateur clique en dehors de celui-ci (mais pas sur une vignette)
     document.addEventListener("click", event => {
         if (sidePanel.classList.contains("show") && !sidePanel.contains(event.target) && !event.target.closest(".vignette")) {
             console.log("Équipe: Clic en dehors du panneau, fermeture.");
@@ -759,28 +708,23 @@
         }
     });
 
-    // --- Gestionnaires pour les filtres et la recherche ---
     filterPole.addEventListener("change", renderProfils);
     searchInput.addEventListener("input", renderProfils);
 
-    // --- Fonction pour charger le header ---
     async function loadHeader() {
         try {
-            const response = await fetch("header.html"); // Assurez-vous que le chemin est correct
+            const response = await fetch("header.html");
             if (!response.ok) {
                 throw new Error(`Erreur lors du chargement de l'en-tête: ${response.status}`);
             }
             const headerHtml = await response.text();
             headerPlaceholder.innerHTML = headerHtml;
 
-            // IMPORTANT: Gestion de la classe 'active' pour le menu après chargement du header
             const currentPath = window.location.pathname.split('/').pop();
             document.querySelectorAll('nav a').forEach(link => {
                 const linkHref = link.getAttribute('href');
                 const linkFileName = linkHref ? linkHref.split('/').pop() : '';
 
-                // Pour la page d'accueil (index.html), on vérifie si le chemin est vide ou "index.html"
-                // ou si le chemin est 'equipe.html' et que le lien est 'equipe.html'
                 if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
                     link.classList.add("active");
                 } else {
@@ -794,18 +738,16 @@
         }
     }
 
-    // --- Fonction pour mettre à jour la bulle de notification (si un élément existe) ---
     async function mettreAJourBulleDemandes() {
-        const notif = document.getElementById('notif-count'); // Utiliser l'ID correct "notif-count"
+        const notif = document.getElementById('notif-count');
         if (notif) {
             try {
-                // Utiliser l'action correcte pour récupérer les demandes non traitées
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status}`);
                 }
                 const demandes = await res.json();
-                const demandesArray = demandes.data || []; // S'assurer que c'est un tableau
+                const demandesArray = demandes.data || [];
                 const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
                 notif.textContent = demandesNonTraitees.length;
                 notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
@@ -816,12 +758,18 @@
         }
     }
 
-    // --- Initialisation au chargement de la page (DOMContentLoaded pour plus de réactivité) ---
-    document.addEventListener("DOMContentLoaded", async () => { // Changé de window.load à DOMContentLoaded
+    document.addEventListener("DOMContentLoaded", async () => {
         console.log("Équipe: DOMContentLoaded, début de l'initialisation...");
+
+        // Assurer que le loader est visible au tout début
+        if (loader) {
+            loader.style.opacity = '1';
+            loader.style.display = 'flex'; // S'assurer qu'il est en display flex pour le centrage
+        }
+
         await loadHeader(); // Charge le header en premier
 
-        // Exécute toutes les requêtes de données en parallèle
+        // Charger toutes les données en parallèle
         const [profilsResult, galleryResult, tipsResult] = await Promise.allSettled([
             fetchData('getProfils'),
             fetchData('getGalleryPrompts'),
@@ -852,20 +800,22 @@
         renderProfils();
         await mettreAJourBulleDemandes();
 
-        // Masque le loader et affiche le contenu principal
-        loader.classList.add("hidden");
-        // Utilise requestAnimationFrame pour s'assurer que la classe hidden est appliquée avant la transition
-        requestAnimationFrame(() => {
+        // Une fois que tout est chargé et rendu, masquer le loader et afficher la page
+        if (loader) {
+            loader.classList.add("hidden");
             loader.addEventListener('transitionend', () => {
-                loader.style.display = 'none'; // Cache le loader complètement après sa transition
-                bodyElement.classList.add('show'); // Affiche le body (opacity: 1)
-                mainContent.classList.add('show'); // Affiche le main (opacity: 1)
+                loader.style.display = 'none';
+                bodyElement.classList.add('show'); // Rend le body visible
+                mainContent.classList.add('show'); // Rend le main visible
             }, { once: true });
-        });
+        } else { // Fallback au cas où le loader ne serait pas trouvé
+            bodyElement.classList.add('show');
+            mainContent.classList.add('show');
+        }
+
         console.log("Équipe: Initialisation terminée, contenu principal affiché.");
     });
 
-    // Nettoyage de l'URL quand on arrive sur la page
     history.replaceState({}, document.title, window.location.pathname);
 </script>
 </body>
