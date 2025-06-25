@@ -330,6 +330,14 @@
             margin-bottom: 8px; /* Un peu plus de marge sous le filtre */
         }
 
+        /* Styles pour masquer/afficher les conteneurs de champs */
+        .form-field-group {
+            display: block; /* Par défaut, les groupes sont visibles */
+        }
+        .form-field-group.hidden {
+            display: none; /* Masque les groupes de champs */
+        }
+
     </style>
 </head>
 <body>
@@ -367,40 +375,50 @@
                         <option value="formation">Formation</option>
                     </select>
 
-                    <label for="typeContenu">Type de contenu :</label>
-                    <select name="typeContenu" id="typeContenu" required>
-                        <option value="">-- Sélectionner --</option>
-                        <option value="vidéo">Vidéo</option>
-                        <option value="audio">Audio</option>
-                        <option value="image">Image</option>
-                        <option value="voix off IA">Voix off IA</option>
-                        <option value="autre">Autre</option>
-                    </select>
+                    <div id="typeContenu-group" class="form-field-group">
+                        <label for="typeContenu">Type de contenu :</label>
+                        <select name="typeContenu" id="typeContenu" required>
+                            <option value="">-- Sélectionner --</option>
+                            <option value="vidéo">Vidéo</option>
+                            <option value="audio">Audio</option>
+                            <option value="image">Image</option>
+                            <option value="voix off IA">Voix off IA</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
 
+                    <div id="support-chaine-group" class="form-field-group">
+                        <label for="support">Support :</label>
+                        <select name="support" id="support" required>
+                            <option value="">-- Sélectionner --</option>
+                            <option value="TV">TV</option>
+                            <option value="Radio">Radio</option>
+                            <option value="Web">Web</option>
+                            <option value="RS">Réseaux sociaux</option>
+                            <option value="autre">Autre</option>
+                        </select>
 
-                    <label for="support">Support :</label>
-                    <select name="support" required>
-                        <option value="">-- Sélectionner --</option>
-                        <option value="TV">TV</option>
-                        <option value="Radio">Radio</option>
-                        <option value="Web">Web</option>
-                        <option value="RS">Réseaux sociaux</option>
-                        <option value="autre">Autre</option>
-                    </select>
+                        <label for="chaine">Chaine :</label>
+                        <select name="chaine" id="chaine" required>
+                            <option value="">-- Sélectionner --</option>
+                            <option value="La Une">La Une</option>
+                            <option value="Tipik">Tipik</option>
+                            <option value="La Trois">La Trois</option>
+                            <option value="La première">La première</option>
+                            <option value="Classic 21">Classic 21</option>
+                            <option value="vivacité">vivacité</option>
+                            <option value="Musiq3">Musiq3</option>
+                            <option value="Auvio">Auvio</option>
+                            <option value="Auvio Kids">Auvio Kids</option>
+                        </select>
+                    </div>
 
-                    <label for="chaine">Chaine :</label>
-                    <select name="chaine" required>
-                        <option value="">-- Sélectionner --</option>
-                        <option value="La Une">La Une</option>
-                        <option value="Tipik">Tipik</option>
-                        <option value="La Trois">La Trois</option>
-                        <option value="La première">La première</option>
-                        <option value="Classic 21">Classic 21</option>
-                        <option value="vivacité">vivacité</option>
-                        <option value="Musiq3">Musiq3</option>
-                        <option value="Auvio">Auvio</option>
-                        <option value="Auvio Kids">Auvio Kids</option>
-                    </select>
+                    <div id="outils-group" class="form-field-group hidden">
+                        <label for="outils">Outils :</label>
+                        <select name="outils" id="outils" multiple required>
+                            </select>
+                        <small style="display: block; margin-top: 5px; color: #666;">Maintenez Ctrl/Cmd pour sélectionner plusieurs outils.</small>
+                    </div>
 
                     <label for="duree">Durée :</label>
                     <select name="duree" id="duree"></select>
@@ -530,6 +548,13 @@
             { "id": "_9nvt36jt5", "name": "Samuel LALOUX", "pole": "Positionnement", "photo": "", "tools": [], "note": "" }
         ];
 
+        // Liste des outils disponibles pour le filtre "Outils"
+        const allTools = [
+            "ChatGPT", "Claude", "Midjourney", "Stable Diffusion", "DALL·E", "Firefly",
+            "Runway ML", "Gemini", "Copilot", "Sora", "ElevenLabs",
+            "Adobe Premiere Pro", "Audacity", "Photoshop", "Illustrator", "Figma"
+        ].sort(); // Trie les outils alphabétiquement
+
         // Fonction pour s'assurer que le parent de la bulle de notification a une position relative
         function ensureNotifParentPosition() {
             const demandeLink = document.querySelector("a.demandes");
@@ -592,7 +617,6 @@
             'Auvio': 'black',
             'vivacité': 'orange',
             'Musiq3': 'hotpink',
-            'Auvio': 'black', // Duplicate, keep one. Assuming 'Auvio' is the main one.
             'Auvio Kids': 'navy'
         };
 
@@ -620,17 +644,60 @@
             }
         }
 
+        // Fonction pour remplir le select des outils
+        function populateToolsSelect() {
+            const outilsSelect = document.getElementById('outils');
+            outilsSelect.innerHTML = ''; // Vide les options existantes
+            allTools.forEach(tool => {
+                const option = document.createElement('option');
+                option.value = tool;
+                option.textContent = tool;
+                outilsSelect.appendChild(option);
+            });
+        }
+
+        // Fonction pour cacher/afficher les champs Support/Chaine/Outils basés sur le Besoin
+        function toggleFieldsBasedOnBesoin() {
+            const besoinSelect = document.getElementById('besoin');
+            const typeContenuGroup = document.getElementById('typeContenu-group');
+            const supportChaineGroup = document.getElementById('support-chaine-group');
+            const outilsGroup = document.getElementById('outils-group');
+
+            if (besoinSelect.value === 'formation') {
+                typeContenuGroup.classList.add('hidden'); // Masquer le type de contenu si c'est une formation
+                supportChaineGroup.classList.add('hidden');
+                outilsGroup.classList.remove('hidden'); // Afficher les outils
+                
+                // Rendre les champs cachés non requis et les champs visibles requis
+                document.getElementById('typeContenu').removeAttribute('required');
+                document.getElementById('support').removeAttribute('required');
+                document.getElementById('chaine').removeAttribute('required');
+                document.getElementById('outils').setAttribute('required', 'true');
+            } else {
+                typeContenuGroup.classList.remove('hidden'); // Afficher le type de contenu si ce n'est pas une formation
+                supportChaineGroup.classList.remove('hidden');
+                outilsGroup.classList.add('hidden'); // Masquer les outils
+
+                // Rendre les champs visibles requis et les champs cachés non requis
+                document.getElementById('typeContenu').setAttribute('required', 'true');
+                document.getElementById('support').setAttribute('required', 'true');
+                document.getElementById('chaine').setAttribute('required', 'true');
+                document.getElementById('outils').removeAttribute('required');
+            }
+        }
+
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
             const filtreDemandeurSelect = document.getElementById("filtreDemandeur");
-            const filtreBesoinSelect = document.getElementById("filtreBesoin"); // Nouveau sélecteur pour "besoin"
+            const filtreBesoinSelect = document.getElementById("filtreBesoin");
             const filtreParChaineSelect = document.getElementById("filtreParChaine");
+            // NOTE: Pour les outils, le filtrage serait plus complexe car c'est un champ multiple,
+            // pour l'instant, on se concentre sur l'affichage et l'envoi.
 
             recapList.innerHTML = '<p class="loading-text">Chargement des demandes...</p>';
 
             let demandes = [];
             try {
-                // Utilise le proxy pour obtenir les demandes IA
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status}`);
@@ -641,7 +708,7 @@
                     demandes = responseData.data;
                 } else {
                     console.warn("La réponse de l'API n'est pas un tableau valide ou succès: false. Affichage des demandes vide.");
-                    demandes = []; // S'assurer que demandes est un tableau vide en cas d'erreur ou de données invalides
+                    demandes = [];
                 }
             } catch (err) {
                 console.error("Erreur lors de la récupération des demandes :", err);
@@ -651,7 +718,6 @@
             }
 
             // Peupler le filtre "Demandeur" (côté récap)
-            // Assurez-vous que tous les profils ont un nom, puis triez-les.
             const demandeursUniquesRecap = [...new Set(allProfiles.map(p => p.name).filter(name => name && name.trim() !== ''))].sort((a, b) => a.localeCompare(b));
             filtreDemandeurSelect.innerHTML = '<option value="">Filtrer par demandeur</option>';
             demandeursUniquesRecap.forEach(nom => {
@@ -666,12 +732,12 @@
             }
 
             // Peupler le filtre par Besoin (nouveau)
-            const besoinsDisponibles = ["production", "formation"].sort(); // Options fixes
+            const besoinsDisponibles = ["production", "formation"].sort();
             filtreBesoinSelect.innerHTML = '<option value="">Filtrer par besoin</option>';
             besoinsDisponibles.forEach(besoin => {
                 const option = document.createElement('option');
                 option.value = besoin;
-                option.textContent = besoin.charAt(0).toUpperCase() + besoin.slice(1); // Mettre la première lettre en majuscule
+                option.textContent = besoin.charAt(0).toUpperCase() + besoin.slice(1);
                 filtreBesoinSelect.appendChild(option);
             });
             const currentFiltreBesoin = filtreBesoinSelect.dataset.currentValue || '';
@@ -698,26 +764,21 @@
             }
 
             const selectedFiltreDemandeur = filtreDemandeurSelect.value;
-            const selectedFiltreBesoin = filtreBesoinSelect.value; // Nouvelle valeur de filtre
+            const selectedFiltreBesoin = filtreBesoinSelect.value;
             const selectedFiltreParChaine = filtreParChaineSelect.value;
 
             let demandesFiltrees = demandes;
 
-            // Appliquer le filtre par demandeur
+            // Appliquer les filtres
             if (selectedFiltreDemandeur) {
                 demandesFiltrees = demandesFiltrees.filter(d => d.nom === selectedFiltreDemandeur);
             }
-
-            // Appliquer le filtre par besoin (nouveau)
             if (selectedFiltreBesoin) {
                 demandesFiltrees = demandesFiltrees.filter(d => d.besoin === selectedFiltreBesoin);
             }
-
-            // Appliquer le filtre par chaîne
             if (selectedFiltreParChaine) {
                 demandesFiltrees = demandesFiltrees.filter(d => d.chaine === selectedFiltreParChaine);
             }
-            // Tri par date du plus récent au plus ancien, après filtrage
             demandesFiltrees.sort((a, b) => new Date(b.date) - new Date(a.date));
 
 
@@ -733,16 +794,27 @@
                 const div = document.createElement("div");
                 div.className = "ticket";
                 div.style.borderLeftColor = couleur;
+                
+                let typeOuBesoinDisplay = d.besoin === 'formation' ? 
+                                          `<span style="font-size:1.1em; font-weight: bold;">${d.besoin.charAt(0).toUpperCase() + d.besoin.slice(1) || 'N/A'}</span>` : 
+                                          `<span style="font-size:1.1em; font-weight: bold;">${d.typeContenu || 'N/A'}</span>`; // Afficher le type de contenu si production
+
+                let detailsComplementaires = d.besoin === 'formation' ? 
+                                            `<span style="color:${couleur}; font-weight: bold">Outils: ${Array.isArray(d.outils) ? d.outils.join(', ') : (d.outils || 'N/A')}</span>` : 
+                                            `<span style="color:${couleur}; font-weight: bold">${d.chaine || 'N/A'}</span>`;
+
+
                 div.innerHTML = `
                     <div style="display:flex; justify-content: space-between; align-items:center">
                         <span><strong>${d.nom || 'N/A'}</strong></span>
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="font-size:1.1em; font-weight: bold;">${d.typeContenu || 'N/A'}</span> <span>${d.duree || 'N/A'}</span>
+                            ${typeOuBesoinDisplay}
+                            <span>${d.duree || 'N/A'}</span>
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                        <span style="color:${couleur}; font-weight: bold">${d.chaine || 'N/A'}</span>
-                    <small style="color:#666;">📅 ${d.date ? new Date(d.date).toLocaleDateString('fr-BE') : 'N/A'}</small>
+                        ${detailsComplementaires}
+                        <small style="color:#666;">📅 ${d.date ? new Date(d.date).toLocaleDateString('fr-BE') : 'N/A'}</small>
                     </div>
                     <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
                         <div>${d.traite ? '<span style="color:green">✅ Traité</span>' : '<span style="color:#999">⏳ En attente</span>'}</div>
@@ -771,11 +843,27 @@
 
                     const formattedDate = d.date ? new Date(d.date).toLocaleDateString('fr-BE', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
+                    // Adapter l'affichage de la modale en fonction du besoin
+                    let modalBesoinInfo = `
+                        <div class="modal-info-line"><strong>Besoin :</strong> <span>${d.besoin || 'N/A'}</span></div>
+                    `;
+                    if (d.besoin === 'formation') {
+                        modalBesoinInfo += `
+                            <div class="modal-info-line"><strong>Outils :</strong> <span>${Array.isArray(d.outils) ? d.outils.join(', ') : (d.outils || 'N/A')}</span></div>
+                        `;
+                    } else { // production ou autre
+                        modalBesoinInfo += `
+                            <div class="modal-info-line"><strong>Type de contenu :</strong> <span>${d.typeContenu || 'N/A'}</span></div>
+                            <div class="modal-info-line"><strong>Support :</strong> <span>${d.support || 'N/A'}</span></div>
+                            <div class="modal-info-line"><strong>Chaîne :</strong> <span>${d.chaine || 'N/A'}</span></div>
+                        `;
+                    }
+
+
                     modalBody.innerHTML = `
                         <div class="modal-info-line"><strong>Nom :</strong> <span>${d.nom || 'N/A'}</span></div>
                         <div class="modal-info-line"><strong>Email :</strong> <span>${d.email || 'N/A'}</span></div>
-                        <div class="modal-info-line"><strong>Besoin :</strong> <span>${d.besoin || 'N/A'}</span></div> <div class="modal-info-line"><strong>Type de contenu :</strong> <span>${d.typeContenu || 'N/A'}</span></div> <div class="modal-info-line"><strong>Support :</strong> <span>${d.support || 'N/A'}</span></div>
-                        <div class="modal-info-line"><strong>Chaîne :</strong> <span>${d.chaine || 'N/A'}</span></div>
+                        ${modalBesoinInfo}
                         <div class="modal-info-line"><strong>Durée :</strong> <span>${d.duree || 'N/A'}</span></div>
                         <div class="modal-info-line"><strong>Date :</strong> <span>${formattedDate}</span></div>
                         <div class="modal-info-line description"><strong>Briefing :</strong> <span>${d.description || 'N/A'}</span></div>
@@ -869,23 +957,39 @@
                 nomSelect.appendChild(option);
             });
 
+            // Remplir le select des outils (initialisation)
+            populateToolsSelect();
+
+
             // Gestion de la soumission du formulaire
             document.getElementById("demandeIA").addEventListener("submit", async e => {
                 e.preventDefault();
                 const data = new FormData(e.target);
+                const besoin = data.get("besoin"); // Récupérer le besoin
+
                 const demande = {
                     id: "_" + Math.random().toString(36).substr(2, 9),
                     nom: data.get("nom"),
                     email: `${data.get("emailPrefix")}@rtbf.be`,
-                    besoin: data.get("besoin"), // Nouveau champ "besoin"
-                    typeContenu: data.get("typeContenu"), // Nouveau champ "typeContenu"
-                    support: data.get("support"),
+                    besoin: besoin, // Inclure le besoin
                     duree: data.get("duree"),
                     date: data.get("date"),
                     description: data.get("description"),
-                    chaine: data.get("chaine"),
                     traite: false
                 };
+
+                // Ajouter conditionnellement les champs basés sur le besoin
+                if (besoin === 'formation') {
+                    // Pour les outils, récupérer toutes les options sélectionnées
+                    const outilsSelect = document.getElementById('outils');
+                    const selectedTools = Array.from(outilsSelect.selectedOptions).map(option => option.value);
+                    demande.outils = selectedTools.join(','); // Stocker comme une chaîne séparée par des virgules
+                } else { // Production (ou autre type de contenu)
+                    demande.typeContenu = data.get("typeContenu");
+                    demande.support = data.get("support");
+                    demande.chaine = data.get("chaine");
+                }
+
 
                 const submitBtn = document.getElementById("submitBtn");
                 const originalBtnText = submitBtn.textContent;
@@ -912,6 +1016,13 @@
                     if (result.success) {
                         showToast(result.message || "Demande envoyée avec succès !", 'success');
                         e.target.reset(); // Réinitialise le formulaire
+                        // Réinitialise les sélecteurs dynamiques après reset du formulaire
+                        document.getElementById('besoin').value = ''; 
+                        document.getElementById('typeContenu').value = '';
+                        document.getElementById('support').value = '';
+                        document.getElementById('chaine').value = '';
+                        document.getElementById('outils').value = ''; // Réinitialise le multi-select
+                        toggleFieldsBasedOnBesoin(); // Réapplique la logique de visibilité
                         afficherDemandes(); // Met à jour la liste des demandes
                         mettreAJourBulleDemandes(); // Met à jour le compteur
                     } else {
@@ -932,7 +1043,7 @@
 
             // Gestion des changements de filtre (pour le récapitulatif de droite)
             document.getElementById("filtreDemandeur").addEventListener("change", afficherDemandes);
-            document.getElementById("filtreBesoin").addEventListener("change", afficherDemandes); // Nouveau gestionnaire
+            document.getElementById("filtreBesoin").addEventListener("change", afficherDemandes); // Nouveau gestionnaire de filtre pour besoin
             document.getElementById("filtreParChaine").addEventListener("change", afficherDemandes);
 
             // Gestion de la modale d'information
@@ -966,6 +1077,10 @@
                     document.getElementById("modal").style.display = "none";
                 }
             });
+
+            // Appeler la fonction de bascule au chargement initial et lors du changement du champ "Besoin"
+            toggleFieldsBasedOnBesoin(); // Pour définir l'état initial
+            document.getElementById('besoin').addEventListener('change', toggleFieldsBasedOnBesoin);
         });
     </script>
 </body>
