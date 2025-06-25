@@ -82,7 +82,7 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
             max-height: 90vh;
             overflow-y: auto;
-            position: relative; /* Pour positionner le loading text */
+            position: relative; /* Pour positionner le loading text et le dropdown du filtre */
         }
         .recap h3 {
             margin-top: 0;
@@ -323,6 +323,49 @@
             from { transform: scale(0.8); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
         }
+
+        /* NOUVEAUX STYLES POUR LE FILTRE DE DEMANDEUR CUSTOM */
+        #filtreDemandeur {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            box-sizing: border-box; /* S'assure que padding est inclus dans la largeur */
+        }
+
+        .custom-dropdown {
+            position: absolute;
+            /* La largeur doit prendre en compte le padding latéral de .recap (20px de chaque côté) */
+            /* Donc la largeur de l'input est 100% de .recap - 2*20px = 100% - 40px */
+            width: calc(100% - 40px);
+            max-height: 200px; /* Limite la hauteur de la liste déroulante */
+            overflow-y: auto; /* Ajoute une barre de défilement si la liste est trop longue */
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 900; /* S'assure qu'elle est au-dessus des autres éléments */
+            display: none; /* Cachée par défaut */
+            margin-top: -8px; /* Ajuste la position verticale pour qu'elle soit plus proche de l'input */
+            left: 20px; /* Aligne le dropdown avec le bord gauche du contenu du .recap */
+            right: 20px; /* Aligne le dropdown avec le bord droit du contenu du .recap */
+        }
+
+        .custom-dropdown-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            color: #333;
+        }
+
+        .custom-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .custom-dropdown-item:hover {
+            background-color: #f0f0f0;
+        }
     </style>
 </head>
 <body>
@@ -400,8 +443,8 @@
 
             <div class="recap">
                 <h3>Récapitulatif des demandes</h3>
-                <input type="text" id="filtreDemandeur" list="demandeursList" placeholder="Filtrer par demandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;" />
-                <datalist id="demandeursList"></datalist>
+                <input type="text" id="filtreDemandeur" placeholder="Filtrer par demandeur" />
+                <div id="demandeursDropdown" class="custom-dropdown"></div>
                 <select id="filtreParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"></select>
                 <div id="recapList"></div>
             </div>
@@ -575,7 +618,7 @@
 
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            const filtreDemandeurInput = document.getElementById("filtreDemandeur"); // MODIFIÉ
+            const filtreDemandeurInput = document.getElementById("filtreDemandeur");
             const filtreParChaineSelect = document.getElementById("filtreParChaine");
 
             recapList.innerHTML = '<p class="loading-text">Chargement des demandes...</p>';
@@ -598,19 +641,31 @@
                 console.error("Erreur lors de la récupération des demandes :", err);
                 recapList.innerHTML = '<p style="color: red; text-align: center;">Erreur lors du chargement des demandes. Vérifiez la console.</p>';
                 showToast('Erreur lors du chargement des demandes.', 'error');
-                // Continuer pour peupler les filtres même si les demandes n'ont pas pu être chargées
             }
 
             // Peupler la datalist "Demandeur" UNIQUEMENT avec les noms des profils
-            const demandeursList = document.getElementById("demandeursList"); // NOUVEAU
+            // Cette partie est maintenant pour le custom dropdown
+            const demandeursDropdown = document.getElementById("demandeursDropdown");
             const demandeursUniques = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
-            demandeursList.innerHTML = ''; // Nettoyer la datalist
+            demandeursDropdown.innerHTML = ''; // Nettoyer le dropdown avant de le remplir
+
             demandeursUniques.forEach(nom => {
-                const option = document.createElement('option');
-                option.value = nom;
-                demandeursList.appendChild(option);
+                const item = document.createElement('div');
+                item.className = 'custom-dropdown-item';
+                item.textContent = nom;
+                item.dataset.value = nom; // Stocker le nom comme valeur
+                demandeursDropdown.appendChild(item);
+
+                // Ajouter un écouteur d'événement pour sélectionner un nom
+                item.addEventListener('mousedown', (e) => { // Utiliser mousedown pour éviter le blur event de l'input
+                    e.preventDefault(); // Empêche l'input de perdre le focus immédiatement
+                    filtreDemandeurInput.value = item.dataset.value;
+                    demandeursDropdown.style.display = 'none';
+                    // Déclencher le filtrage après la sélection
+                    afficherDemandes();
+                });
             });
-            // Le filtreDemandeurInput garde sa valeur à travers les appels s'il y a eu une saisie
+
 
             // Peupler le filtre par chaîne (liste complète des options de chaîne)
             const chainesDisponibles = [
@@ -629,7 +684,7 @@
                 filtreParChaineSelect.value = currentFiltreParChaine;
             }
             
-            const selectedFiltreDemandeur = filtreDemandeurInput.value; // MODIFIÉ
+            const selectedFiltreDemandeur = filtreDemandeurInput.value;
             const selectedFiltreParChaine = filtreParChaineSelect.value;
 
             let demandesFiltrees = demandes;
@@ -842,8 +897,69 @@
             afficherDemandes();
 
             // Gestion des changements de filtre
-            // MODIFIÉ : Utilisation de l'événement 'input' pour le champ de saisie
-            document.getElementById("filtreDemandeur").addEventListener("input", afficherDemandes);
+            const filtreDemandeurInput = document.getElementById("filtreDemandeur");
+            const demandeursDropdown = document.getElementById("demandeursDropdown");
+
+            // Filtrer la liste déroulante personnalisée en fonction de la saisie
+            filtreDemandeurInput.addEventListener("input", () => {
+                const searchTerm = filtreDemandeurInput.value.toLowerCase();
+                const items = demandeursDropdown.querySelectorAll('.custom-dropdown-item');
+                let foundMatch = false;
+
+                items.forEach(item => {
+                    const name = item.textContent.toLowerCase();
+                    if (name.includes(searchTerm)) {
+                        item.style.display = ''; // Afficher
+                        foundMatch = true;
+                    } else {
+                        item.style.display = 'none'; // Masquer
+                    }
+                });
+
+                // Afficher le dropdown s'il y a une saisie et des correspondances, sinon le masquer
+                if (searchTerm.length > 0 && foundMatch) {
+                    demandeursDropdown.style.display = 'block';
+                } else {
+                    demandeursDropdown.style.display = 'none';
+                }
+
+                // Déclencher le filtrage des tickets uniquement si la saisie correspond à un nom complet
+                // Ceci pour éviter de filtrer en temps réel sur des saisies partielles dans l'input de filtrage
+                const exactMatch = Array.from(items).some(item => 
+                    item.textContent.toLowerCase() === searchTerm && item.style.display !== 'none'
+                );
+
+                if (exactMatch || searchTerm === '') { // Si correspondance exacte ou champ vide
+                    afficherDemandes();
+                } else if (!exactMatch && searchTerm !== '') {
+                    // Si pas de correspondance exacte et la saisie n'est pas vide,
+                    // on peut choisir de ne pas filtrer ou de montrer un message "aucun résultat"
+                    // Pour l'instant, on maintient l'affichage actuel des demandes non filtrées
+                    // ou on pourrait le vider si on veut une correspondance stricte.
+                    // Pour ce cas, on ne fait rien de spécial, afficherDemandes() ne sera pas appelée
+                    // sauf si un nom complet est tapé.
+                }
+
+            });
+
+            // Afficher le dropdown quand l'input prend le focus
+            filtreDemandeurInput.addEventListener("focus", () => {
+                // Afficher toutes les options quand le champ est focusé
+                const items = demandeursDropdown.querySelectorAll('.custom-dropdown-item');
+                items.forEach(item => {
+                    item.style.display = '';
+                });
+                demandeursDropdown.style.display = 'block';
+            });
+
+            // Masquer le dropdown quand l'input perd le focus (avec un léger délai pour permettre les clics)
+            filtreDemandeurInput.addEventListener("blur", () => {
+                setTimeout(() => {
+                    demandeursDropdown.style.display = 'none';
+                }, 150); // Petit délai
+            });
+
+
             document.getElementById("filtreParChaine").addEventListener("change", afficherDemandes);
 
             // Gestion de la modale d'information
