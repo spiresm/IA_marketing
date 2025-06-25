@@ -833,10 +833,12 @@
                 // Adapter l'affichage du type/besoin et détails complémentaires
                 let typeOuBesoinDisplay = '';
                 let detailsComplementaires = '';
+                let dureeDisplay = d.duree || 'N/A'; // Par défaut, on affiche la durée
 
                 if (d.besoin === 'formation') {
-                    typeOuBesoinDisplay = `<span style="font-size:1.1em; font-weight: bold;">${d.besoin.charAt(0).toUpperCase() + d.besoin.slice(1) || 'N/A'}</span>`;
-                    detailsComplementaires = `<span style="color:${couleur}; font-weight: bold">Outil(s): ${d.outils || 'N/A'}</span>`; // 'outils' est une string du sheet
+                    typeOuBesoinDisplay = `<span style="font-size:1.1em; font-weight: bold;">Formation</span>`;
+                    detailsComplementaires = `<span style="color:${couleur}; font-weight: bold">${d.outils || 'N/A'}</span>`; // 'outils' est une string du sheet
+                    dureeDisplay = 'N/A'; // Pas de durée pour formation
                 } else { // production
                     typeOuBesoinDisplay = `<span style="font-size:1.1em; font-weight: bold;">${d.typeContenu || 'N/A'}</span>`;
                     detailsComplementaires = `<span style="color:${couleur}; font-weight: bold">${d.chaine || 'N/A'}</span>`;
@@ -847,8 +849,7 @@
                         <span><strong>${d.nom || 'N/A'}</strong></span>
                         <div style="display:flex; align-items:center; gap:12px;">
                             ${typeOuBesoinDisplay}
-                            <span>${d.duree || 'N/A'}</span>
-                        </div>
+                            <span>${dureeDisplay}</span> </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                         ${detailsComplementaires}
@@ -885,11 +886,14 @@
                     let modalBesoinInfo = `
                         <div class="modal-info-line"><strong>Besoin :</strong> <span>${d.besoin.charAt(0).toUpperCase() + d.besoin.slice(1) || 'N/A'}</span></div>
                     `;
+                    let modalDureeInfo = `<div class="modal-info-line"><strong>Durée :</strong> <span>${d.duree || 'N/A'}</span></div>`;
+
                     if (d.besoin === 'formation') {
                         modalBesoinInfo += `
                             <div class="modal-info-line"><strong>Outil(s) :</strong> <span>${d.outils || 'N/A'}</span></div>
                         `;
-                    } else { // production ou autre
+                        modalDureeInfo = ''; // Pas de durée pour formation dans la modale
+                    } else { // production
                         modalBesoinInfo += `
                             <div class="modal-info-line"><strong>Type de contenu :</strong> <span>${d.typeContenu || 'N/A'}</span></div>
                             <div class="modal-info-line"><strong>Support :</strong> <span>${d.support || 'N/A'}</span></div>
@@ -902,8 +906,7 @@
                         <div class="modal-info-line"><strong>Nom :</strong> <span>${d.nom || 'N/A'}</span></div>
                         <div class="modal-info-line"><strong>Email :</strong> <span>${d.email || 'N/A'}</span></div>
                         ${modalBesoinInfo}
-                        <div class="modal-info-line"><strong>Durée :</strong> <span>${d.duree || 'N/A'}</span></div>
-                        <div class="modal-info-line"><strong>Date :</strong> <span>${formattedDate}</span></div>
+                        ${modalDureeInfo} <div class="modal-info-line"><strong>Date :</strong> <span>${formattedDate}</span></div>
                         <div class="modal-info-line description"><strong>Briefing :</strong> <span>${d.description || 'N/A'}</span></div>
                         `;
                     modal.style.display = "flex";
@@ -1018,7 +1021,7 @@
                 // Ajouter conditionnellement les champs basés sur le besoin
                 if (besoin === 'formation') {
                     demande.outils = data.get("outils"); // Récupérer l'outil sélectionné
-                    // Les champs support, chaine, typeContenu, duree ne sont pas inclus s'ils sont masqués
+                    demande.duree = ''; // Durée vide si formation
                 } else { // Production (ou autre type de contenu)
                     demande.typeContenu = data.get("typeContenu");
                     demande.support = data.get("support");
@@ -1057,7 +1060,7 @@
                         document.getElementById('support').value = '';
                         document.getElementById('chaine').value = '';
                         document.getElementById('outils').value = '';
-                        document.getElementById('duree').value = ''; // Réinitialise la durée
+                        document.getElementById('duree').value = '';
 
                         toggleFieldsBasedOnBesoin(); // Réapplique la logique de visibilité
                         afficherDemandes(); // Met à jour la liste des demandes
@@ -1080,7 +1083,7 @@
 
             // Gestion des changements de filtre (pour le récapitulatif de droite)
             document.getElementById("filtreDemandeur").addEventListener("change", afficherDemandes);
-            document.getElementById("filtreBesoin").addEventListener("change", afficherDemandes); // Nouveau gestionnaire de filtre pour besoin
+            document.getElementById("filtreBesoin").addEventListener("change", afficherDemandes);
             document.getElementById("filtreParChaine").addEventListener("change", afficherDemandes);
 
             // Gestion de la modale d'information
