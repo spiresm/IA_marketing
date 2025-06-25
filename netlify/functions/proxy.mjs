@@ -6,8 +6,8 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 // IMPORTANT : Commentez ou supprimez les lignes OpenAI si OPENAI_API_KEY n'est pas définie dans Netlify
 // ou si vous ne souhaitez pas utiliser cette fonctionnalité pour le moment,
 // pour éviter les erreurs 502.
-// import OpenAI from 'openai'; 
-// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); 
+// import OpenAI from 'openai';
+// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 
 export const handler = async (event) => {
@@ -32,12 +32,12 @@ export const handler = async (event) => {
                 // L'erreur 400 sera renvoyée si 'action' est toujours manquante.
             }
         }
-        
+
         let targetUrl = '';
-        let fetchMethod = event.httpMethod; 
+        let fetchMethod = event.httpMethod;
         let requestBodyForTarget = null; // Cette variable sera le corps final envoyé à la cible (GAS ou autre)
-        
-        const effectiveAction = action || ''; 
+
+        let effectiveAction = action || ''; // Déclaré avec let pour pouvoir le modifier
 
         if (!effectiveAction) {
             console.warn(`Proxy.mjs: Action manquante ou non reconnue: ${effectiveAction || 'non spécifiée'}. Méthode: ${event.httpMethod}`);
@@ -60,15 +60,15 @@ export const handler = async (event) => {
                 requestBodyForTarget = null;
                 break;
 
-            case 'updateDemandeIA': 
+            case 'updateDemandeIA':
                 targetUrl = DEMANDS_SCRIPT_URL + '?action=' + effectiveAction;
                 fetchMethod = 'POST';
                 // Assurez-vous que dataFromClient existe et contient l'ID
                 if (dataFromClient && dataFromClient.id) {
                     // Reconstruire le corps JSON avec le format 'demandes: [...]' attendu par GAS
                     requestBodyForTarget = JSON.stringify({
-                        action: effectiveAction, 
-                        demandes: [{ 
+                        action: effectiveAction,
+                        demandes: [{
                             id: dataFromClient.id,
                             traite: dataFromClient.traite // Doit être true
                         }]
@@ -77,25 +77,30 @@ export const handler = async (event) => {
                     console.error("Proxy.mjs: ID ou statut 'traite' manquant pour updateDemandeIA. Données reçues:", dataFromClient);
                     return {
                         statusCode: 400,
-                        body: JSON.stringify({ success: false, message: "ID de la demande ou statut 'traite' manquant pour la mise à jour." }), 
+                        body: JSON.stringify({ success: false, message: "ID de la demande ou statut 'traite' manquant pour la mise à jour." }),
                     };
                 }
                 break;
-            
-            case 'deleteDemande': 
+
+            case 'deleteDemande':
+                // La correction est ici : change l'action pour qu'elle corresponde à Apps Script
+                effectiveAction = 'deleteDemandeIA'; // <--- MODIFICATION CLÉ ICI !
                 targetUrl = DEMANDS_SCRIPT_URL + '?action=' + effectiveAction;
-                fetchMethod = 'POST';
+                fetchMethod = 'POST'; // Le proxy continue d'envoyer en POST
+
                 // Assurez-vous que dataFromClient existe et contient l'ID
                 if (dataFromClient && dataFromClient.id) {
-                     requestBodyForTarget = JSON.stringify({
-                        action: effectiveAction,
-                        demandes: [{ id: dataFromClient.id }] 
+                    // Le corps est maintenant ajusté pour que l'ID soit à la racine,
+                    // comme attendu par le doPost de Google Apps Script pour deleteDemandeIA.
+                    requestBodyForTarget = JSON.stringify({
+                        action: effectiveAction, // Utilise maintenant 'deleteDemandeIA'
+                        id: dataFromClient.id // <--- MODIFICATION CLÉ ICI : L'ID est directement là
                     });
                 } else {
                     console.error("Proxy.mjs: ID manquant pour deleteDemande. Données reçues:", dataFromClient);
-                     return {
+                    return {
                         statusCode: 400,
-                        body: JSON.stringify({ success: false, message: "ID de la demande manquant pour la suppression." }), 
+                        body: JSON.stringify({ success: false, message: "ID de la demande manquant pour la suppression." }),
                     };
                 }
                 break;
@@ -108,7 +113,7 @@ export const handler = async (event) => {
 
             case 'deleteProfil':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/deleteProfil`;
-                fetchMethod = 'DELETE'; 
+                fetchMethod = 'DELETE';
                 requestBodyForTarget = JSON.stringify(dataFromClient); // Passer le corps tel quel
                 break;
 
@@ -134,10 +139,10 @@ export const handler = async (event) => {
                 /*
                 // ... votre code chatWithGPT ...
                 */
-               break; 
+               break;
 
             default:
-                console.warn(`Proxy.mjs: Action non reconnue: ${effectiveAction}`); 
+                console.warn(`Proxy.mjs: Action non reconnue: ${effectiveAction}`);
                 return {
                     statusCode: 400,
                     body: JSON.stringify({ success: false, message: "Action non reconnue ou manquante.", actionReçue: effectiveAction }),
@@ -152,7 +157,7 @@ export const handler = async (event) => {
         // Si la méthode est POST/PUT/PATCH/DELETE et qu'un corps a été préparé
         if (requestBodyForTarget && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(fetchMethod.toUpperCase())) {
             fetchOptions.headers["Content-Type"] = "application/json";
-            fetchOptions.body = requestBodyForTarget; 
+            fetchOptions.body = requestBodyForTarget;
         }
 
         console.log("Proxy.mjs envoie vers :", targetUrl);
