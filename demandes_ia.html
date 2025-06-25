@@ -415,13 +415,15 @@
 
                     <div id="outils-group" class="form-field-group hidden">
                         <label for="outils">Outils :</label>
-                        <select name="outils" id="outils" multiple required>
+                        <select name="outils" id="outils" required>
+                            <option value="">-- Sélectionner --</option>
                             </select>
-                        <small style="display: block; margin-top: 5px; color: #666;">Maintenez Ctrl/Cmd pour sélectionner plusieurs outils.</small>
                     </div>
 
-                    <label for="duree">Durée :</label>
-                    <select name="duree" id="duree"></select>
+                    <div id="duree-group" class="form-field-group">
+                        <label for="duree">Durée :</label>
+                        <select name="duree" id="duree"></select>
+                    </div>
 
                     <label for="date">Date :</label>
                     <input type="date" name="date" required />
@@ -511,7 +513,7 @@
             { "id": "_new_id_noemie", "name": "Noemie GORISSEN", "pole": "CRM", "photo": "", "tools": [], "note": "" },
             { "id": "_new_id_olivier", "name": "Olivier LEIDGENS", "pole": "CRM", "photo": "", "tools": [], "note": "" },
             { "id": "_new_id_pierre", "name": "Pierre DUBOIS", "pole": "CRM", "photo": "", "tools": [], "note": "" },
-            { "id": "_new_id_romain", "name": "Romain DELECOUR", "pole": "CRM", "photo": "", "tools": [], "note": "" },
+            { "id": "_new_id_romain", "pole": "CRM", "photo": "", "tools": [], "note": "" },
             { "id": "_new_id_vincent", "name": "Vincent CRABBE", "pole": "CRM", "photo": "", "tools": [], "note": "" },
             { "id": "_new_id_vitold", "name": "Vitold GRAND'HENRY", "pole": "CRM", "photo": "", "tools": [], "note": "" },
 
@@ -647,7 +649,7 @@
         // Fonction pour remplir le select des outils
         function populateToolsSelect() {
             const outilsSelect = document.getElementById('outils');
-            outilsSelect.innerHTML = ''; // Vide les options existantes
+            outilsSelect.innerHTML = '<option value="">-- Sélectionner --</option>'; // Ajoute l'option par défaut
             allTools.forEach(tool => {
                 const option = document.createElement('option');
                 option.value = tool;
@@ -656,34 +658,67 @@
             });
         }
 
-        // Fonction pour cacher/afficher les champs Support/Chaine/Outils basés sur le Besoin
+        // Fonction pour cacher/afficher les champs Type de contenu, Support, Chaîne, Durée et Outils basés sur le Besoin
         function toggleFieldsBasedOnBesoin() {
             const besoinSelect = document.getElementById('besoin');
             const typeContenuGroup = document.getElementById('typeContenu-group');
             const supportChaineGroup = document.getElementById('support-chaine-group');
             const outilsGroup = document.getElementById('outils-group');
+            const dureeGroup = document.getElementById('duree-group'); // Nouveau: groupe pour la durée
+
+            // Référence aux selects pour gérer les attributs 'required'
+            const typeContenuSelect = document.getElementById('typeContenu');
+            const supportSelect = document.getElementById('support');
+            const chaineSelect = document.getElementById('chaine');
+            const outilsSelect = document.getElementById('outils');
+            const dureeSelect = document.getElementById('duree');
+
 
             if (besoinSelect.value === 'formation') {
-                typeContenuGroup.classList.add('hidden'); // Masquer le type de contenu si c'est une formation
+                typeContenuGroup.classList.add('hidden');
                 supportChaineGroup.classList.add('hidden');
+                dureeGroup.classList.add('hidden'); // Masquer la durée
                 outilsGroup.classList.remove('hidden'); // Afficher les outils
                 
-                // Rendre les champs cachés non requis et les champs visibles requis
-                document.getElementById('typeContenu').removeAttribute('required');
-                document.getElementById('support').removeAttribute('required');
-                document.getElementById('chaine').removeAttribute('required');
-                document.getElementById('outils').setAttribute('required', 'true');
-            } else {
-                typeContenuGroup.classList.remove('hidden'); // Afficher le type de contenu si ce n'est pas une formation
+                // Mettre à jour les attributs 'required'
+                typeContenuSelect.removeAttribute('required');
+                supportSelect.removeAttribute('required');
+                chaineSelect.removeAttribute('required');
+                dureeSelect.removeAttribute('required'); // Rendre durée non requis
+                outilsSelect.setAttribute('required', 'true');
+            } else if (besoinSelect.value === 'production') {
+                typeContenuGroup.classList.remove('hidden');
                 supportChaineGroup.classList.remove('hidden');
+                dureeGroup.classList.remove('hidden'); // Afficher la durée
                 outilsGroup.classList.add('hidden'); // Masquer les outils
 
-                // Rendre les champs visibles requis et les champs cachés non requis
-                document.getElementById('typeContenu').setAttribute('required', 'true');
-                document.getElementById('support').setAttribute('required', 'true');
-                document.getElementById('chaine').setAttribute('required', 'true');
-                document.getElementById('outils').removeAttribute('required');
+                // Mettre à jour les attributs 'required'
+                typeContenuSelect.setAttribute('required', 'true');
+                supportSelect.setAttribute('required', 'true');
+                chaineSelect.setAttribute('required', 'true');
+                dureeSelect.setAttribute('required', 'true'); // Rendre durée requis
+                outilsSelect.removeAttribute('required');
+            } else { // Si aucune sélection ou "Autre" (pourrait être implémenté)
+                typeContenuGroup.classList.remove('hidden'); // Par défaut, on montre tout
+                supportChaineGroup.classList.remove('hidden');
+                dureeGroup.classList.remove('hidden');
+                outilsGroup.classList.add('hidden');
+
+                typeContenuSelect.setAttribute('required', 'true');
+                supportSelect.setAttribute('required', 'true');
+                chaineSelect.setAttribute('required', 'true');
+                dureeSelect.setAttribute('required', 'true');
+                outilsSelect.removeAttribute('required');
             }
+
+            // Réinitialiser les valeurs des champs masqués pour éviter d'envoyer des données inutiles ou invalides
+            if (typeContenuGroup.classList.contains('hidden')) typeContenuSelect.value = '';
+            if (supportChaineGroup.classList.contains('hidden')) {
+                supportSelect.value = '';
+                chaineSelect.value = '';
+            }
+            if (dureeGroup.classList.contains('hidden')) dureeSelect.value = '';
+            if (outilsGroup.classList.contains('hidden')) outilsSelect.value = ''; // Réinitialise l'outil
         }
 
         async function afficherDemandes() {
@@ -795,14 +830,17 @@
                 div.className = "ticket";
                 div.style.borderLeftColor = couleur;
                 
-                let typeOuBesoinDisplay = d.besoin === 'formation' ? 
-                                          `<span style="font-size:1.1em; font-weight: bold;">${d.besoin.charAt(0).toUpperCase() + d.besoin.slice(1) || 'N/A'}</span>` : 
-                                          `<span style="font-size:1.1em; font-weight: bold;">${d.typeContenu || 'N/A'}</span>`; // Afficher le type de contenu si production
+                // Adapter l'affichage du type/besoin et détails complémentaires
+                let typeOuBesoinDisplay = '';
+                let detailsComplementaires = '';
 
-                let detailsComplementaires = d.besoin === 'formation' ? 
-                                            `<span style="color:${couleur}; font-weight: bold">Outils: ${Array.isArray(d.outils) ? d.outils.join(', ') : (d.outils || 'N/A')}</span>` : 
-                                            `<span style="color:${couleur}; font-weight: bold">${d.chaine || 'N/A'}</span>`;
-
+                if (d.besoin === 'formation') {
+                    typeOuBesoinDisplay = `<span style="font-size:1.1em; font-weight: bold;">${d.besoin.charAt(0).toUpperCase() + d.besoin.slice(1) || 'N/A'}</span>`;
+                    detailsComplementaires = `<span style="color:${couleur}; font-weight: bold">Outil(s): ${d.outils || 'N/A'}</span>`; // 'outils' est une string du sheet
+                } else { // production
+                    typeOuBesoinDisplay = `<span style="font-size:1.1em; font-weight: bold;">${d.typeContenu || 'N/A'}</span>`;
+                    detailsComplementaires = `<span style="color:${couleur}; font-weight: bold">${d.chaine || 'N/A'}</span>`;
+                }
 
                 div.innerHTML = `
                     <div style="display:flex; justify-content: space-between; align-items:center">
@@ -845,11 +883,11 @@
 
                     // Adapter l'affichage de la modale en fonction du besoin
                     let modalBesoinInfo = `
-                        <div class="modal-info-line"><strong>Besoin :</strong> <span>${d.besoin || 'N/A'}</span></div>
+                        <div class="modal-info-line"><strong>Besoin :</strong> <span>${d.besoin.charAt(0).toUpperCase() + d.besoin.slice(1) || 'N/A'}</span></div>
                     `;
                     if (d.besoin === 'formation') {
                         modalBesoinInfo += `
-                            <div class="modal-info-line"><strong>Outils :</strong> <span>${Array.isArray(d.outils) ? d.outils.join(', ') : (d.outils || 'N/A')}</span></div>
+                            <div class="modal-info-line"><strong>Outil(s) :</strong> <span>${d.outils || 'N/A'}</span></div>
                         `;
                     } else { // production ou autre
                         modalBesoinInfo += `
@@ -972,7 +1010,6 @@
                     nom: data.get("nom"),
                     email: `${data.get("emailPrefix")}@rtbf.be`,
                     besoin: besoin, // Inclure le besoin
-                    duree: data.get("duree"),
                     date: data.get("date"),
                     description: data.get("description"),
                     traite: false
@@ -980,16 +1017,14 @@
 
                 // Ajouter conditionnellement les champs basés sur le besoin
                 if (besoin === 'formation') {
-                    // Pour les outils, récupérer toutes les options sélectionnées
-                    const outilsSelect = document.getElementById('outils');
-                    const selectedTools = Array.from(outilsSelect.selectedOptions).map(option => option.value);
-                    demande.outils = selectedTools.join(','); // Stocker comme une chaîne séparée par des virgules
+                    demande.outils = data.get("outils"); // Récupérer l'outil sélectionné
+                    // Les champs support, chaine, typeContenu, duree ne sont pas inclus s'ils sont masqués
                 } else { // Production (ou autre type de contenu)
                     demande.typeContenu = data.get("typeContenu");
                     demande.support = data.get("support");
                     demande.chaine = data.get("chaine");
+                    demande.duree = data.get("duree"); // Inclure la durée si production
                 }
-
 
                 const submitBtn = document.getElementById("submitBtn");
                 const originalBtnText = submitBtn.textContent;
@@ -1021,7 +1056,9 @@
                         document.getElementById('typeContenu').value = '';
                         document.getElementById('support').value = '';
                         document.getElementById('chaine').value = '';
-                        document.getElementById('outils').value = ''; // Réinitialise le multi-select
+                        document.getElementById('outils').value = '';
+                        document.getElementById('duree').value = ''; // Réinitialise la durée
+
                         toggleFieldsBasedOnBesoin(); // Réapplique la logique de visibilité
                         afficherDemandes(); // Met à jour la liste des demandes
                         mettreAJourBulleDemandes(); // Met à jour le compteur
