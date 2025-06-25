@@ -458,6 +458,7 @@
 
             const hasNote = (p.note || '').trim() !== '';
 
+            // Correction de la syntaxe ici (guillemet simple manquant après display: none;)
             div.innerHTML = `
                <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
                 <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}"
@@ -605,9 +606,16 @@
         console.log("Équipe: Rendu des profils terminé.");
     }
 
+    /**
+     * Met à jour le contenu du panneau latéral avec les détails du profil sélectionné,
+     * y compris les images de la galerie et les TIPS.
+     * @param {Object} profil - L'objet profil à afficher.
+     */
     async function updateSidePanelContent(profil) {
         const profilNameNormalized = normalizeString(profil.name || '');
 
+        // --- Section Galerie d'images (chargée séparément pour ne pas bloquer l'affichage initial) ---
+        // Si galleryPrompts n'est pas encore chargé, le panneau affichera "Aucune image..." temporairement.
         const imagesByAuthor = galleryPrompts
             .filter(prompt => normalizeString(prompt.auteur || '') === profilNameNormalized)
             .map(prompt => prompt.imageUrl)
@@ -641,6 +649,8 @@
             `;
         }
 
+        // --- Nouvelle section TIPS (chargée séparément pour ne pas bloquer l'affichage initial) ---
+        // Si sharedTips n'est pas encore chargé, le panneau affichera "Aucun TIP..." temporairement.
         const tipsFromAuthor = sharedTips
             .filter(tip => {
                 const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages');
@@ -765,60 +775,83 @@
             loader.style.display = 'flex';
         }
 
-        await loadHeader(); // Charge le header en premier
+        await loadHeader(); // Charge le header en premier, c'est rapide
 
-        const loadContentPromises = [
-            fetchData('getProfils'),
-            fetchData('getGalleryPrompts'),
-            fetchData('getTips')
-        ];
+        // Lancer le chargement des profils (essentiel pour l'affichage initial)
+        const profilsPromise = fetchData('getProfils');
 
-        // Attendre que TOUTES les données soient chargées
-        const [profilsResult, galleryResult, tipsResult] = await Promise.allSettled(loadContentPromises);
+        // Lancer les autres chargements en parallèle, mais ne pas bloquer l'affichage initial pour eux
+        const galleryPromise = fetchData('getGalleryPrompts');
+        const tipsPromise = fetchData('getTips');
 
-        if (profilsResult.status === 'fulfilled') {
-            profils = profilsResult.value || [];
+        let profilsLoaded = false;
+
+        // Attendre que les profils soient chargés et rendus
+        await profilsPromise.then(data => {
+            profils = data || [];
             console.log("Équipe: Profils chargés :", profils.length);
-        } else {
-            console.error("Équipe: Impossible de charger les profils au démarrage.");
-            // Gérer l'absence de données, par exemple afficher un message d'erreur à l'utilisateur
-        }
+            renderProfils(); // Rendre les profils dès qu'ils sont là
+            profilsLoaded = true;
+        }).catch(error => {
+            console.error("Équipe: Impossible de charger les profils au démarrage. ", error);
+            // Afficher un message d'erreur dans le conteneur des profils si nécessaire
+            listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Erreur lors du chargement des profils. Veuillez réessayer.</p>';
+        });
 
-        if (galleryResult.status === 'fulfilled') {
-            galleryPrompts = galleryResult.value || [];
-            console.log("Équipe: Prompts de galerie chargés :", galleryPrompts.length);
-        } else {
-            console.error("Équipe: Impossible de charger les prompts de galerie au démarrage.");
-        }
+        // Maintenant que les profils sont chargés et rendus, masquer le loader et afficher la page.
+        // Cela devrait réduire considérablement le temps d'écran blanc.
+        if (profilsLoaded) { // Seulement si les profils ont bien été chargés
+            if (loader) {
+                loader.classList.add("hidden");
+                // Attendre la fin de la transition d'opacité du loader avant de le cacher complètement
+                loader.addEventListener('transitionend', () => {
+                    loader.style.display = 'none'; // Cache le loader complètement après sa transition
+                }, { once: true });
 
-        if (tipsResult.status === 'fulfilled') {
-            sharedTips = tipsResult.value || [];
-            console.log("Équipe: TIPS chargés :", sharedTips.length);
-        } else {
-            console.error("Équipe: Impossible de charger les TIPS au démarrage.");
-        }
-
-        renderProfils();
-        await mettreAJourBulleDemandes(); // Mise à jour de la bulle après le rendu initial et les données
-
-        // C'est ici que l'affichage final doit se déclencher.
-        // Masquer le loader et afficher le contenu principal.
-        if (loader) {
-            loader.classList.add("hidden");
-            // Utiliser un petit délai si la transitionend ne se déclenche pas toujours immédiatement
-            // ou si la transition est trop rapide pour être perçue.
-            setTimeout(() => {
-                loader.style.display = 'none';
+                // Appliquer les classes 'show' au body et main APRÈS un court délai ou une fois que le loader commence à disparaître
+                setTimeout(() => {
+                    bodyElement.classList.add('show'); // Rend le body visible
+                    mainContent.classList.add('show'); // Rend le main visible
+                }, 100); // Court délai pour permettre à la transition hidden de commencer et d'éviter le FOUC
+            } else {
+                // Fallback si loader n'existe pas, afficher directement
                 bodyElement.classList.add('show');
                 mainContent.classList.add('show');
-            }, 300); // Court délai pour permettre à la transition hidden de commencer
-        } else {
-            // Fallback si loader n'existe pas, afficher directement
-            bodyElement.classList.add('show');
-            mainContent.classList.add('show');
+            }
+            console.log("Équipe: Contenu principal affiché (profils chargés).");
         }
 
-        console.log("Équipe: Initialisation terminée, contenu principal affiché.");
+
+        // Continuer de charger la galerie et les tips en arrière-plan
+        galleryPromise.then(data => {
+            galleryPrompts = data || [];
+            console.log("Équipe: Prompts de galerie chargés (arrière-plan) :", galleryPrompts.length);
+            // Si le panneau latéral est ouvert, mettre à jour son contenu si le profil est affiché
+            if (sidePanel.classList.contains("show") && panelContent.dataset.id) {
+                const currentProfileId = panelContent.dataset.id;
+                const currentProfile = profils.find(p => p.id === currentProfileId);
+                if (currentProfile) updateSidePanelContent(currentProfile);
+            }
+        }).catch(error => {
+            console.error("Équipe: Impossible de charger les prompts de galerie (arrière-plan).", error);
+        });
+
+        tipsPromise.then(data => {
+            sharedTips = data || [];
+            console.log("Équipe: TIPS chargés (arrière-plan) :", sharedTips.length);
+            // Si le panneau latéral est ouvert, mettre à jour son contenu si le profil est affiché
+            if (sidePanel.classList.contains("show") && panelContent.dataset.id) {
+                const currentProfileId = panelContent.dataset.id;
+                const currentProfile = profils.find(p => p.id === currentProfileId);
+                if (currentProfile) updateSidePanelContent(currentProfile);
+            }
+        }).catch(error => {
+            console.error("Équipe: Impossible de charger les TIPS (arrière-plan).", error);
+        });
+
+        await mettreAJourBulleDemandes(); // Met à jour la bulle de notification
+
+        console.log("Équipe: Initialisation terminée.");
     });
 
     history.replaceState({}, document.title, window.location.pathname);
