@@ -9,6 +9,13 @@ const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch
 // import OpenAI from 'openai';
 // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Importez getProfilsHandler, getGalleryPromptsHandler, getSharedTipsHandler etc. si ce sont des fonctions séparées
+// Assurez-vous que les chemins sont corrects par rapport à ce fichier proxy.mjs
+// Par exemple:
+import { handler as getProfilsHandler } from './getProfils.mjs'; // Adaptez le nom du fichier si différent
+import { handler as getGalleryPromptsHandler } from './getGalleryPrompts.mjs'; // Adaptez le nom du fichier si différent
+import { handler as getTipsHandler } from './get-tips.mjs'; // C'est votre fonction get-tips.mjs pour 'getTips'
+
 
 export const handler = async (event) => {
     // URL de votre Google Apps Script pour les demandes IA
@@ -37,7 +44,6 @@ export const handler = async (event) => {
         let fetchMethod = event.httpMethod;
         let requestBodyForTarget = null; // Cette variable sera le corps final envoyé à la cible (GAS ou autre)
 
-        // Gardons 'effectiveAction' comme 'const' car elle ne doit plus être modifiée ici pour deleteDemande
         const effectiveAction = action || '';
 
         if (!effectiveAction) {
@@ -50,10 +56,10 @@ export const handler = async (event) => {
 
         switch (effectiveAction) {
             case 'getProfils':
-                targetUrl = `https://${event.headers.host}/.netlify/functions/getProfils`;
-                fetchMethod = 'GET';
-                requestBodyForTarget = null;
-                break;
+                // targetUrl = `https://${event.headers.host}/.netlify/functions/getProfils`; // Ancien si appelait directement
+                // Utilisation de la fonction importée
+                console.log("Proxy: Délégation de l'action 'getProfils' à getProfils.mjs");
+                return await getProfilsHandler(event); // Passe l'événement directement à la fonction cible
 
             case 'getDemandesIA':
                 targetUrl = DEMANDS_SCRIPT_URL + '?action=' + effectiveAction;
@@ -64,14 +70,12 @@ export const handler = async (event) => {
             case 'updateDemandeIA':
                 targetUrl = DEMANDS_SCRIPT_URL + '?action=' + effectiveAction;
                 fetchMethod = 'POST';
-                // Assurez-vous que dataFromClient existe et contient l'ID
                 if (dataFromClient && dataFromClient.id) {
-                    // Reconstruire le corps JSON avec le format 'demandes: [...]' attendu par GAS
                     requestBodyForTarget = JSON.stringify({
                         action: effectiveAction,
                         demandes: [{
                             id: dataFromClient.id,
-                            traite: dataFromClient.traite // Doit être true
+                            traite: dataFromClient.traite
                         }]
                     });
                 } else {
@@ -83,16 +87,13 @@ export const handler = async (event) => {
                 }
                 break;
 
-            case 'deleteDemande': // <-- Le frontend envoie cette action
-                // NE PLUS MODIFIER effectiveAction ICI. Laisser 'deleteDemande'.
-                targetUrl = DEMANDS_SCRIPT_URL + '?action=' + effectiveAction; // Le GAS recevra ?action=deleteDemande
-                fetchMethod = 'POST'; // Toujours en POST
-
-                // Assurez-vous que dataFromClient existe et contient l'ID
+            case 'deleteDemande':
+                targetUrl = DEMANDS_SCRIPT_URL + '?action=' + effectiveAction;
+                fetchMethod = 'POST';
                 if (dataFromClient && dataFromClient.id) {
                     requestBodyForTarget = JSON.stringify({
-                        action: effectiveAction, // <-- ENVOIE TOUJOURS "deleteDemande" AU GAS
-                        id: dataFromClient.id // L'ID est directement à la racine
+                        action: effectiveAction,
+                        id: dataFromClient.id
                     });
                 } else {
                     console.error("Proxy.mjs: ID manquant pour deleteDemande. Données reçues:", dataFromClient);
@@ -106,32 +107,43 @@ export const handler = async (event) => {
             case 'updateProfil':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/updateProfil`;
                 fetchMethod = 'POST';
-                requestBodyForTarget = JSON.stringify(dataFromClient); // Passer le corps tel quel
+                requestBodyForTarget = JSON.stringify(dataFromClient);
                 break;
 
             case 'deleteProfil':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/deleteProfil`;
                 fetchMethod = 'DELETE';
-                requestBodyForTarget = JSON.stringify(dataFromClient); // Passer le corps tel quel
+                requestBodyForTarget = JSON.stringify(dataFromClient);
                 break;
 
             case 'getGalleryPrompts':
-                targetUrl = `https://${event.headers.host}/.netlify/functions/getGalleryPrompts`;
-                fetchMethod = 'GET';
-                requestBodyForTarget = null;
-                break;
+                // targetUrl = `https://${event.headers.host}/.netlify/functions/getGalleryPrompts`; // Ancien si appelait directement
+                // Utilisation de la fonction importée
+                console.log("Proxy: Délégation de l'action 'getGalleryPrompts' à getGalleryPrompts.mjs");
+                return await getGalleryPromptsHandler(event); // Passe l'événement directement à la fonction cible
 
             case 'saveTip':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/saveTip`;
                 fetchMethod = 'POST';
-                requestBodyForTarget = JSON.stringify(dataFromClient); // Passer le corps tel quel
+                requestBodyForTarget = JSON.stringify(dataFromClient);
                 break;
 
+            // NOUVEAU CASE POUR 'getTips' qui délègue à get-tips.mjs
+            case 'getTips':
+                console.log("Proxy: Délégation de l'action 'getTips' à get-tips.mjs");
+                return await getTipsHandler(event); // Appelle la fonction get-tips.mjs
+
+
+            // Ancienne action getSharedTips (si elle existait en tant que endpoint séparé)
+            // Si getSharedTips.mjs est la même fonction que get-tips.mjs, ce case n'est plus nécessaire.
+            // Si c'est une fonction différente, gardez-la et importez-la distinctement.
+            /*
             case 'getSharedTips':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/getSharedTips`;
                 fetchMethod = 'GET';
                 requestBodyForTarget = null;
                 break;
+            */
 
             case 'chatWithGPT':
                 /*
@@ -147,12 +159,14 @@ export const handler = async (event) => {
                 };
         }
 
+        // Si le switch a délégué le traitement (return await handler(...)), le code ci-dessous n'est pas exécuté.
+        // Il est exécuté uniquement si 'targetUrl' est défini dans le switch.
+
         const fetchOptions = {
             method: fetchMethod,
             headers: {},
         };
 
-        // Si la méthode est POST/PUT/PATCH/DELETE et qu'un corps a été préparé
         if (requestBodyForTarget && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(fetchMethod.toUpperCase())) {
             fetchOptions.headers["Content-Type"] = "application/json";
             fetchOptions.body = requestBodyForTarget;
