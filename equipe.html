@@ -11,11 +11,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Styles spécifiques à cette page - Gardez ici UNIQUEMENT ce qui est propre à la page équipe */
-        /* Supprimez les styles du body et main s'ils sont déjà dans style.css */
-        /* et assurez-vous que style.css utilise body.show et main.show */
+        /* Styles spécifiques à cette page */
+        /* IMPORTANT: Les styles généraux de body et main NE DOIVENT PAS être ici.
+           Ils doivent être dans style.css pour éviter les conflits et centraliser. */
 
-        /* Styles pour le loader - Ces styles devraient être dans style.css */
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif; /* Conserve la police spécifique ici si nécessaire */
+            background: #f0f4f8; /* Conserve la couleur de fond spécifique à cette page si désiré */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            /* Supprime opacity et transition du body, le loader gère l'affichage */
+        }
+
+        /* Le main est initialement caché par défaut et est affiché par JS via body.loaded */
+        main {
+            display: none; /* Cache le contenu principal avant que le loader ne disparaisse */
+            flex-grow: 1; /* Permet à la section principale de prendre l'espace disponible */
+            padding: 40px 20px; /* Conserve le padding du main */
+        }
+
+        /* Style pour rendre le main visible après le chargement via JS */
+        body.loaded main {
+            display: block; /* Affiche le main lorsque le body a la classe 'loaded' */
+        }
+
+        /* Styles pour le loader - Ces styles devraient être dans style.css pour une meilleure gestion globale */
         #loader {
             position: fixed;
             left: 0;
@@ -23,18 +45,19 @@
             width: 100%;
             height: 100%;
             background: rgba(255, 255, 255, 0.9);
-            display: flex;
+            display: flex; /* Toujours visible par défaut pour le loader */
             justify-content: center;
             align-items: center;
             flex-direction: column;
             z-index: 10000;
             opacity: 1;
-            transition: opacity 0.3s ease-out;
+            transition: opacity 0.3s ease-out; /* Conserve la transition de disparition du loader */
         }
         #loader.hidden {
             opacity: 0;
-            pointer-events: none;
+            pointer-events: none; /* Permet les clics à travers après la disparition */
         }
+        /* Style du contenu du loader */
         .loader-content {
             text-align: center;
             font-size: 1.2rem;
@@ -53,6 +76,7 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Le reste de vos styles spécifiques à la page équipe */
         .container {
             max-width: 900px;
             margin: 40px auto;
@@ -667,7 +691,7 @@
         if (imagesByAuthor.length > 0) {
             const lastTwoImages = imagesByAuthor.slice(-2);
             const imagesHtml = lastTwoImages.map(imgSrc => {
-                const fallbackSrc = 'https://placehold.co/150x100?text=Erreur+image'; // Correction: placehold.co
+                const fallbackSrc = 'https://placehold.co/150x100?text=Erreur+image';
                 const displaySrc = (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) ? imgSrc : fallbackSrc;
                 return `<a href="galerie.html?imageUrl=${encodeURIComponent(displaySrc)}" target="_blank"><img src="${displaySrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='${fallbackSrc}';" title="Image: ${imgSrc}"></a>`;
             }).join('');
@@ -690,207 +714,3 @@
         }
 
         // --- Nouvelle section TIPS (gère les données déjà chargées ou l'absence) ---
-        const tipsFromAuthor = sharedTips
-            ? sharedTips.filter(tip => {
-                const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages');
-                const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
-                return isByThisAuthor && isFromCorrectPage;
-            })
-            .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage))
-            : []; // Si sharedTips est null, retourne un tableau vide
-
-        const latestTips = tipsFromAuthor.slice(0, 3);
-
-        let tipsSection = '';
-        if (latestTips.length > 0) {
-            const tipsHtml = latestTips.map(tip => `
-                <li>
-                    <strong>${tip.titre || 'Titre inconnu'}</strong>
-                    <span class="page-context">sur la page "${tip.pageDePartage || 'Inconnue'}"</span>
-                </li>
-            `).join('');
-
-            tipsSection = `
-                <div class="tips-section">
-                    <h3>Derniers TIPS partagés</h3>
-                    <ul class="tips-list">
-                        ${tipsHtml}
-                    </ul>
-                </div>
-            `;
-        } else {
-            tipsSection = `
-                <div class="tips-section">
-                    <h3>Derniers TIPS partagés</h3>
-                    <p class="no-item-placeholder">Aucun TIP partagé par ${profil.name} n'a été trouvé depuis la page "Cas d'usages".</p>
-                    <p class="no-item-placeholder">
-                        <a href="cas-usages.html">Partager un TIP maintenant !</a>
-                    </p>
-                </div>
-            `;
-        }
-
-        const toolsList = (Array.isArray(profil.tools) ? profil.tools : []).map(t => `<li>${t}</li>`).join('');
-        const hasNote = (profil.note || '').trim() !== '';
-
-        panelContent.innerHTML = `
-            <h2>${profil.name || 'Nom Inconnu'}</h2>
-            <p><strong>Pôle :</strong> ${profil.pole || '—'}</p>
-            <p><strong>Outils IA :</strong></p>
-            <ul>${toolsList || '<li>Aucun outil enregistré</li>'}</ul>
-            ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${profil.note}</div>` : ''}
-            ${gallerySection}
-            ${tipsSection}
-        `;
-    }
-
-    closePanelBtn.addEventListener("click", () => {
-        console.log("Équipe: Clic sur le bouton de fermeture du panneau.");
-        sidePanel.classList.remove("show");
-    });
-
-    document.addEventListener("click", event => {
-        if (sidePanel.classList.contains("show") && !sidePanel.contains(event.target) && !event.target.closest(".vignette")) {
-            console.log("Équipe: Clic en dehors du panneau, fermeture.");
-            sidePanel.classList.remove("show");
-        }
-    });
-
-    filterPole.addEventListener("change", renderProfils);
-    searchInput.addEventListener("input", renderProfils);
-
-    async function loadHeader() {
-        try {
-            const response = await fetch("header.html");
-            if (!response.ok) {
-                throw new Error(`Erreur lors du chargement de l'en-tête: ${response.status}`);
-            }
-            const headerHtml = await response.text();
-            headerPlaceholder.innerHTML = headerHtml;
-
-            const currentPath = window.location.pathname.split('/').pop();
-            document.querySelectorAll('nav a').forEach(link => {
-                const linkHref = link.getAttribute('href');
-                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-
-                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
-                    link.classList.add("active");
-                } else {
-                    link.classList.remove("active");
-                }
-            });
-
-            console.log("Équipe: Header chargé avec succès.");
-        } catch (error) {
-            console.error("Équipe: Erreur lors du chargement du header:", error);
-        }
-    }
-
-    async function mettreAJourBulleDemandes() {
-        const notif = document.getElementById('notif-count');
-        if (notif) {
-            try {
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                }
-                const demandes = await res.json();
-                const demandesArray = demandes.data || [];
-                const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
-                notif.textContent = demandesNonTraitees.length;
-                notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
-            } catch (e) {
-                console.error("Équipe: Erreur lors de la mise à jour de la bulle de demandes:", e);
-                notif.style.display = 'none';
-            }
-        }
-    }
-
-    document.addEventListener("DOMContentLoaded", async () => {
-        console.log("Équipe: DOMContentLoaded, début de l'initialisation...");
-
-        // Assurer que le loader est visible au tout début
-        if (loader) {
-            loader.style.opacity = '1';
-            loader.style.display = 'flex';
-        }
-
-        await loadHeader(); // Charge le header en premier, c'est rapide
-
-        // Lancer le chargement des profils (essentiel pour l'affichage initial)
-        const profilsPromise = fetchData('getProfils');
-
-        // Lancer les autres chargements en parallèle, mais ne pas bloquer l'affichage initial pour eux
-        const galleryPromise = fetchData('getGalleryPrompts');
-        const tipsPromise = fetchData('getTips'); // Cette requête peut toujours échouer avec 400
-
-        // Attendre que les profils soient chargés et rendus
-        await profilsPromise.then(data => {
-            profils = data || []; // S'assurer que profils est un tableau même si fetchData retourne null
-            console.log("Équipe: Profils chargés :", profils.length);
-            renderProfils(); // Rendre les profils dès qu'ils sont là
-        }).catch(error => {
-            console.error("Équipe: Impossible de charger les profils au démarrage. ", error);
-            listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Erreur lors du chargement des profils. Veuillez réessayer.</p>';
-        }).finally(() => {
-            // Cette partie s'exécute QUEL QUE SOIT le résultat de profilsPromise (succès ou échec).
-            // C'est le point où le loader DOIT disparaître et la page DOIT s'afficher.
-            if (loader) {
-                loader.classList.add("hidden");
-                // Attendre la fin de la transition d'opacité du loader avant de le cacher complètement
-                loader.addEventListener('transitionend', () => {
-                    loader.style.display = 'none'; // Cache le loader complètement après sa transition
-                }, { once: true });
-
-                // Appliquer les classes 'show' au body et main AVANT que la transition du loader ne soit finie
-                // pour un affichage plus rapide. Le timeout correspond au délai de transition d'opacité du body/main.
-                // Cela évite d'attendre la fin de la transition du loader.
-                setTimeout(() => { // Un petit délai de sécurité si les transitions CSS sont très courtes
-                    bodyElement.classList.add('show');
-                    mainContent.classList.add('show');
-                }, 100); // 100ms suffisent pour la plupart des transitions CSS courtes.
-            } else {
-                // Fallback si loader n'existe pas, afficher directement
-                bodyElement.classList.add('show');
-                mainContent.classList.add('show');
-            }
-            console.log("Équipe: Contenu principal affiché (profils chargés).");
-        });
-
-
-        // Gérer les promesses de galerie et de tips séparément après que la page soit visible
-        galleryPromise.then(data => {
-            galleryPrompts = data || []; // Assurez-vous que galleryPrompts est un tableau
-            console.log("Équipe: Prompts de galerie chargés (arrière-plan) :", galleryPrompts.length);
-            // Si le panneau latéral est ouvert, mettre à jour son contenu si le profil est affiché
-            if (sidePanel.classList.contains("show") && panelContent.dataset.id) {
-                const currentProfileId = panelContent.dataset.id;
-                const currentProfile = profils.find(p => p.id === currentProfileId);
-                if (currentProfile) updateSidePanelContent(currentProfile);
-            }
-        }).catch(error => {
-            console.error("Équipe: Impossible de charger les prompts de galerie (arrière-plan).", error);
-        });
-
-        tipsPromise.then(data => {
-            sharedTips = data || []; // Assurez-vous que sharedTips est un tableau
-            console.log("Équipe: TIPS chargés (arrière-plan) :", sharedTips.length);
-            // Si le panneau latéral est ouvert, mettre à jour son contenu si le profil est affiché
-            if (sidePanel.classList.contains("show") && panelContent.dataset.id) {
-                const currentProfileId = panelContent.dataset.id;
-                const currentProfile = profils.find(p => p.id === currentProfileId);
-                if (currentProfile) updateSidePanelContent(currentProfile);
-            }
-        }).catch(error => {
-            console.error("Équipe: Impossible de charger les TIPS (arrière-plan).", error);
-        });
-
-        await mettreAJourBulleDemandes(); // Met à jour la bulle de notification
-
-        console.log("Équipe: Initialisation terminée.");
-    });
-
-    history.replaceState({}, document.title, window.location.pathname);
-</script>
-</body>
-</html>
