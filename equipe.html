@@ -12,10 +12,8 @@
 
     <style>
         /* Styles spécifiques à cette page - Gardez ici UNIQUEMENT ce qui est propre à la page équipe */
-        /* et qui n'est pas déjà dans style.css ou le CSS du header. */
-
-        /* Exemple: Si vous avez une règle .equipe-grid spécifique ici, elle reste. */
-        /* Supprimé les styles conflictuels pour body, main, et loader qui devraient être dans style.css */
+        /* Tous les styles généraux (body, main, loader, header, menu) DOIVENT être dans style.css */
+        /* et non pas ici pour éviter les conflits et simplifier la maintenance. */
 
         .container {
             max-width: 900px;
@@ -764,23 +762,26 @@
         // Assurer que le loader est visible au tout début
         if (loader) {
             loader.style.opacity = '1';
-            loader.style.display = 'flex'; // S'assurer qu'il est en display flex pour le centrage
+            loader.style.display = 'flex';
         }
 
         await loadHeader(); // Charge le header en premier
 
-        // Charger toutes les données en parallèle
-        const [profilsResult, galleryResult, tipsResult] = await Promise.allSettled([
+        const loadContentPromises = [
             fetchData('getProfils'),
             fetchData('getGalleryPrompts'),
             fetchData('getTips')
-        ]);
+        ];
+
+        // Attendre que TOUTES les données soient chargées
+        const [profilsResult, galleryResult, tipsResult] = await Promise.allSettled(loadContentPromises);
 
         if (profilsResult.status === 'fulfilled') {
             profils = profilsResult.value || [];
             console.log("Équipe: Profils chargés :", profils.length);
         } else {
             console.error("Équipe: Impossible de charger les profils au démarrage.");
+            // Gérer l'absence de données, par exemple afficher un message d'erreur à l'utilisateur
         }
 
         if (galleryResult.status === 'fulfilled') {
@@ -798,17 +799,21 @@
         }
 
         renderProfils();
-        await mettreAJourBulleDemandes();
+        await mettreAJourBulleDemandes(); // Mise à jour de la bulle après le rendu initial et les données
 
-        // Une fois que tout est chargé et rendu, masquer le loader et afficher la page
+        // C'est ici que l'affichage final doit se déclencher.
+        // Masquer le loader et afficher le contenu principal.
         if (loader) {
             loader.classList.add("hidden");
-            loader.addEventListener('transitionend', () => {
+            // Utiliser un petit délai si la transitionend ne se déclenche pas toujours immédiatement
+            // ou si la transition est trop rapide pour être perçue.
+            setTimeout(() => {
                 loader.style.display = 'none';
-                bodyElement.classList.add('show'); // Rend le body visible
-                mainContent.classList.add('show'); // Rend le main visible
-            }, { once: true });
-        } else { // Fallback au cas où le loader ne serait pas trouvé
+                bodyElement.classList.add('show');
+                mainContent.classList.add('show');
+            }, 300); // Court délai pour permettre à la transition hidden de commencer
+        } else {
+            // Fallback si loader n'existe pas, afficher directement
             bodyElement.classList.add('show');
             mainContent.classList.add('show');
         }
