@@ -29,7 +29,7 @@
             max-width: 700px;
             background: white;
             padding: 40px 35px;
-            border-radius: 14px;
+            border-radius: 14%px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
         }
         form label {
@@ -82,7 +82,7 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
             max-height: 90vh;
             overflow-y: auto;
-            position: relative; /* Pour positionner le loading text et le dropdown du filtre */
+            position: relative; /* Pour positionner le loading text */
         }
         .recap h3 {
             margin-top: 0;
@@ -324,46 +324,22 @@
             to { transform: scale(1); opacity: 1; }
         }
 
-        /* Styles pour le filtre de demandeur custom (celui de droite) */
-        #filtreDemandeur {
+        /* Styles spécifiques pour les champs datalist afin de les faire ressembler aux autres inputs */
+        input[list] {
             width: 100%;
-            padding: 8px;
-            margin-bottom: 8px;
-            border-radius: 6px;
+            padding: 12px 14px;
+            border-radius: 8px;
             border: 1px solid #ccc;
-            box-sizing: border-box; /* S'assure que padding est inclus dans la largeur */
+            font-size: 1em;
+            margin-top: 6px;
+            background-color: #f9fafb;
+            box-sizing: border-box; /* S'assure que le padding est inclus dans la largeur */
+        }
+        /* Pour le filtre du récap (si besoin de styles spécifiques en plus des inputs généraux) */
+        #filtreDemandeur {
+            margin-bottom: 8px; /* Un peu plus de marge sous le filtre */
         }
 
-        .custom-dropdown {
-            position: absolute;
-            width: calc(100% - 40px); /* Ajusté pour le padding du .recap */
-            max-height: 200px;
-            overflow-y: auto;
-            background-color: white;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            z-index: 900;
-            display: none;
-            margin-top: -8px;
-            left: 20px;
-            right: 20px;
-        }
-
-        .custom-dropdown-item {
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-            color: #333;
-        }
-
-        .custom-dropdown-item:last-child {
-            border-bottom: none;
-        }
-
-        .custom-dropdown-item:hover {
-            background-color: #f0f0f0;
-        }
     </style>
 </head>
 <body>
@@ -442,9 +418,9 @@
 
             <div class="recap">
                 <h3>Récapitulatif des demandes</h3>
-                <input type="text" id="filtreDemandeur" placeholder="Filtrer par demandeur" />
-                <div id="demandeursDropdown" class="custom-dropdown"></div>
-                
+                <input type="text" id="filtreDemandeur" placeholder="Filtrer par demandeur" list="demandeursList" />
+                <datalist id="demandeursList"></datalist>
+
                 <select id="filtreParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"></select>
                 <div id="recapList"></div>
             </div>
@@ -466,7 +442,7 @@
         const PROXY_URL = "/.netlify/functions/proxy";
         const SEND_REQUEST_URL = "/.netlify/functions/sendrequest";
 
-        // Tableau des profils qui alimentera le filtre "demandeur"
+        // Tableau des profils qui alimentera les filtres et champs de nom
         const allProfiles = [
             { "id": "_tfzo5ckx8", "name": "Steeve PIRES MADEIRA", "pole": "Pôle créa.", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/image_compressée (2).jpeg", "tools": ["ChatGPT", "Claude", "Midjourney", "Stable Diffusion", "Firefly", "Gemini", "Copilot", "Sora", "ElevenLabs"], "note": "ajouter staff aux équipes + lier profil aux demandeurs IA" },
             { "id": "_bkd9howgm", "name": "Naïm EL BOHALI", "pole": "Partenariats", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/image_compressée.jpeg", "tools": ["ChatGPT", "Midjourney", "Firefly", "Bard"], "note": "" },
@@ -618,7 +594,8 @@
 
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            const filtreDemandeurInput = document.getElementById("filtreDemandeur");
+            // Changement pour revenir à l'input de type text avec datalist pour le filtre demandeur
+            const filtreDemandeurInput = document.getElementById("filtreDemandeur"); 
             const filtreParChaineSelect = document.getElementById("filtreParChaine");
 
             recapList.innerHTML = '<p class="loading-text">Chargement des demandes...</p>';
@@ -643,27 +620,17 @@
                 showToast('Erreur lors du chargement des demandes.', 'error');
             }
 
-            // Peupler la liste déroulante personnalisée du filtre demandeur (côté récap)
-            const demandeursDropdown = document.getElementById("demandeursDropdown");
+            // Peupler la datalist "demandeursList" (pour le filtre à droite)
+            const demandeursListElement = document.getElementById("demandeursList");
             const demandeursUniquesRecap = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
-            demandeursDropdown.innerHTML = ''; 
-
+            demandeursListElement.innerHTML = ''; // Nettoyer la datalist
             demandeursUniquesRecap.forEach(nom => {
-                const item = document.createElement('div');
-                item.className = 'custom-dropdown-item';
-                item.textContent = nom;
-                item.dataset.value = nom; 
-                demandeursDropdown.appendChild(item);
-
-                item.addEventListener('mousedown', (e) => { 
-                    e.preventDefault(); 
-                    filtreDemandeurInput.value = item.dataset.value;
-                    demandeursDropdown.style.display = 'none';
-                    afficherDemandes();
-                });
+                const option = document.createElement('option');
+                option.value = nom;
+                demandeursListElement.appendChild(option);
             });
-
-
+            // La valeur de l'input est automatiquement conservée par le navigateur
+            
             // Peupler le filtre par chaîne (liste complète des options de chaîne)
             const chainesDisponibles = [
                 "La Une", "Tipik", "La Trois", "La première", "Classic 21", "vivacité", "Musiq3", "Auvio", "Auvio Kids"
@@ -834,7 +801,7 @@
             dureeSelect.prepend(defaultOptDuree);
             dureeSelect.value = "";
 
-            // NOUVEAU : Remplir la datalist pour le champ "Nom" du formulaire
+            // Peupler la datalist pour le champ "Nom" du formulaire (gauche)
             const nomsList = document.getElementById("nomsList");
             const tousLesNoms = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
             tousLesNoms.forEach(nom => {
@@ -904,58 +871,7 @@
             afficherDemandes();
 
             // Gestion des changements de filtre (pour le récapitulatif de droite)
-            const filtreDemandeurInput = document.getElementById("filtreDemandeur");
-            const demandeursDropdown = document.getElementById("demandeursDropdown");
-
-            // Filtrer la liste déroulante personnalisée en fonction de la saisie
-            filtreDemandeurInput.addEventListener("input", () => {
-                const searchTerm = filtreDemandeurInput.value.toLowerCase();
-                const items = demandeursDropdown.querySelectorAll('.custom-dropdown-item');
-                let foundMatch = false;
-
-                items.forEach(item => {
-                    const name = item.textContent.toLowerCase();
-                    if (name.includes(searchTerm)) {
-                        item.style.display = ''; // Afficher
-                        foundMatch = true;
-                    } else {
-                        item.style.display = 'none'; // Masquer
-                    }
-                });
-
-                // Afficher le dropdown s'il y a une saisie et des correspondances, sinon le masquer
-                if (searchTerm.length > 0 && foundMatch) {
-                    demandeursDropdown.style.display = 'block';
-                } else {
-                    demandeursDropdown.style.display = 'none';
-                }
-
-                const exactMatch = Array.from(items).some(item => 
-                    item.textContent.toLowerCase() === searchTerm && item.style.display !== 'none'
-                );
-
-                if (exactMatch || searchTerm === '') { 
-                    afficherDemandes();
-                }
-            });
-
-            // Afficher le dropdown quand l'input prend le focus
-            filtreDemandeurInput.addEventListener("focus", () => {
-                const items = demandeursDropdown.querySelectorAll('.custom-dropdown-item');
-                items.forEach(item => {
-                    item.style.display = '';
-                });
-                demandeursDropdown.style.display = 'block';
-            });
-
-            // Masquer le dropdown quand l'input perd le focus (avec un léger délai pour permettre les clics)
-            filtreDemandeurInput.addEventListener("blur", () => {
-                setTimeout(() => {
-                    demandeursDropdown.style.display = 'none';
-                }, 150); 
-            });
-
-
+            document.getElementById("filtreDemandeur").addEventListener("input", afficherDemandes);
             document.getElementById("filtreParChaine").addEventListener("change", afficherDemandes);
 
             // Gestion de la modale d'information
