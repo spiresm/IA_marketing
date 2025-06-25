@@ -431,8 +431,10 @@
 
     <script>
         // Définitions des URL pour les fonctions Netlify
-        const PROXY_URL = "/.netlify/functions/proxy";
-        const SEND_REQUEST_URL = "/.netlify/functions/sendrequest";
+        // PROXY_URL est utilisé pour les actions qui vont vers Google Apps Script via le proxy
+        const PROXY_URL = "/.netlify/functions/proxy"; 
+        // SEND_REQUEST_URL est utilisé pour l'envoi du formulaire via sendrequest.js
+        const SEND_REQUEST_URL = "/.netlify/functions/sendrequest"; 
 
         // Tableau des profils qui alimentera les filtres et champs de nom
         const allProfiles = [
@@ -444,7 +446,7 @@
             { "id": "_k8lx8629j", "name": "Yasmine AIT MASKOUR", "pole": "CRM", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/image_compressée (8).jpeg", "tools": ["ChatGPT", "Claude", "Perplexity", "Gemini", "Copilot", "Bard"], "note": "" },
             { "id": "_xhfs9gepa", "name": "Elvis TCHANA", "pole": "Communication", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/test.jpeg", "tools": ["ChatGPT", "Claude"], "note": "" },
             { "id": "_zsdjsgpxk", "name": "Jeremy DEHERTOGH", "pole": "Pôle créa.", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/Captain_America_Shield.webp", "tools": ["ChatGPT", "Midjourney", "Stable Diffusion", "Firefly", "Runway ML", "Gemini", "Copilot", "Sora"], "note": "" },
-            { "id": "_xz380lwlz", "name": "Dominique LEFEVRE", "pole": "Pôle créa.", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/image_compressée (5).jpeg", "tools": ["ChatGPT", "Stable Diffusion", "Firefly", "Runway ML"], "note": "" },
+            { "id": "_xz380lwlz", "name": "Dominique LEFEVRE", "pole": "Pôle créa.", "photo": "", "tools": [], "note": "" },
             { "id": "_th5j1y1ak", "name": "Joel VAN HOEF", "pole": "Pôle créa.", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/joel.png", "tools": ["ChatGPT", "Midjourney", "Stable Diffusion", "Firefly", "Runway ML"], "note": "Hello Steeve,\nvoici mes suggestions :\nsignaler quelle est la limite maximale de poids du fichier à compresser.\ndonner la possibilité, dans la galerie, de mettre un commentaire\nrenommer \"Cas d'usage\" et \"tip\" en \"workflow\"\nMerci à toi\nJoël" },
             { "id": "_ko4axa9sq", "name": "Isabelle MARCHAL", "pole": "Pôle créa.", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/isa.png", "tools": ["ChatGPT", "Midjourney", "Stable Diffusion", "Firefly"], "note": "" },
             { "id": "_170aetvaf", "name": "Susana GONCALVES VALERIO", "pole": "Pôle créa.", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/susana.png", "tools": ["ChatGPT", "Midjourney", "Stable Diffusion", "Firefly"], "note": "" },
@@ -568,7 +570,8 @@
                 return;
             }
             try {
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                // Utilise le proxy pour obtenir les demandes IA
+                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`); 
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 const responseData = await res.json();
                 
@@ -586,7 +589,6 @@
 
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            // Rétabli en select pour le filtre demandeur
             const filtreDemandeurSelect = document.getElementById("filtreDemandeur"); 
             const filtreParChaineSelect = document.getElementById("filtreParChaine");
 
@@ -594,7 +596,8 @@
 
             let demandes = [];
             try {
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                // Utilise le proxy pour obtenir les demandes IA
+                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`); 
                 if (!res.ok) {
                     throw new Error(`HTTP error! status: ${res.status}`);
                 }
@@ -612,7 +615,7 @@
                 showToast('Erreur lors du chargement des demandes.', 'error');
             }
 
-            // Peupler le filtre "Demandeur" (côté récap) - maintenant un SELECT
+            // Peupler le filtre "Demandeur" (côté récap)
             const demandeursUniquesRecap = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
             filtreDemandeurSelect.innerHTML = '<option value="">Filtrer par demandeur</option>';
             demandeursUniquesRecap.forEach(nom => {
@@ -621,7 +624,6 @@
                 option.textContent = nom;
                 filtreDemandeurSelect.appendChild(option);
             });
-            // Maintenir la valeur sélectionnée si elle existe
             const currentFiltreDemandeur = filtreDemandeurSelect.dataset.currentValue || '';
             if (currentFiltreDemandeur) {
                 filtreDemandeurSelect.value = currentFiltreDemandeur;
@@ -645,7 +647,6 @@
                 filtreParChaineSelect.value = currentFiltreParChaine;
             }
             
-            // Récupérer les valeurs sélectionnées des SELECTs
             const selectedFiltreDemandeur = filtreDemandeurSelect.value;
             const selectedFiltreParChaine = filtreParChaineSelect.value;
 
@@ -732,12 +733,17 @@
             });
         }
 
+        // Fonction pour supprimer une demande via le proxy
         async function supprimerDemande(id) {
             try {
-                const response = await fetch(PROXY_URL, {
-                    method: "POST",
+                // Appel au proxy avec l'action 'deleteDemande' et l'ID dans le corps
+                const response = await fetch(PROXY_URL, { 
+                    method: "POST", // Le proxy gère généralement tout en POST pour les actions
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "deleteDemande", id: id })
+                    body: JSON.stringify({
+                        action: "deleteDemande", // <--- Action pour le proxy
+                        id: id
+                    })
                 });
 
                 const result = await response.json();
@@ -756,15 +762,17 @@
             }
         }
 
+        // Fonction pour marquer une demande comme traitée via le proxy
         async function marquerTraite(id) {
             try {
+                // Appel au proxy avec l'action 'updateDemandeIA' et l'ID/statut dans le corps
                 const response = await fetch(PROXY_URL, {
-                    method: "POST",
+                    method: "POST", // Le proxy gère généralement tout en POST pour les actions
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        action: "updateDemandeIA",
+                        action: "updateDemandeIA", // <--- Action pour le proxy
                         id: id,
-                        traite: true
+                        traite: true // Mettre à jour le statut
                     })
                 });
 
@@ -799,7 +807,7 @@
             dureeSelect.prepend(defaultOptDuree);
             dureeSelect.value = "";
 
-            // NOUVEAU : Peupler le SELECT du champ "Nom" du formulaire principal
+            // Peupler le SELECT du champ "Nom" du formulaire principal
             const nomSelect = document.getElementById("nom");
             const tousLesNoms = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
             tousLesNoms.forEach(nom => {
@@ -816,7 +824,7 @@
                 const data = new FormData(e.target);
                 const demande = {
                     id: "_" + Math.random().toString(36).substr(2, 9),
-                    nom: data.get("nom"), // Récupère la valeur du select
+                    nom: data.get("nom"), 
                     email: `${data.get("emailPrefix")}@rtbf.be`,
                     type: data.get("type"),
                     support: data.get("support"),
@@ -833,6 +841,7 @@
                 submitBtn.disabled = true;
 
                 try {
+                    // Appel direct à sendrequest.js pour l'envoi du formulaire et de l'e-mail
                     const response = await fetch(SEND_REQUEST_URL, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -843,7 +852,7 @@
                         const errorText = await response.text();
                         console.error(`Erreur HTTP: ${response.status} ${response.statusText}`, errorText);
                         showToast(`Erreur lors de l'envoi de la demande: ${response.status} ${response.statusText}`, 'error');
-                        return; // Arrêter ici en cas d'erreur HTTP
+                        return; 
                     }
 
                     const result = await response.json();
@@ -870,7 +879,6 @@
             afficherDemandes();
 
             // Gestion des changements de filtre (pour le récapitulatif de droite)
-            // L'écouteur est sur le select et réagit au 'change'
             document.getElementById("filtreDemandeur").addEventListener("change", afficherDemandes);
             document.getElementById("filtreParChaine").addEventListener("change", afficherDemandes);
 
