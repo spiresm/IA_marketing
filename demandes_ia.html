@@ -29,7 +29,7 @@
             max-width: 700px;
             background: white;
             padding: 40px 35px;
-            border-radius: 14%px;
+            border-radius: 14px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
         }
         form label {
@@ -46,6 +46,7 @@
             font-size: 1em;
             margin-top: 6px;
             background-color: #f9fafb;
+            box-sizing: border-box; /* S'assure que padding est inclus dans la largeur */
         }
         input[name="emailPrefix"], input[name="date"] {
             max-width: 200px;
@@ -324,18 +325,7 @@
             to { transform: scale(1); opacity: 1; }
         }
 
-        /* Styles spécifiques pour les champs datalist afin de les faire ressembler aux autres inputs */
-        input[list] {
-            width: 100%;
-            padding: 12px 14px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            font-size: 1em;
-            margin-top: 6px;
-            background-color: #f9fafb;
-            box-sizing: border-box; /* S'assure que le padding est inclus dans la largeur */
-        }
-        /* Pour le filtre du récap (si besoin de styles spécifiques en plus des inputs généraux) */
+        /* Styles spécifiques pour le filtre du récap (si besoin de styles spécifiques en plus des inputs généraux) */
         #filtreDemandeur {
             margin-bottom: 8px; /* Un peu plus de marge sous le filtre */
         }
@@ -360,8 +350,9 @@
                 <h2 style="text-align:center; color:#0077b6; margin-top: 0;">Formulaire de demande de production IA</h2>
                 <form id="demandeIA">
                     <label for="nom">Nom :</label>
-                    <input type="text" name="nom" required list="nomsList" />
-                    <datalist id="nomsList"></datalist>
+                    <select name="nom" id="nom" required>
+                        <option value="">-- Sélectionner --</option>
+                        </select>
 
                     <label for="emailPrefix">Email :</label>
                     <div class="email-container">
@@ -418,8 +409,9 @@
 
             <div class="recap">
                 <h3>Récapitulatif des demandes</h3>
-                <input type="text" id="filtreDemandeur" placeholder="Filtrer par demandeur" list="demandeursList" />
-                <datalist id="demandeursList"></datalist>
+                <select id="filtreDemandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <option value="">Filtrer par demandeur</option>
+                    </select>
 
                 <select id="filtreParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"></select>
                 <div id="recapList"></div>
@@ -594,8 +586,8 @@
 
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            // Changement pour revenir à l'input de type text avec datalist pour le filtre demandeur
-            const filtreDemandeurInput = document.getElementById("filtreDemandeur"); 
+            // Rétabli en select pour le filtre demandeur
+            const filtreDemandeurSelect = document.getElementById("filtreDemandeur"); 
             const filtreParChaineSelect = document.getElementById("filtreParChaine");
 
             recapList.innerHTML = '<p class="loading-text">Chargement des demandes...</p>';
@@ -620,17 +612,22 @@
                 showToast('Erreur lors du chargement des demandes.', 'error');
             }
 
-            // Peupler la datalist "demandeursList" (pour le filtre à droite)
-            const demandeursListElement = document.getElementById("demandeursList");
+            // Peupler le filtre "Demandeur" (côté récap) - maintenant un SELECT
             const demandeursUniquesRecap = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
-            demandeursListElement.innerHTML = ''; // Nettoyer la datalist
+            filtreDemandeurSelect.innerHTML = '<option value="">Filtrer par demandeur</option>';
             demandeursUniquesRecap.forEach(nom => {
                 const option = document.createElement('option');
                 option.value = nom;
-                demandeursListElement.appendChild(option);
+                option.textContent = nom;
+                filtreDemandeurSelect.appendChild(option);
             });
-            // La valeur de l'input est automatiquement conservée par le navigateur
-            
+            // Maintenir la valeur sélectionnée si elle existe
+            const currentFiltreDemandeur = filtreDemandeurSelect.dataset.currentValue || '';
+            if (currentFiltreDemandeur) {
+                filtreDemandeurSelect.value = currentFiltreDemandeur;
+            }
+
+
             // Peupler le filtre par chaîne (liste complète des options de chaîne)
             const chainesDisponibles = [
                 "La Une", "Tipik", "La Trois", "La première", "Classic 21", "vivacité", "Musiq3", "Auvio", "Auvio Kids"
@@ -648,7 +645,8 @@
                 filtreParChaineSelect.value = currentFiltreParChaine;
             }
             
-            const selectedFiltreDemandeur = filtreDemandeurInput.value;
+            // Récupérer les valeurs sélectionnées des SELECTs
+            const selectedFiltreDemandeur = filtreDemandeurSelect.value;
             const selectedFiltreParChaine = filtreParChaineSelect.value;
 
             let demandesFiltrees = demandes;
@@ -801,13 +799,14 @@
             dureeSelect.prepend(defaultOptDuree);
             dureeSelect.value = "";
 
-            // Peupler la datalist pour le champ "Nom" du formulaire (gauche)
-            const nomsList = document.getElementById("nomsList");
+            // NOUVEAU : Peupler le SELECT du champ "Nom" du formulaire principal
+            const nomSelect = document.getElementById("nom");
             const tousLesNoms = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
             tousLesNoms.forEach(nom => {
                 const option = document.createElement('option');
                 option.value = nom;
-                nomsList.appendChild(option);
+                option.textContent = nom;
+                nomSelect.appendChild(option);
             });
 
 
@@ -817,7 +816,7 @@
                 const data = new FormData(e.target);
                 const demande = {
                     id: "_" + Math.random().toString(36).substr(2, 9),
-                    nom: data.get("nom"),
+                    nom: data.get("nom"), // Récupère la valeur du select
                     email: `${data.get("emailPrefix")}@rtbf.be`,
                     type: data.get("type"),
                     support: data.get("support"),
@@ -871,7 +870,8 @@
             afficherDemandes();
 
             // Gestion des changements de filtre (pour le récapitulatif de droite)
-            document.getElementById("filtreDemandeur").addEventListener("input", afficherDemandes);
+            // L'écouteur est sur le select et réagit au 'change'
+            document.getElementById("filtreDemandeur").addEventListener("change", afficherDemandes);
             document.getElementById("filtreParChaine").addEventListener("change", afficherDemandes);
 
             // Gestion de la modale d'information
