@@ -414,6 +414,7 @@
         try {
             const response = await fetch(`${PROXY_URL}?action=${action}`);
             if (!response.ok) {
+                // Tenter de lire l'erreur comme JSON d'abord, puis comme texte
                 const errorBody = await response.json().catch(() => response.text());
                 console.error(`Erreur HTTP lors de la récupération de ${action}: ${response.status} -`, errorBody);
                 throw new Error(`Échec du chargement de ${action}: ${response.status}`);
@@ -421,7 +422,8 @@
             return await response.json();
         } catch (error) {
             console.error(`Erreur lors du chargement de ${action}:`, error);
-            throw error; // Propage l'erreur pour que Promise.allSettled la capture
+            // Retourne un tableau vide ou null en cas d'échec pour ne pas bloquer les Promise.allSettled
+            return null; // Important: Retourner null ou un tableau vide pour les cas qui ne sont pas critiques.
         }
     }
 
@@ -461,9 +463,9 @@
             // Correction de la syntaxe ici (guillemet simple manquant après display: none;)
             div.innerHTML = `
                <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
-                <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}"
+                <img src="${p.photo || 'https://placehold.co/80x80?text=Profil'}"
                         alt="${p.name || 'Profil'}"
-                        onerror="this.onerror=null;this.src='https://via.placeholder.com/80x80?text=Erreur%20Image';" />
+                        onerror="this.onerror=null;this.src='https://placehold.co/80x80?text=Erreur%20Image';" />
                 <h3>${p.name || 'Nom Inconnu'}</h3>
                 <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
                 <div class="icon-bar">
@@ -614,12 +616,12 @@
     async function updateSidePanelContent(profil) {
         const profilNameNormalized = normalizeString(profil.name || '');
 
-        // --- Section Galerie d'images (chargée séparément pour ne pas bloquer l'affichage initial) ---
-        // Si galleryPrompts n'est pas encore chargé, le panneau affichera "Aucune image..." temporairement.
+        // --- Section Galerie d'images (gère les données déjà chargées ou l'absence) ---
         const imagesByAuthor = galleryPrompts
-            .filter(prompt => normalizeString(prompt.auteur || '') === profilNameNormalized)
-            .map(prompt => prompt.imageUrl)
-            .filter(Boolean);
+            ? galleryPrompts.filter(prompt => normalizeString(prompt.auteur || '') === profilNameNormalized)
+                               .map(prompt => prompt.imageUrl)
+                               .filter(Boolean)
+            : []; // Si galleryPrompts est null, retourne un tableau vide
 
         console.log(`DEBUG: Images de galerie trouvées pour "${profil.name}" :`, imagesByAuthor);
 
@@ -627,7 +629,7 @@
         if (imagesByAuthor.length > 0) {
             const lastTwoImages = imagesByAuthor.slice(-2);
             const imagesHtml = lastTwoImages.map(imgSrc => {
-                const fallbackSrc = 'https://via.placeholder.com/150x100?text=Erreur+image';
+                const fallbackSrc = 'https://placehold.co/150x100?text=Erreur+image'; // Correction: placehold.co
                 const displaySrc = (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) ? imgSrc : fallbackSrc;
                 return `<a href="galerie.html?imageUrl=${encodeURIComponent(displaySrc)}" target="_blank"><img src="${displaySrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='${fallbackSrc}';" title="Image: ${imgSrc}"></a>`;
             }).join('');
@@ -649,15 +651,15 @@
             `;
         }
 
-        // --- Nouvelle section TIPS (chargée séparément pour ne pas bloquer l'affichage initial) ---
-        // Si sharedTips n'est pas encore chargé, le panneau affichera "Aucun TIP..." temporairement.
+        // --- Nouvelle section TIPS (gère les données déjà chargées ou l'absence) ---
         const tipsFromAuthor = sharedTips
-            .filter(tip => {
+            ? sharedTips.filter(tip => {
                 const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages');
                 const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
                 return isByThisAuthor && isFromCorrectPage;
             })
-            .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage));
+            .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage))
+            : []; // Si sharedTips est null, retourne un tableau vide
 
         const latestTips = tipsFromAuthor.slice(0, 3);
 
@@ -782,49 +784,46 @@
 
         // Lancer les autres chargements en parallèle, mais ne pas bloquer l'affichage initial pour eux
         const galleryPromise = fetchData('getGalleryPrompts');
-        const tipsPromise = fetchData('getTips');
+        const tipsPromise = fetchData('getTips'); // Cette requête peut toujours échouer avec 400
 
-        let profilsLoaded = false;
+        let profilsLoadedSuccessfully = false; // Flag pour s'assurer que les profils ont bien été chargés
 
         // Attendre que les profils soient chargés et rendus
         await profilsPromise.then(data => {
-            profils = data || [];
+            profils = data || []; // S'assurer que profils est un tableau même si fetchData retourne null
             console.log("Équipe: Profils chargés :", profils.length);
             renderProfils(); // Rendre les profils dès qu'ils sont là
-            profilsLoaded = true;
+            profilsLoadedSuccessfully = true;
         }).catch(error => {
             console.error("Équipe: Impossible de charger les profils au démarrage. ", error);
-            // Afficher un message d'erreur dans le conteneur des profils si nécessaire
             listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Erreur lors du chargement des profils. Veuillez réessayer.</p>';
         });
 
         // Maintenant que les profils sont chargés et rendus, masquer le loader et afficher la page.
         // Cela devrait réduire considérablement le temps d'écran blanc.
-        if (profilsLoaded) { // Seulement si les profils ont bien été chargés
-            if (loader) {
-                loader.classList.add("hidden");
-                // Attendre la fin de la transition d'opacité du loader avant de le cacher complètement
-                loader.addEventListener('transitionend', () => {
-                    loader.style.display = 'none'; // Cache le loader complètement après sa transition
-                }, { once: true });
+        if (loader) {
+            loader.classList.add("hidden");
+            // Attendre la fin de la transition d'opacité du loader avant de le cacher complètement
+            loader.addEventListener('transitionend', () => {
+                loader.style.display = 'none'; // Cache le loader complètement après sa transition
+            }, { once: true });
 
-                // Appliquer les classes 'show' au body et main APRÈS un court délai ou une fois que le loader commence à disparaître
-                setTimeout(() => {
-                    bodyElement.classList.add('show'); // Rend le body visible
-                    mainContent.classList.add('show'); // Rend le main visible
-                }, 100); // Court délai pour permettre à la transition hidden de commencer et d'éviter le FOUC
-            } else {
-                // Fallback si loader n'existe pas, afficher directement
-                bodyElement.classList.add('show');
-                mainContent.classList.add('show');
-            }
-            console.log("Équipe: Contenu principal affiché (profils chargés).");
+            // Appliquer les classes 'show' au body et main APRÈS un court délai ou une fois que le loader commence à disparaître
+            setTimeout(() => {
+                bodyElement.classList.add('show'); // Rend le body visible
+                mainContent.classList.add('show'); // Rend le main visible
+            }, 100); // Court délai pour permettre à la transition hidden de commencer et d'éviter le FOUC
+        } else {
+            // Fallback si loader n'existe pas, afficher directement
+            bodyElement.classList.add('show');
+            mainContent.classList.add('show');
         }
+        console.log("Équipe: Contenu principal affiché (profils chargés).");
 
 
-        // Continuer de charger la galerie et les tips en arrière-plan
+        // Gérer les promesses de galerie et de tips séparément après que la page soit visible
         galleryPromise.then(data => {
-            galleryPrompts = data || [];
+            galleryPrompts = data || []; // Assurez-vous que galleryPrompts est un tableau
             console.log("Équipe: Prompts de galerie chargés (arrière-plan) :", galleryPrompts.length);
             // Si le panneau latéral est ouvert, mettre à jour son contenu si le profil est affiché
             if (sidePanel.classList.contains("show") && panelContent.dataset.id) {
@@ -837,7 +836,7 @@
         });
 
         tipsPromise.then(data => {
-            sharedTips = data || [];
+            sharedTips = data || []; // Assurez-vous que sharedTips est un tableau
             console.log("Équipe: TIPS chargés (arrière-plan) :", sharedTips.length);
             // Si le panneau latéral est ouvert, mettre à jour son contenu si le profil est affiché
             if (sidePanel.classList.contains("show") && panelContent.dataset.id) {
