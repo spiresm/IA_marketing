@@ -431,9 +431,7 @@
 
     <script>
         // Définitions des URL pour les fonctions Netlify
-        // PROXY_URL est utilisé pour les actions qui vont vers Google Apps Script via le proxy
         const PROXY_URL = "/.netlify/functions/proxy"; 
-        // SEND_REQUEST_URL est utilisé pour l'envoi du formulaire via sendrequest.js
         const SEND_REQUEST_URL = "/.netlify/functions/sendrequest"; 
 
         // Tableau des profils qui alimentera les filtres et champs de nom
@@ -570,9 +568,11 @@
                 return;
             }
             try {
-                // Utilise le proxy pour obtenir les demandes IA
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`); 
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
+                }
                 const responseData = await res.json();
                 
                 const demandes = responseData.data;
@@ -596,10 +596,10 @@
 
             let demandes = [];
             try {
-                // Utilise le proxy pour obtenir les demandes IA
                 const res = await fetch(`${PROXY_URL}?action=getDemandesIA`); 
                 if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
+                    const errorText = await res.text();
+                    throw new Error(`HTTP error! status: ${res.status} - ${errorText}`);
                 }
                 const responseData = await res.json();
 
@@ -607,7 +607,7 @@
                     demandes = responseData.data;
                 } else {
                     console.warn("La réponse de l'API n'est pas un tableau valide ou succès: false. Affichage des demandes vide.");
-                    demandes = []; // S'assurer que demandes est un tableau vide en cas d'erreur ou de données invalides
+                    demandes = []; 
                 }
             } catch (err) {
                 console.error("Erreur lors de la récupération des demandes :", err);
@@ -738,10 +738,10 @@
             try {
                 // Appel au proxy avec l'action 'deleteDemande' et l'ID dans le corps
                 const response = await fetch(PROXY_URL, { 
-                    method: "POST", // Le proxy gère généralement tout en POST pour les actions
+                    method: "POST", 
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        action: "deleteDemande", // <--- Action pour le proxy
+                        action: "deleteDemande", 
                         id: id
                     })
                 });
@@ -767,12 +767,12 @@
             try {
                 // Appel au proxy avec l'action 'updateDemandeIA' et l'ID/statut dans le corps
                 const response = await fetch(PROXY_URL, {
-                    method: "POST", // Le proxy gère généralement tout en POST pour les actions
+                    method: "POST", 
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        action: "updateDemandeIA", // <--- Action pour le proxy
+                        action: "updateDemandeIA", 
                         id: id,
-                        traite: true // Mettre à jour le statut
+                        traite: true 
                     })
                 });
 
