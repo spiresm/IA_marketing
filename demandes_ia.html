@@ -400,7 +400,8 @@
 
             <div class="recap">
                 <h3>Récapitulatif des demandes</h3>
-                <select id="filtreDemandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;"></select>
+                <input type="text" id="filtreDemandeur" list="demandeursList" placeholder="Filtrer par demandeur" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;" />
+                <datalist id="demandeursList"></datalist>
                 <select id="filtreParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"></select>
                 <div id="recapList"></div>
             </div>
@@ -574,7 +575,7 @@
 
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
-            const filtreDemandeurSelect = document.getElementById("filtreDemandeur");
+            const filtreDemandeurInput = document.getElementById("filtreDemandeur"); // MODIFIÉ
             const filtreParChaineSelect = document.getElementById("filtreParChaine");
 
             recapList.innerHTML = '<p class="loading-text">Chargement des demandes...</p>';
@@ -600,19 +601,16 @@
                 // Continuer pour peupler les filtres même si les demandes n'ont pas pu être chargées
             }
 
-            // Peupler le filtre "Demandeur" UNIQUEMENT avec les noms des profils
+            // Peupler la datalist "Demandeur" UNIQUEMENT avec les noms des profils
+            const demandeursList = document.getElementById("demandeursList"); // NOUVEAU
             const demandeursUniques = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
-            filtreDemandeurSelect.innerHTML = '<option value="">Filtrer par demandeur</option>';
+            demandeursList.innerHTML = ''; // Nettoyer la datalist
             demandeursUniques.forEach(nom => {
                 const option = document.createElement('option');
                 option.value = nom;
-                option.textContent = nom;
-                filtreDemandeurSelect.appendChild(option);
+                demandeursList.appendChild(option);
             });
-            const currentFiltreDemandeur = filtreDemandeurSelect.dataset.currentValue || '';
-            if (currentFiltreDemandeur) {
-                filtreDemandeurSelect.value = currentFiltreDemandeur;
-            }
+            // Le filtreDemandeurInput garde sa valeur à travers les appels s'il y a eu une saisie
 
             // Peupler le filtre par chaîne (liste complète des options de chaîne)
             const chainesDisponibles = [
@@ -631,7 +629,7 @@
                 filtreParChaineSelect.value = currentFiltreParChaine;
             }
             
-            const selectedFiltreDemandeur = filtreDemandeurSelect.value;
+            const selectedFiltreDemandeur = filtreDemandeurInput.value; // MODIFIÉ
             const selectedFiltreParChaine = filtreParChaineSelect.value;
 
             let demandesFiltrees = demandes;
@@ -844,7 +842,8 @@
             afficherDemandes();
 
             // Gestion des changements de filtre
-            document.getElementById("filtreDemandeur").addEventListener("change", afficherDemandes);
+            // MODIFIÉ : Utilisation de l'événement 'input' pour le champ de saisie
+            document.getElementById("filtreDemandeur").addEventListener("input", afficherDemandes);
             document.getElementById("filtreParChaine").addEventListener("change", afficherDemandes);
 
             // Gestion de la modale d'information
