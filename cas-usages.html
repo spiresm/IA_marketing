@@ -11,26 +11,42 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Styles spécifiques à Cas d'usages.html */
-        /* Ces styles restent ici car ils sont propres à cette page. */
-        /* Les styles généraux de body, main (opacity, transition) sont gérés par style.css */
-
-        body {
-            /* Surcharge de la police si vous voulez Arial spécifiquement pour cette page. */
-            /* Sinon, retirez cette ligne pour utiliser la police du style.css global. */
-            font-family: Arial, sans-serif;
-            background-color: var(--background-grey); /* Couleur de fond spécifique à cette page */
-            margin: 0; /* Assure que le body n'a pas de marge par défaut */
-            min-height: 100vh; /* S'assure que le body prend toute la hauteur */
-            display: flex; /* Permet le flex-direction: column pour le footer */
-            flex-direction: column;
+        /* Variables CSS pour faciliter la gestion des couleurs (conserver ici pour la page spécifique) */
+        :root {
+            --primary-blue: #0077b6;
+            --dark-blue: #005f8a;
+            --light-blue: #64B5F6;
+            --lighter-blue: #42A5F5;
+            --background-grey: #f0f2f5;
+            --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            --card-hover-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            --success-bg: #d4edda;
+            --success-text: #155724;
+            --error-bg: #f8d7da;
+            --error-text: #dc3545;
+            --postit-yellow: #FFFAA0;
+            --light-blue-card: #E0F2F7;
+            --grey-text: #555;
+            --border-color: #ddd;
         }
 
+        /* Styles généraux pour le corps et le main de cette page */
+        /* Ces styles peuvent surcharger les styles globaux de style.css si nécessaire pour le design spécifique de cette page. */
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif; /* Utilisation de la police Inter */
+            font-weight: 400;
+            background-color: var(--background-grey); /* Couleur de fond spécifique à cette page */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            /* L'opacité et la transition d'apparition sont gérées par body.show dans le JS, via style.css global */
+        }
         main {
-            /* Le padding et flex-grow sont gérés par style.css */
-            min-height: calc(100vh - 100px); /* Ajustez si votre header/footer prend plus de place */
-            box-sizing: border-box; /* Important pour que le padding soit inclus dans la hauteur */
-            display: block; /* Rendre main visible par défaut */
+            padding: 40px 20px;
+            flex-grow: 1;
+            /* L'opacité et la transition d'apparition sont gérées par main.show dans le JS, via style.css global */
+            display: block; /* S'assure que le main est visible par défaut car il n'y a pas de loader sur cette page */
         }
 
         /* Suppression des styles du loader de cette balise <style> */
@@ -82,7 +98,7 @@
             min-width: 120px;
             box-sizing: border-box;
         }
-        #preview-text {
+        #preview-text { /* Assurez-vous que cet ID correspond à votre input de recherche */
             min-width: 180px;
             max-width: 250px;
         }
@@ -136,9 +152,7 @@
             z-index: 1;
         }
 
-        /* ************************************************* */
-        /* STYLES POUR CHAQUE PLAQUE (CARTE) */
-        /* ************************************************* */
+        /* Styles pour chaque carte de tip */
         .carte {
             background: #fff;
             border-left: 5px solid transparent; /* Couleur définie par JS */
@@ -979,11 +993,11 @@
             }
             text = String(text);
             const map = {
-                '&': '&',
-                '<': '<',
-                '>': '>',
-                '"': '"',
-                "'": '\'' // Correction: échapper l'apostrophe correctement
+                '&': '&amp;', // Échapper l'esperluette
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;' // Échapper l'apostrophe
             };
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
@@ -1085,7 +1099,7 @@
                 console.error("Erreur lors du chargement des tips:", error);
                 errorDisplay.style.display = 'block';
                 errorDisplay.textContent = `Erreur de chargement des tips: ${error.message}`;
-                galerieDiv.innerHTML = '';
+                galerieDiv.innerHTML = ''; // Vide le message de chargement s'il y a une erreur
             }
         }
 
@@ -1187,7 +1201,7 @@
                 previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
                 let contentHtml = '';
 
-                // Post-it (previewText) - DÉPLACÉ EN HAUT
+                // Post-it (previewText)
                 if (tip.previewText && tip.previewText.trim() !== '') {
                     contentHtml += `
                         <h4>Post-it:</h4>
@@ -1205,15 +1219,14 @@
                 
                 // URLs (avec gestion spécifique YouTube)
                 if (tip.urls && tip.urls.length > 0) {
-                    let hasContentToDisplay = false; // Pour savoir si on affiche le titre "Liens/Vidéos"
+                    let hasContentToDisplay = false;
                     let linksAndVideosHtml = '';
 
                     tip.urls.forEach((url, index) => {
                         const youtubeId = getYouTubeVideoId(url);
                         if (youtubeId) {
                             hasContentToDisplay = true;
-                            // C'est une vidéo YouTube, l'intégrer directement
-                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`; // Utilisation de l'URL correcte YouTube
+                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`; /* Corrected YouTube embed URL */
                             console.log(`Détection d'une vidéo YouTube. ID: ${youtubeId}, URL d'intégration: ${embedUrl}`);    
                             linksAndVideosHtml += `
                                 <div class="video-responsive">
@@ -1229,7 +1242,6 @@
                             `;
                         } else if (url.trim() !== '') {
                             hasContentToDisplay = true;
-                            // C'est un lien non YouTube, l'afficher comme un lien cliquable
                             linksAndVideosHtml += `
                                 <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
                             `;
@@ -1241,14 +1253,13 @@
                     }
                 }
 
-                // Commentaire sur les URLs - NOUVEL EMPLACEMENT : sous les liens
+                // Commentaire sur les URLs
                 if (tip.commentaireUrl && tip.commentaireUrl.trim() !== '') {
                     contentHtml += `
                         <h4>Commentaire sur le(s) lien(s):</h4>
                         <p class="commentaire-url-panel-text">${escapeHtml(tip.commentaireUrl)}</p>
                     `;
                 }
-
 
                 const panelPromptContent = tip.promptText || tip.prompt;
                 
@@ -1297,7 +1308,6 @@
                         </div>
                     `;
                 }
-
                 
                 const dateObj = new Date(tip.dateCreation);
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -1323,7 +1333,6 @@
                 previewOverlay.classList.add('open');
                 bodyElement.style.overflow = 'hidden';
 
-                // Re-attacher l'écouteur pour le bouton de copie dans le panneau après que le HTML soit mis à jour
                 document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
                     copyToClipboard(e.target.dataset.copy, e.target);
                 });
@@ -1350,11 +1359,10 @@
 
         async function copyToClipboard(text, buttonElement) {
             try {
-                // Utiliser document.execCommand pour la compatibilité dans les iframes du Canvas
                 const textarea = document.createElement('textarea');
                 textarea.value = text;
-                textarea.style.position = 'fixed'; // Évite le défilement
-                textarea.style.opacity = 0; // Rend invisible
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = 0;
                 document.body.appendChild(textarea);
                 textarea.select();
                 document.execCommand('copy');
@@ -1367,11 +1375,7 @@
                 }, 1500);
             } catch (err) {
                 console.error('Failed to copy: ', err);
-                // Utiliser une méthode alternative pour l'alerte, car `alert()` est désactivé
-                // Pour cet exemple, je vais simplement logguer, mais une implémentation réelle nécessiterait une modale custom.
                 console.warn('Veuillez copier manuellement : ', text);
-                // Pour un feedback utilisateur, vous pourriez afficher un message temporaire en HTML
-                // Par exemple, créer un div qui apparaît et disparaît.
             }
         }
 
@@ -1380,10 +1384,7 @@
         }
 
         async function confirmAndDeleteTip(tipId) {
-            // Remplacer `confirm()` par une modale personnalisée si possible
-            // Note: `confirm()` est désactivé dans cet environnement. Je vais simuler une confirmation et logguer.
-            // En production, vous devrez implémenter une modale HTML/CSS/JS pour demander confirmation.
-            const userConfirmed = true; // Simuler une confirmation pour la démonstration
+            const userConfirmed = true;
             console.log("Simulating confirmation for deletion. In a real app, this would be a custom modal.");
 
             if (userConfirmed) {
@@ -1401,14 +1402,12 @@
                         throw new Error(errorData.message || `Erreur HTTP! status: ${response.status}`);
                     }
 
-                    // Remplacer `alert()` par une notification personnalisée
-                    console.log("Tip supprimé avec succès !"); // Log plutôt qu'alerte
+                    console.log("Tip supprimé avec succès !");
                     loadAndDisplayTips();
                 }
                 catch (error) {
                     console.error("Erreur lors de la suppression du tip:", error);
-                    // Remplacer `alert()` par une notification personnalisée
-                    console.error(`Échec de la suppression du tip: ${error.message}`); // Log plutôt qu'alerte
+                    console.error(`Échec de la suppression du tip: ${error.message}`);
                 }
             }
         }
