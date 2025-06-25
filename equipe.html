@@ -12,24 +12,21 @@
 
     <style>
         /* Styles spécifiques à cette page - Gardez ici UNIQUEMENT ce qui est propre à la page équipe */
-        /* IMPORTANT: Les styles généraux de body et main NE DOIVENT PAS être ici.
-           Ils doivent être dans style.css pour éviter les conflits et centraliser. */
 
         body {
             margin: 0;
-            font-family: Arial, sans-serif; /* Conserve la police spécifique ici si nécessaire */
-            background: #f0f4f8; /* Conserve la couleur de fond spécifique à cette page si désiré */
+            font-family: Arial, sans-serif;
+            background: #f0f4f8;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            /* Supprime opacity et transition du body, le loader gère l'affichage */
         }
 
         /* Le main est initialement caché par défaut et est affiché par JS via body.loaded */
         main {
             display: none; /* Cache le contenu principal avant que le loader ne disparaisse */
-            flex-grow: 1; /* Permet à la section principale de prendre l'espace disponible */
-            padding: 40px 20px; /* Conserve le padding du main */
+            flex-grow: 1;
+            padding: 40px 20px;
         }
 
         /* Style pour rendre le main visible après le chargement via JS */
@@ -56,6 +53,10 @@
         #loader.hidden {
             opacity: 0;
             pointer-events: none; /* Permet les clics à travers après la disparition */
+            /* CORRECTION CLÉ ICI : Ajout de visibility: hidden; avec un délai.
+               Cela permet à la transition d'opacité de se faire, puis l'élément disparaît complètement */
+            visibility: hidden;
+            transition: opacity 0.3s ease-out, visibility 0s linear 0.3s;
         }
         /* Style du contenu du loader */
         .loader-content {
@@ -833,22 +834,16 @@
     document.addEventListener("DOMContentLoaded", async () => {
         console.log("Équipe: DOMContentLoaded, début de l'initialisation...");
 
-        // Assurer que le loader est visible au tout début
-        if (loader) {
-            loader.style.opacity = '1';
-            loader.style.display = 'flex';
-        }
+        // Le loader DOIT être visible par défaut via CSS (display: flex; opacity: 1;)
+        // et n'aura pas la classe 'hidden' au début.
+        // On ne met PAS de styles en ligne ici pour éviter les conflits.
 
         await loadHeader(); // Charge le header en premier, c'est rapide
 
-        // Lancer le chargement des profils (essentiel pour l'affichage initial)
         const profilsPromise = fetchData('getProfils');
-
-        // Lancer les autres chargements en parallèle, mais ne pas bloquer l'affichage initial pour eux
         const galleryPromise = fetchData('getGalleryPrompts');
         const tipsPromise = fetchData('getTips'); // Cette requête peut toujours échouer avec 400
 
-        // Attendre que les profils soient chargés et rendus
         await profilsPromise.then(data => {
             profils = data || [];
             console.log("Équipe: Profils chargés :", profils.length);
@@ -857,21 +852,15 @@
             console.error("Équipe: Impossible de charger les profils au démarrage. ", error);
             listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Erreur lors du chargement des profils. Veuillez réessayer.</p>';
         }).finally(() => {
-            // Cette partie s'exécute QUEL QUE SOIT le résultat de profilsPromise (succès ou échec).
+            // Cette partie s'exécute QUEL QUE SOIT le résultat de profilsPromise.
             // C'est le point où le loader DOIT disparaître et la page DOIT s'afficher.
             if (loader) {
-                loader.classList.add("hidden");
-                // Attendre la fin de la transition d'opacité du loader avant de le cacher complètement
-                loader.addEventListener('transitionend', () => {
-                    loader.style.display = 'none'; // Cache le loader complètement après sa transition
-                }, { once: true });
-
-                // Appliquer la classe 'loaded' au body pour afficher le main.
-                // Cela se fait après un très court délai pour permettre au loader de commencer à disparaître.
-                setTimeout(() => {
-                    bodyElement.classList.add('loaded'); // Active body.loaded pour afficher main
-                }, 100); // 100ms suffisent pour la plupart des transitions CSS courtes.
+                loader.classList.add("hidden"); // Déclenche la transition d'opacité du loader
+                // Le CSS de #loader.hidden gérera la transition d'opacité vers 0,
+                // puis la visibilité et le display: none; après le délai.
             }
+            // Active la visibilité du body et du main via la classe 'loaded'
+            bodyElement.classList.add('loaded'); // Active body.loaded pour afficher main
             console.log("Équipe: Contenu principal affiché (profils chargés).");
         });
 
