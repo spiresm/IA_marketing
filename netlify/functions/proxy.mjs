@@ -9,26 +9,52 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 
 export const handler = async (event) => {
+    // URL de votre Google Apps Script pour les demandes IA
     const DEMANDS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_DEMANDS_URL || 'https://script.google.com/macros/s/AKfycbzY3tDLyDk_zrl6QV-v79Wt9Y-LDei5QltF0b2g869ahUQrEuXFhblO3YV4d_qKeKQ8/exec';
 
     try {
-        const action = event.queryStringParameters?.action;
+        let action = event.queryStringParameters?.action; // Tente d'abord de récupérer l'action des paramètres de requête (pour les GET)
+        let requestBody = event.body; // Conserve le corps brut tel qu'il est reçu
 
+        // Si la méthode est POST et qu'il y a un corps de requête
+        if (event.httpMethod === 'POST' && requestBody) {
+            try {
+                // Tente de parser le corps en JSON
+                const parsedBody = JSON.parse(requestBody);
+                // Si le corps parsé contient une propriété 'action', l'utiliser
+                if (parsedBody && parsedBody.action) {
+                    action = parsedBody.action;
+                }
+                // Si le corps parsé contenait d'autres données utiles,
+                // on les re-stringify pour les passer comme corps à la cible.
+                // Cela garantit que les données comme 'id' ou 'traite' sont conservées.
+                requestBody = JSON.stringify(parsedBody); 
+
+            } catch (parseError) {
+                console.warn("Proxy.mjs: Corps de requête POST non valide ou non JSON :", parseError);
+                // Si le parsing échoue, requestBody reste le corps brut,
+                // et action pourrait être undefined si elle n'était pas dans les query params.
+                // L'erreur 400 sera renvoyée plus tard si 'action' est toujours manquante.
+            }
+        }
+        
         let targetUrl = '';
-        let fetchMethod = event.httpMethod;
-        let requestBody = null;
+        let fetchMethod = event.httpMethod; // Par défaut, la méthode est la même que celle de la requête entrante
+        
 
         if (!action) {
-            console.warn(`Proxy.mjs: Action manquante.`);
+            // Si 'action' est toujours undefined ou null après les tentatives, c'est une erreur.
+            console.warn(`Proxy.mjs: Action manquante ou non reconnue: ${action || 'non spécifiée'}`);
             return {
                 statusCode: 400,
-                body: JSON.stringify({ message: "Action non reconnue ou manquante.", actionReçue: "Aucune" }),
+                body: JSON.stringify({ success: false, message: "Action non reconnue ou manquante.", actionReçue: action || 'Aucune' }),
             };
         }
 
         switch (action) {
             case 'getProfils':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/getProfils`;
+                fetchMethod = 'GET';
                 requestBody = null;
                 break;
 
@@ -38,33 +64,45 @@ export const handler = async (event) => {
                 requestBody = null;
                 break;
 
+            case 'updateDemandeIA': // Cas pour marquer traité
+                targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
+                fetchMethod = 'POST'; // Votre GAS reçoit des POST pour les mises à jour
+                // requestBody est déjà défini et devrait contenir { action: "updateDemandeIA", id: ..., traite: ... }
+                break;
+            
+            case 'deleteDemande': // Cas pour la suppression
+                targetUrl = DEMANDS_SCRIPT_URL + '?action=' + action;
+                fetchMethod = 'POST'; // Votre GAS reçoit des POST pour les suppressions
+                // requestBody est déjà défini et devrait contenir { action: "deleteDemande", id: ... }
+                break;
+
             case 'updateProfil':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/updateProfil`;
-                requestBody = event.body;
+                fetchMethod = 'POST';
                 break;
 
             case 'deleteProfil':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/deleteProfil`;
                 fetchMethod = 'DELETE';
-                requestBody = event.body;
                 break;
 
             case 'getGalleryPrompts':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/getGalleryPrompts`;
-                requestBody = null;
+                fetchMethod = 'GET';
                 break;
 
             case 'saveTip':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/saveTip`;
-                requestBody = event.body;
+                fetchMethod = 'POST';
                 break;
 
             case 'getSharedTips':
                 targetUrl = `https://${event.headers.host}/.netlify/functions/getSharedTips`;
-                requestBody = null;
+                fetchMethod = 'GET';
                 break;
 
             case 'chatWithGPT':
+                // Cette logique de chat GPT est auto-contenue et ne forwarde pas vers targetUrl
                 try {
                     const { message } = JSON.parse(event.body);
 
@@ -76,7 +114,7 @@ export const handler = async (event) => {
                     }
 
                     const completion = await openai.chat.completions.create({
-                        model: "gpt-4o", // <-- CHANGEZ CETTE LIGNE
+                        model: "gpt-4o",
                         messages: [{ role: "user", content: message }],
                         max_tokens: 300,
                         temperature: 0.7,
@@ -100,7 +138,7 @@ export const handler = async (event) => {
                 console.warn(`Proxy.mjs: Action non reconnue: ${action}`);
                 return {
                     statusCode: 400,
-                    body: JSON.stringify({ message: "Action non reconnue ou manquante.", actionReçue: action }),
+                    body: JSON.stringify({ success: false, message: "Action non reconnue ou manquante.", actionReçue: action }),
                 };
         }
 
@@ -109,9 +147,10 @@ export const handler = async (event) => {
             headers: {},
         };
 
+        // Si la méthode est POST/PUT/PATCH/DELETE et qu'il y a un corps (requestBody a été parsé/re-stringifié si nécessaire)
         if (requestBody && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(fetchMethod.toUpperCase())) {
             fetchOptions.headers["Content-Type"] = "application/json";
-            fetchOptions.body = requestBody;
+            fetchOptions.body = requestBody; // Utilise le requestBody potentiellement parsé/re-stringifié
         }
 
         console.log("Proxy.mjs envoie vers :", targetUrl);
