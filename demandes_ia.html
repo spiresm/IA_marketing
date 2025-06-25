@@ -360,15 +360,23 @@
                         <span>@rtbf.be</span>
                     </div>
 
-                    <label for="type">Type :</label>
-                    <select name="type" required>
+                    <label for="besoin">Besoin :</label>
+                    <select name="besoin" id="besoin" required>
+                        <option value="">-- Sélectionner --</option>
+                        <option value="production">Production</option>
+                        <option value="formation">Formation</option>
+                    </select>
+
+                    <label for="typeContenu">Type de contenu :</label>
+                    <select name="typeContenu" id="typeContenu" required>
                         <option value="">-- Sélectionner --</option>
                         <option value="vidéo">Vidéo</option>
                         <option value="audio">Audio</option>
                         <option value="image">Image</option>
                         <option value="voix off IA">Voix off IA</option>
-                        <option value="formation">Formation</option> <option value="autre">Autre</option>
+                        <option value="autre">Autre</option>
                     </select>
+
 
                     <label for="support">Support :</label>
                     <select name="support" required>
@@ -413,6 +421,12 @@
                     <option value="">Filtrer par demandeur</option>
                     </select>
 
+                <select id="filtreBesoin" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #ccc;">
+                    <option value="">Filtrer par besoin</option>
+                    <option value="production">Production</option>
+                    <option value="formation">Formation</option>
+                </select>
+
                 <select id="filtreParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"></select>
                 <div id="recapList"></div>
             </div>
@@ -431,13 +445,10 @@
 
     <script>
         // Définitions des URL pour les fonctions Netlify
-        // PROXY_URL est utilisé pour les actions qui vont vers Google Apps Script via le proxy
         const PROXY_URL = "/.netlify/functions/proxy";
-        // SEND_REQUEST_URL est utilisé pour l'envoi du formulaire via sendrequest.js
         const SEND_REQUEST_URL = "/.netlify/functions/sendrequest";
 
         // Tableau des profils qui alimentera les filtres et champs de nom
-        // MISE À JOUR AVEC LES NOUVEAUX NOMS ET STRUCTURE
         const allProfiles = [
             // Pôle créa. (existants et ajoutés)
             { "id": "_tfzo5ckx8", "name": "Steeve PIRES MADEIRA", "pole": "Pôle créa.", "photo": "https://raw.githubusercontent.com/spiresm/IA_marketing/main/uploads/image_compressée (2).jpeg", "tools": ["ChatGPT", "Claude", "Midjourney", "Stable Diffusion", "Firefly", "Gemini", "Copilot", "Sora", "ElevenLabs"], "note": "ajouter staff aux équipes + lier profil aux demandeurs IA" },
@@ -612,6 +623,7 @@
         async function afficherDemandes() {
             const recapList = document.getElementById("recapList");
             const filtreDemandeurSelect = document.getElementById("filtreDemandeur");
+            const filtreBesoinSelect = document.getElementById("filtreBesoin"); // Nouveau sélecteur pour "besoin"
             const filtreParChaineSelect = document.getElementById("filtreParChaine");
 
             recapList.innerHTML = '<p class="loading-text">Chargement des demandes...</p>';
@@ -653,6 +665,20 @@
                 filtreDemandeurSelect.value = currentFiltreDemandeur;
             }
 
+            // Peupler le filtre par Besoin (nouveau)
+            const besoinsDisponibles = ["production", "formation"].sort(); // Options fixes
+            filtreBesoinSelect.innerHTML = '<option value="">Filtrer par besoin</option>';
+            besoinsDisponibles.forEach(besoin => {
+                const option = document.createElement('option');
+                option.value = besoin;
+                option.textContent = besoin.charAt(0).toUpperCase() + besoin.slice(1); // Mettre la première lettre en majuscule
+                filtreBesoinSelect.appendChild(option);
+            });
+            const currentFiltreBesoin = filtreBesoinSelect.dataset.currentValue || '';
+            if (currentFiltreBesoin) {
+                filtreBesoinSelect.value = currentFiltreBesoin;
+            }
+
 
             // Peupler le filtre par chaîne (liste complète des options de chaîne)
             const chainesDisponibles = [
@@ -672,6 +698,7 @@
             }
 
             const selectedFiltreDemandeur = filtreDemandeurSelect.value;
+            const selectedFiltreBesoin = filtreBesoinSelect.value; // Nouvelle valeur de filtre
             const selectedFiltreParChaine = filtreParChaineSelect.value;
 
             let demandesFiltrees = demandes;
@@ -679,6 +706,11 @@
             // Appliquer le filtre par demandeur
             if (selectedFiltreDemandeur) {
                 demandesFiltrees = demandesFiltrees.filter(d => d.nom === selectedFiltreDemandeur);
+            }
+
+            // Appliquer le filtre par besoin (nouveau)
+            if (selectedFiltreBesoin) {
+                demandesFiltrees = demandesFiltrees.filter(d => d.besoin === selectedFiltreBesoin);
             }
 
             // Appliquer le filtre par chaîne
@@ -705,8 +737,7 @@
                     <div style="display:flex; justify-content: space-between; align-items:center">
                         <span><strong>${d.nom || 'N/A'}</strong></span>
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="font-size:1.1em; font-weight: bold;">${d.type || 'N/A'}</span>
-                            <span>${d.duree || 'N/A'}</span>
+                            <span style="font-size:1.1em; font-weight: bold;">${d.typeContenu || 'N/A'}</span> <span>${d.duree || 'N/A'}</span>
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
@@ -743,8 +774,7 @@
                     modalBody.innerHTML = `
                         <div class="modal-info-line"><strong>Nom :</strong> <span>${d.nom || 'N/A'}</span></div>
                         <div class="modal-info-line"><strong>Email :</strong> <span>${d.email || 'N/A'}</span></div>
-                        <div class="modal-info-line"><strong>Type :</strong> <span>${d.type || 'N/A'}</span></div>
-                        <div class="modal-info-line"><strong>Support :</strong> <span>${d.support || 'N/A'}</span></div>
+                        <div class="modal-info-line"><strong>Besoin :</strong> <span>${d.besoin || 'N/A'}</span></div> <div class="modal-info-line"><strong>Type de contenu :</strong> <span>${d.typeContenu || 'N/A'}</span></div> <div class="modal-info-line"><strong>Support :</strong> <span>${d.support || 'N/A'}</span></div>
                         <div class="modal-info-line"><strong>Chaîne :</strong> <span>${d.chaine || 'N/A'}</span></div>
                         <div class="modal-info-line"><strong>Durée :</strong> <span>${d.duree || 'N/A'}</span></div>
                         <div class="modal-info-line"><strong>Date :</strong> <span>${formattedDate}</span></div>
@@ -760,12 +790,11 @@
         // Fonction pour supprimer une demande via le proxy
         async function supprimerDemande(id) {
             try {
-                // Appel au proxy avec l'action 'deleteDemande' et l'ID dans le corps
                 const response = await fetch(PROXY_URL, {
-                    method: "POST", // Le proxy gère généralement tout en POST pour les actions
+                    method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        action: "deleteDemande", // <--- Le frontend envoie "deleteDemande"
+                        action: "deleteDemande", // Frontend envoie "deleteDemande"
                         id: id
                     })
                 });
@@ -789,12 +818,11 @@
         // Fonction pour marquer une demande comme traitée via le proxy
         async function marquerTraite(id) {
             try {
-                // Appel au proxy avec l'action 'updateDemandeIA' et l'ID/statut dans le corps
                 const response = await fetch(PROXY_URL, {
-                    method: "POST", // Le proxy gère généralement tout en POST pour les actions
+                    method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        action: "updateDemandeIA", // <--- Action pour le proxy
+                        action: "updateDemandeIA",
                         id: id,
                         traite: true
                     })
@@ -841,7 +869,6 @@
                 nomSelect.appendChild(option);
             });
 
-
             // Gestion de la soumission du formulaire
             document.getElementById("demandeIA").addEventListener("submit", async e => {
                 e.preventDefault();
@@ -850,7 +877,8 @@
                     id: "_" + Math.random().toString(36).substr(2, 9),
                     nom: data.get("nom"),
                     email: `${data.get("emailPrefix")}@rtbf.be`,
-                    type: data.get("type"),
+                    besoin: data.get("besoin"), // Nouveau champ "besoin"
+                    typeContenu: data.get("typeContenu"), // Nouveau champ "typeContenu"
                     support: data.get("support"),
                     duree: data.get("duree"),
                     date: data.get("date"),
@@ -904,6 +932,7 @@
 
             // Gestion des changements de filtre (pour le récapitulatif de droite)
             document.getElementById("filtreDemandeur").addEventListener("change", afficherDemandes);
+            document.getElementById("filtreBesoin").addEventListener("change", afficherDemandes); // Nouveau gestionnaire
             document.getElementById("filtreParChaine").addEventListener("change", afficherDemandes);
 
             // Gestion de la modale d'information
