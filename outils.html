@@ -20,8 +20,6 @@
 
     <style>
         /* Styles spécifiques à outils.html - Retiré les conflits avec style.css global */
-        /* Ces styles devraient idéalement être les vôtres pour outils.html, sans conflits. */
-
         body {
             margin: 0;
             font-family: Arial, sans-serif; /* Conserve la police Arial ou sans-serif pour cette page */
@@ -35,9 +33,10 @@
             display: block; /* Rendre main visible par défaut */
         }
 
-        /* Le reste de vos styles CSS spécifiques à outils.html (qui n'étaient pas les vôtres à la base, mais qui étaient dans votre bloc style) */
-        /* Ces styles sont conservés tels quels pour maintenir la mise en page des cartes etc. */
+        /* Suppression de tous les styles du loader de cette balise <style> */
+        /* #loader, #loader.hidden, .loader-content, .spinner, @keyframes spin ne sont plus nécessaires */
 
+        /* Le reste de vos styles CSS spécifiques à outils.html */
         .container {
             max-width: 1100px;
             margin: 30px auto;
@@ -376,30 +375,32 @@
     /**
      * Met à jour la bulle de notification des demandes IA.
      * Cette fonction sera appelée après le chargement du header.
+     * Elle est maintenant vide ou commentée car la bulle est supprimée.
      */
     async function mettreAJourBulleDemandes() {
-        const notif = document.getElementById('notif-count');
-        if (notif) {
-            try {
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) {
-                    const errorBody = await res.json().catch(() => res.text());
-                    console.error(`Erreur HTTP lors de la récupération des demandes IA: ${res.status} -`, errorBody);
-                    notif.style.display = 'none'; // Cacher la bulle en cas d'erreur API
-                    return;
-                }
-                const demandes = await res.json();
-                const demandesArray = demandes.data || [];
-                const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
-                notif.textContent = demandesNonTraitees.length;
-                notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
-            } catch (e) {
-                console.error("Erreur lors de la mise à jour de la bulle de demandes (client-side):", e);
-                notif.style.display = 'none'; // Cacher la bulle en cas d'erreur JS
-            }
-        } else {
-            console.warn("Élément 'notif-count' non trouvé. Impossible de mettre à jour la bulle de notification.");
-        }
+        // const notif = document.getElementById('notif-count'); // Cet élément n'existe plus sur cette page
+        // if (notif) {
+        //     try {
+        //         const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+        //         if (!res.ok) {
+        //             const errorBody = await res.json().catch(() => res.text());
+        //             console.error(`Erreur HTTP lors de la récupération des demandes IA: ${res.status} -`, errorBody);
+        //             notif.style.display = 'none';
+        //             return;
+        //         }
+        //         const demandes = await res.json();
+        //         const demandesArray = demandes.data || [];
+        //         const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
+        //         notif.textContent = demandesNonTraitees.length;
+        //         notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
+        //     } catch (e) {
+        //         console.error("Erreur lors de la mise à jour de la bulle de demandes (client-side):", e);
+        //         notif.style.display = 'none';
+        //     }
+        // } else {
+        //     console.warn("Élément 'notif-count' non trouvé. Impossible de mettre à jour la bulle de notification.");
+        // }
+        console.log("Outils IA: mettreAJourBulleDemandes est désactivée sur cette page.");
     }
 
     document.addEventListener("DOMContentLoaded", async () => {
@@ -420,20 +421,15 @@
             }
         });
 
-        // 3. Mettre à jour la bulle de notification (ne bloque pas le chargement principal)
-        try {
-            await mettreAJourBulleDemandes();
-        } catch (error) {
-            console.error("Outils IA: Erreur lors de l'appel de mettreAJourBulleDemandes :", error);
-        }
+        // 3. La bulle de notification est désactivée sur cette page, donc pas d'appel ici.
+        // Vous pouvez laisser la fonction mettreAJourBulleDemandes vide ou la supprimer si elle n'est plus utilisée.
+        // Si elle est appelée par header.html, il faut la laisser vide ici pour éviter une erreur.
 
         // 4. Exécuter le code de tools-full.js et rendre les outils
         // La variable 'tools' et la fonction 'applyFilters' sont supposées être globales depuis tools-full.js
         if (typeof applyFilters === "function" && typeof tools !== "undefined") {
-            // Set the default filter to "Validés par la RTBF"
-            document.getElementById("filtre-rtbf").value = "valide";
-            applyFilters(); // Appel initial pour afficher les outils validés par défaut
-
+            document.getElementById("filtre-rtbf").value = "valide"; // Set default filter
+            applyFilters(); // Initial render
             document.getElementById("search").addEventListener("input", applyFilters);
             document.getElementById("filtre-type").addEventListener("change", applyFilters);
             document.getElementById("filtre-rtbf").addEventListener("change", applyFilters);
@@ -445,14 +441,13 @@
 
         // 5. Rendre le body et main visibles.
         // Puisqu'il n'y a plus de loader, le body et main sont visibles instantanément via CSS.
-        // Ces lignes ne sont plus strictement nécessaires si body et main sont par défaut non opacity:0
-        // bodyElement.style.opacity = '1';
-        // mainContent.style.display = 'block';
+        // bodyElement.style.opacity = '1'; est géré par style.css global body.show
+        // mainContent.style.display = 'block'; est géré par la style.css interne de outils.html
+        bodyElement.classList.add('show'); // Active body.show pour rendre le body visible si opacity:0 est par défaut
 
         console.log("Outils IA: Initialisation terminée.");
 
         // 6. Logique de la bulle d'information (Modale de bienvenue)
-        // La classe 'visible' sur info-bubble-overlay gère l'opacité et la visibilité
         const hasSeenInfoBubble = localStorage.getItem('hasSeenOutilsInfoBubble') === 'true';
 
         if (!hasSeenInfoBubble) {
