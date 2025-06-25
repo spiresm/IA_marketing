@@ -423,421 +423,450 @@
         Auteur : Steeve Pires Madeira / Marketing - R&D format
     </footer>
 
-    <script>
-        const PROXY_URL = "/.netlify/functions/proxy";
-        let profils = [];
-        let galleryPrompts = [];
-        let sharedTips = [];
+<script>
+    console.log("Script JavaScript chargé et démarré.");
 
-        const listContainer = document.getElementById("profil-list");
-        const filterPole = document.getElementById("filterPole");
-        const searchInput = document.getElementById("searchInput");
-        const sidePanel = document.getElementById("side-panel");
-        const panelContent = document.getElementById("panel-content");
-        const closePanelBtn = document.querySelector(".close-panel");
-        const mainContent = document.querySelector('main');
-        const bodyElement = document.body;
-        const loader = document.getElementById("loader");
-        const headerPlaceholder = document.getElementById("header-placeholder");
+    const PROXY_URL = "/.netlify/functions/proxy";
+    let profils = [];
+    let galleryPrompts = [];
+    let sharedTips = [];
 
-        async function fetchData(action) {
-            try {
-                const response = await fetch(`${PROXY_URL}?action=${action}`);
-                if (!response.ok) {
-                    const errorBody = await response.json().catch(() => response.text());
-                    console.error(`Erreur HTTP lors de la récupération de ${action}: ${response.status} -`, errorBody);
-                    throw new Error(`Échec du chargement de ${action}: ${response.status}`);
-                }
-                return await response.json();
-            } catch (error) {
-                console.error(`Erreur lors du chargement de ${action}:`, error);
-                throw error;
+    const listContainer = document.getElementById("profil-list");
+    const filterPole = document.getElementById("filterPole");
+    const searchInput = document.getElementById("searchInput");
+    const sidePanel = document.getElementById("side-panel");
+    const panelContent = document.getElementById("panel-content");
+    const closePanelBtn = document.querySelector(".close-panel");
+    const mainContent = document.querySelector('main');
+    const bodyElement = document.body;
+    const loader = document.getElementById("loader");
+    const headerPlaceholder = document.getElementById("header-placeholder");
+
+    /**
+     * Fonction utilitaire pour récupérer des données depuis le proxy Netlify.
+     * Gère les erreurs et le parsing JSON.
+     * @param {string} action - L'action à demander au proxy (ex: 'getProfils', 'getGalleryPrompts').
+     * @returns {Promise<Object|Array|null>} Les données JSON ou null en cas d'erreur.
+     */
+    async function fetchData(action) {
+        try {
+            const response = await fetch(`${PROXY_URL}?action=${action}`);
+            if (!response.ok) {
+                const errorBody = await response.json().catch(() => response.text());
+                console.error(`Erreur HTTP lors de la récupération de ${action}: ${response.status} -`, errorBody);
+                throw new Error(`Échec du chargement de ${action}: ${response.status}`);
             }
+            return await response.json();
+        } catch (error) {
+            console.error(`Erreur lors du chargement de ${action}:`, error);
+            throw error; // Propage l'erreur pour que Promise.allSettled la capture
+        }
+    }
+
+    function normalizeString(str) {
+        if (typeof str !== 'string') return '';
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    }
+
+    function renderProfils() {
+        console.log("Équipe: Début du rendu des profils...");
+        const selectedPole = normalizeString(filterPole.value);
+        const searchQuery = normalizeString(searchInput.value);
+        listContainer.innerHTML = ""; // Vide le conteneur avant de re-rendre
+
+        const filteredProfils = profils.filter(p => {
+            const poleNormalized = normalizeString(p.pole || '');
+            const nameNormalized = normalizeString(p.name || '');
+            const toolsNormalized = (Array.isArray(p.tools) ? p.tools : []).map(t => normalizeString(t));
+
+            const matchPole = !selectedPole || poleNormalized === selectedPole;
+            const matchSearch = !searchQuery || nameNormalized.includes(searchQuery) || toolsNormalized.some(tool => tool.includes(searchQuery));
+            return matchPole && matchSearch;
+        });
+
+        if (filteredProfils.length === 0) {
+            listContainer.innerHTML = '<p style="text-align: center; color: #666; width: 100%;">Aucun profil ne correspond à vos critères.</p>';
         }
 
-        function normalizeString(str) {
-            if (typeof str !== 'string') return '';
-            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-        }
+        const fragment = document.createDocumentFragment(); // Utilise un fragment pour des performances accrues
+        filteredProfils.forEach((p) => {
+            const div = document.createElement("div");
+            div.className = "vignette";
+            div.dataset.id = p.id;
 
-        function renderProfils() {
-            console.log("Équipe: Début du rendu des profils...");
-            const selectedPole = normalizeString(filterPole.value);
-            const searchQuery = normalizeString(searchInput.value);
-            listContainer.innerHTML = "";
+            const hasNote = (p.note || '').trim() !== '';
 
-            const filteredProfils = profils.filter(p => {
-                const poleNormalized = normalizeString(p.pole || '');
-                const nameNormalized = normalizeString(p.name || '');
-                const toolsNormalized = (Array.isArray(p.tools) ? p.tools : []).map(t => normalizeString(t));
+            div.innerHTML = `
+                <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;}">Note</span>
+                <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}"
+                        alt="${p.name || 'Profil'}"
+                        onerror="this.onerror=null;this.src='https://via.placeholder.com/80x80?text=Erreur%20Image';" />
+                <h3>${p.name || 'Nom Inconnu'}</h3>
+                <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
+                <div class="icon-bar">
+                    <button class="btn-note" title="Note">🗒️</button>
+                    <button class="btn-edit" title="Éditer">✏️</button>
+                    <button class="btn-delete" title="Supprimer">🗑️</button>
+                </div>
+                <div class="note-editor">
+                    <textarea>${p.note || ''}</textarea>
+                    <div class="actions">
+                        <button class="save-note">Enregistrer</button>
+                        <button class="clear-note">Effacer</button>
+                        <button class="close-note">Retour</button>
+                    </div>
+                </div>
+            `;
+            const noteBadge = div.querySelector(".note-badge");
+            const noteEditor = div.querySelector(".note-editor");
+            const textarea = noteEditor.querySelector("textarea");
 
-                const matchPole = !selectedPole || poleNormalized === selectedPole;
-                const matchSearch = !searchQuery || nameNormalized.includes(searchQuery) || toolsNormalized.some(tool => tool.includes(searchQuery));
-                return matchPole && matchSearch;
+            // Gestionnaire d'événements pour les boutons de la vignette
+            div.querySelector(".btn-note").addEventListener("click", e => {
+                e.stopPropagation();
+                console.log("Équipe: Clic sur 'Note' pour", p.name);
+                document.querySelectorAll(".note-editor.open").forEach(el => {
+                    if (el !== noteEditor) {
+                        el.classList.remove("open");
+                    }
+                });
+                noteEditor.classList.toggle("open");
             });
 
-            if (filteredProfils.length === 0) {
-                listContainer.innerHTML = '<p style="text-align: center; color: #666; width: 100%;">Aucun profil ne correspond à vos critères.</p>';
-            }
-
-            const fragment = document.createDocumentFragment();
-            filteredProfils.forEach((p) => {
-                const div = document.createElement("div");
-                div.className = "vignette";
-                div.dataset.id = p.id;
-
-                const hasNote = (p.note || '').trim() !== '';
-
-                div.innerHTML = `
-                    <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
-                    <img src="${p.photo || 'https://via.placeholder.com/80x80?text=Profil'}"
-                            alt="${p.name || 'Profil'}"
-                            onerror="this.onerror=null;this.src='https://via.placeholder.com/80x80?text=Erreur%20Image';" />
-                    <h3>${p.name || 'Nom Inconnu'}</h3>
-                    <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
-                    <div class="icon-bar">
-                        <button class="btn-note" title="Note">🗒️</button>
-                        <button class="btn-edit" title="Éditer">✏️</button>
-                        <button class="btn-delete" title="Supprimer">🗑️</button>
-                    </div>
-                    <div class="note-editor">
-                        <textarea>${p.note || ''}</textarea>
-                        <div class="actions">
-                            <button class="save-note">Enregistrer</button>
-                            <button class="clear-note">Effacer</button>
-                            <button class="close-note">Retour</button>
-                        </div>
-                    </div>
-                `;
-                const noteBadge = div.querySelector(".note-badge");
-                const noteEditor = div.querySelector(".note-editor");
-                const textarea = noteEditor.querySelector("textarea");
-
-                div.querySelector(".btn-note").addEventListener("click", e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Note' pour", p.name);
-                    document.querySelectorAll(".note-editor.open").forEach(el => {
-                        if (el !== noteEditor) {
-                            el.classList.remove("open");
-                        }
+            div.querySelector(".save-note").addEventListener("click", async e => {
+                e.stopPropagation();
+                console.log("Équipe: Clic sur 'Enregistrer note' pour", p.name);
+                const content = textarea.value.trim();
+                try {
+                    const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: p.id, note: content })
                     });
-                    noteEditor.classList.toggle("open");
-                });
-
-                div.querySelector(".save-note").addEventListener("click", async e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Enregistrer note' pour", p.name);
-                    const content = textarea.value.trim();
-                    try {
-                        const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: p.id, note: content })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            console.log("Équipe: Note enregistrée avec succès pour", p.name);
-                            p.note = content;
-                            noteBadge.style.display = content ? 'inline-block' : 'none';
-                            noteEditor.classList.remove("open");
-                        } else {
-                            console.error("Équipe: Erreur lors de l'enregistrement de la note:", data.message);
-                            alert("Erreur lors de l'enregistrement de la note : " + data.message);
-                        }
-                    } catch (error) {
-                        console.error("Équipe: Erreur réseau/serveur lors de l'enregistrement de la note:", error);
-                        alert("Erreur réseau/serveur lors de l'enregistrement de la note.");
+                    const data = await res.json();
+                    if (data.success) {
+                        console.log("Équipe: Note enregistrée avec succès pour", p.name);
+                        p.note = content; // Met à jour localement le profil
+                        noteBadge.style.display = content ? 'inline-block' : 'none';
+                        noteEditor.classList.remove("open");
+                    } else {
+                        console.error("Équipe: Erreur lors de l'enregistrement de la note:", data.message);
+                        alert("Erreur lors de l'enregistrement de la note : " + data.message);
                     }
-                });
-
-                div.querySelector(".clear-note").addEventListener("click", async e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Effacer note' pour", p.name);
-                    textarea.value = "";
-                    try {
-                        const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: p.id, note: "" })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            console.log("Équipe: Note effacée avec succès pour", p.name);
-                            p.note = "";
-                            noteBadge.style.display = 'none';
-                            noteEditor.classList.remove("open");
-                        } else {
-                            console.error("Équipe: Erreur lors de l'effacement de la note:", data.message);
-                            alert("Erreur lors de l'effacement de la note : " + data.message);
-                        }
-                    } catch (error) {
-                        console.error("Équipe: Erreur réseau/serveur lors de l'effacement de la note:", error);
-                        alert("Erreur réseau/serveur lors de l'effacement de la note.");
-                    }
-                });
-
-                div.querySelector(".close-note").addEventListener("click", e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Retour note' pour", p.name);
-                    textarea.value = p.note || '';
-                    noteEditor.classList.remove("open");
-                });
-
-                div.querySelector(".btn-edit").addEventListener("click", e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Éditer' pour", p.name);
-                    window.location.href = `profil.html?edit=${encodeURIComponent(p.id)}`;
-                });
-
-                div.querySelector(".btn-delete").addEventListener("click", async e => {
-                    e.stopPropagation();
-                    console.log("Équipe: Clic sur 'Supprimer' pour", p.name);
-                    if (confirm(`Supprimer définitivement ${p.name} ?`)) {
-                        try {
-                            const res = await fetch(`${PROXY_URL}?action=deleteProfil`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ id: p.id })
-                            });
-                            const data = await res.json();
-                            if (data.success) {
-                                console.log("Équipe: Profil supprimé avec succès:", p.name);
-                                profils = profils.filter(profile => profile.id !== p.id);
-                                renderProfils();
-                                if (sidePanel.classList.contains("show") && panelContent.dataset.id === p.id) {
-                                    sidePanel.classList.remove("show");
-                                }
-                            } else {
-                                console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
-                                alert("Erreur lors de la suppression du profil : " + data.message);
-                            }
-                        } catch (error) {
-                            console.error("Équipe: Erreur réseau/serveur lors de la suppression du profil:", error);
-                            alert("Erreur réseau/serveur lors de la suppression du profil.");
-                        }
-                    }
-                });
-
-                div.addEventListener("click", async e => {
-                    if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
-                        console.log("Équipe: Ouverture du panneau latéral pour", p.name);
-                        panelContent.dataset.id = p.id;
-
-                        await updateSidePanelContent(p);
-                        sidePanel.classList.add("show");
-                    }
-                });
-
-                fragment.appendChild(div);
+                } catch (error) {
+                    console.error("Équipe: Erreur réseau/serveur lors de l'enregistrement de la note:", error);
+                    alert("Erreur réseau/serveur lors de l'enregistrement de la note.");
+                }
             });
-            listContainer.appendChild(fragment);
-            console.log("Équipe: Rendu des profils terminé.");
-        }
 
-        async function updateSidePanelContent(profil) {
-            const profilNameNormalized = normalizeString(profil.name || '');
+            div.querySelector(".clear-note").addEventListener("click", async e => {
+                e.stopPropagation();
+                console.log("Équipe: Clic sur 'Effacer note' pour", p.name);
+                textarea.value = "";
+                try {
+                    const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: p.id, note: "" })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        console.log("Équipe: Note effacée avec succès pour", p.name);
+                        p.note = ""; // Met à jour localement le profil
+                        noteBadge.style.display = 'none';
+                        noteEditor.classList.remove("open");
+                    } else {
+                        console.error("Équipe: Erreur lors de l'effacement de la note:", data.message);
+                        alert("Erreur lors de l'effacement de la note : " + data.message);
+                    }
+                } catch (error) {
+                    console.error("Équipe: Erreur réseau/serveur lors de l'effacement de la note:", error);
+                    alert("Erreur réseau/serveur lors de l'effacement de la note.");
+                }
+            });
 
-            const imagesByAuthor = galleryPrompts
-                .filter(prompt => normalizeString(prompt.auteur || '') === profilNameNormalized)
-                .map(prompt => prompt.imageUrl)
-                .filter(Boolean);
+            div.querySelector(".close-note").addEventListener("click", e => {
+                e.stopPropagation();
+                console.log("Équipe: Clic sur 'Retour note' pour", p.name);
+                textarea.value = p.note || ''; // Restaure la note originale
+                noteEditor.classList.remove("open");
+            });
 
-            console.log(`DEBUG: Images de galerie trouvées pour "${profil.name}" :`, imagesByAuthor);
+            div.querySelector(".btn-edit").addEventListener("click", e => {
+                e.stopPropagation();
+                console.log("Équipe: Clic sur 'Éditer' pour", p.name);
+                window.location.href = `profil.html?edit=${encodeURIComponent(p.id)}`;
+            });
 
-            let gallerySection = '';
-            if (imagesByAuthor.length > 0) {
-                const lastTwoImages = imagesByAuthor.slice(-2);
-                const imagesHtml = lastTwoImages.map(imgSrc => {
-                    const fallbackSrc = 'https://via.placeholder.com/150x100?text=Erreur+image';
-                    const displaySrc = (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) ? imgSrc : fallbackSrc;
-                    return `<a href="galerie.html?imageUrl=${encodeURIComponent(displaySrc)}" target="_blank"><img src="${displaySrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='${fallbackSrc}';" title="Image: ${imgSrc}"></a>`;
-                }).join('');
+            div.querySelector(".btn-delete").addEventListener("click", async e => {
+                e.stopPropagation();
+                console.log("Équipe: Clic sur 'Supprimer' pour", p.name);
+                if (confirm(`Supprimer définitivement ${p.name} ?`)) {
+                    try {
+                        const res = await fetch(`${PROXY_URL}?action=deleteProfil`, {
+                            method: "POST", // Assurez-vous que votre fonction Netlify accepte POST pour la suppression
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ id: p.id })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            console.log("Équipe: Profil supprimé avec succès:", p.name);
+                            profils = profils.filter(profile => profile.id !== p.id); // Met à jour le tableau local
+                            renderProfils(); // Re-rend les profils
+                            // Si le panneau latéral était ouvert pour ce profil, fermez-le
+                            if (sidePanel.classList.contains("show") && panelContent.dataset.id === p.id) {
+                                sidePanel.classList.remove("show");
+                            }
+                        } else {
+                            console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
+                            alert("Erreur lors de la suppression du profil : " + data.message);
+                        }
+                    } catch (error) {
+                        console.error("Équipe: Erreur réseau/serveur lors de la suppression du profil:", error);
+                        alert("Erreur réseau/serveur lors de la suppression du profil.");
+                    }
+                }
+            });
 
-                gallerySection = `
-                    <div class="gallery-section">
-                        <h3>Derniers prompts partagés (Images)</h3>
-                        <div class="gallery-images-container">
-                            ${imagesHtml}
-                        </div>
+            // Écouteur pour ouvrir le panneau latéral (détails du profil)
+            div.addEventListener("click", async e => {
+                // Évite l'ouverture du panneau si un bouton d'action a été cliqué
+                if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
+                    console.log("Équipe: Ouverture du panneau latéral pour", p.name);
+                    panelContent.dataset.id = p.id; // Stocke l'ID du profil affiché
+
+                    // Chargement et affichage des données dans le panneau
+                    await updateSidePanelContent(p);
+                    sidePanel.classList.add("show");
+                }
+            });
+
+            fragment.appendChild(div);
+        });
+        listContainer.appendChild(fragment); // Ajoute tous les éléments d'un coup au DOM
+        console.log("Équipe: Rendu des profils terminé.");
+    }
+
+    /**
+     * Met à jour le contenu du panneau latéral avec les détails du profil sélectionné,
+     * y compris les images de la galerie et les TIPS.
+     * @param {Object} profil - L'objet profil à afficher.
+     */
+    async function updateSidePanelContent(profil) {
+        const profilNameNormalized = normalizeString(profil.name || '');
+
+        // --- Section Galerie d'images ---
+        const imagesByAuthor = galleryPrompts
+            .filter(prompt => normalizeString(prompt.auteur || '') === profilNameNormalized)
+            .map(prompt => prompt.imageUrl)
+            .filter(Boolean); // Filtrer les URL vides ou nulles
+
+        console.log(`DEBUG: Images de galerie trouvées pour "${profil.name}" :`, imagesByAuthor);
+
+        let gallerySection = '';
+        if (imagesByAuthor.length > 0) {
+            const lastTwoImages = imagesByAuthor.slice(-2); // Les 2 dernières images
+            const imagesHtml = lastTwoImages.map(imgSrc => {
+                const fallbackSrc = 'https://via.placeholder.com/150x100?text=Erreur+image';
+                const displaySrc = (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) ? imgSrc : fallbackSrc;
+                return `<a href="galerie.html?imageUrl=${encodeURIComponent(displaySrc)}" target="_blank"><img src="${displaySrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='${fallbackSrc}';" title="Image: ${imgSrc}"></a>`;
+            }).join('');
+
+            gallerySection = `
+                <div class="gallery-section">
+                    <h3>Derniers prompts partagés (Images)</h3>
+                    <div class="gallery-images-container">
+                        ${imagesHtml}
                     </div>
-                `;
-            } else {
-                gallerySection = `
-                    <div class="gallery-section">
-                        <h3>Derniers prompts partagés (Images)</h3>
-                        <p class="no-item-placeholder">Aucune image de prompt partagée par ${profil.name} n'a été trouvée.</p>
-                    </div>
-                `;
-            }
-
-            const tipsFromAuthor = sharedTips
-                .filter(tip => {
-                    const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages');
-                    const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
-                    return isByThisAuthor && isFromCorrectPage;
-                })
-                .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage));
-
-            const latestTips = tipsFromAuthor.slice(0, 3);
-
-            let tipsSection = '';
-            if (latestTips.length > 0) {
-                const tipsHtml = latestTips.map(tip => `
-                    <li>
-                        <strong>${tip.titre || 'Titre inconnu'}</strong>
-                        <span class="page-context">sur la page "${tip.pageDePartage || 'Inconnue'}"</span>
-                    </li>
-                `).join('');
-
-                tipsSection = `
-                    <div class="tips-section">
-                        <h3>Derniers TIPS partagés</h3>
-                        <ul class="tips-list">
-                            ${tipsHtml}
-                        </ul>
-                    </div>
-                `;
-            } else {
-                tipsSection = `
-                    <div class="tips-section">
-                        <h3>Derniers TIPS partagés</h3>
-                        <p class="no-item-placeholder">Aucun TIP partagé par ${profil.name} n'a été trouvé depuis la page "Cas d'usages".</p>
-                        <p class="no-item-placeholder">
-                            <a href="cas-usages.html">Partager un TIP maintenant !</a>
-                        </p>
-                    </div>
-                `;
-            }
-
-            const toolsList = (Array.isArray(profil.tools) ? profil.tools : []).map(t => `<li>${t}</li>`).join('');
-            const hasNote = (profil.note || '').trim() !== '';
-
-            panelContent.innerHTML = `
-                <h2>${profil.name || 'Nom Inconnu'}</h2>
-                <p><strong>Pôle :</strong> ${profil.pole || '—'}</p>
-                <p><strong>Outils IA :</strong></p>
-                <ul>${toolsList || '<li>Aucun outil enregistré</li>'}</ul>
-                ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${profil.note}</div>` : ''}
-                ${gallerySection}
-                ${tipsSection}
+                </div>
+            `;
+        } else {
+            gallerySection = `
+                <div class="gallery-section">
+                    <h3>Derniers prompts partagés (Images)</h3>
+                    <p class="no-item-placeholder">Aucune image de prompt partagée par ${profil.name} n'a été trouvée.</p>
+                </div>
             `;
         }
 
-        closePanelBtn.addEventListener("click", () => {
-            console.log("Équipe: Clic sur le bouton de fermeture du panneau.");
+        // --- Nouvelle section TIPS ---
+        const tipsFromAuthor = sharedTips
+            .filter(tip => {
+                // S'assurer que le tip est bien de la page 'cas-usages' et de l'auteur
+                const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages');
+                const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
+                return isByThisAuthor && isFromCorrectPage;
+            })
+            .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage)); // Tri du plus récent au plus ancien
+
+        const latestTips = tipsFromAuthor.slice(0, 3); // Les 3 derniers tips
+
+        let tipsSection = '';
+        if (latestTips.length > 0) {
+            const tipsHtml = latestTips.map(tip => `
+                <li>
+                    <strong>${tip.titre || 'Titre inconnu'}</strong>
+                    <span class="page-context">sur la page "${tip.pageDePartage || 'Inconnue'}"</span>
+                </li>
+            `).join('');
+
+            tipsSection = `
+                <div class="tips-section">
+                    <h3>Derniers TIPS partagés</h3>
+                    <ul class="tips-list">
+                        ${tipsHtml}
+                    </ul>
+                </div>
+            `;
+        } else {
+            tipsSection = `
+                <div class="tips-section">
+                    <h3>Derniers TIPS partagés</h3>
+                    <p class="no-item-placeholder">Aucun TIP partagé par ${profil.name} n'a été trouvé depuis la page "Cas d'usages".</p>
+                    <p class="no-item-placeholder">
+                        <a href="cas-usages.html">Partager un TIP maintenant !</a>
+                    </p>
+                </div>
+            `;
+        }
+
+        // --- Contenu principal du panneau latéral ---
+        const toolsList = (Array.isArray(profil.tools) ? profil.tools : []).map(t => `<li>${t}</li>`).join('');
+        const hasNote = (profil.note || '').trim() !== '';
+
+        panelContent.innerHTML = `
+            <h2>${profil.name || 'Nom Inconnu'}</h2>
+            <p><strong>Pôle :</strong> ${profil.pole || '—'}</p>
+            <p><strong>Outils IA :</strong></p>
+            <ul>${toolsList || '<li>Aucun outil enregistré</li>'}</ul>
+            ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${profil.note}</div>` : ''}
+            ${gallerySection}
+            ${tipsSection}
+        `;
+    }
+
+    // --- Gestionnaire d'événements pour le panneau latéral ---
+    closePanelBtn.addEventListener("click", () => {
+        console.log("Équipe: Clic sur le bouton de fermeture du panneau.");
+        sidePanel.classList.remove("show");
+    });
+
+    // Ferme le panneau si l'utilisateur clique en dehors de celui-ci (mais pas sur une vignette)
+    document.addEventListener("click", event => {
+        if (sidePanel.classList.contains("show") && !sidePanel.contains(event.target) && !event.target.closest(".vignette")) {
+            console.log("Équipe: Clic en dehors du panneau, fermeture.");
             sidePanel.classList.remove("show");
-        });
+        }
+    });
 
-        document.addEventListener("click", event => {
-            if (sidePanel.classList.contains("show") && !sidePanel.contains(event.target) && !event.target.closest(".vignette")) {
-                console.log("Équipe: Clic en dehors du panneau, fermeture.");
-                sidePanel.classList.remove("show");
+    // --- Gestionnaires pour les filtres et la recherche ---
+    filterPole.addEventListener("change", renderProfils);
+    searchInput.addEventListener("input", renderProfils);
+
+    // --- Fonction pour charger le header ---
+    async function loadHeader() {
+        try {
+            const response = await fetch("header.html"); // Assurez-vous que le chemin est correct
+            if (!response.ok) {
+                throw new Error(`Erreur lors du chargement de l'en-tête: ${response.status}`);
             }
-        });
+            const headerHtml = await response.text();
+            headerPlaceholder.innerHTML = headerHtml;
 
-        filterPole.addEventListener("change", renderProfils);
-        searchInput.addEventListener("input", renderProfils);
+            // IMPORTANT: Gestion de la classe 'active' pour le menu après chargement du header
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
 
-        async function loadHeader() {
+                // Pour la page d'accueil (index.html), on vérifie si le chemin est vide ou "index.html"
+                // ou si le chemin est 'equipe.html' et que le lien est 'equipe.html'
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            console.log("Équipe: Header chargé avec succès.");
+        } catch (error) {
+            console.error("Équipe: Erreur lors du chargement du header:", error);
+        }
+    }
+
+    // --- Fonction pour mettre à jour la bulle de notification (si un élément existe) ---
+    async function mettreAJourBulleDemandes() {
+        const notif = document.getElementById('notif-count'); // Utiliser l'ID correct "notif-count"
+        if (notif) {
             try {
-                const response = await fetch("header.html");
-                if (!response.ok) {
-                    throw new Error(`Erreur lors du chargement de l'en-tête: ${response.status}`);
+                // Utiliser l'action correcte pour récupérer les demandes non traitées
+                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
                 }
-                const headerHtml = await response.text();
-                headerPlaceholder.innerHTML = headerHtml;
-
-                // IMPORTANT: Gestion de la classe 'active' pour le menu après chargement du header
-                const currentPath = window.location.pathname.split('/').pop();
-                document.querySelectorAll('nav a').forEach(link => {
-                    const linkHref = link.getAttribute('href');
-                    const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-
-                    // Pour la page d'accueil (index.html), on vérifie si le chemin est vide ou "index.html"
-                    if ((currentPath === "" || currentPath === "index.html") && linkFileName === "index.html") {
-                        link.classList.add("active");
-                    }
-                    // Pour toutes les autres pages, on match le nom du fichier
-                    else if (linkFileName === currentPath) {
-                        link.classList.add("active");
-                    } else {
-                        link.classList.remove("active");
-                    }
-                });
-
-                console.log("Équipe: Header chargé avec succès.");
-            } catch (error) {
-                console.error("Équipe: Erreur lors du chargement du header:", error);
+                const demandes = await res.json();
+                const demandesArray = demandes.data || []; // S'assurer que c'est un tableau
+                const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
+                notif.textContent = demandesNonTraitees.length;
+                notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
+            } catch (e) {
+                console.error("Équipe: Erreur lors de la mise à jour de la bulle de demandes:", e);
+                notif.style.display = 'none';
             }
         }
+    }
 
-        async function mettreAJourBulleDemandes() {
-            const notif = document.getElementById('notif-count'); // Utiliser l'ID correct "notif-count"
-            if (notif) {
-                try {
-                    // Utiliser l'action correcte pour récupérer les demandes non traitées
-                    const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-                    const demandes = await res.json();
-                    const demandesArray = demandes.data || []; // S'assurer que c'est un tableau
-                    const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
-                    notif.textContent = demandesNonTraitees.length;
-                    notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
-                } catch (e) {
-                    console.error("Équipe: Erreur lors de la mise à jour de la bulle de demandes:", e);
-                    notif.style.display = 'none';
-                }
-            }
+    // --- Initialisation au chargement de la page (DOMContentLoaded pour plus de réactivité) ---
+    document.addEventListener("DOMContentLoaded", async () => { // Changé de window.load à DOMContentLoaded
+        console.log("Équipe: DOMContentLoaded, début de l'initialisation...");
+        await loadHeader(); // Charge le header en premier
+
+        // Exécute toutes les requêtes de données en parallèle
+        const [profilsResult, galleryResult, tipsResult] = await Promise.allSettled([
+            fetchData('getProfils'),
+            fetchData('getGalleryPrompts'),
+            fetchData('getTips')
+        ]);
+
+        if (profilsResult.status === 'fulfilled') {
+            profils = profilsResult.value || [];
+            console.log("Équipe: Profils chargés :", profils.length);
+        } else {
+            console.error("Équipe: Impossible de charger les profils au démarrage.");
         }
 
-        window.addEventListener("load", async () => {
-            console.log("Équipe: Page chargée, début de l'initialisation...");
-            await loadHeader(); // Charge le header en premier
+        if (galleryResult.status === 'fulfilled') {
+            galleryPrompts = galleryResult.value || [];
+            console.log("Équipe: Prompts de galerie chargés :", galleryPrompts.length);
+        } else {
+            console.error("Équipe: Impossible de charger les prompts de galerie au démarrage.");
+        }
 
-            // Exécute toutes les requêtes de données en parallèle
-            const [profilsResult, galleryResult, tipsResult] = await Promise.allSettled([
-                fetchData('getProfils'),
-                fetchData('getGalleryPrompts'),
-                fetchData('getTips')
-            ]);
+        if (tipsResult.status === 'fulfilled') {
+            sharedTips = tipsResult.value || [];
+            console.log("Équipe: TIPS chargés :", sharedTips.length);
+        } else {
+            console.error("Équipe: Impossible de charger les TIPS au démarrage.");
+        }
 
-            if (profilsResult.status === 'fulfilled') {
-                profils = profilsResult.value || [];
-                console.log("Équipe: Profils chargés :", profils.length);
-            } else {
-                console.error("Équipe: Impossible de charger les profils au démarrage.");
-            }
+        renderProfils();
+        await mettreAJourBulleDemandes();
 
-            if (galleryResult.status === 'fulfilled') {
-                galleryPrompts = galleryResult.value || [];
-                console.log("Équipe: Prompts de galerie chargés :", galleryPrompts.length);
-            } else {
-                console.error("Équipe: Impossible de charger les prompts de galerie au démarrage.");
-            }
-
-            if (tipsResult.status === 'fulfilled') {
-                sharedTips = tipsResult.value || [];
-                console.log("Équipe: TIPS chargés :", sharedTips.length);
-            } else {
-                console.error("Équipe: Impossible de charger les TIPS au démarrage.");
-            }
-
-            renderProfils();
-            await mettreAJourBulleDemandes();
-
-            // Masque le loader et affiche le contenu principal
-            loader.classList.add("hidden");
+        // Masque le loader et affiche le contenu principal
+        loader.classList.add("hidden");
+        // Utilise requestAnimationFrame pour s'assurer que la classe hidden est appliquée avant la transition
+        requestAnimationFrame(() => {
             loader.addEventListener('transitionend', () => {
-                loader.style.display = 'none';
-                bodyElement.classList.add('show'); // Utilise body.show pour la transition d'opacité
-                mainContent.classList.add('show'); // Utilise main.show pour la transition d'opacité
+                loader.style.display = 'none'; // Cache le loader complètement après sa transition
+                bodyElement.classList.add('show'); // Affiche le body (opacity: 1)
+                mainContent.classList.add('show'); // Affiche le main (opacity: 1)
             }, { once: true });
-            console.log("Équipe: Initialisation terminée, contenu principal affiché.");
         });
+        console.log("Équipe: Initialisation terminée, contenu principal affiché.");
+    });
 
-        history.replaceState({}, document.title, window.location.pathname);
-    </script>
+    // Nettoyage de l'URL quand on arrive sur la page
+    history.replaceState({}, document.title, window.location.pathname);
+</script>
 </body>
 </html>
