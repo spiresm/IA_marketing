@@ -324,7 +324,7 @@
             to { transform: scale(1); opacity: 1; }
         }
 
-        /* NOUVEAUX STYLES POUR LE FILTRE DE DEMANDEUR CUSTOM */
+        /* Styles pour le filtre de demandeur custom (celui de droite) */
         #filtreDemandeur {
             width: 100%;
             padding: 8px;
@@ -336,20 +336,18 @@
 
         .custom-dropdown {
             position: absolute;
-            /* La largeur doit prendre en compte le padding latéral de .recap (20px de chaque côté) */
-            /* Donc la largeur de l'input est 100% de .recap - 2*20px = 100% - 40px */
-            width: calc(100% - 40px);
-            max-height: 200px; /* Limite la hauteur de la liste déroulante */
-            overflow-y: auto; /* Ajoute une barre de défilement si la liste est trop longue */
+            width: calc(100% - 40px); /* Ajusté pour le padding du .recap */
+            max-height: 200px;
+            overflow-y: auto;
             background-color: white;
             border: 1px solid #ddd;
             border-radius: 6px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            z-index: 900; /* S'assure qu'elle est au-dessus des autres éléments */
-            display: none; /* Cachée par défaut */
-            margin-top: -8px; /* Ajuste la position verticale pour qu'elle soit plus proche de l'input */
-            left: 20px; /* Aligne le dropdown avec le bord gauche du contenu du .recap */
-            right: 20px; /* Aligne le dropdown avec le bord droit du contenu du .recap */
+            z-index: 900;
+            display: none;
+            margin-top: -8px;
+            left: 20px;
+            right: 20px;
         }
 
         .custom-dropdown-item {
@@ -386,7 +384,8 @@
                 <h2 style="text-align:center; color:#0077b6; margin-top: 0;">Formulaire de demande de production IA</h2>
                 <form id="demandeIA">
                     <label for="nom">Nom :</label>
-                    <input type="text" name="nom" required />
+                    <input type="text" name="nom" required list="nomsList" />
+                    <datalist id="nomsList"></datalist>
 
                     <label for="emailPrefix">Email :</label>
                     <div class="email-container">
@@ -445,6 +444,7 @@
                 <h3>Récapitulatif des demandes</h3>
                 <input type="text" id="filtreDemandeur" placeholder="Filtrer par demandeur" />
                 <div id="demandeursDropdown" class="custom-dropdown"></div>
+                
                 <select id="filtreParChaine" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;"></select>
                 <div id="recapList"></div>
             </div>
@@ -643,25 +643,22 @@
                 showToast('Erreur lors du chargement des demandes.', 'error');
             }
 
-            // Peupler la datalist "Demandeur" UNIQUEMENT avec les noms des profils
-            // Cette partie est maintenant pour le custom dropdown
+            // Peupler la liste déroulante personnalisée du filtre demandeur (côté récap)
             const demandeursDropdown = document.getElementById("demandeursDropdown");
-            const demandeursUniques = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
-            demandeursDropdown.innerHTML = ''; // Nettoyer le dropdown avant de le remplir
+            const demandeursUniquesRecap = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
+            demandeursDropdown.innerHTML = ''; 
 
-            demandeursUniques.forEach(nom => {
+            demandeursUniquesRecap.forEach(nom => {
                 const item = document.createElement('div');
                 item.className = 'custom-dropdown-item';
                 item.textContent = nom;
-                item.dataset.value = nom; // Stocker le nom comme valeur
+                item.dataset.value = nom; 
                 demandeursDropdown.appendChild(item);
 
-                // Ajouter un écouteur d'événement pour sélectionner un nom
-                item.addEventListener('mousedown', (e) => { // Utiliser mousedown pour éviter le blur event de l'input
-                    e.preventDefault(); // Empêche l'input de perdre le focus immédiatement
+                item.addEventListener('mousedown', (e) => { 
+                    e.preventDefault(); 
                     filtreDemandeurInput.value = item.dataset.value;
                     demandeursDropdown.style.display = 'none';
-                    // Déclencher le filtrage après la sélection
                     afficherDemandes();
                 });
             });
@@ -837,6 +834,16 @@
             dureeSelect.prepend(defaultOptDuree);
             dureeSelect.value = "";
 
+            // NOUVEAU : Remplir la datalist pour le champ "Nom" du formulaire
+            const nomsList = document.getElementById("nomsList");
+            const tousLesNoms = [...new Set(allProfiles.map(p => p.name).filter(Boolean))].sort();
+            tousLesNoms.forEach(nom => {
+                const option = document.createElement('option');
+                option.value = nom;
+                nomsList.appendChild(option);
+            });
+
+
             // Gestion de la soumission du formulaire
             document.getElementById("demandeIA").addEventListener("submit", async e => {
                 e.preventDefault();
@@ -896,7 +903,7 @@
             // Initialisation de l'affichage des demandes et des filtres
             afficherDemandes();
 
-            // Gestion des changements de filtre
+            // Gestion des changements de filtre (pour le récapitulatif de droite)
             const filtreDemandeurInput = document.getElementById("filtreDemandeur");
             const demandeursDropdown = document.getElementById("demandeursDropdown");
 
@@ -923,28 +930,17 @@
                     demandeursDropdown.style.display = 'none';
                 }
 
-                // Déclencher le filtrage des tickets uniquement si la saisie correspond à un nom complet
-                // Ceci pour éviter de filtrer en temps réel sur des saisies partielles dans l'input de filtrage
                 const exactMatch = Array.from(items).some(item => 
                     item.textContent.toLowerCase() === searchTerm && item.style.display !== 'none'
                 );
 
-                if (exactMatch || searchTerm === '') { // Si correspondance exacte ou champ vide
+                if (exactMatch || searchTerm === '') { 
                     afficherDemandes();
-                } else if (!exactMatch && searchTerm !== '') {
-                    // Si pas de correspondance exacte et la saisie n'est pas vide,
-                    // on peut choisir de ne pas filtrer ou de montrer un message "aucun résultat"
-                    // Pour l'instant, on maintient l'affichage actuel des demandes non filtrées
-                    // ou on pourrait le vider si on veut une correspondance stricte.
-                    // Pour ce cas, on ne fait rien de spécial, afficherDemandes() ne sera pas appelée
-                    // sauf si un nom complet est tapé.
                 }
-
             });
 
             // Afficher le dropdown quand l'input prend le focus
             filtreDemandeurInput.addEventListener("focus", () => {
-                // Afficher toutes les options quand le champ est focusé
                 const items = demandeursDropdown.querySelectorAll('.custom-dropdown-item');
                 items.forEach(item => {
                     item.style.display = '';
@@ -956,7 +952,7 @@
             filtreDemandeurInput.addEventListener("blur", () => {
                 setTimeout(() => {
                     demandeursDropdown.style.display = 'none';
-                }, 150); // Petit délai
+                }, 150); 
             });
 
 
@@ -969,7 +965,7 @@
             // Afficher la modale uniquement si elle n'a pas été vue (via localStorage)
             if (!localStorage.getItem('infoModalViewed')) {
                 infoModal.classList.remove('hidden');
-                infoModal.style.display = "flex"; // S'assurer qu'elle est visible pour l'animation
+                infoModal.style.display = "flex"; 
             } else {
                 infoModal.style.display = "none";
                 infoModal.classList.add('hidden');
