@@ -37,7 +37,8 @@ export const handler = async (event) => {
         let fetchMethod = event.httpMethod;
         let requestBodyForTarget = null; // Cette variable sera le corps final envoyé à la cible (GAS ou autre)
 
-        let effectiveAction = action || ''; // Déclaré avec let pour pouvoir le modifier
+        // Gardons 'effectiveAction' comme 'const' car elle ne doit plus être modifiée ici pour deleteDemande
+        const effectiveAction = action || '';
 
         if (!effectiveAction) {
             console.warn(`Proxy.mjs: Action manquante ou non reconnue: ${effectiveAction || 'non spécifiée'}. Méthode: ${event.httpMethod}`);
@@ -82,19 +83,16 @@ export const handler = async (event) => {
                 }
                 break;
 
-            case 'deleteDemande':
-                // La correction est ici : change l'action pour qu'elle corresponde à Apps Script
-                effectiveAction = 'deleteDemandeIA'; // <--- MODIFICATION CLÉ ICI !
-                targetUrl = DEMANDS_SCRIPT_URL + '?action=' + effectiveAction;
-                fetchMethod = 'POST'; // Le proxy continue d'envoyer en POST
+            case 'deleteDemande': // <-- Le frontend envoie cette action
+                // NE PLUS MODIFIER effectiveAction ICI. Laisser 'deleteDemande'.
+                targetUrl = DEMANDS_SCRIPT_URL + '?action=' + effectiveAction; // Le GAS recevra ?action=deleteDemande
+                fetchMethod = 'POST'; // Toujours en POST
 
                 // Assurez-vous que dataFromClient existe et contient l'ID
                 if (dataFromClient && dataFromClient.id) {
-                    // Le corps est maintenant ajusté pour que l'ID soit à la racine,
-                    // comme attendu par le doPost de Google Apps Script pour deleteDemandeIA.
                     requestBodyForTarget = JSON.stringify({
-                        action: effectiveAction, // Utilise maintenant 'deleteDemandeIA'
-                        id: dataFromClient.id // <--- MODIFICATION CLÉ ICI : L'ID est directement là
+                        action: effectiveAction, // <-- ENVOIE TOUJOURS "deleteDemande" AU GAS
+                        id: dataFromClient.id // L'ID est directement à la racine
                     });
                 } else {
                     console.error("Proxy.mjs: ID manquant pour deleteDemande. Données reçues:", dataFromClient);
