@@ -1,84 +1,609 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Veille IA Marketing</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 2rem; background: #f9f9f9; }
-    h1 { text-align: center; margin-bottom: 2rem; }
-    .filters, .pagination, .sort { margin-bottom: 1.5rem; text-align: center; }
-    .card { background: white; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); padding: 1rem 1.5rem; margin-bottom: 1.5rem; }
-    .card h2 { margin: 0.2rem 0; }
-    .tag { background: #e0e0e0; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.8rem; }
-    .source { font-size: 0.8rem; color: #555; margin-top: 0.5rem; }
-    a { color: #007acc; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veille IA & Marketing - Espace IA</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preload" href="header.html" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="footer.html" as="fetch" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css" />
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Variables CSS (dupliquées ici pour l'exemple, idéalement dans style.css) */
+        :root {
+            --primary-blue: #0077b6;
+            --dark-blue: #005f8a;
+            --light-blue: #64B5F6;
+            --lighter-blue: #42A5F5;
+            --background-grey: #f0f2f5;
+            --card-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+            --card-hover-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            --success-bg: #d4edda;
+            --success-text: #155724;
+            --error-bg: #f8d7da;
+            --error-text: #dc3545;
+            --postit-yellow: #FFFAA0;
+            --light-blue-card: #E0F2F7;
+            --grey-text: #555;
+            --border-color: #ddd;
+        }
+
+        /* Styles généraux pour l'animation d'apparition de la page */
+        body {
+            opacity: 0; /* Garde l'opacité à 0 au démarrage pour l'animation */
+            transition: opacity 0.5s ease-in;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            background-color: var(--background-grey);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        body.show {
+            opacity: 1; /* Révèle le body une fois la classe ajoutée */
+        }
+        main {
+            opacity: 0; /* Garde l'opacité à 0 au démarrage pour l'animation */
+            transition: opacity 0.5s ease-in;
+            padding: 40px 20px;
+            flex-grow: 1;
+            max-width: 960px; /* Aligné avec les autres pages */
+            margin: 0 auto;
+        }
+        main.show {
+            opacity: 1; /* Révèle main une fois la classe ajoutée */
+        }
+
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex; /* Afficher par défaut pour le loader */
+            justify-content: center;
+            align-items: center;
+            flex-direction: column; /* Centrer le texte et le spinner */
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+            pointer-events: all;
+        }
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #loader .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #loader p {
+            color: var(--primary-blue);
+            font-size: 1.1em;
+        }
+
+
+        #header-placeholder {
+            width: 100%;
+        }
+        #footer-placeholder {
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--dark-blue);
+            font-size: 2em;
+        }
+
+        /* Styles pour les contrôles (filtres, tri) */
+        .controls-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .controls-container input[type="text"],
+        .controls-container select {
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95em;
+            flex-grow: 1;
+            min-width: 180px;
+            box-sizing: border-box;
+        }
+
+        /* Styles des cartes d'articles de veille */
+        #veille-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 1.5rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border-left: 5px solid var(--primary-blue); /* Couleur par défaut */
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--card-hover-shadow);
+        }
+
+        .card h2 {
+            margin: 0 0 10px 0;
+            color: var(--dark-blue);
+            font-size: 1.5em;
+        }
+        .card .meta-info {
+            font-size: 0.9em;
+            color: var(--grey-text);
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .card .meta-info strong {
+            color: #333;
+        }
+        .tag {
+            background: var(--light-blue-card);
+            color: var(--primary-blue);
+            padding: 0.3em 0.7em;
+            border-radius: 6px;
+            font-size: 0.8em;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .card p.description {
+            font-size: 1em;
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .card a.read-more {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .card a.read-more:hover {
+            text-decoration: underline;
+            color: var(--dark-blue);
+        }
+        .source {
+            font-size: 0.85em;
+            color: #777;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        /* Message si aucun article */
+        #no-articles-message {
+            text-align: center;
+            color: #555;
+            margin-top: 30px;
+            font-size: 1.1em;
+            display: none; /* Masqué par défaut */
+        }
+        
+        /* Message d'erreur chargement */
+        #error-display {
+            text-align: center;
+            color: var(--error-text);
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--error-bg);
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            display: none;
+        }
+
+
+        /* Styles de pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .pagination button {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        .pagination button:hover:not(:disabled) {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+        }
+        .pagination button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .pagination span {
+            display: flex;
+            align-items: center;
+            font-size: 1em;
+            color: #555;
+            font-weight: bold;
+        }
+
+        /* Media Queries */
+        @media (max-width: 768px) {
+            main {
+                padding: 20px 10px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .controls-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .controls-container input[type="text"],
+            .controls-container select {
+                min-width: unset;
+                width: 100%;
+            }
+            .card {
+                padding: 1rem;
+            }
+            .card h2 {
+                font-size: 1.3em;
+            }
+            .card .meta-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            .tag {
+                font-size: 0.75em;
+            }
+            .pagination button {
+                padding: 6px 10px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h1>📰 Veille IA & Marketing</h1>
+    <div id="loader">
+        <div class="spinner"></div>
+        <p>Chargement de la veille...</p>
+    </div>
 
-  <div class="filters">
-    <!-- futurs filtres ici -->
-  </div>
+    <div id="header-placeholder"></div>
 
-  <div class="sort">
-    <!-- futur tri ici -->
-  </div>
+    <main>
+        <h1>📰 Veille IA & Marketing</h1>
 
-  
-  <div class="card">
-    <h2>Midjourney lance un outil vidéo</h2>
-    <p><strong>2022-03-07</strong> – <em>Nouvel outil vidéo Midjourney</em> – <span class="tag">Lancement de produit</span></p>
-    <p>Midjourney lance un nouvel outil vidéo basé sur l'IA pour optimiser les campagnes de marketing numérique.</p>
-    <a href="https://www.example.com/news/midjourney-video-tool" target="_blank">Lire l’article →</a>
-    <p class="source">Source : Presse spécialisée</p>
-  </div>
+        <div class="controls-container">
+            <input type="text" id="search-input" placeholder="Rechercher par titre ou contenu..." />
+            <select id="filter-tag">
+                <option value="">Toutes les catégories</option>
+                <option value="Lancement de produit">Lancement de produit</option>
+                <option value="Publication de modèle">Publication de modèle</option>
+                <option value="Intégration de produit">Intégration de produit</option>
+                <option value="Mise à jour de produit">Mise à jour de produit</option>
+                <option value="Recherche">Recherche</option>
+                <option value="Éthique IA">Éthique IA</option>
+                <option value="Réglementation">Réglementation</option>
+                <option value="Analyse de marché">Analyse de marché</option>
+                </select>
+            <select id="sort-order">
+                <option value="recent">Plus récent</option>
+                <option value="oldest">Plus ancien</option>
+            </select>
+        </div>
+        
+        <div id="veille-container">
+            <p id="initial-loading-message" style="text-align: center; color: #777;">Chargement des articles de veille...</p>
+            <div id="error-display" class="error-message" style="display: none;"></div>
+        </div>
 
+        <div class="pagination">
+            <button id="prev-page-btn" disabled><i class="fas fa-chevron-left"></i> Précédent</button>
+            <span id="page-info">Page 1 de 1</span>
+            <button id="next-page-btn" disabled>Suivant <i class="fas fa-chevron-right"></i></button>
+        </div>
+    </main>
 
-  <div class="card">
-    <h2>Mistral publie un modèle open-source</h2>
-    <p><strong>2022-03-07</strong> – <em>Modèle open-source Mistral</em> – <span class="tag">Publication de modèle</span></p>
-    <p>Mistral publie un nouveau modèle open-source qui utilise l'IA pour améliorer les stratégies de marketing.</p>
-    <a href="https://www.example.com/news/mistral-open-source-model" target="_blank">Lire l’article →</a>
-    <p class="source">Source : Blog Mistral</p>
-  </div>
+    <div id="footer-placeholder"></div>
 
+    <script>
+        const API_VEILLE_URL = "/.netlify/functions/getVeilleArticles"; // Adaptez si votre fonction Netlify est différente
+        const ARTICLES_PER_PAGE = 5; // Nombre d'articles par page
 
-  <div class="card">
-    <h2>Adobe Firefly s’intègre à Photoshop</h2>
-    <p><strong>2022-03-07</strong> – <em>Adobe Firefly</em> – <span class="tag">Intégration de produit</span></p>
-    <p>Adobe Firefly, outil basé sur l'IA, s'intègre maintenant à Photoshop pour améliorer la création de publicités visuelles.</p>
-    <a href="https://www.example.com/news/adobe-firefly-photoshop" target="_blank">Lire l’article →</a>
-    <p class="source">Source : Adobe News</p>
-  </div>
+        let allArticles = [];
+        let currentPage = 1;
 
+        const loader = document.getElementById("loader");
+        const bodyElement = document.body;
+        const mainElement = document.querySelector('main');
+        const headerPlaceholder = document.getElementById("header-placeholder");
+        const footerPlaceholder = document.getElementById("footer-placeholder");
 
-  <div class="card">
-    <h2>Perplexity.ai propose une IA de recherche</h2>
-    <p><strong>2022-03-07</strong> – <em>Perplexity.ai</em> – <span class="tag">Lancement de produit</span></p>
-    <p>Perplexity.ai propose une nouvelle IA de recherche pour les spécialistes du marketing, visant à améliorer l'efficacité des campagnes publicitaires.</p>
-    <a href="https://www.example.com/news/perplexity-ai-search" target="_blank">Lire l’article →</a>
-    <p class="source">Source : Blog Perplexity.ai</p>
-  </div>
+        const veilleContainer = document.getElementById("veille-container");
+        const initialLoadingMessage = document.getElementById("initial-loading-message");
+        const errorDisplay = document.getElementById("error-display");
 
+        const searchInput = document.getElementById("search-input");
+        const filterTagSelect = document.getElementById("filter-tag");
+        const sortOrderSelect = document.getElementById("sort-order");
 
-  <div class="card">
-    <h2>Runway améliore la génération vidéo</h2>
-    <p><strong>2022-03-07</strong> – <em>Runway</em> – <span class="tag">Mise à jour de produit</span></p>
-    <p>Runway introduit une amélioration de l'IA pour la génération de vidéos, visant à augmenter l'engagement du public.</p>
-    <a href="https://www.example.com/news/runway-video-generation" target="_blank">Lire l’article →</a>
-    <p class="source">Source : Presse spécialisée</p>
-  </div>
+        const prevPageBtn = document.getElementById("prev-page-btn");
+        const nextPageBtn = document.getElementById("next-page-btn");
+        const pageInfoSpan = document.getElementById("page-info");
 
+        // --- Fonctions utilitaires ---
 
-  <div class="pagination">
-    <!-- future pagination -->
-  </div>
+        /**
+         * Échappe les caractères HTML spéciaux pour éviter les XSS.
+         * @param {string} text Le texte à échapper.
+         * @returns {string} Le texte échappé.
+         */
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            text = String(text);
+            const map = {
+                '&': '&amp;', // Correction: 'amp;' pour l'esperluette
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;' // Pour les apostrophes
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
 
-  <footer style="text-align: center; margin-top: 4rem; font-size: 0.9rem; color: #888;">
-    Mis à jour automatiquement le 2025-06-25
-  </footer>
+        /**
+         * Fonction utilitaire pour charger des composants HTML via fetch.
+         * @param {string} url - L'URL du composant HTML.
+         * @param {string} placeholderId - L'ID de l'élément où insérer le HTML.
+         * @returns {Promise<void>} Une promesse qui se résout quand le composant est chargé.
+         */
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    const errorDetail = await res.text();
+                    throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+                console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Erreur lors du chargement de ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
+            }
+        }
+
+        /**
+         * Crée une carte d'article de veille.
+         * @param {object} article Les données de l'article.
+         * @returns {string} Le HTML de la carte.
+         */
+        function createArticleCard(article) {
+            const articleDate = new Date(article.date);
+            const formattedDate = articleDate.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            
+            // Choisir une couleur de bordure basée sur le tag ou par défaut
+            let borderColor = '--primary-blue'; // Couleur par défaut
+            switch(article.tag) {
+                case 'Lancement de produit': borderColor = '#28a745'; break; // Vert
+                case 'Publication de modèle': borderColor = '#007bff'; break; // Bleu
+                case 'Intégration de produit': borderColor = '#ffc107'; break; // Jaune
+                case 'Mise à jour de produit': borderColor = '#17a2b8'; break; // Cyan
+                case 'Recherche': borderColor = '#6f42c1'; break; // Violet
+                case 'Éthique IA': borderColor = '#dc3545'; break; // Rouge
+                case 'Réglementation': borderColor = '#fd7e14'; break; // Orange
+                case 'Analyse de marché': borderColor = '#6c757d'; break; // Gris
+            }
+
+            return `
+                <div class="card" style="border-left-color: ${borderColor};">
+                    <h2>${escapeHtml(article.titre || 'Titre inconnu')}</h2>
+                    <div class="meta-info">
+                        <strong>${formattedDate}</strong>
+                        <span>—</span>
+                        <em>${escapeHtml(article.sousTitre || '')}</em>
+                        <span class="tag">${escapeHtml(article.tag || 'Général')}</span>
+                    </div>
+                    <p class="description">${escapeHtml(article.description || 'Pas de description disponible.')}</p>
+                    <a href="${escapeHtml(article.url || '#')}" target="_blank" class="read-more">Lire l’article →</a>
+                    <p class="source">Source : ${escapeHtml(article.source || 'Inconnue')}</p>
+                </div>
+            `;
+        }
+
+        /**
+         * Applique les filtres et le tri, puis affiche les articles.
+         */
+        function renderArticles() {
+            let filteredArticles = [...allArticles];
+
+            // 1. Filtrer par texte de recherche
+            const searchText = searchInput.value.toLowerCase().trim();
+            if (searchText) {
+                filteredArticles = filteredArticles.filter(article =>
+                    (article.titre && article.titre.toLowerCase().includes(searchText)) ||
+                    (article.description && article.description.toLowerCase().includes(searchText)) ||
+                    (article.sousTitre && article.sousTitre.toLowerCase().includes(searchText)) ||
+                    (article.source && article.source.toLowerCase().includes(searchText)) ||
+                    (article.tag && article.tag.toLowerCase().includes(searchText))
+                );
+            }
+
+            // 2. Filtrer par tag
+            const selectedTag = filterTagSelect.value;
+            if (selectedTag) {
+                filteredArticles = filteredArticles.filter(article => article.tag === selectedTag);
+            }
+
+            // 3. Trier
+            const sortOrder = sortOrderSelect.value;
+            filteredArticles.sort((a, b) => {
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+                return sortOrder === 'recent' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
+            });
+
+            // 4. Gérer la pagination
+            const totalPages = Math.ceil(filteredArticles.length / ARTICLES_PER_PAGE);
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = totalPages; // Ajuster la page si les filtres réduisent le nombre
+            } else if (totalPages === 0) {
+                currentPage = 1;
+            }
+
+            const startIndex = (currentPage - 1) * ARTICLES_PER_PAGE;
+            const endIndex = startIndex + ARTICLES_PER_PAGE;
+            const articlesToDisplay = filteredArticles.slice(startIndex, endIndex);
+
+            // 5. Afficher les articles
+            veilleContainer.innerHTML = ''; // Vider le conteneur
+            if (articlesToDisplay.length === 0) {
+                initialLoadingMessage.textContent = 'Aucun article ne correspond à vos critères de recherche.';
+                initialLoadingMessage.style.display = 'block';
+            } else {
+                initialLoadingMessage.style.display = 'none';
+                articlesToDisplay.forEach(article => {
+                    veilleContainer.insertAdjacentHTML('beforeend', createArticleCard(article));
+                });
+            }
+
+            // 6. Mettre à jour l'état de la pagination
+            pageInfoSpan.textContent = `Page ${totalPages > 0 ? currentPage : 0} de ${totalPages}`;
+            prevPageBtn.disabled = currentPage <= 1;
+            nextPageBtn.disabled = currentPage >= totalPages;
+        }
+
+        /**
+         * Charge les articles de veille depuis l'API.
+         */
+        async function loadVeilleArticles() {
+            initialLoadingMessage.style.display = 'block';
+            errorDisplay.style.display = 'none';
+            veilleContainer.innerHTML = ''; // Nettoyer pour le chargement initial
+
+            try {
+                const response = await fetch(API_VEILLE_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                // Assurez-vous que les articles ont les propriétés minimales
+                allArticles = data.map(article => ({
+                    titre: article.title || article.Titre || 'Titre non spécifié',
+                    description: article.description || article.Description || 'Description non disponible.',
+                    url: article.url || article.URL || '#',
+                    date: article.date || article.Date || new Date().toISOString(), // Fallback pour la date
+                    source: article.source || article.Source || 'Inconnue',
+                    tag: article.tag || article.Tag || 'Général',
+                    sousTitre: article.subTitle || article.SousTitre || ''
+                }));
+                
+                renderArticles(); // Affiche les articles après le chargement
+            } catch (error) {
+                console.error("Erreur lors du chargement des articles de veille:", error);
+                errorDisplay.textContent = `Erreur de chargement des articles: ${error.message}.`;
+                errorDisplay.style.display = 'block';
+                initialLoadingMessage.style.display = 'none'; // Cache le message de chargement
+            } finally {
+                // Le loader global sera caché par DOMContentLoaded
+            }
+        }
+
+        // --- Initialisation au chargement du DOM ---
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("Veille IA: DOMContentLoaded, début de l'initialisation...");
+
+            // Masquer la barre de défilement du body au début pour une meilleure expérience
+            bodyElement.style.overflow = 'hidden';
+
+            // 1. Charger le header et le footer
+            await loadComponent("header.html", "header-placeholder");
+            await loadComponent("footer.html", "footer-placeholder");
+
+            // 2. Mettre à jour l'état actif du menu après le chargement du header
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            // 3. Charger les articles de veille
+            await loadVeilleArticles();
+
+            // 4. Mettre en place les écouteurs d'événements pour les filtres et le tri
+            searchInput.addEventListener('input', () => { currentPage = 1; renderArticles(); });
+            filterTagSelect.addEventListener('change', () => { currentPage = 1; renderArticles(); });
+            sortOrderSelect.addEventListener('change', () => { currentPage = 1; renderArticles(); });
+            prevPageBtn.addEventListener('click', () => { currentPage--; renderArticles(); });
+            nextPageBtn.addEventListener('click', () => { currentPage++; renderArticles(); });
+
+            // 5. Cacher le loader et révéler le contenu principal
+            if (loader) {
+                loader.classList.add("hidden");
+                // Attendre la fin de la transition d'opacité du loader avant de l'enlever complètement
+                loader.addEventListener('transitionend', () => {
+                    if (loader.classList.contains('hidden')) {
+                        loader.style.display = 'none';
+                    }
+                }, { once: true });
+            }
+            
+            bodyElement.classList.add("show"); // Révèle le body avec sa transition
+            mainElement.classList.add("show"); // Révèle main avec sa transition
+            bodyElement.style.overflow = ''; // Restaurer le défilement du body une fois la page visible
+
+            console.log("Veille IA: Initialisation terminée.");
+        });
+    </script>
 </body>
 </html>
