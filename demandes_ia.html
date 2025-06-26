@@ -316,11 +316,11 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.6); /* Fond sombre pour la modale */
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 2000;
+            z-index: 2000; /* Assurez-vous qu'elle est au-dessus de tout le reste */
             animation: fadeIn 0.3s ease-out;
             overflow-y: auto;
             padding: 20px 0;
@@ -570,8 +570,7 @@
 
     <div id="toast-container"></div>
 
-    <script>
-        // Définitions des URL pour les fonctions Netlify
+    <script defer> // Définitions des URL pour les fonctions Netlify
         const PROXY_URL = "/.netlify/functions/proxy";
         const SEND_REQUEST_URL = "/.netlify/functions/sendrequest";
 
@@ -1071,7 +1070,40 @@
             console.log("Demande IA: DOMContentLoaded, début de l'initialisation...");
 
             // Masquer la barre de défilement du body au début pour une meilleure expérience
-            bodyElement.style.overflow = 'hidden';
+            bodyElement.style.overflow = 'hidden'; // Masque le scroll initial
+
+            // Gérer l'affichage de la modale d'information initiale AVANT le chargement du header/footer
+            // pour qu'elle puisse potentiellement masquer le loader si elle est affichée en premier
+            const hasSeenDemandesInfoModal = localStorage.getItem(HAS_SEEN_DEMANDES_INFO_MODAL) === 'true';
+
+            if (!hasSeenDemandesInfoModal) {
+                initialInfoModal.style.display = 'flex'; // Afficher la modale (qui est au-dessus du loader)
+                // Le body.style.overflow est déjà 'hidden'
+            } else {
+                initialInfoModal.classList.add('hidden'); // Cache la modale si déjà vue
+                initialInfoModal.style.display = 'none';
+            }
+
+            // Écouteurs d'événements pour la modale d'information initiale
+            if (comprenezBtn) {
+                comprenezBtn.addEventListener("click", () => {
+                    initialInfoModal.classList.add('hidden');
+                    initialInfoModal.style.display = "none";
+                    localStorage.setItem(HAS_SEEN_DEMANDES_INFO_MODAL, 'true');
+                    bodyElement.style.overflow = ''; // Restaurer le défilement du body à la fermeture
+                    // Le loader sera masqué par la suite dans le flux normal
+                });
+                // Si l'utilisateur n'a pas vu la modale, le body.overflow reste hidden jusqu'à ce qu'il clique.
+                // Sinon, le body.overflow est restauré ci-dessus.
+            } else {
+                console.warn("Bouton 'comprendaBtn' non trouvé pour la modale d'information initiale.");
+                // Si le bouton n'existe pas, et que la modale est visible, il faut restaurer le scroll manuellement
+                if (initialInfoModal && initialInfoModal.style.display === 'flex' && !hasSeenDemandesInfoModal) {
+                    // C'est un cas d'erreur ou de HTML manquant, restaurer le scroll pour ne pas bloquer.
+                    bodyElement.style.overflow = ''; 
+                }
+            }
+
 
             // 1. Charger les composants principaux (Header et Footer)
             await loadComponent("header.html", "header-placeholder");
@@ -1135,34 +1167,9 @@
             
             bodyElement.classList.add("show"); // Révèle le body avec sa transition
             mainElement.classList.add("show"); // Révèle main avec sa transition
-            // Le body.style.overflow sera restauré par la fermeture de la modale d'information initiale.
+            // Le body.style.overflow est géré par la modale d'information initiale et son bouton.
 
             console.log("Demande IA: Initialisation terminée.");
-
-            // --- Logique de la Modale d'information initiale ---
-            const hasSeenDemandesInfoModal = localStorage.getItem(HAS_SEEN_DEMANDES_INFO_MODAL) === 'true';
-
-            if (!hasSeenDemandesInfoModal) {
-                initialInfoModal.style.display = 'flex'; // Afficher la modale
-                // Le body.style.overflow est déjà 'hidden'
-            } else {
-                // Si déjà vue, s'assurer que l'overlay est bien caché et que le scroll est activé
-                initialInfoModal.classList.add('hidden');
-                initialInfoModal.style.display = 'none';
-                bodyElement.style.overflow = ''; // Restaurer le défilement du body immédiatement
-            }
-
-            // Écouteurs d'événements pour la modale d'information initiale
-            if (comprenezBtn) {
-                comprenezBtn.addEventListener("click", () => {
-                    initialInfoModal.classList.add('hidden');
-                    initialInfoModal.style.display = "none";
-                    localStorage.setItem(HAS_SEEN_DEMANDES_INFO_MODAL, 'true');
-                    bodyElement.style.overflow = ''; // Restaurer le défilement du body à la fermeture
-                });
-            } else {
-                console.warn("Bouton 'comprendaBtn' non trouvé pour la modale d'information initiale.");
-            }
 
             // --- Écouteurs d'événements pour le formulaire et les filtres de récap ---
             demandeIAForm.addEventListener("submit", async e => {
