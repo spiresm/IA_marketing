@@ -404,15 +404,13 @@
                 </details>
             </div>
             <div class="pagination">
-                <button onclick="changerPage(1)" class="active">1</button>
-                <button onclick="changerPage(2)">2</button>
+                <button data-page="1" class="active">1</button>
+                <button data-page="2">2</button>
             </div>
         </div>
     </main>
 
-    <footer>Mis à jour automatiquement le 2025-06-09</footer>
-
-    <div id="infoPlaqueOverlay" class="info-plaque-overlay">
+    <div id="footer-placeholder"></div> <div id="infoPlaqueOverlay" class="info-plaque-overlay">
         <div class="info-plaque-content">
             <h2>Bienvenue sur la FAQ de l'Espace IA Marketing !</h2>
             <p>
@@ -427,114 +425,146 @@
     </div>
 
     <script>
-        const PROXY_URL = "/.netlify/functions/proxy"; // Adaptez si nécessaire pour votre fonction Netlify
+        // Clé pour le localStorage pour la modale de bienvenue de la FAQ
+        const HAS_SEEN_FAQ_INFO_PLAQUE = 'hasSeenFaqInfoPlaque';
 
-        // Fonction pour mettre à jour la bulle de notification (identique à galerie.html)
-        async function mettreAJourBulleDemandes() {
-            const notif = document.getElementById("notif-count");
-            if (!notif) {
-                console.warn("FAQ: L'élément 'notif-count' n'a pas été trouvé dans le header.");
-                return;
-            }
+        // Références aux éléments DOM
+        const loader = document.getElementById("loader");
+        const bodyElement = document.body;
+        const mainElement = document.querySelector('main');
+        const headerPlaceholder = document.getElementById("header-placeholder");
+        const footerPlaceholder = document.getElementById("footer-placeholder"); // Référence pour le footer
+
+        const infoPlaqueOverlay = document.getElementById('infoPlaqueOverlay');
+        const closeInfoPlaqueBtn = document.getElementById('closeInfoPlaque');
+        
+        // --- Fonctions utilitaires ---
+
+        /**
+         * Fonction utilitaire pour charger des composants HTML via fetch.
+         * @param {string} url - L'URL du composant HTML.
+         * @param {string} placeholderId - L'ID de l'élément où insérer le HTML.
+         * @returns {Promise<void>} Une promesse qui se résout quand le composant est chargé.
+         */
+        async function loadComponent(url, placeholderId) {
             try {
-                console.log("FAQ: Tentative de récupération des demandes pour la bulle...");
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
+                const res = await fetch(url);
                 if (!res.ok) {
-                    console.error(`FAQ: Erreur HTTP lors de la récupération des demandes: ${res.status}`);
-                    throw new Error(`Erreur HTTP: ${res.status}`);
+                    const errorDetail = await res.text();
+                    throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
                 }
-                const demandes = await res.json();
-                console.log("FAQ: Demandes récupérées pour la bulle:", demandes);
-                notif.textContent = demandes.length;
-                notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-            } catch (e) {
-                console.error("FAQ: Erreur mise à jour compteur de demandes :", e);
-                notif.style.display = "none";
+                document.getElementById(placeholderId).innerHTML = await res.text();
+                console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Erreur lors du chargement de ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
             }
         }
 
-        // Fonction pour changer de page de FAQ
+        /**
+         * Fonction pour changer de page de FAQ.
+         * @param {number} page Le numéro de la page à afficher (1 ou 2).
+         */
         function changerPage(page) {
             console.log(`FAQ: Changement vers la page ${page}`);
             document.querySelectorAll('.faq-page').forEach(p => p.style.display = 'none');
             document.querySelector(`#faq-page-${page}`).style.display = 'block';
+            
+            // Mettre à jour l'état actif des boutons de pagination
             document.querySelectorAll('.pagination button').forEach(b => b.classList.remove('active'));
-            document.querySelector(`.pagination button:nth-child(${page})`).classList.add('active');
+            // Utiliser data-page pour cibler correctement
+            document.querySelector(`.pagination button[data-page="${page}"]`).classList.add('active');
         }
 
-        // Gestion de la plaque info (modal) - Aucun localStorage, toujours affichée
-        const infoPlaqueOverlay = document.getElementById('infoPlaqueOverlay');
-        const closeInfoPlaqueBtn = document.getElementById('closeInfoPlaque');
-
+        /**
+         * Affiche la plaque d'information (modale de bienvenue).
+         */
         function showInfoPlaque() {
             infoPlaqueOverlay.classList.add('show');
+            // Empêcher le défilement du body lorsque la modale est ouverte
+            bodyElement.style.overflow = 'hidden';
         }
 
+        /**
+         * Ferme la plaque d'information (modale de bienvenue).
+         */
         function closeInfoPlaque() {
             infoPlaqueOverlay.classList.remove('show');
+            // Restaurer le défilement du body lorsque la modale est fermée
+            bodyElement.style.overflow = '';
+            // Marquer que l'utilisateur a vu la plaque
+            localStorage.setItem(HAS_SEEN_FAQ_INFO_PLAQUE, 'true');
         }
 
-        closeInfoPlaqueBtn.addEventListener('click', closeInfoPlaque);
-        infoPlaqueOverlay.addEventListener('click', (event) => {
-            // Ferme si on clique en dehors du contenu de la plaque
-            if (event.target === infoPlaqueOverlay) {
-                closeInfoPlaque();
-            }
-        });
+        // --- Initialisation au chargement du DOM ---
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("FAQ: DOMContentLoaded, début de l'initialisation de faq.html...");
 
+            // Masquer la barre de défilement du body au début pour une meilleure expérience
+            bodyElement.style.overflow = 'hidden';
 
-        // Exécution principale à l'initialisation de la page
-        document.addEventListener("DOMContentLoaded", () => {
-            console.log("FAQ: DOM entièrement chargé. Début de l'initialisation de faq.html...");
-            fetch("header.html")
-                .then(response => {
-                    console.log("FAQ: Réponse de fetch('header.html') reçue.");
-                    if (!response.ok) {
-                        throw new Error(`Erreur HTTP lors du chargement du header pour FAQ: ${response.status}`);
-                    }
-                    return response.text();
-                })
-                .then(data => {
-                    console.log("FAQ: Header HTML récupéré. Injection dans le placeholder.");
-                    document.getElementById("header-placeholder").innerHTML = data;
+            // 1. Charger le header
+            await loadComponent("header.html", "header-placeholder");
+            // 2. Charger le footer
+            await loadComponent("footer.html", "footer-placeholder");
 
-                    console.log("FAQ: Rendre le body et le main visibles.");
-                    document.body.style.opacity = "1";
-                    const mainElement = document.querySelector("main");
-                    if (mainElement) {
-                        mainElement.style.display = "block";
-                    }
+            // 3. Mettre à jour l'état actif du menu après le chargement du header
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                // Spécifie explicitement 'faq.html' pour cette page
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "faq.html") {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
 
-                    console.log("FAQ: Mise à jour de la bulle de notification.");
-                    mettreAJourBulleDemandes();
+            // 4. Initialiser la première page de FAQ visible
+            changerPage(1); // Afficher la première page par défaut
 
-                    console.log("FAQ: Gestion des liens actifs du menu.");
-                    const path = location.pathname.split("/").pop();
-                    const links = document.querySelectorAll("nav a");
-                    links.forEach(link => {
-                        if (link.getAttribute("href") === path) {
-                            link.classList.add("active");
-                        }
-                    });
-
-                    // Initialiser la première page de FAQ visible
-                    changerPage(1); // Afficher la première page par défaut
-                    console.log("FAQ: Page 1 affichée par défaut.");
-
-                    // Afficher la plaque info après le chargement complet de la page et du header
-                    showInfoPlaque();
-
-                })
-                .catch(error => {
-                    console.error("FAQ: Erreur critique lors du chargement du header ou initialisation de FAQ:", error);
-                    document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-                    // Rendre visible même en cas d'erreur du header pour ne pas laisser une page blanche
-                    document.body.style.opacity = "1";
-                    const mainElement = document.querySelector("main");
-                    if (mainElement) {
-                        mainElement.style.display = "block";
-                    }
+            // 5. Mettre en place les écouteurs d'événements pour les boutons de pagination
+            document.querySelectorAll('.pagination button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    changerPage(parseInt(event.target.dataset.page));
                 });
+            });
+
+            // 6. Cacher le loader et révéler le contenu principal
+            if (loader) {
+                loader.classList.add("hidden");
+                loader.addEventListener('transitionend', () => {
+                    if (loader.classList.contains('hidden')) {
+                        loader.style.display = 'none';
+                    }
+                }, { once: true });
+            }
+            
+            bodyElement.classList.add("show"); // Révèle le body avec sa transition
+            mainElement.classList.add("show"); // Révèle main avec sa transition
+            // Le body.style.overflow est restauré après la fermeture de la modale ou immédiatement si pas de modale
+
+            console.log("FAQ: Initialisation terminée.");
+
+            // 7. Gérer l'affichage de la plaque d'information (modale)
+            const hasSeenInfoPlaque = localStorage.getItem(HAS_SEEN_FAQ_INFO_PLAQUE) === 'true';
+
+            if (!hasSeenInfoPlaque) {
+                showInfoPlaque();
+            } else {
+                // Si déjà vue, s'assurer que l'overlay est bien caché et que le scroll est activé
+                infoPlaqueOverlay.classList.remove('show');
+                bodyElement.style.overflow = '';
+            }
+
+            closeInfoPlaqueBtn.addEventListener('click', closeInfoPlaque);
+            // Fermer la plaque en cliquant sur l'overlay
+            infoPlaqueOverlay.addEventListener('click', (event) => {
+                if (event.target === infoPlaqueOverlay) {
+                    closeInfoPlaque();
+                }
+            });
         });
     </script>
 </body>
