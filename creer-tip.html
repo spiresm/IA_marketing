@@ -1,412 +1,936 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Partager un Prompt - Espace IA</title>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partager un Tip / Prompt - iMarketing</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"></noscript>
-
-    <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Variables CSS pour faciliter la gestion des couleurs */
+        :root {
+            --primary-blue: #0077b6;
+            --dark-blue: #005f8a;
+            --light-blue: #64B5F6;
+            --lighter-blue: #42A5F5;
+            --background-grey: #f0f2f5;
+            --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+            --card-hover-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            --success-bg: #d4edda;
+            --success-text: #155724;
+            --error-bg: #f8d7da;
+            --error-text: #dc3545;
+            --postit-yellow: #FFFAA0;
+            --light-blue-card: #E0F2F7;
+            --grey-text: #555;
+            --border-color: #ddd;
+        }
+
+        /* Styles pour le défilement et la mise en page générale */
+        html, body {
+            height: 100%;
+            overflow-y: auto; /* Permet le défilement vertical si le contenu dépasse */
+            -webkit-overflow-scrolling: touch; /* Améliore le défilement sur les appareils iOS */
+        }
+
+        body {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            margin: 0;
+            font-family: 'Inter', sans-serif; /* Utilisation de la police Inter */
+            font-weight: 400; /* Assure une épaisseur normale */
+            background-color: #f0f2f5;
+            display: flex; /* Utiliser flexbox pour le layout principal */
+            flex-direction: column; /* Organiser les éléments en colonne */
+            min-height: 100vh; /* S'assurer que le body prend au moins 100% de la hauteur de la fenêtre */
+        }
+
+        body.show {
+            opacity: 1;
+        }
+
+        main {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            padding: 40px 20px;
+            flex-grow: 1; /* Permet à la section main de prendre l'espace disponible et de grandir */
+            display: flex; /* Utiliser flexbox à l'intérieur de main pour centrer ou organiser */
+            justify-content: center; /* Centrer horizontalement */
+            align-items: flex-start; /* Aligner en haut pour laisser le contenu défiler si nécessaire */
+            overflow-y: auto; /* Permettre le défilement si le contenu du main est trop grand */
+        }
+
+        main.show {
+            opacity: 1;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%; /* S'assurer qu'il prend toute la largeur disponible */
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            position: relative;
+            box-sizing: border-box; /* Inclure padding et border dans la largeur/hauteur */
+        }
+
+        .retour-lien {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #0077b6;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+
+        .retour-lien:hover {
+            text-decoration: underline;
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-top: 15px;
+            color: #333;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1em;
+            background: #f9fafb;
+            box-sizing: border-box;
+            color: #333;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #0077b6;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.2);
+        }
+
+        /* Styles pour les champs URL dynamiques */
+        .url-input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px; /* Espace entre les groupes d'URL */
+        }
+
+        .url-input-group input[type="url"] {
+            flex-grow: 1; /* Permet à l'input de prendre l'espace disponible */
+            margin-bottom: 0; /* Supprime la marge en bas de l'input */
+        }
+        
+        .url-action-buttons {
+            display: flex;
+            justify-content: flex-end; /* Alignement à droite des boutons d'ajout/suppression */
+            gap: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+        }
+
+        .add-url-button, .remove-url-button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .add-url-button {
+            background-color: #28a745; /* Vert pour l'ajout */
+            color: white;
+            border: none;
+        }
+
+        .add-url-button:hover {
+            background-color: #218838;
+            transform: translateY(-1px);
+        }
+
+        .remove-url-button {
+            background-color: #dc3545; /* Rouge pour la suppression */
+            color: white;
+            border: none;
+        }
+
+        .remove-url-button:hover {
+            background-color: #c82333;
+            transform: translateY(-1px);
+        }
+
+
+        #drop-zone {
+            border: 2px dashed #0077b6;
+            padding: 20px;
+            text-align: center;
+            color: #777;
+            margin-top: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #drop-zone.dragover {
+            background: #e0f7ff;
+        }
+
+        /* Styles pour la grille de prévisualisation des fichiers */
+        .file-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .file-preview-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f9f9f9;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .file-preview-item img.image-preview {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .file-preview-item .file-icon {
+            font-size: 40px;
+            color: #0077b6;
+        }
+
+        .file-name-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 0.7em;
+            padding: 3px 5px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .remove-file-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            line-height: 1; /* Pour centrer le 'x' */
+            padding: 0;
+        }
+        .remove-file-button:hover {
+            background-color: red;
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            background: #0077b6;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            margin-top: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button[type="submit"]:hover {
+            background: #005f8a;
+        }
+
+        button[type="submit"]:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .confirmation {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 10px;
+            text-align: center;
+            color: #333;
+        }
+
+        .confirmation img {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: contain;
+            margin-top: 15px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .confirmation img:hover {
+            transform: scale(1.05);
+        }
+
+        .loader {
+            display: block;
+            margin: 20px auto;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #ccc;
+            border-top: 4px solid #0077b6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .lightbox-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lightbox-content img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #fff;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 1001;
+            background-color: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+            text-shadow: 0 0 5px rgba(0,0,0,0.8);
+        }
+
+        .lightbox-close:hover {
+            color: #f00;
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        /* Styles pour le footer et le header pour qu'ils n'impactent pas le défilement de main */
+        #header-placeholder, #footer-placeholder {
+            flex-shrink: 0; /* Empêche le header/footer de rétrécir */
+            width: 100%; /* S'assurer qu'ils occupent toute la largeur */
+        }
+    </style>
 </head>
 <body>
-    <div id="global-loader">
-        <div class="spinner"></div>
-        <p>Chargement de la page...</p>
-    </div>
 
-    <div class="header">
-        <img src="log_ia.png" alt="Logo IA Marketing" class="logo-ia">
-        <h1 class="header-title">IA MARKETING</h1>
-        <img src="Section-Clients-Logo-RTBF.png" alt="Logo RTBF" class="logo-rtbf">
-        <a href="about.html" class="dev-button-header">DEV</a>
-    </div>
-
-    <div class="nav-wrapper">
-        <div class="menu-container">
-            <nav>
-                <a href="index.html">Accueil</a>
-                <a href="equipe.html">Équipe</a>
-                <a href="outils.html">Outils IA</a>
-                <a href="galerie.html">Galerie</a>
-                <a href="Cas-usages.html">Tips</a>
-                <a href="charte.html">Charte IA</a>
-                <a href="faq.html">FAQ</a>
-                <a href="demandes_ia.html" class="demandes">
-                    Demandes IA
-                    <span class="notif-bubble" id="notif-count">0</span>
-                </a>
-                <a href="gestion-license.html">Licenses</a>
-                <a href="creer-tip.html">Partager Prompt</a>
-            </nav>
-        </div>
-    </div>
-
+    <div id="header-placeholder"></div>
     <main>
-        <div id="app"></div>
+        <div id="app">
+            <div class="container">
+                <a href="/cas-usages.html" class="retour-lien">← Retour</a>
+                <h2 style="text-align:center; color:#0077b6;">Partager un Tip / Prompt</h2>
+
+                <form @submit.prevent="submitForm">
+                    <label for="auteur">Votre nom</label>
+                    <select id="auteur" v-model="auteur" required>
+                        <option value="" disabled>Sélectionnez un nom</option>
+                        <option v-for="profilNom in profilsAuteurs" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
+                    </select>
+                    <p v-if="profilsAuteurs.length === 0 && !isLoadingProfils" style="color: #888; font-size: 0.9em; margin-top: 5px;">
+                        Aucun profil trouvé. Assurez-vous d'avoir créé des profils dans la section "Équipe" et que la fonction proxy est configurée.
+                    </p>
+                    <p v-if="isLoadingProfils" style="color: #0077b6; font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
+
+                    <label for="titre">Titre du Tip / Prompt</label>
+                    <input type="text" id="titre" v-model="titre" required />
+
+                    <label for="description">Description</label>
+                    <textarea id="description" v-model="description" rows="4" required></textarea>
+
+                    <label for="previewText">Post-it</label> <textarea id="previewText" v-model="previewText" rows="2" placeholder="Un court extrait ou un résumé pour la prévisualisation dans la galerie."></textarea>
+
+                    <label for="prompt">Prompt / workflow</label>
+                    <textarea id="prompt" v-model="promptText" rows="6" placeholder="Collez le prompt exact ici si c'est un prompt"></textarea>
+
+                    <label for="categorie">Catégorie</label>
+                    <select id="categorie" v-model="categorie">
+                        <option value="" disabled>Sélectionnez une catégorie</option>
+                        <option>Marketing Digital</option>
+                        <option>Stratégie</option>
+                        <option>Communication & Image de Marque</option>
+                        <option>Réseaux Sociaux</option>
+                        <option>SEO & Positionnement</option>
+                        <option>Publicité Digitale</option>
+                        <option>Contenu & Rédaction</option>
+                        <option>Graphisme & Design Visuel</option>
+                        <option>Montage Vidéo & Audio</option>
+                        <option>Gestion de la Relation Client (CRM)</option>
+                        <option>Ventes & Prospection</option>
+                        <option>Partenariats & Affiliation</option>
+                        <option>Analyse de Données & Reporting</option>
+                        <option>Automatisation & Productivité</option>
+                        <option>Autres Outils IA</option>
+                        <option>Autre</option>
+                    </select>
+
+                    <label for="outil">Plateforme / Outil</label>
+                    <select id="outil" v-model="outil">
+                        <option value="" disabled>Sélectionnez un outil</option>
+                        <option>ChatGPT</option>
+                        <option>Claude</option>
+                        <option>Adobe Photoshop</option>
+                        <option>Adobe Illustrator</option>
+                        <option>Adobe Premiere Pro</option>
+                        <option>Adobe After Effects</option>
+                        <option>Adobe InDesign</option>
+                        <option>Adobe Acrobat</option>
+                        <option>Adobe Audition</option>
+                        <option>Adobe Lightroom</option>
+                        <option>Midjourney</option>
+                        <option>DALL-E</option>
+                        <option>Stable Diffusion</option>
+                        <option>RunwayML</option>
+                        <option>Canva AI</option>
+                        <option>Autre</option>
+                    </select>
+                    <input type="text" v-if="outil === 'Autre'" v-model="customOutil" placeholder="Spécifiez l'outil..." style="margin-top: 10px;" />
+
+
+                    <label>Lien(s) associé(s) (optionnel)</label>
+                    <div v-for="(url, index) in urls" :key="index" class="url-input-group">
+                        <input type="url" v-model="urls[index]" :placeholder="`Lien ${index + 1}`" />
+                        <button type="button" @click="removeUrlField(index)" class="remove-url-button">X</button>
+                    </div>
+                    <div class="url-action-buttons">
+                        <button type="button" @click="addUrlField" class="add-url-button">Ajouter un lien</button>
+                    </div>
+                    <label for="commentaireUrl">Commentaire</label>
+                    <textarea id="commentaireUrl" v-model="commentaireUrl" rows="2" placeholder="Ajoutez un commentaire sur les liens fournis."></textarea>
+                    <label>Images / Documents (optionnel)</label>
+                    <div id="drop-zone"
+                            @click="triggerFile"
+                            @dragover.prevent="onDragOver"
+                            @dragleave="onDragLeave"
+                            @drop.prevent="onDrop"
+                            aria-live="polite"
+                            aria-atomic="true"
+                            tabindex="0"
+                            role="button"
+                            title="Cliquez ou déposez des fichiers ici">
+                        Déposez ou cliquez pour ajouter des images ou documents (.txt, .pdf)
+                    </div>
+                    <input type="file" ref="fileInput" accept="image/*, .txt, .pdf" style="display:none" @change="onFileChange" multiple />
+                    <p v-if="fileUploadError" style="color: red; margin-top: 5px;">{{ fileUploadError }}</p>
+
+
+                    <div class="file-preview-grid">
+                        <div v-for="(fileObj, index) in selectedFiles" :key="fileObj.id" class="file-preview-item">
+                            <img v-if="fileObj.type.startsWith('image/')" :src="fileObj.previewUrl" class="image-preview" :alt="fileObj.name" />
+                            <span v-else class="file-icon">{{ getFileIcon(fileObj.type) }}</span>
+                            <span class="file-name-overlay" :title="fileObj.name">{{ fileObj.name }}</span>
+                            <button type="button" class="remove-file-button" @click="removeFile(fileObj.id)" :aria-label="`Supprimer le fichier ${fileObj.name}`">&times;</button>
+                        </div>
+                    </div>
+
+                    <div v-if="isLoading" class="loader" aria-label="Chargement en cours..."></div>
+                    <button v-else type="submit" :disabled="!auteur || !titre || !description || isLoading">Partager le Tip / Prompt</button>
+                </form>
+
+                <div class="confirmation" v-if="confirmationVisible" role="status" aria-live="assertive">
+                    <p>✅ Tip / Prompt partagé avec succès !</p>
+                    <template v-if="confirmationImageUrls && confirmationImageUrls.length > 0">
+                        <img v-for="(url, index) in confirmationImageUrls" :key="'conf-img-' + index" :src="url" @click="openLightbox(url)" style="margin: 5px;" :alt="`Image de confirmation ${index + 1}`"/>
+                    </template>
+                    <template v-if="confirmationUrls && confirmationUrls.length > 0 && confirmationUrls[0].trim() !== ''">
+                        <h4 style="margin-top: 15px; margin-bottom: 5px; color: #333;">Lien(s) enregistré(s):</h4>
+                        <ul>
+                            <li v-for="(url, index) in confirmationUrls" :key="'conf-url-' + index" style="list-style-type: disc; margin-left: 20px;">
+                                <a :href="url" target="_blank" style="color: var(--primary-blue); word-break: break-all;">{{ url }}</a>
+                            </li>
+                        </ul>
+                    </template>
+                    <p v-if="confirmationCommentaireUrl && confirmationCommentaireUrl.trim()" style="white-space: pre-wrap; font-style: italic; font-size: 0.9em; color: var(--grey-text); margin-top: 10px;">{{ confirmationCommentaireUrl }}</p>
+                    <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
+                    <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
+                    <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
+                    <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
+                    <p style="margin-top: 15px; color: #0077b6;">Redirection vers les cas d'usages dans 5 secondes...</p>
+                </div>
+            </div>
+
+            <div class="lightbox-overlay" v-if="lightboxVisible" @click.self="closeLightbox" role="dialog" aria-modal="true" :aria-label="`Aperçu de l'image ${lightboxImageUrl.split('/').pop()}`">
+                <span class="lightbox-close" @click="closeLightbox" role="button" tabindex="0" aria-label="Fermer l'aperçu de l'image">&times;</span>
+                <div class="lightbox-content">
+                    <img :src="lightboxImageUrl" :alt="`Image en grand format : ${lightboxImageUrl.split('/').pop()}`" />
+                </div>
+            </div>
+
+        </div>
     </main>
 
-    <div id="footer-signature">
-        Développé par <strong>Steeve PIRES MADEIRA</strong><br>
-        Chargé(e) de projets - R&D format • Médias - Marketing & Communication
-    </div>
+    <div id="footer-placeholder"></div>
 
-    <div id="toast-container"></div>
+    <script>
+        // Chargement du header
+        fetch("header.html")
+            .then(r => r.text())
+            .then(html => {
+                const headerPlaceholder = document.getElementById("header-placeholder");
+                if (headerPlaceholder) {
+                    headerPlaceholder.innerHTML = html;
+                } else {
+                    console.warn("L'élément #header-placeholder n'a pas été trouvé.");
+                }
+                document.body.classList.add("show");
+                const mainElement = document.querySelector("main");
+                if (mainElement) {
+                    mainElement.classList.add("show");
+                } else {
+                    console.warn("L'élément main n'a pas été trouvé.");
+                }
+                console.log("Header chargé et animations démarrées.");
+            })
+            .catch(error => console.error("Erreur lors du chargement du header:", error));
+    </script>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script>
-        // Références aux éléments globaux pour la gestion de l'affichage
-        const globalLoader = document.getElementById("global-loader");
-        const bodyElement = document.body;
-        const mainElement = document.querySelector("main");
+        const { ref, createApp, onMounted, onUnmounted } = Vue;
 
-        // Fonction showToast (déplacée globalement pour être accessible partout)
-        function showToast(message, type = 'info') {
-            const toastContainer = document.getElementById('toast-container');
-            if (!toastContainer) {
-                console.error('Toast container non trouvé !');
-                return;
-            }
-            const toast = document.createElement('div');
-            toast.className = `toast-message ${type}`;
-            toast.textContent = message;
-            toastContainer.appendChild(toast);
+        // --- CORRECTION CLÉ ICI : Noms des fonctions Netlify ---
+        const SAVE_TIP_URL = "/.netlify/functions/pushTip";
+        const GET_PROFILS_URL = "/.netlify/functions/getProfils";
 
-            void toast.offsetWidth; // Force reflow for animation
-            toast.classList.add('show');
-
-            setTimeout(() => {
-                toast.classList.remove('show');
-                toast.addEventListener('transitionend', () => toast.remove(), { once: true });
-            }, 3000);
-        }
-
-        const { ref, createApp, onMounted } = Vue;
-
-        const PROXY_URL = "/.netlify/functions/proxy"; // L'URL de votre fonction Netlify
-
-        const PromptForm = {
-            template: `
-                <div class="container">
-                    <a href="cas-usages.html" class="back-button">
-                        <span class="fas fa-arrow-left"></span> Retour
-                    </a>
-                    <h1 style="text-align:center; color:var(--primary-blue);">Partager un prompt</h1>
-
-                    <form @submit.prevent="submitForm">
-                        <label for="auteur">Votre nom</label>
-                        <select id="auteur" v-model="auteur" required>
-                            <option value="" disabled>Sélectionnez un nom</option>
-                            <option v-for="profilNom in profilsAuteurs" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
-                        </select>
-                        <p v-if="profilsAuteurs.length === 0 && !isLoadingProfils" style="color: var(--light-text-color); font-size: 0.9em; margin-top: 5px;">
-                            Aucun profil trouvé. Assurez-vous d'avoir créé des profils dans la section "Équipe".
-                        </p>
-                        <p v-if="isLoadingProfils" style="color: var(--primary-blue); font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
-
-                        <label for="outil">Outil IA utilisé</label>
-                        <select id="outil" v-model="outil">
-                            <option>Midjourney</option>
-                            <option>DALL·E</option>
-                            <option>Stable Diffusion</option>
-                            <option>Adobe Firefly</option>
-                            <option>Runway</option>
-                            <option>ChatGPT</option>
-                            <option>Autre</option>
-                        </select>
-
-                        <label for="chaine">Chaîne</label>
-                        <select id="chaine" v-model="chaine">
-                            <option>La Une</option>
-                            <option>Tipik</option>
-                            <option>La Trois</option>
-                            <option>La Première</option>
-                            <option>Classic 21</option>
-                            <option>Vivacité</option>
-                            <option>Musiq3</option>
-                            <option>Auvio</option>
-                            <option>Auvio Kids</option>
-                            <option>Autre</option>
-                        </select>
-
-                        <label for="texte">Prompt</label>
-                        <textarea id="texte" v-model="texte" rows="4" required></textarea>
-
-                        <label for="description">Commentaire</label>
-                        <textarea id="description" v-model="description" rows="3"></textarea>
-
-                        <label>Image</label>
-                        <div id="drop-zone"
-                             @click="triggerFile"
-                             @dragover.prevent="onDragOver"
-                             @dragleave="onDragLeave"
-                             @drop.prevent="onDrop">
-                            Déposez ou cliquez
-                        </div>
-                        <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
-                        <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
-
-                        <div v-if="isLoading" class="loader"></div>
-                        <button v-else type="submit" :disabled="!auteur || isLoading">Partager</button>
-                    </form>
-
-                    <div class="confirmation" v-if="confirmationVisible">
-                        <p>✅ Prompt partagé avec succès vers la **galerie** !</p>
-                        <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
-                        <p style="white-space: pre-wrap;">{{ confirmationTexte }}</p>
-                        <p style="white-space: pre-wrap; font-style: italic;">{{ confirmationDescription }}</p>
-                        <p style="margin-top: 15px; color: var(--primary-blue);">Redirection vers la galerie dans 5 secondes...</p>
-                    </div>
-                </div>
-            `,
+        const TipForm = {
             setup() {
                 const auteur = ref('');
-                const outil = ref('Midjourney');
-                const chaine = ref('La Une');
-                const texte = ref('');
+                const titre = ref('');
                 const description = ref('');
+                const previewText = ref('');
+                const promptText = ref('');
+                const categorie = ref('Marketing Digital');
+                const outil = ref('');
+                const customOutil = ref(''); // Nouveau ref pour l'outil personnalisé
                 const fileInput = ref(null);
-                const imagePreviewUrl = ref('');
-                const imageFile = ref(null);
+                const urls = ref(['']); // Commence avec un champ URL vide
+                const commentaireUrl = ref(''); // Nouveau ref pour le commentaire des URLs
+
+                const selectedFiles = ref([]);
+                let fileIdCounter = 0;
+                const fileUploadError = ref(''); // Pour afficher les erreurs de fichier à l'utilisateur
+
                 const confirmationVisible = ref(false);
-                const confirmationImageUrl = ref('');
-                const confirmationTexte = ref('');
+                const confirmationImageUrls = ref([]);
+                const confirmationUrls = ref([]); // Nouveau pour les URLs de confirmation
+                const confirmationCommentaireUrl = ref(''); // Nouveau pour le commentaire de confirmation
+                const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
+                const confirmationPreviewText = ref('');
+                const confirmationPromptText = ref('');
                 const isLoading = ref(false);
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
-                const selectedFilterAuteur = ref('');
-                const selectedFilterOutil = ref('');
-                const selectedFilterChaine = ref('');
+                const lightboxVisible = ref(false);
+                const lightboxImageUrl = ref('');
 
                 async function fetchProfils() {
+                    console.log("Début du chargement des profils...");
                     isLoadingProfils.value = true;
                     try {
-                        // Chemin d'accès à data.json - ASSURE-TOI QUE CE CHEMIN EST CORRECT !
-                        const response = await fetch('/admin/data.json');
+                        const response = await fetch(GET_PROFILS_URL);
+                        console.log("Réponse de la fonction Netlify pour les profils:", response);
                         if (!response.ok) {
-                            // Log l'erreur complète de la réponse pour le débogage
                             const errorText = await response.text();
-                            throw new Error(`HTTP error: ${response.status} - ${response.statusText}. Response body: ${errorText.substring(0, 200)}`);
+                            throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
                         }
                         const data = await response.json();
-                        const profilsList = Array.isArray(data.profils) ? data.profils : [];
-                        const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
+                        console.log("Données brutes des profils reçues:", data);
+                        // Assurez-vous que `data` est un tableau ou contient une propriété `profils` qui est un tableau
+                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
+                        const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
 
                         if (names.length === 1) {
                             auteur.value = names[0];
+                            console.log("Un seul profil trouvé, auteur auto-sélectionné:", auteur.value);
+                        } else if (names.length > 1) {
+                            auteur.value = '';
+                            console.log("Plusieurs profils trouvés, veuillez sélectionner un auteur.");
                         } else {
                             auteur.value = '';
+                            console.log("Aucun profil d'auteur trouvé.");
                         }
-                        console.log("Noms de profils chargés:", profilsAuteurs.value);
+                        console.log("Noms de profils chargés et triés:", profilsAuteurs.value);
 
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
-                        showToast("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.", 'error');
+                        // Afficher une erreur plus douce à l'utilisateur
+                        // Remplacer alert() par un log pour compatibilité Canvas
+                        console.error(`Impossible de charger la liste des profils. Veuillez vérifier que la fonction Netlify "${GET_PROFILS_URL.split('/').pop()}" existe et est correctement déployée. Détails: ${error.message}`);
                     } finally {
                         isLoadingProfils.value = false;
+                        console.log("Fin du chargement des profils.");
                     }
                 }
 
-                onMounted(fetchProfils);
+                function addUrlField() {
+                    urls.value.push('');
+                    console.log("Champ URL ajouté. URLs:", urls.value);
+                }
+
+                function removeUrlField(index) {
+                    urls.value.splice(index, 1);
+                    // S'assurer qu'il y a toujours au moins un champ URL si la liste devient vide après suppression
+                    if (urls.value.length === 0) {
+                        urls.value.push('');
+                    }
+                    console.log(`Champ URL à l'index ${index} supprimé. URLs:`, urls.value);
+                }
+
+                function openLightbox(imageUrl) {
+                    lightboxImageUrl.value = imageUrl;
+                    lightboxVisible.value = true;
+                    console.log("Lightbox ouverte pour:", imageUrl);
+                }
+
+                function closeLightbox() {
+                    lightboxVisible.value = false;
+                    lightboxImageUrl.value = '';
+                    console.log("Lightbox fermée.");
+                }
+
+                function handleKeydown(event) {
+                    if (event.key === 'Escape' && lightboxVisible.value) {
+                        closeLightbox();
+                    }
+                }
+
+                onMounted(() => {
+                    console.log("Composant TipForm monté.");
+                    fetchProfils();
+                    window.addEventListener('keydown', handleKeydown);
+                });
+
+                onUnmounted(() => {
+                    window.removeEventListener('keydown', handleKeydown);
+                });
 
                 function triggerFile() {
+                    console.log("Clic sur la drop-zone, déclenchement de l'input fichier.");
                     fileInput.value?.click();
                 }
 
                 function onDragOver(e) {
+                    console.log("Événement dragover détecté.");
                     e.currentTarget.classList.add('dragover');
                 }
 
                 function onDragLeave(e) {
+                    console.log("Événement dragleave détecté.");
                     e.currentTarget.classList.remove('dragover');
                 }
 
                 function onDrop(e) {
+                    console.log("Événement drop détecté.");
                     e.currentTarget.classList.remove('dragover');
                     const files = e.dataTransfer.files;
-                    if (files.length && fileInput.value) {
-                        fileInput.value.files = files;
-                        handleFile(files[0]);
+                    if (files.length) {
+                        console.log("Fichiers déposés:", files);
+                        addFiles(files);
+                    } else {
+                        console.log("Aucun fichier déposé.");
                     }
                 }
 
                 function onFileChange(e) {
-                    const file = e.target.files[0];
-                    if (file) handleFile(file);
+                    const files = e.target.files;
+                    if (files) {
+                        console.log("Fichiers sélectionnés via l'input:", files);
+                        addFiles(files);
+                        e.target.value = null; // Réinitialise l'input file pour permettre de re-sélectionner le même fichier si besoin
+                    } else {
+                        console.log("Aucun fichier sélectionné via l'input.");
+                    }
                 }
 
-                function handleFile(file) {
-                    imageFile.value = file;
-                    const reader = new FileReader();
-                    reader.onload = () => { imagePreviewUrl.value = reader.result; };
-                    reader.readAsDataURL(file);
+                function addFiles(files) {
+                    fileUploadError.value = ''; // Réinitialise l'erreur avant d'ajouter de nouveaux fichiers
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        if (file.type.startsWith('image/') || file.type === 'text/plain' || file.type === 'application/pdf') {
+                            const newFileObj = {
+                                id: fileIdCounter++,
+                                file: file,
+                                previewUrl: null,
+                                name: file.name,
+                                type: file.type
+                            };
+
+                            if (file.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                    if (e.target.result && typeof e.target.result === 'string' && e.target.result.startsWith('data:image')) {
+                                        newFileObj.previewUrl = e.target.result;
+                                        selectedFiles.value.push(newFileObj);
+                                    } else {
+                                        console.warn(`Résultat de lecture d'image non valide pour ${file.name}. Ignoré.`);
+                                        fileUploadError.value = `Impossible de prévisualiser l'image ${file.name}.`;
+                                    }
+                                };
+                                reader.onerror = (error) => {
+                                    console.error(`Erreur lecture fichier ${file.name}:`, error);
+                                    fileUploadError.value = `Erreur lors de la lecture de l'image ${file.name}.`;
+                                };
+                                reader.readAsDataURL(file);
+                            } else {
+                                selectedFiles.value.push(newFileObj);
+                            }
+                        } else {
+                            fileUploadError.value = `Le fichier "${file.name}" de type "${file.type}" n'est pas pris en charge. Seules les images, les fichiers .txt et .pdf sont autorisés.`;
+                            console.warn(fileUploadError.value);
+                        }
+                    }
+                    console.log("selectedFiles après ajout:", selectedFiles.value);
                 }
 
-                function getBase64(file) {
-                    return new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result.split(',')[1]);
-                        reader.onerror = (error) => reject(error);
-                        reader.readAsDataURL(file);
-                    });
+                function removeFile(fileIdToRemove) {
+                    selectedFiles.value = selectedFiles.value.filter(fileObj => fileObj.id !== fileIdToRemove);
+                    console.log(`Fichier avec ID ${fileIdToRemove} supprimé. selectedFiles:`, selectedFiles.value);
+                    fileUploadError.value = ''; // Effacer l'erreur si un fichier en cause est supprimé
+                }
+
+                function getFileIcon(fileType) {
+                    if (fileType === 'text/plain') return 'TXT';
+                    if (fileType === 'application/pdf') return 'PDF';
+                    return '📄'; // Icône par défaut pour les autres types de fichiers
                 }
 
                 async function submitForm() {
-                    if (!auteur.value) {
-                        showToast("Veuillez sélectionner un auteur.", 'error');
+                    console.log("Soumission du formulaire...");
+                    // Validation côté client plus détaillée
+                    if (!auteur.value || !titre.value.trim() || !description.value.trim()) {
+                        // Remplacer alert() par un log pour compatibilité Canvas
+                        console.error("Veuillez remplir tous les champs obligatoires (Auteur, Titre, Description).");
+                        console.warn("Soumission bloquée: Champs obligatoires manquants.");
                         return;
                     }
-                    if (!texte.value.trim()) {
-                        showToast("Veuillez entrer le texte du prompt.", 'error');
+                    // Validation pour l'outil personnalisé
+                    if (outil.value === 'Autre' && !customOutil.value.trim()) {
+                        console.error("Veuillez spécifier le nom de l'outil personnalisé.");
+                        // Vous pouvez afficher une erreur à l'utilisateur ici (par ex. un message sous le champ input)
                         return;
                     }
-
+                    
                     confirmationVisible.value = false;
                     isLoading.value = true;
-
-                    let imageUrl = '';
-                    const file = imageFile.value;
+                    console.log("Formulaire en cours de traitement (isLoading = true).");
 
                     try {
-                        if (file) {
-                            const base64 = await getBase64(file);
-                            const payload = { fileContent: base64, fileName: file.name };
-                            const resp = await fetch('/.netlify/functions/uploadImage', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
-                            });
-                            if (!resp.ok) {
-                                const errorText = await resp.text();
-                                throw new Error(`Upload failed: ${resp.status} - ${errorText}`);
-                            }
-                            const data = await resp.json();
-                            imageUrl = data.url;
-                            console.log("Image uploadée avec succès:", imageUrl);
+                        const formData = new FormData();
+                        formData.append('auteur', auteur.value);
+                        formData.append('titre', titre.value);
+                        formData.append('description', description.value);
+                        formData.append('previewText', previewText.value);
+                        formData.append('promptText', promptText.value);
+                        formData.append('categorie', categorie.value);
+                        // Utilise customOutil si 'Autre' est sélectionné
+                        formData.append('outil', outil.value === 'Autre' ? customOutil.value : outil.value);    
+                        formData.append('dateCreation', new Date().toISOString());
+
+                        // Ajout des URLs
+                        const filteredUrls = urls.value.filter(url => url.trim() !== '');
+                        if (filteredUrls.length > 0) {
+                            formData.append('urls', JSON.stringify(filteredUrls)); // Envoyer comme JSON string
+                            console.log("URLs ajoutées à FormData:", filteredUrls);
+                        } else {
+                            formData.append('urls', '[]'); // Envoyer un tableau vide si aucune URL valide
+                            console.log("Aucune URL valide à ajouter à FormData.");
                         }
 
-                        const promptResp = await fetch('/.netlify/functions/pushPrompt', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                auteur: auteur.value,
-                                outil: outil.value,
-                                chaine: chaine.value,
-                                texte: texte.value,
-                                description: description.value,
-                                imageUrl
-                            })
+                        // Ajout du commentaire sur les URLs
+                        if (commentaireUrl.value.trim() !== '') {
+                            formData.append('commentaireUrl', commentaireUrl.value.trim());
+                            console.log("Commentaire sur les URLs ajouté à FormData:", commentaireUrl.value.trim());
+                        }
+
+
+                        selectedFiles.value.forEach((fileObj) => {
+                            formData.append(`files`, fileObj.file, fileObj.name);
+                            console.log(`Ajout du fichier ${fileObj.name} à FormData.`);
                         });
 
-                        if (!promptResp.ok) {
-                            const errorText = await promptResp.text();
-                            throw new Error(`Prompt failed: ${promptResp.status} - ${errorText}`);
+                        console.log("Envoi de FormData à la fonction Netlify. Contenu FormData (ne montre pas les fichiers directement):");
+                        // Pour déboguer FormData, vous pouvez itérer sur ses entrées
+                        // for (let pair of formData.entries()) { console.log(pair[0]+ ': ' + pair[1]); }
+
+
+                        const tipResp = await fetch(SAVE_TIP_URL, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        console.log("Réponse brute de la fonction pushTip:", tipResp);
+
+                        if (!tipResp.ok) {
+                            const errorText = await tipResp.text();
+                            console.error(`Erreur HTTP lors de l'enregistrement du tip via Netlify Function: ${tipResp.status} - ${errorText}`);
+                            throw new Error(`Échec de l'enregistrement du tip: ${tipResp.status} - ${errorText}`);
                         }
 
-                        confirmationImageUrl.value = imageUrl;
-                        confirmationTexte.value = texte.value;
-                        confirmationDescription.value = description.value;
-                        confirmationVisible.value = true;
+                        const result = await tipResp.json();
+                        console.log("Résultat de l'enregistrement du tip via Netlify Function:", result);
 
-                        showToast("Prompt partagé avec succès !", 'success');
+                        confirmationImageUrls.value = [];
+                        if (result.imageUrls && Array.isArray(result.imageUrls)) {
+                            confirmationImageUrls.value = result.imageUrls;
+                            console.log("Images de confirmation définies avec les URLs publiques de GitHub:", result.imageUrls);
+                        } else if (result.imageUrl) {
+                             // Si backend renvoie une seule imageURL au lieu d'un tableau
+                             confirmationImageUrls.value.push(result.imageUrl);
+                        }
+                        // Fallback si le backend ne renvoie pas d'URLs d'images, utiliser les aperçus locaux
+                        if (confirmationImageUrls.value.length === 0 && selectedFiles.value.some(f => f.type.startsWith('image/'))) {
+                            confirmationImageUrls.value = selectedFiles.value
+                                .filter(f => f.type.startsWith('image/') && f.previewUrl)
+                                .map(f => f.previewUrl);
+                            console.log("Utilisation des URL d'aperçu local pour la confirmation (backend n'a pas renvoyé d'URLs).", confirmationImageUrls.value);
+                        }
+                        if (confirmationImageUrls.value.length === 0) {
+                            console.log("Aucune image de confirmation disponible.");
+                        }
+
+                        // Récupération des URLs de confirmation (nouvellement ajoutées)
+                        confirmationUrls.value = result.urls || [];
+                        if (confirmationUrls.value.length === 0) {
+                               console.log("Aucune URL de confirmation disponible.");
+                        } else {
+                               console.log("URLs de confirmation disponibles:", confirmationUrls.value);
+                        }
+                        
+                        // Récupération du commentaire URL de confirmation
+                        confirmationCommentaireUrl.value = result.commentaireUrl || commentaireUrl.value;
+                        if (confirmationCommentaireUrl.value.trim() === '') {
+                            console.log("Aucun commentaire URL de confirmation disponible.");
+                        } else {
+                            console.log("Commentaire URL de confirmation disponible:", confirmationCommentaireUrl.value);
+                        }
+
+
+                        confirmationTitre.value = titre.value;
+                        confirmationDescription.value = description.value;
+                        confirmationPreviewText.value = previewText.value;
+                        confirmationPromptText.value = promptText.value;
+                        confirmationVisible.value = true;
+                        console.log("Confirmation affichée. Redirection dans 5 secondes...");
 
                         setTimeout(() => {
-                            window.location.href = "/cas-usages.html?success=1";
+                            window.location.href = "https://iamarketing.netlify.app/cas-usages.html?success=1";
                         }, 5000);
 
-                        // Réinitialiser les champs du formulaire après soumission
-                        auteur.value = '';
-                        outil.value = 'Midjourney';
-                        chaine.value = 'La Une';
-                        texte.value = '';
-                        description.value = '';
-                        imagePreviewUrl.value = '';
-                        imageFile.value = null;
-                        if (fileInput.value) {
-                            fileInput.value.value = null;
-                        }
-                        fetchProfils(); // Recharger les profils
-                    } catch (err) {
-                        console.error('Erreur lors de l\'envoi du prompt:', err);
-                        showToast(`Échec de l'envoi du prompt: ${err.message || err}.`, 'error');
+                    } catch (error) {
+                        console.error("Erreur lors de la soumission du formulaire:", error);
+                        // Remplacer alert() par un log pour compatibilité Canvas
+                        console.error(`Une erreur est survenue lors de l'envoi du tip. Veuillez réessayer. Détails : ${error.message}`);
                     } finally {
                         isLoading.value = false;
+                        console.log("Fin du traitement du formulaire (isLoading = false).");
                     }
                 }
 
                 return {
-                    auteur, outil, chaine, texte, description, fileInput,
-                    imagePreviewUrl, confirmationVisible,
-                    confirmationImageUrl, confirmationTexte, confirmationDescription,
+                    auteur, titre, description, previewText, promptText, categorie, outil, customOutil, fileInput, // Ajout de customOutil
+                    urls, addUrlField, removeUrlField, commentaireUrl, // Ajout des fonctions et du ref pour les URLs et le commentaire
+                    selectedFiles, fileUploadError,
+                    confirmationVisible,
+                    confirmationImageUrls, confirmationUrls, confirmationCommentaireUrl, // Ajout de confirmationUrls et confirmationCommentaireUrl
+                    confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
                     isLoading, profilsAuteurs, isLoadingProfils,
-                    selectedFilterAuteur, selectedFilterOutil, selectedFilterChaine,
-                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
+                    lightboxVisible, lightboxImageUrl,
+                    openLightbox, closeLightbox,
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
+                    removeFile, getFileIcon, submitForm
                 };
             }
         };
 
-        // --- Initialisation au chargement du DOM ---
-        document.addEventListener("DOMContentLoaded", () => {
-            console.log("DOMContentLoaded, début de l'initialisation...");
-
-            // Masquer la barre de défilement du body au début
-            bodyElement.style.overflow = 'hidden';
-
-            // 1. Mettre à jour l'état actif du menu
-            const currentPath = window.location.pathname.split('/').pop();
-            document.querySelectorAll('nav a').forEach(link => {
-                const linkHref = link.getAttribute('href');
-                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-
-                // Logique pour marquer le lien actif
-                if (linkFileName === currentPath ||
-                    (currentPath === "" && linkFileName === "index.html") ||
-                    // Ajout d'une condition plus robuste pour "creer-tip.html" au cas où l'URL change ou est plus complexe
-                    linkFileName.includes("creer-tip.html") && currentPath.includes("creer-tip.html")
-                ) {
-                    link.classList.add("active");
+        createApp(TipForm).mount('#app');
+        
+        // Chargement du footer
+        fetch("footer.html")
+            .then(r => r.text())
+            .then(html => {
+                const footerPlaceholder = document.getElementById("footer-placeholder");
+                if (footerPlaceholder) {
+                    footerPlaceholder.innerHTML = html;
                 } else {
-                    link.classList.remove("active");
+                    console.warn("L'élément #footer-placeholder n'a pas été trouvé.");
                 }
-            });
-
-            // 2. Initialiser le mode sombre (si la fonction existe globalement)
-            if (typeof initializeDarkMode === 'function') {
-                initializeDarkMode();
-            } else {
-                console.warn("Fonction initializeDarkMode non trouvée. Assurez-vous qu'elle est disponible.");
-            }
-
-            // 3. Cacher le loader global et révéler le contenu principal
-            if (globalLoader) {
-                globalLoader.classList.add("hidden");
-                globalLoader.addEventListener('transitionend', () => {
-                    if (globalLoader.classList.contains('hidden')) {
-                        globalLoader.style.display = 'none';
-                    }
-                }, { once: true });
-            }
-
-            // 4. Rendre le body et main visibles
-            bodyElement.classList.add("show");
-            mainElement.style.display = 'block';
-            mainElement.classList.add("show");
-            bodyElement.style.overflow = ''; // Restaurer le défilement du body
-
-            // 5. Monter l'application Vue.js
-            createApp(PromptForm).mount('#app');
-
-            console.log("Initialisation terminée.");
-        });
+                console.log("Footer chargé.");
+            })
+            .catch(error => console.error("Erreur lors du chargement du footer:", error));
     </script>
 </body>
 </html>
