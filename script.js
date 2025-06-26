@@ -286,6 +286,207 @@ ${d.description}`;
             loader.classList.add('hidden');
         }
     }
+    // script.js
+
+// --- Variables globales et fonctions utilitaires communes à tout le site ---
+// Celles-ci devraient être au début de votre script.js
+const globalLoader = document.getElementById("global-loader"); // Renommé de 'loader' à 'globalLoader' pour cohérence
+const bodyElement = document.body;
+const mainElement = document.querySelector("main"); // Sélectionne directement l'élément main
+
+// Fonction utilitaire pour charger des composants HTML (celle que je vous ai déjà donnée)
+async function loadComponent(url, placeholderId) {
+    try {
+        const res = await fetch(url);
+        if (!res.ok) {
+            const errorDetail = await res.text();
+            throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+        }
+        document.getElementById(placeholderId).innerHTML = await res.text();
+        console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
+    } catch (error) {
+        console.error(`Erreur lors du chargement de ${url}:`, error);
+        document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
+    }
+}
+
+// Si vous avez une fonction initializeDarkMode, elle devrait être ici aussi
+function initializeDarkMode() {
+    // ... votre logique pour le mode sombre ...
+}
+
+// Fonction utilitaire pour extraire l'ID d'une vidéo YouTube (déjà présente dans votre code)
+function getYouTubeVideoId(url) { /* ... */ }
+
+// Fonction pour ajouter un message au chatbot (déjà présente dans votre code)
+function appendMessage(text, ...classes) { /* ... */ }
+
+// Fonction pour créer une carte (Cas d'usage ou Galerie) (déjà présente dans votre code)
+const createCard = (item, type) => { /* ... */ };
+
+// Fonction pour envoyer un message au chatbot (déjà présente dans votre code)
+async function sendMessage() { /* ... */ }
+
+
+// --- Logique spécifique à la page d'accueil (index.html) ---
+// Encapsulez toute la logique de cette page dans une fonction dédiée.
+function initHomePage() {
+    console.log("Initialisation spécifique à index.html");
+
+    // Références DOM spécifiques à cette page (déplacées ici)
+    const PROXY_URL = "/.netlify/functions/proxy"; // Définir ou passer en paramètre si commun
+    const GET_TIPS_URL = "/.netlify/functions/get-tips";
+    const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
+
+    const headerPlaceholder = document.getElementById("header-placeholder"); // Ces deux sont globales mais leurs références sont souvent locales à l'initiation
+    const footerPlaceholder = document.getElementById("footer-placeholder");
+    const latestAdditionsGrid = document.getElementById("latest-additions-grid");
+
+    const chatbotFab = document.getElementById('chatbot-fab');
+    const chatbotContainer = document.getElementById('chatbot-container');
+    const chatbotToggle = document.getElementById('chatbot-toggle');
+    const chatbotInput = document.getElementById('chatbot-input');
+    const chatbotSendButton = document.getElementById('chatbot-send-button');
+    const chatbotMessages = document.getElementById('chatbot-messages');
+    const chatbotLoading = document.getElementById('chatbot-loading');
+
+    const welcomeModal = document.getElementById('welcomeModal');
+    const closeButton = document.querySelector('#welcomeModal .close-button');
+    const confirmWelcomeButton = document.getElementById('confirmWelcome');
+
+    const HAS_SEEN_WELCOME_MODAL = 'hasSeenWelcomeModal';
+
+    // Fonctions spécifiques à cette page (displayLatestAdditions, sendMessage, etc.)
+    // Elles doivent être définies à l'intérieur de `initHomePage` ou passées en tant que dépendances
+    // si elles ont besoin d'accéder aux variables locales de `initHomePage`.
+    // Pour `sendMessage`, `appendMessage`, `getYouTubeVideoId`, ces fonctions peuvent rester globales car elles sont des utilitaires.
+
+    // Mettez ici la fonction `displayLatestAdditions`
+    async function displayLatestAdditions() { /* ... */ }
+
+
+    // --- Logique d'événements pour la page d'accueil ---
+    // Modale de bienvenue
+    const hasSeenWelcomeModal = localStorage.getItem(HAS_SEEN_WELCOME_MODAL) === 'true';
+    if (!hasSeenWelcomeModal && welcomeModal) {
+        welcomeModal.style.display = 'flex';
+    } else if (welcomeModal) {
+        welcomeModal.style.display = 'none';
+    }
+
+    if (closeButton) {
+        closeButton.addEventListener('click', () => {
+            welcomeModal.style.display = 'none';
+            localStorage.setItem(HAS_SEEN_WELCOME_MODAL, 'true');
+        });
+    }
+    if (confirmWelcomeButton) {
+        confirmWelcomeButton.addEventListener('click', () => {
+            welcomeModal.style.display = 'none';
+            localStorage.setItem(HAS_SEEN_WELCOME_MODAL, 'true');
+        });
+    }
+    if (welcomeModal) {
+        welcomeModal.addEventListener('click', (event) => {
+            if (event.target === welcomeModal) {
+                welcomeModal.style.display = 'none';
+                localStorage.setItem(HAS_SEEN_WELCOME_MODAL, 'true');
+            }
+        });
+    }
+
+    // Chatbot
+    if (chatbotFab) {
+        chatbotFab.addEventListener('click', () => {
+            chatbotContainer.style.display = chatbotContainer.style.display === 'flex' ? 'none' : 'flex';
+            if (chatbotContainer.style.display === 'flex') {
+                chatbotInput.focus();
+            }
+        });
+    }
+    if (chatbotToggle) {
+        chatbotToggle.addEventListener('click', () => {
+            chatbotContainer.style.display = 'none';
+        });
+    }
+    if (chatbotSendButton && chatbotInput) {
+        chatbotSendButton.addEventListener('click', sendMessage);
+        chatbotInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    } else {
+        console.warn("Éléments du chatbot (bouton d'envoi ou champ de saisie) introuvables.");
+    }
+
+    // Appel à la fonction qui charge les données spécifiques à cette page
+    displayLatestAdditions();
+}
+
+
+// --- Point d'entrée principal pour toutes les pages (similaire à compresseur.html) ---
+document.addEventListener("DOMContentLoaded", async () => {
+    console.log("Global script: DOMContentLoaded, début de l'initialisation...");
+
+    // Masquer la barre de défilement du body au début pour une meilleure expérience
+    bodyElement.style.overflow = 'hidden';
+
+    // 1. Charger les composants principaux (Header et Footer)
+    await loadComponent("header.html", "header-placeholder");
+    await loadComponent("footer.html", "footer-placeholder");
+
+    // 2. Mettre à jour l'état actif du menu après le chargement du header
+    const currentPath = window.location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('nav a').forEach(link => {
+        const linkHref = link.getAttribute('href');
+        const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+        if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
+            link.classList.add("active");
+        } else {
+            link.classList.remove("active");
+        }
+    });
+
+    // 3. Initialiser le mode sombre (si la fonction est définie globalement)
+    if (typeof initializeDarkMode === 'function') {
+        initializeDarkMode();
+    } else {
+        console.warn("Fonction initializeDarkMode non trouvée. Assurez-vous qu'elle est disponible.");
+    }
+
+    // 4. Cacher le loader global et révéler le contenu principal
+    const loader = document.getElementById("global-loader"); // Utiliser global-loader
+    if (loader) {
+        loader.classList.add("hidden");
+        loader.addEventListener('transitionend', () => {
+            if (loader.classList.contains('hidden')) {
+                loader.style.display = 'none';
+            }
+        }, { once: true });
+    }
+
+    // Révéler le body et main
+    bodyElement.classList.add("show");
+    // Si main n'a pas de classe 'show' spécifique, il est révélé avec le body
+    // Si vous avez `main.show` dans votre CSS pour une transition séparée, ajoutez :
+    // mainElement.classList.add("show");
+    bodyElement.style.overflow = ''; // Restaurer le défilement du body
+
+    // 5. Appeler les fonctions d'initialisation spécifiques à la page actuelle
+    if (currentPath === 'index.html' || currentPath === '') {
+        initHomePage();
+    } else if (currentPath === 'creer-tip.html') {
+        // initCreerTipPage(); // Appeler cette fonction si elle est définie dans script.js
+    } else if (currentPath === 'cas-usages.html') {
+        // initCasUsagesPage(); // Appeler cette fonction si elle est définie dans script.js
+    } else if (currentPath === 'compresseur.html') {
+        // initCompresseurPage(); // Appeler cette fonction si elle est définie dans script.js
+    }
+    // ... ajoutez des conditions pour chaque page
+
+    console.log("Global script: Initialisation terminée.");
+});
 });
 
 // IMPORTANT : La fonction `mettreAJourBulleDemandes` est définie dans le script de `index.html`.
