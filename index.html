@@ -4,26 +4,522 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Accueil - Espace IA</title>
-
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <link rel="preconnect" href="https://www.youtube.com"> 
-
     <link rel="preload" href="header.html" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="footer.html" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="log_ia.png" as="image">
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"></noscript>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="preload" href="Section-Clients-Logo-RTBF.png" as="image">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="style.css" />
     
-    </head>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Variables CSS (laissées ici pour la clarté si style.css est plus générique) */
+        :root {
+            --primary-blue: #0077b6;
+            --dark-blue: #005f8a;
+            --light-blue: #64B5F6;
+            --lighter-blue: #42A5F5;
+            --background-grey: #f0f2f5;
+            --card-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+            --card-hover-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            --success-bg: #d4edda;
+            --success-text: #155724;
+            --error-bg: #f8d7da;
+            --error-text: #dc3545;
+            --postit-yellow: #FFFAA0;
+            --light-blue-card: #E0F2F7;
+            --grey-text: #555;
+            --border-color: #ddd;
+        }
+
+        /* Styles généraux pour l'animation d'apparition de la page */
+        body {
+            opacity: 0; /* Garde l'opacité à 0 au démarrage pour l'animation */
+            transition: opacity 0.5s ease-in;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            background-color: var(--background-grey);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden; /* Empêche le défilement horizontal non désiré */
+        }
+        body.show {
+            opacity: 1; /* Révèle le body une fois la classe ajoutée */
+        }
+        main {
+            opacity: 0; /* Garde l'opacité à 0 au démarrage pour l'animation */
+            transition: opacity 0.5s ease-in;
+            padding: 40px 20px;
+            flex-grow: 1;
+        }
+        main.show {
+            opacity: 1; /* Révèle main une fois la classe ajoutée */
+        }
+
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex; /* Toujours afficher par défaut pour le loader */
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 1; /* S'assure que le loader est visible au démarrage */
+            transition: opacity 0.5s ease-out; /* Transition pour cacher le loader */
+            pointer-events: all; /* Permet les interactions tant que le loader est là */
+        }
+
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none; /* Désactive les interactions une fois le loader caché */
+        }
+        
+        #header-placeholder {
+            width: 100%;
+        }
+
+        /* L'ancienne section de bienvenue (si elle existe toujours, mais ne doit pas être visible) */
+        .section.welcome-section {
+            display: none; /* Assure qu'elle est masquée */ 
+        }
+        
+        .footer {
+            margin-top: auto;
+            padding: 20px;
+            text-align: center;
+            background-color: var(--dark-blue);
+            color: white;
+            font-size: 0.9em;
+        }
+
+        /* Styles pour la section des derniers ajouts - Cartes Modernes */
+        .latest-additions-section {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .latest-additions-section h2 {
+            text-align: center;
+            color: var(--primary-blue);
+            margin-bottom: 30px;
+        }
+
+        .latest-additions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        .addition-card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;  
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+        }
+
+        .addition-card.cas-usage {
+            border-left: 5px solid var(--light-blue);
+        }
+
+        .addition-card.galerie {
+            border-left: 5px solid var(--postit-yellow);
+        }
+
+        .addition-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--card-hover-shadow);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-header .icon {
+            font-size: 1.8em;
+            margin-right: 15px;
+            color: var(--primary-blue);
+        }
+
+        .card-header h4 {
+            margin: 0;
+            color: var(--dark-blue);
+            font-size: 1.2em;
+            flex-grow: 1;
+        }
+
+        .addition-card p {
+            font-size: 0.9em;  
+            line-height: 1.5;
+            color: var(--grey-text);
+            margin-bottom: 15px;
+            flex-grow: 1;  
+        }
+
+        .addition-card.cas-usage p {
+            font-size: 0.95em;  
+        }
+        
+        .addition-card.galerie p {
+            /* Styles spécifiques si nécessaires */
+        }
+
+
+        .addition-card .card-image-container {
+            text-align: center;
+            margin-top: 10px;
+            margin-bottom: 15px;
+            flex-shrink: 0;  
+        }
+
+        .addition-card .card-image-container img {
+            max-width: 100%;
+            height: 200px;  
+            object-fit: cover;  
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* NOUVEAU STYLE POUR LE PETIT LECTEUR VIDÉO DANS LA CARTE */
+        .card-small-video-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* Ratio 16:9 */
+            margin-top: 10px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            border-radius: 5px;
+            background-color: #000;
+            flex-shrink: 0;
+        }
+
+        .card-small-video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .card-meta {
+            display: flex;
+            flex-wrap: wrap;  
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85em;
+            color: #888;
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px;
+            margin-top: 15px;
+            flex-shrink: 0;  
+        }
+        
+        .card-meta div {
+            margin-right: 10px;
+            margin-bottom: 5px;
+        }
+
+        .card-meta .category {
+            font-style: italic;
+            color: var(--primary-blue);
+        }
+
+        .card-meta .date {
+            font-weight: bold;
+        }
+
+        /* Styles pour les boutons "Voir..." */
+        .view-button {
+            display: block;  
+            width: calc(100% - 0px); /* Ajusté pour le padding de la carte */
+            padding: 10px;
+            margin-top: auto;  
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            text-align: center;
+            text-decoration: none;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            flex-shrink: 0;  
+        }
+
+        .view-button:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+        }
+
+        /* Styles pour le Chatbot */
+        #chatbot-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+            width: 300px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 10px;
+            background-color: #fff;
+            display: none; /* Masqué par défaut */
+            flex-direction: column;
+            max-height: 80vh;
+            overflow: hidden;
+        }
+
+        #chatbot-header {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 15px;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #chatbot-header h3 {
+            margin: 0;
+            font-size: 1.1em;
+        }
+
+        #chatbot-toggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0 5px;
+        }
+
+        #chatbot-body {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
+
+        #chatbot-messages {
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--light-blue);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+            background-color: #e0e0e0;
+            color: #333;
+            border-bottom-left-radius: 2px;
+        }
+
+        #chatbot-input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #eee;
+            background-color: #fff;
+        }
+
+        #chatbot-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            margin-right: 10px;
+            font-size: 0.9em;
+        }
+
+        #chatbot-send-button {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        #chatbot-send-button:hover {
+            background-color: var(--dark-blue);
+        }
+
+        #chatbot-loading {
+            text-align: center;
+            font-size: 0.9em;
+            color: #777;
+            padding: 5px;
+        }
+        #chatbot-fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--primary-blue);
+            color: white;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: background-color 0.3s ease;
+        }
+
+        #chatbot-fab:hover {
+            background-color: var(--dark-blue);
+        }
+
+        /* Styles pour la Modale de Bienvenue */
+        .modal {
+            display: none; /* Masqué par défaut */
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+            position: relative;
+            text-align: center;
+        }
+
+        .modal-header {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 10px 20px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            margin: -20px -20px 20px -20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .modal-body p {
+            line-height: 1.6;
+            color: var(--grey-text);
+            margin-bottom: 20px;
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            top: 5px;
+            right: 15px;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .modal-button {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
+        }
+
+        .modal-button:hover {
+            background-color: var(--dark-blue);
+        }
+
+        /* Media Queries pour la responsivité (si nécessaire, à harmoniser avec style.css) */
+        @media (max-width: 768px) {
+            .latest-additions-grid {
+                grid-template-columns: 1fr;
+            }
+            .modal-content {
+                width: 90%;
+            }
+            #chatbot-container {
+                width: 90%;
+                right: 5%;
+                bottom: 10px;
+            }
+            #chatbot-fab {
+                bottom: 10px;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
 <body>
-    <div id="global-loader">
-        <div class="spinner"></div>
-        <p>Chargement de la page...</p>
+    <div id="loader">
+        Chargement...
     </div>
 
     <div id="header-placeholder"></div>
@@ -41,18 +537,15 @@
         </div>
     </div>
 
-    <main>
-        <div class="latest-additions-section">
+    <main> <div class="latest-additions-section">
             <h2>Derniers ajouts</h2>
             <div id="latest-additions-grid" class="latest-additions-grid">
-                <p style="text-align: center; color: var(--grey-text);">Chargement des derniers ajouts...</p>
+                <p id="post-it-loading-message" style="text-align: center; color: #777;">Chargement des derniers ajouts...</p>
             </div>
         </div>
     </main>
 
-    <div id="footer-placeholder"></div>
-
-    <div id="chatbot-fab">
+    <div id="footer-placeholder"></div> <div id="chatbot-fab">
         <i class="fas fa-comment-dots"></i>
     </div>
 
@@ -73,6 +566,481 @@
         </div>
     </div>
 
-    <script src="script.js" defer></script>
+    <script>
+        const PROXY_URL = "/.netlify/functions/proxy";
+        const GET_TIPS_URL = "/.netlify/functions/get-tips";
+        const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
+        
+        // Références aux éléments DOM
+        const loader = document.getElementById("loader");
+        const bodyElement = document.body;
+        const mainElement = document.querySelector('main'); // Assurez-vous que la balise <main> existe
+        const headerPlaceholder = document.getElementById("header-placeholder");
+        const footerPlaceholder = document.getElementById("footer-placeholder"); // Nouvelle référence pour le footer
+
+        const chatbotFab = document.getElementById('chatbot-fab');
+        const chatbotContainer = document.getElementById('chatbot-container');
+        const chatbotToggle = document.getElementById('chatbot-toggle');
+        const chatbotInput = document.getElementById('chatbot-input');
+        const chatbotSendButton = document.getElementById('chatbot-send-button');
+        const chatbotMessages = document.getElementById('chatbot-messages');
+        const chatbotLoading = document.getElementById('chatbot-loading');
+
+        const welcomeModal = document.getElementById('welcomeModal');
+        const closeButton = document.querySelector('#welcomeModal .close-button'); // Cibler spécifiquement le bouton de la modale
+        const confirmWelcomeButton = document.getElementById('confirmWelcome');
+
+        // Initialisation de l'état de la modale de bienvenue
+        const HAS_SEEN_WELCOME_MODAL = 'hasSeenWelcomeModal';
+
+        // --- Fonctions utilitaires ---
+
+        /**
+         * Ajoute un message au corps du chatbot.
+         * @param {string} text Le texte du message.
+         * @param {string[]} classes Classes CSS supplémentaires pour le message.
+         */
+        function appendMessage(text, ...classes) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', ...classes);
+            messageDiv.textContent = text;
+            if (chatbotMessages) {
+                chatbotMessages.appendChild(messageDiv);
+                chatbotMessages.scrollTop = chatbotMessages.scrollHeight; // Fait défiler vers le bas
+            } else {
+                console.warn("chatbotMessages element not found when trying to append message.");
+            }
+        }
+
+        /**
+         * Extrait l'ID d'une vidéo YouTube à partir de son URL.
+         * @param {string} url L'URL de la vidéo YouTube.
+         * @returns {string|null} L'ID de la vidéo ou null si non trouvé.
+         */
+        function getYouTubeVideoId(url) {
+            let videoId = null;
+            const youtubeRegex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+            const match = url.match(youtubeRegex);
+            if (match && match[1]) {
+                videoId = match[1];
+            }
+            return videoId;
+        }
+
+        /**
+         * Crée une carte pour les derniers ajouts (Cas d'usage ou Galerie).
+         * @param {object} item Les données de l'élément (tip ou prompt).
+         * @param {'cas-usage'|'galerie'} type Le type de carte à créer.
+         * @returns {HTMLElement} L'élément div représentant la carte.
+         */
+        const createCard = (item, type) => {
+            const card = document.createElement("div");
+            card.className = `addition-card ${type}`;
+
+            const header = document.createElement('div');
+            header.className = 'card-header';
+
+            const icon = document.createElement('i');
+            if (type === 'cas-usage') {
+                icon.className = 'fas fa-lightbulb icon';
+            } else if (type === 'galerie') {
+                icon.className = 'fas fa-image icon';
+            }   
+            header.appendChild(icon);
+
+            const title = document.createElement("h4");
+            title.textContent = item.titre || "Titre non spécifié"; // Fallback pour le titre
+            header.appendChild(title);
+            card.appendChild(header);
+            
+            const descriptionElement = document.createElement("p");
+            descriptionElement.textContent = item.description || item.promptText || item.prompt || ''; // Ordre de préférence pour le texte
+            card.appendChild(descriptionElement);
+
+            // Lecteur vidéo YouTube en petit dans la carte
+            const firstYoutubeUrl = item.urls ? item.urls.find(url => getYouTubeVideoId(url)) : null;
+
+            if (firstYoutubeUrl) {
+                const youtubeId = getYouTubeVideoId(firstYoutubeUrl);
+                // Correction de l'URL d'intégration YouTube
+                const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&controls=0&modestbranding=1&rel=0&showinfo=0`; 
+                
+                const videoContainer = document.createElement('div');
+                videoContainer.className = 'card-small-video-container';
+
+                const iframe = document.createElement('iframe');
+                iframe.src = embedUrl;
+                iframe.frameBorder = "0";
+                iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+                iframe.allowFullscreen = true;
+                iframe.title = `Vidéo intégrée pour ${item.titre}`;
+                iframe.onerror = () => {
+                    console.error(`Erreur de chargement de l'iframe vidéo pour ${item.titre}, ID: ${youtubeId}`);
+                    videoContainer.style.display = 'none'; // Masque le conteneur si la vidéo ne charge pas
+                };
+
+                videoContainer.appendChild(iframe);
+                card.appendChild(videoContainer);
+            }
+            
+            // Image de la galerie
+            if (type === 'galerie' && item.imageUrl && !firstYoutubeUrl) { // Afficher l'image seulement si pas de vidéo
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'card-image-container';
+                const img = document.createElement('img');
+                img.src = item.imageUrl;
+                img.alt = `Vignette de ${item.titre}`;
+                imgContainer.appendChild(img);
+                card.appendChild(imgContainer);
+            }
+            
+            const meta = document.createElement('div');
+            meta.className = 'card-meta';
+
+            // Ajout de l'auteur
+            if (item.auteur) {
+                const authorDiv = document.createElement("div");
+                authorDiv.innerHTML = `<strong>Auteur:</strong> ${item.auteur}`;
+                meta.appendChild(authorDiv);
+            }
+
+            // Ajout de la catégorie
+            const categoryDiv = document.createElement("div");
+            categoryDiv.className = "category";
+            if (type === 'cas-usage') {
+                categoryDiv.innerHTML = `<strong>Catégorie:</strong> Cas d'usages`;
+            } else if (type === 'galerie') {
+                categoryDiv.innerHTML = `<strong>Catégorie:</strong> Galerie`;
+            }
+            meta.appendChild(categoryDiv);
+
+            // Ajout de l'outil
+            if (item.outil) {
+                const toolDiv = document.createElement("div");
+                toolDiv.innerHTML = `<strong>Outil:</strong> ${item.outil}`;
+                meta.appendChild(toolDiv);
+            }
+            
+            // Ajout de la date
+            const dateDiv = document.createElement("div");
+            dateDiv.className = "date";
+            const dateToUse = item.date_creation || item.dateCreation || item.date_ajout || item.date;
+            if (dateToUse) {
+                const d = new Date(dateToUse);
+                dateDiv.textContent = `Ajouté le ${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+            } else {
+                dateDiv.textContent = `Date inconnue`;
+            }
+            meta.appendChild(dateDiv);
+            
+            card.appendChild(meta);  
+
+            // Ajout du bouton "Voir..."
+            const button = document.createElement('a');
+            button.className = "view-button";  
+            if (type === 'cas-usage') {
+                button.href = "cas-usages.html"; // Lien vers la page de tous les cas d'usages
+                button.textContent = "Voir le Tip";
+            } else if (type === 'galerie') {  
+                button.href = "galerie.html"; // Lien vers la page de la galerie complète
+                button.textContent = "Voir la galerie";
+            }
+            card.appendChild(button);
+
+            return card;
+        };
+
+        /**
+         * Charge et affiche les derniers ajouts (Cas d'usage et Prompts de galerie).
+         */
+        async function displayLatestAdditions() {
+            const container = document.getElementById("latest-additions-grid");
+            const loadingMessage = document.getElementById("post-it-loading-message");
+
+            if (!container || !loadingMessage) {
+                console.error("Conteneur ou message de chargement des derniers ajouts non trouvé !");
+                return;
+            }
+
+            loadingMessage.style.display = 'block';
+            container.innerHTML = ''; // Nettoyer le conteneur avant de charger
+
+            try {
+                const [casUsagesResponse, promptsResponse] = await Promise.all([
+                    fetch(GET_TIPS_URL),
+                    fetch(GET_PROMPTS_URL)
+                ]);
+
+                if (!casUsagesResponse.ok) {
+                    throw new Error(`Erreur lors du chargement des cas d'usages: ${casUsagesResponse.statusText}`);
+                }
+                let casUsages = await casUsagesResponse.json();
+                if (!Array.isArray(casUsages)) {
+                    throw new Error("Les données des cas d'usages ne sont pas un tableau.");
+                }
+
+                if (!promptsResponse.ok) {
+                    throw new Error(`Erreur lors du chargement des prompts de la galerie: ${promptsResponse.statusText}`);
+                }
+                let prompts = await promptsResponse.json();
+                if (!Array.isArray(prompts)) {
+                    throw new Error("Les données des prompts ne sont pas un tableau.");
+                }
+                
+                loadingMessage.style.display = 'none'; // Cacher le message de chargement
+
+                // Harmonisation et parsing des URLs et dates pour les deux sources
+                casUsages = casUsages.map(item => {
+                    let itemUrls = [];
+                    if (Array.isArray(item.urls)) {
+                        itemUrls = item.urls;
+                    } else if (typeof item.urls === 'string' && item.urls.startsWith('[')) {
+                        try {
+                            const parsed = JSON.parse(item.urls);
+                            if (Array.isArray(parsed)) {
+                                itemUrls = parsed;
+                            }
+                        } catch (e) {
+                            console.error("Erreur de parsing des URLs du cas d'usage:", e, item.urls);
+                        }
+                    } else if (item.url) {
+                        itemUrls = [item.url];
+                    }
+                    return {   
+                        ...item,   
+                        urls: itemUrls, // Assure que les URLs sont un tableau
+                        effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString())   
+                    };
+                });
+
+                prompts = prompts.map(item => {
+                    let itemUrls = [];
+                    if (Array.isArray(item.urls)) {
+                        itemUrls = item.urls;
+                    } else if (typeof item.urls === 'string' && item.urls.startsWith('[')) {
+                        try {
+                            const parsed = JSON.parse(item.urls);
+                            if (Array.isArray(parsed)) {
+                                itemUrls = parsed;
+                            }
+                        } catch (e) {
+                            console.error("Erreur de parsing des URLs du prompt:", e, item.urls);
+                        }
+                    } else if (item.url) {
+                        itemUrls = [item.url];
+                    }
+                    return {   
+                        ...item,   
+                        urls: itemUrls, // Assure que les URLs sont un tableau
+                        effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString())   
+                    };
+                });
+
+                // Trier par date effective (du plus récent au plus ancien)
+                casUsages.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
+                const imagePrompts = prompts.filter(item => item.imageUrl || (item.urls && item.urls.some(url => getYouTubeVideoId(url))));
+                imagePrompts.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
+
+                const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
+                const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
+
+                let itemsDisplayed = 0;
+
+                // Ajouter le cas d'usage le plus récent
+                if (latestCasUsage) {
+                    container.appendChild(createCard(latestCasUsage, 'cas-usage'));
+                    itemsDisplayed++;
+                } else {
+                    console.warn("Aucun cas d'usage trouvé pour l'affichage sur la page d'accueil.");
+                }
+
+                // Ajouter l'élément de galerie le plus récent (si différent et qu'il y a de la place ou si c'est le seul)
+                if (latestGalerieItem && (container.children.length < 2 || (latestCasUsage && latestGalerieItem.id !== latestCasUsage.id))) {
+                    container.appendChild(createCard(latestGalerieItem, 'galerie'));
+                    itemsDisplayed++;
+                } else if (!latestGalerieItem) {
+                    console.warn("Aucun élément de galerie trouvé pour l'affichage sur la page d'accueil.");
+                }
+
+                if (itemsDisplayed === 0) {
+                    const noAdditionsMessage = document.createElement('p');
+                    noAdditionsMessage.style.textAlign = 'center';
+                    noAdditionsMessage.style.color = '#777';
+                    noAdditionsMessage.textContent = 'Aucun ajout récent à afficher pour le moment.';
+                    container.appendChild(noAdditionsMessage);
+                }
+
+            } catch (error) {
+                console.error("Erreur lors de la récupération ou de l'affichage des derniers ajouts:", error);
+                loadingMessage.textContent = "Erreur lors du chargement des derniers ajouts. Veuillez réessayer.";
+                loadingMessage.style.color = 'red';
+                loadingMessage.style.display = 'block';
+            }
+        }
+
+        // La fonction mettreAJourBulleDemandes() est supprimée car la bulle de notification n'existe plus.
+        
+        /**
+         * Envoie un message au chatbot et affiche la réponse.
+         */
+        async function sendMessage() {
+            const messageText = chatbotInput.value.trim();
+            if (messageText === "") return;
+
+            appendMessage(messageText, 'user');
+            chatbotInput.value = '';
+            chatbotLoading.style.display = 'block';
+            
+            try {
+                const response = await fetch(`${PROXY_URL}?action=chatWithGPT`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: messageText })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                appendMessage(data.reply, 'bot');
+            } catch (error) {
+                console.error('Erreur lors de la communication avec le chatbot :', error);
+                appendMessage("Désolé, je n'ai pas pu communiquer avec l'IA. Veuillez réessayer.", 'bot', 'error-message');
+            } finally {
+                chatbotLoading.style.display = 'none';
+            }
+        }
+
+        /**
+         * Fonction utilitaire pour charger des composants HTML via fetch.
+         * @param {string} url - L'URL du composant HTML.
+         * @param {string} placeholderId - L'ID de l'élément où insérer le HTML.
+         * @returns {Promise<void>} Une promesse qui se résout quand le composant est chargé.
+         */
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    const errorDetail = await res.text();
+                    throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+                console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Erreur lors du chargement de ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
+            }
+        };
+
+        // --- Initialisation au chargement du DOM ---
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("Accueil: DOMContentLoaded, début de l'initialisation...");
+
+            // Masquer la barre de défilement du body au début pour une meilleure expérience
+            bodyElement.style.overflow = 'hidden';
+
+            // 1. Charger le header
+            await loadComponent("header.html", "header-placeholder");
+            
+            // 2. Charger le footer
+            await loadComponent("footer.html", "footer-placeholder");
+
+            // 3. Mettre à jour l'état actif du menu après le chargement du header
+            // Cette logique doit s'exécuter APRES que 'nav a' existe dans le DOM (donc après loadComponent)
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                // Spécifie explicitement 'index.html' pour la page d'accueil
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            // L'appel à mettreAJourBulleDemandes() est supprimé ici.
+            // mettreAJourBulleDemandes(); 
+
+            // 4. Charger et afficher les derniers ajouts
+            await displayLatestAdditions(); // Utilisez await pour s'assurer que les cartes sont chargées
+
+            // 5. Cacher le loader et révéler le contenu principal
+            if (loader) {
+                loader.classList.add("hidden");
+                // Attendre la fin de la transition d'opacité du loader avant de l'enlever complètement
+                loader.addEventListener('transitionend', () => {
+                    if (loader.classList.contains('hidden')) {
+                        loader.style.display = 'none';
+                    }
+                }, { once: true });
+            }
+            
+            bodyElement.classList.add("show"); // Révèle le body avec sa transition
+            mainElement.classList.add("show"); // Révèle main avec sa transition
+            bodyElement.style.overflow = ''; // Restaurer le défilement du body une fois la page visible
+
+            console.log("Accueil: Initialisation terminée.");
+
+            // --- Logique de la Modale de Bienvenue ---
+            const hasSeenWelcomeModal = localStorage.getItem(HAS_SEEN_WELCOME_MODAL) === 'true';
+
+            if (!hasSeenWelcomeModal && welcomeModal) {
+                welcomeModal.style.display = 'flex'; // Afficher la modale
+            } else if (welcomeModal) {
+                 welcomeModal.style.display = 'none'; // S'assurer qu'elle est cachée si déjà vue
+            }
+
+
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                    localStorage.setItem(HAS_SEEN_WELCOME_MODAL, 'true');
+                });
+            }
+            if (confirmWelcomeButton) {
+                confirmWelcomeButton.addEventListener('click', () => {
+                    welcomeModal.style.display = 'none';
+                    localStorage.setItem(HAS_SEEN_WELCOME_MODAL, 'true');
+                });
+            }
+            if (welcomeModal) {
+                welcomeModal.addEventListener('click', (event) => {
+                    if (event.target === welcomeModal) {
+                        welcomeModal.style.display = 'none';
+                        localStorage.setItem(HAS_SEEN_WELCOME_MODAL, 'true');
+                    }
+                });
+            }
+
+            // --- Chatbot event listeners (à conserver, ils sont déjà bons) ---
+            if (chatbotFab) {
+                chatbotFab.addEventListener('click', () => {
+                    chatbotContainer.style.display = chatbotContainer.style.display === 'flex' ? 'none' : 'flex';
+                    if (chatbotContainer.style.display === 'flex') {
+                        chatbotInput.focus();
+                    }
+                });
+            }
+
+            if (chatbotToggle) {
+                chatbotToggle.addEventListener('click', () => {
+                    chatbotContainer.style.display = 'none';
+                });
+            }
+
+            if (chatbotSendButton && chatbotInput) {
+                chatbotSendButton.addEventListener('click', sendMessage);
+                chatbotInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        sendMessage();
+                    }
+                });
+            } else {
+                console.warn("Chatbot elements (send button or input) not found. Check your HTML structure for chatbot-send-button and chatbot-input.");
+            }
+        });
+    </script>
 </body>
 </html>
