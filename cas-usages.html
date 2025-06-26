@@ -1,14 +1,21 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cas d'usages - iMarketing</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Google Fonts - Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+
+    <link rel="preload" href="header.html" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="footer.html" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="log_ia.png" as="image">
+    <link rel="preload" href="Section-Clients-Logo-RTBF.png" as="image">
+
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         /* Variables CSS pour faciliter la gestion des couleurs */
@@ -30,10 +37,8 @@
             --border-color: #ddd;
         }
 
-        /* Styles généraux pour l'animation d'apparition de la page */
+        /* Styles généraux */
         body {
-            opacity: 0;
-            transition: opacity 0.5s ease-in;
             margin: 0;
             font-family: 'Inter', sans-serif; /* Utilisation de la police Inter */
             font-weight: 400; /* Assure une épaisseur normale */
@@ -41,22 +46,44 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            /* Pas d'opacité initiale ni de transition ici. Le body est visible par défaut */
+            /* Si votre style.css global applique toujours 'opacity: 0' et 'transition',
+               ces lignes seront surchargées ou devront être retirées de style.css */
         }
+        /* body.show est laissé pour la compatibilité si d'autres scripts/styles l'utilisent,
+           mais il n'aura pas d'effet sur l'opacité si l'opacité initiale est retirée. */
         body.show {
-            opacity: 1;
-        }
-        main {
-            opacity: 0;
-            transition: opacity 0.5s ease-in;
-            padding: 40px 20px;
-            flex-grow: 1;
-        }
-        main.show {
-            opacity: 1;
+            /* opacity: 1; */ /* Retiré car le body est déjà visible par défaut */
         }
 
-        #header-placeholder {
-            width: 100%;
+        main {
+            padding: 40px 20px;
+            flex-grow: 1;
+            /* Pas d'opacité initiale ni de transition ici. Main est visible par défaut. */
+        }
+        /* main.show est laissé pour la compatibilité si d'autres scripts/styles l'utilisent */
+        main.show {
+            /* opacity: 1; */ /* Retiré car main est déjà visible par défaut */
+        }
+
+        /* --- Styles du Loader (si toujours utilisé) --- */
+        /* Si vous n'utilisez pas de loader, vous pouvez retirer cette section */
+        /* Si vous en utilisez un, assurez-vous que son HTML est dans le body et que son JS le gère */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
+            /* Initialement masqué par JS */
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         /* Conteneur des contrôles en haut (filtres et boutons) */
@@ -372,22 +399,6 @@
             margin-bottom: 20px;
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
-        }
-
-        /* Styles pour le loader */
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 50px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
 
         /* Message d'erreur */
@@ -771,7 +782,6 @@
                 gap: 5px;
             }
             .card-actions {
-                /* Sur mobile, on veut que les éléments des actions de carte s'alignent mieux */
                 flex-direction: row; /* Aligner les boutons horizontalement */
                 flex-wrap: wrap; /* Permettre le passage à la ligne */
                 justify-content: center; /* Centrer les boutons */
@@ -898,7 +908,7 @@
         <div class="galerie-container">
             <div id="success-message"></div>
             <div id="galerie">
-                <div class="loader"></div> <p style="text-align: center;">Chargement des tips...</p>
+                <p style="text-align: center;">Chargement des tips...</p>
             </div>
             <div id="error-display" class="error-message" style="display: none;"></div>
         </div>
@@ -914,7 +924,7 @@
             <button class="close-preview-btn" id="closePreviewBtn"><i class="fas fa-times"></i></button>
         </div>
         <div id="previewPanelContent" class="preview-panel-content">
-            </div>
+        </div>
     </div>
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
@@ -931,80 +941,27 @@
         const previewPanelContent = document.getElementById('previewPanelContent');
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const bodyElement = document.body;
-
+        const mainElement = document.querySelector('main'); // Assurez-vous que mainElement est défini
         const previewOverlay = document.getElementById('previewOverlay');
 
-
-        document.addEventListener("DOMContentLoaded", () => {
-            const headerPlaceholder = document.getElementById("header-placeholder");
-            const footerPlaceholder = document.getElementById("footer-placeholder");
-            const mainElement = document.querySelector("main");
-
-            const loadComponent = async (url, placeholderId, errorMessage) => {
-                console.log(`Attempting to load ${url} into #${placeholderId}`);
-                try {
-                    const res = await fetch(url);
-                    if (!res.ok) {
-                        const errorDetail = await res.text();
-                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
-                    }
-                    document.getElementById(placeholderId).innerHTML = await res.text();
-                    console.log(`${url} loaded successfully.`);
-                } catch (error) {
-                    console.error(`Error loading ${url}:`, error);
-                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>${errorMessage}: ${error.message}</p>`;
-                }
-            };
-
-            Promise.all([
-                loadComponent("header.html", "header-placeholder", "Erreur de chargement du menu"),
-                loadComponent("footer.html", "footer-placeholder", "Erreur de chargement du pied de page")
-            ])
-            .then(() => {
-                const activeLink = document.querySelector("nav a[href='cas-usages.html']"); // CIBLE cas-usages.html
-                if (activeLink) {
-                    activeLink.classList.add("active");
-                }
-            })
-            .catch(error => {
-                console.error("General issue loading components:", error);
-            })
-            .finally(() => {
-                bodyElement.classList.add("show");
-                mainElement.classList.add("show");
-                loadAndDisplayTips();
-            });
-
-            if (window.location.search.includes('success=1')) {
-                const msg = document.getElementById('success-message');
-                msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
-                msg.style.opacity = '1';
-                setTimeout(() => msg.style.opacity = '0', 2000);
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-            }
-            if (window.location.search.includes('editSuccess=1')) {
-                const msg = document.getElementById('success-message');
-                msg.textContent = '✅ Tip/Prompt modifié avec succès !';
-                msg.style.opacity = '1';
-                setTimeout(() => msg.style.opacity = '0', 2000);
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-            }
-
-            setupFilters();
-        });
-
+        /**
+         * Fonction utilitaire pour échapper le HTML pour éviter les XSS.
+         * @param {string} text Le texte à échapper.
+         * @returns {string} Le texte échappé.
+         */
         function escapeHtml(text) {
             if (text === null || text === undefined) {
                 return '';
             }
             text = String(text);
             const map = {
-                '&': '&amp;', // <-- Correction ici : l'esperluette doit être échappée
+                '&': '&amp;', // Correction ici : l'esperluette doit être échappée en premier
                 '<': '&lt;',
                 '>': '&gt;',
-                '"': '&quot;'
+                '"': '&quot;',
+                "'": '&#039;' // Ajout pour les apostrophes, bonne pratique
             };
-            return text.replace(/[&<>"]/g, function(m) { return map[m]; });
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
         // Fonction utilitaire pour extraire l'ID d'une vidéo YouTube
@@ -1018,6 +975,22 @@
             }
             return videoId;
         }
+
+        // Fonction utilitaire pour charger des composants HTML via fetch.
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    const errorDetail = await res.text();
+                    throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+                console.log(`${url} loaded successfully into #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Error loading ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
+            }
+        };
 
         function applyFiltersAndSort() {
             let filtered = [...allTips];
@@ -1071,15 +1044,11 @@
                 }
                 let fetchedTips = await response.json();
                 
-                // --- Le tip de démonstration a été retiré comme demandé ---
-
-
                 allTips = fetchedTips.map(tip => {
                     let tipUrls = [];
                     if (Array.isArray(tip.urls)) {
                         tipUrls = tip.urls;
                     } else if (typeof tip.urls === 'string' && tip.urls.startsWith('[')) {
-                        // Tente de parser si c'est une chaîne qui ressemble à un tableau JSON
                         try {
                             const parsed = JSON.parse(tip.urls);
                             if (Array.isArray(parsed)) {
@@ -1218,17 +1187,16 @@
                     `;
                 }
                 
-                // URLs (avec gestion spécifique YouTube) - DÉPLACÉ ICI
+                // URLs (avec gestion spécifique YouTube)
                 if (tip.urls && tip.urls.length > 0) {
-                    let hasContentToDisplay = false; // Pour savoir si on affiche le titre "Liens/Vidéos"
+                    let hasContentToDisplay = false;
                     let linksAndVideosHtml = '';
 
                     tip.urls.forEach((url, index) => {
                         const youtubeId = getYouTubeVideoId(url);
                         if (youtubeId) {
                             hasContentToDisplay = true;
-                            // C'est une vidéo YouTube, l'intégrer directement
-                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`;
+                            const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`; // Correction: utiliser https://www.youtube.com/embed/
                             console.log(`Détection d'une vidéo YouTube. ID: ${youtubeId}, URL d'intégration: ${embedUrl}`); 
                             linksAndVideosHtml += `
                                 <div class="video-responsive">
@@ -1238,13 +1206,12 @@
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                                         allowfullscreen
                                         title="YouTube video player"
-                                        onerror="console.error('Échec du chargement de l\'intégration YouTube pour l\'ID: ${youtubeId}. Vérifiez la disponibilité de la vidéo ou le réseau. URL tentée: ${embedUrl}');"
+                                        onerror="console.error('Échec du chargement de l\\'intégration YouTube pour l\\'ID: ${youtubeId}. Vérifiez la disponibilité de la vidéo ou le réseau. URL tentée: ${embedUrl}');"
                                     ></iframe>
                                 </div>
                             `;
                         } else if (url.trim() !== '') {
                             hasContentToDisplay = true;
-                            // C'est un lien non YouTube, l'afficher comme un lien cliquable
                             linksAndVideosHtml += `
                                 <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
                             `;
@@ -1364,15 +1331,21 @@
 
         async function copyToClipboard(text, buttonElement) {
             try {
-                // Utiliser document.execCommand pour la compatibilité dans les iframes du Canvas
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                textarea.style.position = 'fixed'; // Évite le défilement
-                textarea.style.opacity = 0; // Rend invisible
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
+                // Utiliser l'API Clipboard moderne si disponible, sinon fallback
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    // Fallback pour les anciens navigateurs ou contextes limités (iframes)
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.style.position = 'fixed'; // Évite le défilement
+                    textarea.style.opacity = '0'; // Rend invisible
+                    document.body.appendChild(textarea);
+                    textarea.focus();
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                }
 
                 const originalText = buttonElement.textContent;
                 buttonElement.textContent = 'Copié !';
@@ -1380,12 +1353,9 @@
                     buttonElement.textContent = originalText;
                 }, 1500);
             } catch (err) {
-                console.error('Failed to copy: ', err);
-                // Utiliser une méthode alternative pour l'alerte, car `alert()` est désactivé
-                // Pour cet exemple, je vais simplement logguer, mais une implémentation réelle nécessiterait une modale custom.
-                console.warn('Veuillez copier manuellement : ', text);
-                // Pour un feedback utilisateur, vous pourriez afficher un message temporaire en HTML
-                // Par exemple, créer un div qui apparaît et disparaît.
+                console.error('Échec de la copie: ', err);
+                // Notification utilisateur si la copie échoue
+                alert('La copie automatique a échoué. Veuillez copier le texte manuellement : \n' + text);
             }
         }
 
@@ -1394,11 +1364,10 @@
         }
 
         async function confirmAndDeleteTip(tipId) {
-            // Remplacer `confirm()` par une modale personnalisée si possible
-            // Note: `confirm()` est désactivé dans cet environnement. Je vais simuler une confirmation et logguer.
-            // En production, vous devrez implémenter une modale HTML/CSS/JS pour demander confirmation.
-            const userConfirmed = true; // Simuler une confirmation pour la démonstration
-            console.log("Simulating confirmation for deletion. In a real app, this would be a custom modal.");
+            // Remplacer `confirm()` par une modale personnalisée dans une application réelle
+            // Pour cet environnement, nous allons simuler ou logguer.
+            const userConfirmed = confirm("Êtes-vous sûr de vouloir supprimer ce tip ?"); // Dans un environnement réel, remplacer ceci.
+            console.log("Confirmation de suppression (simulée):", userConfirmed);
 
             if (userConfirmed) {
                 try {
@@ -1411,21 +1380,80 @@
                     });
 
                     if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || `Erreur HTTP! status: ${response.status}`);
+                        const errorData = await response.json().catch(() => ({ message: 'Erreur inconnue' }));
+                        throw new Error(errorData.message || `Erreur HTTP! statut: ${response.status}`);
                     }
 
-                    // Remplacer `alert()` par une notification personnalisée
-                    console.log("Tip supprimé avec succès !"); // Log plutôt qu'alerte
-                    loadAndDisplayTips();
+                    console.log("Tip supprimé avec succès !");
+                    // Afficher un message de succès visible sur la page
+                    const msg = document.getElementById('success-message');
+                    msg.textContent = '✅ Tip supprimé avec succès !';
+                    msg.style.opacity = '1';
+                    setTimeout(() => msg.style.opacity = '0', 2000); // Fait disparaître après 2 secondes
+
+                    loadAndDisplayTips(); // Recharger les tips après suppression
                 }
                 catch (error) {
                     console.error("Erreur lors de la suppression du tip:", error);
-                    // Remplacer `alert()` par une notification personnalisée
-                    console.error(`Échec de la suppression du tip: ${error.message}`); // Log plutôt qu'alerte
+                    errorDisplay.style.display = 'block';
+                    errorDisplay.textContent = `Échec de la suppression du tip: ${error.message}`;
+                    setTimeout(() => errorDisplay.style.display = 'none', 3000); // Cache le message d'erreur
                 }
             }
         }
+
+        // --- Initialisation au chargement du DOM ---
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("cas-usages: DOMContentLoaded, début de l'initialisation...");
+
+            // 1. Charger le header et le footer de manière séquentielle
+            // Utilisez await pour vous assurer que le header est chargé avant de tenter de l'interagir.
+            await loadComponent("header.html", "header-placeholder");
+            await loadComponent("footer.html", "footer-placeholder");
+
+            // 2. Mettre à jour l'état actif du menu après le chargement du header
+            // Cette logique doit s'exécuter APRES que 'nav a' existe dans le DOM (donc après loadComponent)
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                // Spécifie explicitement 'cas-usages.html' pour cette page
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "Cas-usages.html") {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            // 3. Traiter les messages de succès/erreur de l'URL
+            if (window.location.search.includes('success=1')) {
+                const msg = document.getElementById('success-message');
+                msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+            }
+            if (window.location.search.includes('editSuccess=1')) {
+                const msg = document.getElementById('success-message');
+                msg.textContent = '✅ Tip/Prompt modifié avec succès !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+            }
+
+            // 4. Mettre en place les filtres
+            setupFilters();
+
+            // 5. Charger et afficher les tips
+            loadAndDisplayTips();
+
+            // 6. Rendre le body et main visibles
+            // Ces classes sont ajoutées une fois le contenu principal (header, footer, tips) en place.
+            bodyElement.classList.add("show");
+            mainElement.classList.add("show");
+
+            console.log("cas-usages: Initialisation terminée.");
+        });
     </script>
 </body>
 </html>
