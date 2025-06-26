@@ -43,7 +43,8 @@
                     <span class="notif-bubble" id="notif-count">0</span>
                 </a>
                 <a href="gestion-license.html">Licenses</a>
-                <a href="creer-tip.html">Partager Prompt</a> </nav>
+                <a href="creer-tip.html">Partager Prompt</a>
+            </nav>
         </div>
     </div>
 
@@ -181,7 +182,6 @@
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
-                // Ces refs ne sont pas utilisées dans ce composant de formulaire, mais sont gardées pour consistance si besoin ailleurs
                 const selectedFilterAuteur = ref('');
                 const selectedFilterOutil = ref('');
                 const selectedFilterChaine = ref('');
@@ -189,13 +189,14 @@
                 async function fetchProfils() {
                     isLoadingProfils.value = true;
                     try {
-                        // Utilise fetch directement, adaptez le chemin si votre data.json est ailleurs
+                        // Chemin d'accès à data.json - ASSURE-TOI QUE CE CHEMIN EST CORRECT !
                         const response = await fetch('/admin/data.json');
                         if (!response.ok) {
-                            throw new Error(`HTTP error: ${response.status}`);
+                            // Log l'erreur complète de la réponse pour le débogage
+                            const errorText = await response.text();
+                            throw new Error(`HTTP error: ${response.status} - ${response.statusText}. Response body: ${errorText.substring(0, 200)}`);
                         }
                         const data = await response.json();
-                        // Assurez-vous que 'data.json' a une structure où 'profils' est un tableau
                         const profilsList = Array.isArray(data.profils) ? data.profils : [];
                         const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
@@ -203,7 +204,7 @@
                         if (names.length === 1) {
                             auteur.value = names[0];
                         } else {
-                            auteur.value = ''; // Réinitialise si plusieurs ou aucun
+                            auteur.value = '';
                         }
                         console.log("Noms de profils chargés:", profilsAuteurs.value);
 
@@ -215,7 +216,6 @@
                     }
                 }
 
-                // Appeler fetchProfils au montage du composant Vue
                 onMounted(fetchProfils);
 
                 function triggerFile() {
@@ -233,7 +233,7 @@
                 function onDrop(e) {
                     e.currentTarget.classList.remove('dragover');
                     const files = e.dataTransfer.files;
-                    if (files.length && fileInput.value) { // Vérification ajoutée
+                    if (files.length && fileInput.value) {
                         fileInput.value.files = files;
                         handleFile(files[0]);
                     }
@@ -332,7 +332,7 @@
                         imagePreviewUrl.value = '';
                         imageFile.value = null;
                         if (fileInput.value) {
-                            fileInput.value.value = null; // Important pour réinitialiser le champ de fichier
+                            fileInput.value.value = null;
                         }
                         fetchProfils(); // Recharger les profils
                     } catch (err) {
@@ -370,7 +370,8 @@
                 // Logique pour marquer le lien actif
                 if (linkFileName === currentPath ||
                     (currentPath === "" && linkFileName === "index.html") ||
-                    (currentPath.includes("creer-tip.html") && linkFileName === "creer-tip.html")
+                    // Ajout d'une condition plus robuste pour "creer-tip.html" au cas où l'URL change ou est plus complexe
+                    linkFileName.includes("creer-tip.html") && currentPath.includes("creer-tip.html")
                 ) {
                     link.classList.add("active");
                 } else {
@@ -379,8 +380,6 @@
             });
 
             // 2. Initialiser le mode sombre (si la fonction existe globalement)
-            // Assurez-vous que cette fonction est définie quelque part, par exemple dans un `global.js`
-            // ou directement dans ce script si elle est simple.
             if (typeof initializeDarkMode === 'function') {
                 initializeDarkMode();
             } else {
@@ -398,9 +397,9 @@
             }
 
             // 4. Rendre le body et main visibles
-            bodyElement.classList.add("show"); // Si .show gère la transition d'opacité du body
-            mainElement.style.display = 'block'; // Rendre le main visible après le loader
-            mainElement.classList.add("show"); // Si .show gère la transition d'opacité du main
+            bodyElement.classList.add("show");
+            mainElement.style.display = 'block';
+            mainElement.classList.add("show");
             bodyElement.style.overflow = ''; // Restaurer le défilement du body
 
             // 5. Monter l'application Vue.js
