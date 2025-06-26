@@ -9,8 +9,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
 
-    <link rel="preload" href="header.html" as="fetch" crossorigin="anonymous">
-    <link rel="preload" href="footer.html" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"></noscript>
 
@@ -23,35 +21,69 @@
         <p>Chargement de la page...</p>
     </div>
 
-    <div id="header-placeholder"></div>
+    <div class="header">
+        <img src="log_ia.png" alt="Logo IA Marketing" class="logo-ia">
+        <h1 class="header-title">IA MARKETING</h1>
+        <img src="Section-Clients-Logo-RTBF.png" alt="Logo RTBF" class="logo-rtbf">
+        <a href="about.html" class="dev-button-header">DEV</a>
+    </div>
+
+    <div class="nav-wrapper">
+        <div class="menu-container">
+            <nav>
+                <a href="index.html">Accueil</a>
+                <a href="equipe.html">Équipe</a>
+                <a href="outils.html">Outils IA</a>
+                <a href="galerie.html">Galerie</a>
+                <a href="Cas-usages.html">Tips</a>
+                <a href="charte.html">Charte IA</a>
+                <a href="faq.html">FAQ</a>
+                <a href="demandes_ia.html" class="demandes">
+                    Demandes IA
+                    <span class="notif-bubble" id="notif-count">0</span>
+                </a>
+                <a href="gestion-license.html">Licenses</a>
+                <a href="creer-tip.html">Partager Prompt</a> </nav>
+        </div>
+    </div>
 
     <main>
         <div id="app"></div>
     </main>
 
-    <div id="footer-placeholder"></div>
+    <div id="footer-signature">
+        Développé par <strong>Steeve PIRES MADEIRA</strong><br>
+        Chargé(e) de projets - R&D format • Médias - Marketing & Communication
+    </div>
+
+    <div id="toast-container"></div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script>
         // Références aux éléments globaux pour la gestion de l'affichage
         const globalLoader = document.getElementById("global-loader");
         const bodyElement = document.body;
-        const mainElement = document.querySelector("main"); // Sélectionne directement l'élément main
+        const mainElement = document.querySelector("main");
 
-        // Fonction utilitaire pour charger des composants HTML
-        async function loadComponent(url, placeholderId) {
-            try {
-                const res = await fetch(url);
-                if (!res.ok) {
-                    const errorDetail = await res.text();
-                    throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
-                }
-                document.getElementById(placeholderId).innerHTML = await res.text();
-                console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
-            } catch (error) {
-                console.error(`Erreur lors du chargement de ${url}:`, error);
-                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
+        // Fonction showToast (déplacée globalement pour être accessible partout)
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) {
+                console.error('Toast container non trouvé !');
+                return;
             }
+            const toast = document.createElement('div');
+            toast.className = `toast-message ${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+
+            void toast.offsetWidth; // Force reflow for animation
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+            }, 3000);
         }
 
         const { ref, createApp, onMounted } = Vue;
@@ -149,6 +181,7 @@
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
+                // Ces refs ne sont pas utilisées dans ce composant de formulaire, mais sont gardées pour consistance si besoin ailleurs
                 const selectedFilterAuteur = ref('');
                 const selectedFilterOutil = ref('');
                 const selectedFilterChaine = ref('');
@@ -156,30 +189,33 @@
                 async function fetchProfils() {
                     isLoadingProfils.value = true;
                     try {
-                        const response = await fetch(`${PROXY_URL}?action=getProfils`);
+                        // Utilise fetch directement, adaptez le chemin si votre data.json est ailleurs
+                        const response = await fetch('/admin/data.json');
                         if (!response.ok) {
                             throw new Error(`HTTP error: ${response.status}`);
                         }
                         const data = await response.json();
-                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
+                        // Assurez-vous que 'data.json' a une structure où 'profils' est un tableau
+                        const profilsList = Array.isArray(data.profils) ? data.profils : [];
                         const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
 
                         if (names.length === 1) {
                             auteur.value = names[0];
                         } else {
-                            auteur.value = '';
+                            auteur.value = ''; // Réinitialise si plusieurs ou aucun
                         }
                         console.log("Noms de profils chargés:", profilsAuteurs.value);
 
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
-                        alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
+                        showToast("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.", 'error');
                     } finally {
                         isLoadingProfils.value = false;
                     }
                 }
 
+                // Appeler fetchProfils au montage du composant Vue
                 onMounted(fetchProfils);
 
                 function triggerFile() {
@@ -197,7 +233,7 @@
                 function onDrop(e) {
                     e.currentTarget.classList.remove('dragover');
                     const files = e.dataTransfer.files;
-                    if (files.length) {
+                    if (files.length && fileInput.value) { // Vérification ajoutée
                         fileInput.value.files = files;
                         handleFile(files[0]);
                     }
@@ -226,11 +262,11 @@
 
                 async function submitForm() {
                     if (!auteur.value) {
-                        alert("Veuillez sélectionner un auteur.");
+                        showToast("Veuillez sélectionner un auteur.", 'error');
                         return;
                     }
                     if (!texte.value.trim()) {
-                        alert("Veuillez entrer le texte du prompt.");
+                        showToast("Veuillez entrer le texte du prompt.", 'error');
                         return;
                     }
 
@@ -281,10 +317,13 @@
                         confirmationDescription.value = description.value;
                         confirmationVisible.value = true;
 
+                        showToast("Prompt partagé avec succès !", 'success');
+
                         setTimeout(() => {
                             window.location.href = "/cas-usages.html?success=1";
                         }, 5000);
 
+                        // Réinitialiser les champs du formulaire après soumission
                         auteur.value = '';
                         outil.value = 'Midjourney';
                         chaine.value = 'La Une';
@@ -293,12 +332,12 @@
                         imagePreviewUrl.value = '';
                         imageFile.value = null;
                         if (fileInput.value) {
-                               fileInput.value.value = null;
+                            fileInput.value.value = null; // Important pour réinitialiser le champ de fichier
                         }
-                        fetchProfils();
+                        fetchProfils(); // Recharger les profils
                     } catch (err) {
                         console.error('Erreur lors de l\'envoi du prompt:', err);
-                        alert(`Échec de l'envoi du prompt: ${err.message || err}. Vérifiez la console.`);
+                        showToast(`Échec de l'envoi du prompt: ${err.message || err}.`, 'error');
                     } finally {
                         isLoading.value = false;
                     }
@@ -316,44 +355,41 @@
         };
 
         // --- Initialisation au chargement du DOM ---
-        document.addEventListener("DOMContentLoaded", async () => {
-            console.log("creer-tip: DOMContentLoaded, début de l'initialisation...");
+        document.addEventListener("DOMContentLoaded", () => {
+            console.log("DOMContentLoaded, début de l'initialisation...");
 
-            // Masquer la barre de défilement du body au début pour une meilleure expérience
+            // Masquer la barre de défilement du body au début
             bodyElement.style.overflow = 'hidden';
 
-            // 1. Charger les composants principaux (Header et Footer)
-            await loadComponent("header.html", "header-placeholder");
-            await loadComponent("footer.html", "footer-placeholder");
-
-            // 2. Mettre à jour l'état actif du menu après le chargement du header
-            // Cette logique doit s'exécuter APRES que 'nav a' existe dans le DOM (donc après loadComponent)
+            // 1. Mettre à jour l'état actif du menu
             const currentPath = window.location.pathname.split('/').pop();
             document.querySelectorAll('nav a').forEach(link => {
                 const linkHref = link.getAttribute('href');
                 const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-                // Spécifie explicitement 'creer-tip.html' pour cette page
-                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "creer-tip.html") {
+
+                // Logique pour marquer le lien actif
+                if (linkFileName === currentPath ||
+                    (currentPath === "" && linkFileName === "index.html") ||
+                    (currentPath.includes("creer-tip.html") && linkFileName === "creer-tip.html")
+                ) {
                     link.classList.add("active");
                 } else {
                     link.classList.remove("active");
                 }
             });
 
-            // 3. Initialiser le mode sombre après le chargement du header
-            // La fonction initializeDarkMode() doit être définie globalement (par exemple, dans un script séparé chargé avant)
-            // ou être injectée avec le header.html si elle est contenue là.
-            // Si elle n'est pas trouvée, un avertissement sera affiché.
+            // 2. Initialiser le mode sombre (si la fonction existe globalement)
+            // Assurez-vous que cette fonction est définie quelque part, par exemple dans un `global.js`
+            // ou directement dans ce script si elle est simple.
             if (typeof initializeDarkMode === 'function') {
                 initializeDarkMode();
             } else {
                 console.warn("Fonction initializeDarkMode non trouvée. Assurez-vous qu'elle est disponible.");
             }
 
-            // 4. Cacher le loader global et révéler le contenu principal
+            // 3. Cacher le loader global et révéler le contenu principal
             if (globalLoader) {
                 globalLoader.classList.add("hidden");
-                // Ajout d'un écouteur pour s'assurer que le display: none; n'interfère pas avec la transition
                 globalLoader.addEventListener('transitionend', () => {
                     if (globalLoader.classList.contains('hidden')) {
                         globalLoader.style.display = 'none';
@@ -361,16 +397,16 @@
                 }, { once: true });
             }
 
-            // 5. Rendre le body et main visibles après que le loader est masqué ou en même temps
-            // Ces classes sont ajoutées une fois le contenu principal (header, footer, tips) en place.
-            bodyElement.classList.add("show"); // Révèle le body avec sa transition
-            mainElement.classList.add("show"); // Révèle main avec sa transition
+            // 4. Rendre le body et main visibles
+            bodyElement.classList.add("show"); // Si .show gère la transition d'opacité du body
+            mainElement.style.display = 'block'; // Rendre le main visible après le loader
+            mainElement.classList.add("show"); // Si .show gère la transition d'opacité du main
             bodyElement.style.overflow = ''; // Restaurer le défilement du body
 
-            // 6. Monter l'application Vue.js une fois que le DOM est prêt et les composants chargés
+            // 5. Monter l'application Vue.js
             createApp(PromptForm).mount('#app');
 
-            console.log("creer-tip: Initialisation terminée.");
+            console.log("Initialisation terminée.");
         });
     </script>
 </body>
