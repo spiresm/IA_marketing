@@ -1,33 +1,127 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Droit à l'image et Intelligence Artificielle</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Droit à l'image et Intelligence Artificielle - Espace IA</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preload" href="header.html" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="footer.html" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="log_ia.png" as="image">
+    <link rel="preload" href="Section-Clients-Logo-RTBF.png" as="image">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
     <style>
+        /* Variables CSS (assurez-vous qu'elles sont cohérentes avec style.css ou définissez-les globalement) */
+        :root {
+            --primary-blue: #0077b6;
+            --dark-blue: #005f8a;
+            --light-blue: #64B5F6;
+            --lighter-blue: #42A5F5;
+            --background-grey: #f0f2f5;
+            --card-shadow: 0 4px 20px rgba(0,0,0,0.1); /* Ombre générale des conteneurs */
+            --card-hover-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            --success-bg: #d4edda;
+            --success-text: #155724;
+            --error-bg: #f8d7da;
+            --error-text: #dc3545;
+            --postit-yellow: #FFFAA0;
+            --light-blue-card: #E0F2F7;
+            --grey-text: #555;
+            --border-color: #ddd;
+        }
+
+        /* Styles généraux pour l'animation d'apparition de la page */
         body {
-            opacity: 0;
-            transition: opacity 0.3s ease-in;
+            opacity: 0; /* Garde l'opacité à 0 au démarrage pour l'animation */
+            transition: opacity 0.5s ease-in; /* Transition plus longue pour une apparition douce */
             margin: 0;
-            font-family: sans-serif;
-            background: #f0f4f8;
+            font-family: 'Inter', sans-serif; /* Utilisation de la police Inter */
+            font-weight: 400;
+            background-color: var(--background-grey);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden; /* Empêche le défilement horizontal non désiré */
+        }
+        body.show {
+            opacity: 1; /* Révèle le body une fois la classe ajoutée */
         }
         main {
-            display: none; /* Main caché au début, sera affiché par le script */
+            opacity: 0; /* Garde l'opacité à 0 au démarrage pour l'animation */
+            transition: opacity 0.5s ease-in; /* Transition plus longue pour une apparition douce */
+            padding: 40px 20px;
+            flex-grow: 1;
+            /* main.show est géré par JS, display:block n'est plus nécessaire ici */
         }
+        main.show {
+            opacity: 1; /* Révèle main une fois la classe ajoutée */
+        }
+
+        /* Styles du Loader */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex; /* Afficher par défaut pour le loader */
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+            pointer-events: all;
+        }
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #loader .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #loader p {
+            color: var(--primary-blue);
+            font-size: 1.1em;
+        }
+
+        #header-placeholder {
+            width: 100%;
+        }
+        #footer-placeholder { /* Ajout du placeholder pour le footer */
+            width: 100%;
+        }
+
+
         .container {
             max-width: 900px;
             margin: 40px auto;
             padding: 20px;
-            background: white; /* Ajouté pour un fond blanc comme les autres pages */
-            border-radius: 20px; /* Arrondi les coins comme les autres pages */
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1); /* Ombre portée comme les autres pages */
+            background: white;
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
         }
         .tabs {
             display: flex;
             margin-bottom: 20px;
-            cursor: pointer;
             border-bottom: 1px solid #ccc;
         }
         .tab {
@@ -40,15 +134,17 @@
             font-weight: bold;
             border-top-left-radius: 12px;
             border-top-right-radius: 12px;
-            transition: background 0.2s ease; /* Transition douce pour le survol */
+            transition: background 0.2s ease, color 0.2s ease;
+            cursor: pointer; /* Indique que c'est cliquable */
+            color: #555; /* Couleur de texte par défaut pour les onglets inactifs */
         }
         .tab:hover:not(.active) {
-            background: #d0d0d0; /* Légèrement plus foncé au survol */
+            background: #d0d0d0;
         }
         .tab.active {
             background: white;
-            border-bottom: 1px solid white;
-            color: #0077b6; /* Couleur active pour le texte */
+            border-bottom: 1px solid white; /* Simule le chevauchement */
+            color: var(--primary-blue); /* Couleur active pour le texte */
         }
         .tab-content {
             display: none;
@@ -60,29 +156,36 @@
             background: white;
             padding: 20px;
             margin-bottom: 20px;
-            border-left: 5px solid #0077b6;
+            border-left: 5px solid var(--primary-blue);
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .vignette h2 {
-            color: #0077b6;
+            color: var(--primary-blue);
             margin-top: 0;
+            font-size: 1.6em; /* Un peu plus grand */
+            margin-bottom: 15px;
         }
         .vignette h3 { /* Style pour les sous-titres des domaines stratégiques */
-            color: #005f8a;
+            color: var(--dark-blue);
             margin-top: 25px;
             margin-bottom: 10px;
+            font-size: 1.3em;
         }
         .vignette p, .vignette ul {
             margin: 10px 0;
+            line-height: 1.6; /* Améliore la lisibilité */
+            color: var(--grey-text);
         }
         .vignette ul li {
-            margin-bottom: 6px;
+            margin-bottom: 8px;
+            padding-left: 5px; /* Indentation légère */
         }
         .meta {
             font-size: 0.9em;
             color: #555;
             margin-bottom: 20px;
+            font-style: italic;
         }
         .vignette .links-list ul {
             list-style: none; /* Supprime les puces par défaut */
@@ -92,18 +195,20 @@
             margin-bottom: 8px;
         }
         .vignette .links-list a {
-            color: #0077b6;
+            color: var(--primary-blue);
             text-decoration: none;
             font-weight: bold;
         }
         .vignette .links-list a:hover {
             text-decoration: underline;
+            color: var(--dark-blue);
         }
         .vignette .disclaimer {
             font-size: 0.8em;
             color: #777;
             text-align: right;
             margin-top: 20px;
+            font-style: italic;
         }
 
         /* Styles pour la plaque info (modal) */
@@ -142,7 +247,7 @@
             transform: translateY(0);
         }
         .info-plaque-content h2 {
-            color: #0077b6;
+            color: var(--primary-blue);
             margin-top: 0;
             font-size: 1.8rem;
             margin-bottom: 15px;
@@ -153,7 +258,7 @@
             color: #333;
         }
         .info-plaque-content button {
-            background: #0077b6;
+            background: var(--primary-blue);
             color: white;
             border: none;
             padding: 12px 25px;
@@ -164,21 +269,66 @@
             transition: background 0.2s ease;
         }
         .info-plaque-content button:hover {
-            background: #005f8a;
+            background: var(--dark-blue);
+        }
+
+        /* Media Queries pour la responsivité */
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px auto;
+                padding: 15px;
+                border-radius: 10px;
+            }
+            .tabs {
+                flex-direction: column;
+                border-bottom: none;
+            }
+            .tab {
+                border-radius: 8px;
+                margin-bottom: 5px;
+                border-bottom: 1px solid #ccc; /* Retrouve sa bordure si empilé */
+            }
+            .tab.active {
+                border-bottom: 1px solid white; /* Mais toujours pas de bordure active si empilé */
+            }
+            .vignette {
+                padding: 15px;
+            }
+            .vignette h2 {
+                font-size: 1.4em;
+            }
+            .vignette h3 {
+                font-size: 1.1em;
+            }
+            .info-plaque-content {
+                padding: 20px;
+            }
+            .info-plaque-content h2 {
+                font-size: 1.5rem;
+            }
+            .info-plaque-content button {
+                padding: 10px 20px;
+            }
         }
     </style>
 </head>
 <body>
+    <div id="loader">
+        <div class="spinner"></div>
+        <p>Chargement du contenu...</p>
+    </div>
+
     <div id="header-placeholder"></div>
 
     <main>
         <div class="container">
             <div class="tabs">
-                <div class="tab active" onclick="switchTab('rtbf')">RTBF</div>
-                <div class="tab" onclick="switchTab('europe')">EUROPE</div>
-                <div class="tab" onclick="switchTab('uer')">UER</div> </div>
+                <div class="tab" data-tab-id="rtbf">RTBF</div>
+                <div class="tab" data-tab-id="europe">EUROPE</div>
+                <div class="tab" data-tab-id="uer">UER</div>
+            </div>
 
-            <div id="rtbf" class="tab-content active">
+            <div id="rtbf" class="tab-content">
                 <div class="vignette">
                     <h2>Contexte</h2>
                     <p class="meta">Publié le 23 février 2024</p>
@@ -295,10 +445,10 @@
                     <p class="disclaimer">N° d’identification au Registre de transparence de l’UE : 93288301615-56</p>
                 </div>
             </div>
-            </div>
+        </div>
     </main>
 
-    <div id="infoPlaqueOverlay" class="info-plaque-overlay">
+    <div id="footer-placeholder"></div> <div id="infoPlaqueOverlay" class="info-plaque-overlay">
         <div class="info-plaque-content">
             <h2>Bienvenue sur la page "Droit à l'image et Intelligence Artificielle" !</h2>
             <p>
@@ -313,119 +463,148 @@
     </div>
 
     <script>
-        const PROXY_URL = "/.netlify/functions/proxy"; // Adaptez si nécessaire
+        // Clé pour le localStorage pour la modale de bienvenue
+        const HAS_SEEN_CHARTE_INFO_PLAQUE = 'hasSeenCharteInfoPlaque';
 
-        // Fonction pour changer d'onglet
+        // Références aux éléments DOM
+        const loader = document.getElementById("loader");
+        const bodyElement = document.body;
+        const mainElement = document.querySelector('main');
+        const headerPlaceholder = document.getElementById("header-placeholder");
+        const footerPlaceholder = document.getElementById("footer-placeholder"); // Référence pour le footer
+
+        const infoPlaqueOverlay = document.getElementById('infoPlaqueOverlay');
+        const closeInfoPlaqueBtn = document.getElementById('closeInfoPlaque');
+        
+        // --- Fonctions utilitaires ---
+
+        /**
+         * Fonction utilitaire pour charger des composants HTML via fetch.
+         * @param {string} url - L'URL du composant HTML.
+         * @param {string} placeholderId - L'ID de l'élément où insérer le HTML.
+         * @returns {Promise<void>} Une promesse qui se résout quand le composant est chargé.
+         */
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    const errorDetail = await res.text();
+                    throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+                console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Erreur lors du chargement de ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
+            }
+        }
+
+        /**
+         * Fonction pour changer d'onglet et activer le contenu correspondant.
+         * @param {string} tabId L'ID de l'onglet à activer.
+         */
         function switchTab(tabId) {
             console.log(`Charte: Changement vers l'onglet "${tabId}"`);
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
-            // Sélectionne le bon onglet en se basant sur l'attribut onclick
-            const targetTab = document.querySelector(`.tab[onclick*="${tabId}"]`);
-            if (targetTab) {
-                targetTab.classList.add('active');
+            const targetTabElement = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
+            if (targetTabElement) {
+                targetTabElement.classList.add('active');
             }
-            document.getElementById(tabId).classList.add('active');
-        }
-
-        // Fonction pour mettre à jour la bulle de notification (identique aux autres pages)
-        async function mettreAJourBulleDemandes() {
-            const notif = document.getElementById("notif-count");
-            if (!notif) {
-                console.warn("Charte: L'élément 'notif-count' n'a pas été trouvé dans le header.");
-                return;
-            }
-            try {
-                console.log("Charte: Tentative de récupération des demandes pour la bulle...");
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) {
-                    console.error(`Charte: Erreur HTTP lors de la récupération des demandes: ${res.status}`);
-                    throw new Error(`Erreur HTTP: ${res.status}`);
-                }
-                const demandes = await res.json();
-                console.log("Charte: Demandes récupérées pour la bulle:", demandes);
-                notif.textContent = demandes.length;
-                notif.style.display = demandes.length > 0 ? "inline-block" : "none";
-            } catch (e) {
-                console.error("Charte: Erreur mise à jour compteur de demandes :", e);
-                notif.style.display = "none";
+            const targetContentElement = document.getElementById(tabId);
+            if (targetContentElement) {
+                targetContentElement.classList.add('active');
             }
         }
 
-        // Gestion de la plaque info (modal)
-        const infoPlaqueOverlay = document.getElementById('infoPlaqueOverlay');
-        const closeInfoPlaqueBtn = document.getElementById('closeInfoPlaque');
-
+        /**
+         * Affiche la plaque d'information (modale de bienvenue).
+         */
         function showInfoPlaque() {
             infoPlaqueOverlay.classList.add('show');
+            // Empêcher le défilement du body lorsque la modale est ouverte
+            document.body.style.overflow = 'hidden';
         }
 
+        /**
+         * Ferme la plaque d'information (modale de bienvenue).
+         */
         function closeInfoPlaque() {
             infoPlaqueOverlay.classList.remove('show');
+            // Restaurer le défilement du body lorsque la modale est fermée
+            document.body.style.overflow = '';
+            // Marquer que l'utilisateur a vu la plaque
+            localStorage.setItem(HAS_SEEN_CHARTE_INFO_PLAQUE, 'true');
         }
 
-        closeInfoPlaqueBtn.addEventListener('click', closeInfoPlaque);
-        // Suppression du listener pour fermer en cliquant en dehors du contenu pour ce modal spécifique
-        // infoPlaqueOverlay.addEventListener('click', (event) => {
-        //     if (event.target === infoPlaqueOverlay) {
-        //         closeInfoPlaque();
-        //     }
-        // });
+        // --- Initialisation au chargement du DOM ---
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("Charte: DOMContentLoaded, début de l'initialisation...");
 
+            // Masquer la barre de défilement du body au début
+            bodyElement.style.overflow = 'hidden';
 
-        // Exécution principale à l'initialisation de la page
-        document.addEventListener("DOMContentLoaded", () => {
-            console.log("Charte: DOM entièrement chargé. Début de l'initialisation de charte.html...");
-            fetch("header.html")
-                .then(response => {
-                    console.log("Charte: Réponse de fetch('header.html') reçue.");
-                    if (!response.ok) {
-                        throw new Error(`Erreur HTTP lors du chargement du header pour Charte: ${response.status}`);
+            // 1. Charger le header
+            await loadComponent("header.html", "header-placeholder");
+            // 2. Charger le footer
+            await loadComponent("footer.html", "footer-placeholder");
+
+            // 3. Mettre à jour l'état actif du menu après le chargement du header
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                // Spécifie explicitement 'charte.html' pour cette page
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "charte.html") {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            // 4. Cacher le loader et révéler le contenu principal
+            if (loader) {
+                loader.classList.add("hidden");
+                loader.addEventListener('transitionend', () => {
+                    if (loader.classList.contains('hidden')) {
+                        loader.style.display = 'none';
                     }
-                    return response.text();
-                })
-                .then(data => {
-                    console.log("Charte: Header HTML récupéré. Injection dans le placeholder.");
-                    document.getElementById("header-placeholder").innerHTML = data;
+                }, { once: true });
+            }
+            
+            bodyElement.classList.add("show"); // Révèle le body avec sa transition
+            mainElement.classList.add("show"); // Révèle main avec sa transition
+            // Le body.style.overflow est restauré à la fermeture de la modale ou après le chargement si pas de modale
 
-                    console.log("Charte: Rendre le body et le main visibles.");
-                    document.body.style.opacity = "1";
-                    const mainElement = document.querySelector("main");
-                    if (mainElement) {
-                        mainElement.style.display = "block";
-                    }
+            console.log("Charte: Initialisation terminée.");
 
-                    console.log("Charte: Mise à jour de la bulle de notification.");
-                    mettreAJourBulleDemandes();
+            // 5. Mettre en place les écouteurs d'événements pour les onglets
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tabId));
+            });
 
-                    console.log("Charte: Gestion des liens actifs du menu.");
-                    const path = location.pathname.split("/").pop();
-                    const links = document.querySelectorAll("nav a");
-                    links.forEach(link => {
-                        if (link.getAttribute("href") === path) {
-                            link.classList.add("active");
-                        }
-                    });
+            // 6. Activer l'onglet par défaut (RTBF) au chargement
+            switchTab('rtbf');
+            
+            // 7. Gérer l'affichage de la plaque d'information (modale)
+            const hasSeenInfoPlaque = localStorage.getItem(HAS_SEEN_CHARTE_INFO_PLAQUE) === 'true';
 
-                    // Assurez-vous que l'onglet 'rtbf' est actif au chargement initial
-                    switchTab('rtbf');
-                    console.log("Charte: Onglet 'RTBF' activé par défaut.");
+            if (!hasSeenInfoPlaque) {
+                showInfoPlaque();
+            } else {
+                // Si déjà vue, s'assurer que l'overlay est bien caché et que le scroll est activé
+                infoPlaqueOverlay.classList.remove('show');
+                bodyElement.style.overflow = '';
+            }
 
-                    // *** APPEL DE LA FONCTION POUR AFFICHER LA PLAQUE ***
-                    showInfoPlaque();
-
-                })
-                .catch(error => {
-                    console.error("Charte: Erreur critique lors du chargement du header ou initialisation de Charte:", error);
-                    document.getElementById("header-placeholder").innerHTML = "<p style='color:white;text-align:center'>Erreur de chargement du menu</p>";
-                    // Rendre visible même en cas d'erreur du header pour ne pas laisser une page blanche
-                    document.body.style.opacity = "1";
-                    const mainElement = document.querySelector("main");
-                    if (mainElement) {
-                        mainElement.style.display = "block";
-                    }
-                });
+            closeInfoPlaqueBtn.addEventListener('click', closeInfoPlaque);
+            // Fermer la plaque en cliquant sur l'overlay
+            infoPlaqueOverlay.addEventListener('click', (event) => {
+                if (event.target === infoPlaqueOverlay) {
+                    closeInfoPlaque();
+                }
+            });
         });
     </script>
 </body>
