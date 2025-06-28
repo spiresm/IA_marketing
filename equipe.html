@@ -356,9 +356,7 @@
             padding: 15px;
             margin-top: 15px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.05); /* Légère ombre pour donner du relief */
-            display: flex;
-            flex-direction: column;
-            gap: 8px; /* Espacement entre les éléments de la carte */
+            /* Les styles de transition et display block sont sur .tip-link-card */
         }
 
         .side-panel .tip-card h4 {
@@ -387,6 +385,21 @@
             display: block; /* S'assurer qu'il prend sa propre ligne */
             margin-top: 2px;
         }
+
+        /* NOUVEAUX STYLES pour rendre le tip cliquable */
+        .side-panel .tip-link-card {
+            text-decoration: none; /* Supprime le soulignement par défaut */
+            color: inherit; /* Hérite la couleur du texte parent */
+            display: block; /* Fait en sorte que le lien prenne toute la largeur pour être cliquable sur toute la carte */
+            border-radius: 10px; /* Conserve le bord arrondi de la carte */
+            transition: transform 0.2s ease, box-shadow 0.2s ease; /* Ajoute des transitions au survol */
+        }
+
+        .side-panel .tip-link-card:hover {
+            transform: translateY(-2px); /* Léger soulèvement au survol */
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1); /* Ombre plus prononcée au survol */
+        }
+
 
         footer {
             text-align: center;
@@ -500,14 +513,20 @@
 
     function normalizeString(str) {
         if (typeof str !== 'string') return '';
-        // CORRECTION FINALE APPORTÉE ICI : Ajout de .trim() et transformation de l'apostrophe en caractère standard
-        // et remplacement de tiret par espace pour match la cible "cas d'usages"
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Supprime les accents
-                   .toLowerCase() // Tout en minuscules
-                   .replace(/'/g, ' ') // Remplace l'apostrophe par un espace (si présente dans la source)
-                   .replace(/-/g, ' ') // Remplace les tirets par des espaces
-                   .replace(/\s+/g, ' ') // Remplace plusieurs espaces par un seul espace
-                   .trim(); // Supprime les espaces blancs au début et à la fin
+        // CORRECTION FINALE APPORTÉE ICI :
+        // 1. Supprime les accents
+        // 2. Met tout en minuscules
+        // 3. Remplace apostrophes par espaces
+        // 4. Remplace tirets par espaces (si la source utilise des tirets comme dans 'cas-usages')
+        // 5. Remplace plusieurs espaces par un seul
+        // 6. Supprime les espaces blancs au début et à la fin.
+        // Cela assure que "Cas d'usages", "cas-usages", "CAS D USAGES ", etc. deviennent tous "cas d usages".
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
+                   .toLowerCase() 
+                   .replace(/'/g, ' ') 
+                   .replace(/-/g, ' ') 
+                   .replace(/\s+/g, ' ') 
+                   .trim(); 
     }
 
 
@@ -754,12 +773,11 @@
             tipsSection = `
                 <div class="tips-section">
                     <h3>Dernier TIP partagé</h3>
-                    <div class="tip-card">
-                        <h4>${latestTip.titre || 'Titre inconnu'}</h4>
-                        <p>${latestTip.contenu || latestTip.promptText || latestTip.prompt || 'Contenu non disponible'}</p> <span class="tip-date">${latestTip.datePartage ? new Date(latestTip.datePartage).toLocaleDateString('fr-FR') : 'Date inconnue'}</span>
-                        <span class="page-context">sur la page "${latestTip.pageDePartage || 'Inconnue'}"</span>
-                    </div>
-                </div>
+                    <a href="cas-usages.html" class="tip-link-card"> <div class="tip-card">
+                            <h4>${latestTip.titre || 'Titre inconnu'}</h4>
+                            <p>${latestTip.contenu || latestTip.promptText || latestTip.prompt || 'Contenu non disponible'}</p> <span class="tip-date">${latestTip.date_creation ? new Date(latestTip.date_creation).toLocaleDateString('fr-FR') : 'Date inconnue'}</span> <span class="page-context">sur la page "${latestTip.pageDePartage || 'Inconnue'}"</span>
+                        </div>
+                    </a> </div>
             `;
         } else {
             tipsSection = `
