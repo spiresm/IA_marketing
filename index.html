@@ -687,8 +687,6 @@
             white-space: nowrap; /* Empêche le retour à la ligne */
             animation: ticker var(--ticker-duration) linear infinite; /* Animation définie par JS */
             animation-play-state: running; 
-            /* Retire position: absolute, top, left, will-change: transform. Ces propriétés peuvent compliquer le calcul de scrollWidth et l'animation. */
-            /* La suppression de visibility: hidden; du CSS fait qu'il est visible par défaut */
         }
 
         .news-ticker-content:hover {
@@ -697,7 +695,6 @@
 
         .news-item {
             display: inline-flex; /* Changé de inline-block à inline-flex pour une meilleure mesure et alignement */
-            align-items: center; /* Centre verticalement le contenu de chaque élément */
             padding-right: 50px; /* Espace entre les actualités */
             font-size: 0.95em;
             box-sizing: border-box; /* S'assure que le padding est inclus dans la largeur */
@@ -729,7 +726,6 @@
             100% { transform: translateX(-100%); }
         }
 
-        /* Cette règle n'est plus utile, animation-duration est directement sur .news-ticker-content */
         .news-ticker-content[data-duration] {
         }
 
@@ -1237,11 +1233,10 @@
             newsTickerContent.innerHTML = '<span class="news-item" style="color:#666;">Chargement des actualités...</span>';
             newsTickerContent.style.animation = 'none'; 
             newsTickerContent.style.transform = 'translateX(0)'; 
-            // newsTickerContent.style.visibility = 'visible'; // Assurez-vous qu'il est visible pendant le chargement
 
             let newsItems = [];
             try {
-                const response = await fetch('/news-data.json'); 
+                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); // AJOUTÉ : Cache-busting pour index.html
                 if (response.ok) {
                     newsItems = await response.json();
                 } else if (response.status === 404) {
@@ -1255,7 +1250,6 @@
                 newsItems = [{ title: "Erreur de chargement du flux d'actualités. Contactez l'administrateur.", url: "#", pole: "Support", collaborateur: "IT", color: "#dc3545" }];
             }
             
-            // Si pas d'articles valides, affiche le message et désactive l'animation
             if (!Array.isArray(newsItems) || newsItems.length === 0) { 
                 newsTickerContent.innerHTML = '<span class="news-item">Aucune actualité disponible pour le moment.</span>';
                 newsTickerContent.style.animation = 'none';
@@ -1289,8 +1283,6 @@
                 newsTickerContent.appendChild(span);
             });
 
-            // Utilisation d'un setTimeout avec un délai court pour laisser le temps au navigateur de rendre les éléments
-            // avant de calculer les largeurs et de lancer l'animation.
             setTimeout(() => {
                 let totalContentWidth = newsTickerContent.scrollWidth; 
                 const containerVisibleWidth = tickerContainer.offsetWidth; 
@@ -1298,7 +1290,6 @@
                 let currentCloneCount = 0;
                 const originalChildren = Array.from(newsTickerContent.children); 
 
-                // Cloner le contenu si nécessaire pour assurer un défilement continu
                 while (totalContentWidth > 0 && totalContentWidth < containerVisibleWidth * 2 && currentCloneCount < 5) { 
                     originalChildren.forEach(child => {
                         newsTickerContent.appendChild(child.cloneNode(true));
@@ -1307,21 +1298,20 @@
                     currentCloneCount++;
                 }
                 
-                // Si le contenu est toujours trop court ou vide après clonage, désactiver l'animation
                 if (totalContentWidth === 0 || totalContentWidth <= containerVisibleWidth) {
                     newsTickerContent.style.animation = 'none';
                     newsTickerContent.style.transform = 'translateX(0)';
                     return;
                 }
 
-                const speed = 25.0; // Pixels par seconde.
+                const speed = 1.0; 
                 const effectiveContentWidth = newsTickerContent.scrollWidth / (currentCloneCount + 1); 
                 const duration = effectiveContentWidth / speed; 
 
                 console.log(`[News Ticker] totalContentWidth: ${totalContentWidth}, effectiveContentWidth: ${effectiveContentWidth}, speed: ${speed}, calculated duration: ${duration}s`);
                 
                 newsTickerContent.style.setProperty('--ticker-duration', `${duration}s`);
-                newsTickerContent.style.animation = `ticker var(--ticker-duration) linear infinite`; // !important retiré pour voir si c'est la cause
+                newsTickerContent.style.animation = `ticker var(--ticker-duration) linear infinite`; 
                 newsTickerContent.style.animationPlayState = 'running';
 
                 newsTickerContent.removeEventListener('mouseenter', null); 
