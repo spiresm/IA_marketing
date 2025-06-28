@@ -356,9 +356,7 @@
             padding: 15px;
             margin-top: 15px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.05); /* Légère ombre pour donner du relief */
-            display: flex;
-            flex-direction: column;
-            gap: 8px; /* Espacement entre les éléments de la carte */
+            /* Les styles de transition et display block sont sur .tip-link-card */
         }
 
         .side-panel .tip-card h4 {
@@ -387,6 +385,21 @@
             display: block; /* S'assurer qu'il prend sa propre ligne */
             margin-top: 2px;
         }
+
+        /* NOUVEAUX STYLES pour rendre le tip cliquable */
+        .side-panel .tip-link-card {
+            text-decoration: none; /* Supprime le soulignement par défaut */
+            color: inherit; /* Hérite la couleur du texte parent */
+            display: block; /* Fait en sorte que le lien prenne toute la largeur pour être cliquable sur toute la carte */
+            border-radius: 10px; /* Conserve le bord arrondi de la carte */
+            transition: transform 0.2s ease, box-shadow 0.2s ease; /* Ajoute des transitions au survol */
+        }
+
+        .side-panel .tip-link-card:hover {
+            transform: translateY(-2px); /* Léger soulèvement au survol */
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1); /* Ombre plus prononcée au survol */
+        }
+
 
         footer {
             text-align: center;
@@ -435,488 +448,494 @@
                     <option value="">Tous les pôles</option>
                     <option value="Pôle créa.">Pôle créa.</option>
                     <option value="CRM">CRM</option>
-                    <option value="Communication">Communication</option>
-                    <option value="Partenariats">Partenariats</option>
-                    <option value="Marketing digital">Marketing digital</option>
-                    <option value="Positionnement">Positionnement</option>
-                    <option value="Staff">Staff</option>
-                </select>
-                <input type="text" id="searchInput" placeholder="Rechercher un nom ou outil...">
+                    <option value="Select type="hidden" name="pageDePartage" value="Cas d'usages">
+                    <label>Lien(s) associé(s) (optionnel)</label>
+                    <div v-for="(url, index) in urls" :key="index" class="url-input-group">
+                        <input type="url" v-model="urls[index]" :placeholder="`Lien ${index + 1}`" />
+                        <button type="button" @click="removeUrlField(index)" class="remove-url-button">X</button>
+                    </div>
+                    <div class="url-action-buttons">
+                        <button type="button" @click="addUrlField" class="add-url-button">Ajouter un lien</button>
+                    </div>
+                    <label for="commentaireUrl">Commentaire</label>
+                    <textarea id="commentaireUrl" v-model="commentaireUrl" rows="2" placeholder="Ajoutez un commentaire sur les liens fournis."></textarea>
+                    
+                    <label>Images / Documents (optionnel)</label>
+                    <div id="drop-zone" 
+                                @click="triggerFile"
+                                @dragover.prevent="onDragOver"
+                                @dragleave="onDragLeave"
+                                @drop.prevent="onDrop"
+                                aria-live="polite"
+                                aria-atomic="true"
+                                tabindex="0"
+                                role="button"
+                                title="Cliquez ou déposez des fichiers ici">
+                        Déposez ou cliquez pour ajouter des images ou documents (.txt, .pdf)
+                    </div>
+                    <input type="file" ref="fileInput" accept="image/*, .txt, .pdf" style="display:none" @change="onFileChange" multiple />
+                    <p v-if="fileUploadError" style="color: red; margin-top: 5px;">{{ fileUploadError }}</p>
+
+                    <div class="file-preview-grid">
+                        <div v-for="(fileObj, index) in selectedFiles" :key="fileObj.id" class="file-preview-item">
+                            <img v-if="fileObj.type.startsWith('image/')" :src="fileObj.previewUrl" class="image-preview" :alt="fileObj.name" />
+                            <span v-else class="file-icon">{{ getFileIcon(fileObj.type) }}</span>
+                            <span class="file-name-overlay" :title="fileObj.name">{{ fileObj.name }}</span>
+                            <button type="button" class="remove-file-button" @click="removeFile(fileObj.id)" :aria-label="`Supprimer le fichier ${fileObj.name}`">&times;</button>
+                        </div>
+                    </div>
+
+                    <div v-if="isLoading" class="loader" aria-label="Chargement en cours..."></div>
+                    <button v-else type="submit" :disabled="!auteur || !titre || !description || isLoading">Partager le Tip / Prompt</button>
+                </form>
+
+                <div class="confirmation" v-if="confirmationVisible" role="status" aria-live="assertive">
+                    <p>✅ Tip / Prompt partagé avec succès !</p>
+                    <template v-if="confirmationImageUrls && confirmationImageUrls.length > 0">
+                        <img v-for="(url, index) in confirmationImageUrls" :key="'conf-img-' + index" :src="url" @click="openLightbox(url)" style="margin: 5px;" :alt="`Image de confirmation ${index + 1}`"/>
+                    </template>
+                    <template v-if="confirmationUrls && confirmationUrls.length > 0 && confirmationUrls[0].trim() !== ''">
+                        <h4 style="margin-top: 15px; margin-bottom: 5px; color: #333;">Lien(s) enregistré(s):</h4>
+                        <ul>
+                            <li v-for="(url, index) in confirmationUrls" :key="'conf-url-' + index" style="list-style-type: disc; margin-left: 20px;">
+                                <a :href="url" target="_blank" style="color: var(--primary-blue); word-break: break-all;">{{ url }}</a>
+                            </li>
+                        </ul>
+                    </template>
+                    <p v-if="confirmationCommentaireUrl && confirmationCommentaireUrl.trim()" style="white-space: pre-wrap; font-style: italic; font-size: 0.9em; color: var(--grey-text); margin-top: 10px;">{{ confirmationCommentaireUrl }}</p>
+                    <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
+                    <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
+                    <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
+                    <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
+                    <p style="margin-top: 15px; color: var(--primary-blue);">Redirection vers les cas d'usages dans 5 secondes...</p>
+                </div>
             </div>
-            <div class="grid" id="profil-list"></div>
+
+            <div class="lightbox-overlay" v-if="lightboxVisible" @click.self="closeLightbox" role="dialog" aria-modal="true" :aria-label="`Aperçu de l'image ${lightboxImageUrl.split('/').pop()}`">
+                <span class="lightbox-close" @click="closeLightbox" role="button" tabindex="0" aria-label="Fermer l'aperçu de l'image">&times;</span>
+                <div class="lightbox-content">
+                    <img :src="lightboxImageUrl" :alt="`Image en grand format : ${lightboxImageUrl.split('/').pop()}`" />
+                </div>
+            </div>
+
         </div>
     </main>
 
-    <div id="side-panel" class="side-panel">
-        <button class="close-panel">×</button>
-        <div id="panel-content"></div>
-    </div>
+    <div id="footer-placeholder"></div>
 
-    <footer class="footer">
-        Auteur : Steeve Pires Madeira / Marketing - R&D format
-    </footer>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+        // Définitions des URL pour les fonctions Netlify
+        const SAVE_TIP_URL = "/.netlify/functions/pushTip";
+        const GET_PROFILS_URL = "/.netlify/functions/getProfils";
 
-<script>
-    console.log("Script JavaScript chargé et démarré.");
+        // Global loader reference
+        const globalLoader = document.getElementById("global-loader");
+        const bodyElement = document.body;
+        const mainElement = document.querySelector("main");
+        const headerPlaceholder = document.getElementById("header-placeholder");
+        const footerPlaceholder = document.getElementById("footer-placeholder");
 
-    const PROXY_URL = "/.netlify/functions/proxy";
-    let profils = [];
-    let galleryPrompts = [];
-    let sharedTips = [];
-
-    const listContainer = document.getElementById("profil-list");
-    const filterPole = document.getElementById("filterPole");
-    const searchInput = document.getElementById("searchInput");
-    const sidePanel = document.getElementById("side-panel");
-    const panelContent = document.getElementById("panel-content");
-    const closePanelBtn = document.querySelector(".close-panel");
-    const mainContent = document.querySelector('main');
-    const bodyElement = document.body;
-    const loader = document.getElementById("loader");
-    const headerPlaceholder = document.getElementById("header-placeholder");
-
-    /**
-     * Fonction utilitaire pour récupérer des données depuis le proxy Netlify.
-     * Gère les erreurs et le parsing JSON.
-     * @param {string} action - L'action à demander au proxy (ex: 'getProfils', 'getGalleryPrompts').
-     * @returns {Promise<Object|Array|null>} Les données JSON ou null en cas d'erreur.
-     */
-    async function fetchData(action) {
-        try {
-            const response = await fetch(`${PROXY_URL}?action=${action}`);
-            if (!response.ok) {
-                // Tenter de lire l'erreur comme JSON d'abord, puis comme texte
-                const errorBody = await response.json().catch(() => response.text());
-                console.error(`Erreur HTTP lors de la récupération de ${action}: ${response.status} -`, errorBody);
-                throw new Error(`Échec du chargement de ${action}: ${response.status}`);
+        // Fonction utilitaire pour charger des composants HTML
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    const errorDetail = await res.text();
+                    throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+                console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Erreur lors du chargement de ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
             }
-            return await response.json();
-        } catch (error) {
-            console.error(`Erreur lors du chargement de ${action}:`, error);
-            // Retourne un tableau vide ou null en cas d'échec pour ne pas bloquer les Promise.allSettled
-            return null; // Important: Retourner null ou un tableau vide pour les cas qui ne sont pas critiques.
-        }
-    }
-
-    function normalizeString(str) {
-        if (typeof str !== 'string') return '';
-        // CORRECTION FINALE APPORTÉE ICI : Ajout de .trim() et transformation de l'apostrophe en caractère standard
-        // et remplacement de tiret par espace pour match la cible "cas d'usages"
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Supprime les accents
-                   .toLowerCase() // Tout en minuscules
-                   .replace(/'/g, ' ') // Remplace l'apostrophe par un espace (si présente dans la source)
-                   .replace(/-/g, ' ') // Remplace les tirets par des espaces
-                   .replace(/\s+/g, ' ') // Remplace plusieurs espaces par un seul espace
-                   .trim(); // Supprime les espaces blancs au début et à la fin
-    }
-
-
-    function renderProfils() {
-        console.log("Équipe: Début du rendu des profils...");
-        const selectedPole = normalizeString(filterPole.value);
-        const searchQuery = normalizeString(searchInput.value);
-        listContainer.innerHTML = ""; // Vide le conteneur avant de re-rendre
-
-        const filteredProfils = profils.filter(p => {
-            const poleNormalized = normalizeString(p.pole || '');
-            const nameNormalized = normalizeString(p.name || '');
-            const toolsNormalized = (Array.isArray(p.tools) ? p.tools : []).map(t => normalizeString(t));
-
-            const matchPole = !selectedPole || poleNormalized === selectedPole;
-            const matchSearch = !searchQuery || nameNormalized.includes(searchQuery) || toolsNormalized.some(tool => tool.includes(searchQuery));
-            return matchPole && matchSearch;
-        });
-
-        if (filteredProfils.length === 0) {
-            listContainer.innerHTML = '<p style="text-align: center; color: #666; width: 100%;">Aucun profil ne correspond à vos critères.</p>';
         }
 
-        const fragment = document.createDocumentFragment(); // Utilise un fragment pour des performances accrues
-        filteredProfils.forEach((p) => {
-            const div = document.createElement("div");
-            div.className = "vignette";
-            div.dataset.id = p.id;
+        const { ref, createApp, onMounted, onUnmounted } = Vue;
 
-            const hasNote = (p.note || '').trim() !== '';
+        const TipForm = {
+            setup() {
+                const auteur = ref('');
+                const titre = ref('');
+                const description = ref('');
+                const previewText = ref('');
+                const promptText = ref('');
+                const categorie = ref('Marketing Digital');
+                const outil = ref('');
+                const customOutil = ref('');
+                const fileInput = ref(null);
+                const urls = ref(['']);
+                const commentaireUrl = ref('');
 
-            // Correction de la syntaxe ici (guillemet simple manquant après display: none;)
-            div.innerHTML = `
-               <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
-                <img src="${p.photo || 'https://placehold.co/80x80?text=Profil'}"
-                            alt="${p.name || 'Profil'}"
-                            onerror="this.onerror=null;this.src='https://placehold.co/80x80?text=Erreur%20Image';" />
-                <h3>${p.name || 'Nom Inconnu'}</h3>
-                <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
-                <div class="icon-bar">
-                    <button class="btn-note" title="Note">🗒️</button>
-                    <button class="btn-edit" title="Éditer">✏️</button>
-                    <button class="btn-delete" title="Supprimer">🗑️</button>
-                </div>
-                <div class="note-editor">
-                    <textarea>${p.note || ''}</textarea>
-                    <div class="actions">
-                        <button class="save-note">Enregistrer</button>
-                        <button class="clear-note">Effacer</button>
-                        <button class="close-note">Retour</button>
-                    </div>
-                </div>
-            `;
-            const noteBadge = div.querySelector(".note-badge");
-            const noteEditor = div.querySelector(".note-editor");
-            const textarea = noteEditor.querySelector("textarea");
+                const selectedFiles = ref([]);
+                let fileIdCounter = 0;
+                const fileUploadError = ref('');
 
-            // Gestionnaire d'événements pour les boutons de la vignette
-            div.querySelector(".btn-note").addEventListener("click", e => {
-                e.stopPropagation();
-                console.log("Équipe: Clic sur 'Note' pour", p.name);
-                document.querySelectorAll(".note-editor.open").forEach(el => {
-                    if (el !== noteEditor) {
-                        el.classList.remove("open");
-                    }
-                });
-                noteEditor.classList.toggle("open");
-            });
+                const confirmationVisible = ref(false);
+                const confirmationImageUrls = ref([]);
+                const confirmationUrls = ref([]);
+                const confirmationCommentaireUrl = ref('');
+                const confirmationTitre = ref('');
+                const confirmationDescription = ref('');
+                const confirmationPreviewText = ref('');
+                const confirmationPromptText = ref('');
+                const isLoading = ref(false); // Loader spécifique au formulaire
+                const profilsAuteurs = ref([]);
+                const isLoadingProfils = ref(true);
 
-            div.querySelector(".save-note").addEventListener("click", async e => {
-                e.stopPropagation();
-                console.log("Équipe: Clic sur 'Enregistrer note' pour", p.name);
-                const content = textarea.value.trim();
-                try {
-                    const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: p.id, note: content })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        console.log("Équipe: Note enregistrée avec succès pour", p.name);
-                        p.note = content;
-                        noteBadge.style.display = content ? 'inline-block' : 'none';
-                        noteEditor.classList.remove("open");
-                    } else {
-                        console.error("Équipe: Erreur lors de l'enregistrement de la note:", data.message);
-                        alert("Erreur lors de l'enregistrement de la note : " + data.message);
-                    }
-                } catch (error) {
-                    console.error("Équipe: Erreur réseau/serveur lors de l'enregistrement de la note:", error);
-                    alert("Erreur réseau/serveur lors de l'enregistrement de la note.");
-                }
-            });
+                const lightboxVisible = ref(false);
+                const lightboxImageUrl = ref('');
 
-            div.querySelector(".clear-note").addEventListener("click", async e => {
-                e.stopPropagation();
-                console.log("Équipe: Clic sur 'Effacer note' pour", p.name);
-                textarea.value = "";
-                try {
-                    const res = await fetch(`${PROXY_URL}?action=updateProfil`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: p.id, note: "" })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        console.log("Équipe: Note effacée avec succès pour", p.name);
-                        p.note = "";
-                        noteBadge.style.display = 'none';
-                        noteEditor.classList.remove("open");
-                    } else {
-                        console.error("Équipe: Erreur lors de l'effacement de la note:", data.message);
-                        alert("Erreur lors de l'effacement de la note : " + data.message);
-                    }
-                } catch (error) {
-                    console.error("Équipe: Erreur réseau/serveur lors de l'effacement de la note:", error);
-                    alert("Erreur réseau/serveur lors de l'effacement de la note.");
-                }
-            });
-
-            div.querySelector(".close-note").addEventListener("click", e => {
-                e.stopPropagation();
-                console.log("Équipe: Clic sur 'Retour note' pour", p.name);
-                textarea.value = p.note || '';
-                noteEditor.classList.remove("open");
-            });
-
-            div.querySelector(".btn-edit").addEventListener("click", e => {
-                e.stopPropagation();
-                console.log("Équipe: Clic sur 'Éditer' pour", p.name);
-                window.location.href = `profil.html?edit=${encodeURIComponent(p.id)}`;
-            });
-
-            div.querySelector(".btn-delete").addEventListener("click", async e => {
-                e.stopPropagation();
-                console.log("Équipe: Clic sur 'Supprimer' pour", p.name);
-                if (confirm(`Supprimer définitivement ${p.name} ?`)) {
+                async function fetchProfils() {
+                    console.log("Début du chargement des profils...");
+                    isLoadingProfils.value = true;
                     try {
-                        const res = await fetch(`${PROXY_URL}?action=deleteProfil`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: p.id })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            console.log("Équipe: Profil supprimé avec succès:", p.name);
-                            profils = profils.filter(profile => profile.id !== p.id);
-                            renderProfils();
-                            if (sidePanel.classList.contains("show") && panelContent.dataset.id === p.id) {
-                                sidePanel.classList.remove("show");
-                            }
+                        const response = await fetch(GET_PROFILS_URL);
+                        console.log("Réponse de la fonction Netlify pour les profils:", response);
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
+                        }
+                        const data = await response.json();
+                        console.log("Données brutes des profils reçues:", data);
+                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
+                        const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
+                        profilsAuteurs.value = names;
+
+                        if (names.length === 1) {
+                            auteur.value = names[0];
+                            console.log("Un seul profil trouvé, auteur auto-sélectionné:", auteur.value);
+                        } else if (names.length > 1) {
+                            auteur.value = '';
+                            console.log("Plusieurs profils trouvés, veuillez sélectionner un auteur.");
                         } else {
-                            console.error("Équipe: Erreur lors de la suppression du profil:", data.message);
-                            alert("Erreur lors de la suppression du profil : " + data.message);
+                            auteur.value = '';
+                            console.log("Aucun profil d'auteur trouvé.");
                         }
                     } catch (error) {
-                        console.error("Équipe: Erreur réseau/serveur lors de la suppression du profil:", error);
-                        alert("Erreur réseau/serveur lors de la suppression du profil.");
+                        console.error("Erreur lors du chargement des profils:", error);
+                        console.error(`Impossible de charger la liste des profils. Veuillez vérifier que la fonction Netlify "${GET_PROFILS_URL.split('/').pop()}" existe et est correctement déployée. Détails: ${error.message}`);
+                    } finally {
+                        isLoadingProfils.value = false;
+                        console.log("Fin du chargement des profils.");
                     }
                 }
-            });
 
-            div.addEventListener("click", async e => {
-                if (!e.target.closest(".icon-bar") && !e.target.closest(".note-editor")) {
-                    console.log("Équipe: Ouverture du panneau latéral pour", p.name);
-                    panelContent.dataset.id = p.id;
-
-                    await updateSidePanelContent(p);
-                    sidePanel.classList.add("show");
+                function addUrlField() {
+                    urls.value.push('');
+                    console.log("Champ URL ajouté. URLs:", urls.value);
                 }
-            });
 
-            fragment.appendChild(div);
-        });
-        listContainer.appendChild(fragment);
-        console.log("Équipe: Rendu des profils terminé.");
-    }
+                function removeUrlField(index) {
+                    urls.value.splice(index, 1);
+                    if (urls.value.length === 0) {
+                        urls.value.push('');
+                    }
+                    console.log(`Champ URL à l'index ${index} supprimé. URLs:`, urls.value);
+                }
 
-    /**
-     * Met à jour le contenu du panneau latéral avec les détails du profil sélectionné,
-     * y compris les images de la galerie et les TIPS.
-     * @param {Object} profil - L'objet profil à afficher.
-     */
-    async function updateSidePanelContent(profil) {
-        const profilNameNormalized = normalizeString(profil.name || '');
+                function openLightbox(imageUrl) {
+                    lightboxImageUrl.value = imageUrl;
+                    lightboxVisible.value = true;
+                    console.log("Lightbox ouverte pour:", imageUrl);
+                }
 
-        // --- Section Galerie d'images (gère les données déjà chargées ou l'absence) ---
-        const imagesByAuthor = galleryPrompts
-            ? galleryPrompts.filter(prompt => normalizeString(prompt.auteur || '') === profilNameNormalized)
-                               .map(prompt => prompt.imageUrl)
-                               .filter(Boolean)
-            : []; // Si galleryPrompts est null, retourne un tableau vide
+                function closeLightbox() {
+                    lightboxVisible.value = false;
+                    lightboxImageUrl.value = '';
+                    console.log("Lightbox fermée.\");
+                }
 
-        console.log(`DEBUG: Images de galerie trouvées pour "${profil.name}" :`, imagesByAuthor);
+                function handleKeydown(event) {
+                    if (event.key === 'Escape' && lightboxVisible.value) {
+                        closeLightbox();
+                    }
+                }
 
-        let gallerySection = '';
-        if (imagesByAuthor.length > 0) {
-            const lastTwoImages = imagesByAuthor.slice(-2);
-            const imagesHtml = lastTwoImages.map(imgSrc => {
-                const fallbackSrc = 'https://placehold.co/150x100?text=Erreur+image';
-                const displaySrc = (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) ? imgSrc : fallbackSrc;
-                return `<a href="galerie.html?imageUrl=${encodeURIComponent(displaySrc)}" target="_blank"><img src="${displaySrc}" alt="Image de galerie du prompt" onerror="this.onerror=null;this.src='${fallbackSrc}';" title="Image: ${imgSrc}"></a>`;
-            }).join('');
+                onMounted(() => {
+                    console.log("Composant TipForm monté.\");
+                    fetchProfils();
+                    window.addEventListener('keydown', handleKeydown);
+                });
 
-            gallerySection = `
-                <div class="gallery-section">
-                    <h3>Derniers prompts partagés (Images)</h3>
-                    <div class="gallery-images-container">
-                        ${imagesHtml}
-                    </div>
-                </div>
-            `;
-        } else {
-            gallerySection = `
-                <div class="gallery-section">
-                    <h3>Derniers prompts partagés (Images)</h3>
-                    <p class="no-item-placeholder">Aucune image de prompt partagée par ${profil.name} n'a été trouvée.</p>
-                </div>
-            `;
-        }
+                onUnmounted(() => {
+                    window.removeEventListener('keydown', handleKeydown);
+                });
 
-        // --- Nouvelle section TIPS (gère les données déjà chargées ou l'absence) ---
-        const tipsFromAuthor = sharedTips
-            ? sharedTips.filter(tip => {
-                // MODIFICATION ICI: La chaîne de comparaison est maintenant 'cas d usages'
-                const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === 'cas d usages';
-                const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
-                return isByThisAuthor && isFromCorrectPage;
-            })
-            .sort((a, b) => {
-                // Utilisation flexible des champs de date pour le tri
-                const dateA = new Date(b.date_creation || b.date_ajout || b.dateCreation || 0);
-                const dateB = new Date(a.date_creation || a.date_ajout || a.dateCreation || 0);
-                return dateA - dateB;
-            })
-            : []; // Si sharedTips est null, retourne un tableau vide
+                function triggerFile() {
+                    console.log("Clic sur la drop-zone, déclenchement de l'input fichier.\");
+                    fileInput.value?.click();
+                }
 
-        // Prendre seulement le dernier tip
-        const latestTip = tipsFromAuthor.length > 0 ? tipsFromAuthor[0] : null;
+                function onDragOver(e) {
+                    console.log("Événement dragover détecté.\");
+                    e.currentTarget.classList.add('dragover');
+                }
 
-        let tipsSection = '';
-        if (latestTip) { // Vérifier si un tip existe
-            tipsSection = `
-                <div class="tips-section">
-                    <h3>Dernier TIP partagé</h3>
-                    <div class="tip-card">
-                        <h4>${latestTip.titre || 'Titre inconnu'}</h4>
-                        <p>${latestTip.contenu || latestTip.promptText || latestTip.prompt || 'Contenu non disponible'}</p> <span class="tip-date">${latestTip.datePartage ? new Date(latestTip.datePartage).toLocaleDateString('fr-FR') : 'Date inconnue'}</span>
-                        <span class="page-context">sur la page "${latestTip.pageDePartage || 'Inconnue'}"</span>
-                    </div>
-                </div>
-            `;
-        } else {
-            tipsSection = `
-                <div class="tips-section">
-                    <h3>Dernier TIP partagé</h3>
-                    <p class="no-item-placeholder">Aucun TIP partagé par ${profil.name} n'a été trouvé depuis la page "Cas d'usages".</p>
-                    <p class="no-item-placeholder">
-                        <a href="cas-usages.html">Partager un TIP maintenant !</a>
-                    </p>
-                </div>
-            `;
-        }
+                function onDragLeave(e) {
+                    console.log("Événement dragleave détecté.\");
+                    e.currentTarget.classList.remove('dragover');
+                }
 
+                function onDrop(e) {
+                    console.log("Événement drop détecté.\");
+                    e.currentTarget.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length) {
+                        console.log("Fichiers déposés:\", files);
+                        addFiles(files);
+                    } else {
+                        console.log("Aucun fichier déposé.\");
+                    }
+                }
 
-        const toolsList = (Array.isArray(profil.tools) ? profil.tools : []).map(t => `<li>${t}</li>`).join('');
-        const hasNote = (profil.note || '').trim() !== '';
+                function onFileChange(e) {
+                    const files = e.target.files;
+                    if (files) {
+                        console.log("Fichiers sélectionnés via l'input:\", files);
+                        addFiles(files);
+                        e.target.value = null;
+                    } else {
+                        console.log("Aucun fichier sélectionné via l'input.\");
+                    }
+                }
 
-        panelContent.innerHTML = `
-            <h2>${profil.name || 'Nom Inconnu'}</h2>
-            <p><strong>Pôle :</strong> ${profil.pole || '—'}</p>
-            <p><strong>Outils IA :</strong></p>
-            <ul>${toolsList || '<li>Aucun outil enregistré</li>'}</ul>
-            ${hasNote ? `<div class="note-content"><strong>Note :</strong><br>${profil.note}</div>` : ''}
-            ${gallerySection}
-            ${tipsSection}
-        `;
-    }
+                function addFiles(files) {
+                    fileUploadError.value = '';
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        if (file.type.startsWith('image/') || file.type === 'text/plain' || file.type === 'application/pdf') {
+                            const newFileObj = {
+                                id: fileIdCounter++,
+                                file: file,
+                                previewUrl: null,
+                                name: file.name,
+                                type: file.type
+                            };
 
-    closePanelBtn.addEventListener("click", () => {
-        console.log("Équipe: Clic sur le bouton de fermeture du panneau.");
-        sidePanel.classList.remove("show");
-    });
+                            if (file.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                    if (e.target.result && typeof e.target.result === 'string' && e.target.result.startsWith('data:image')) {
+                                        newFileObj.previewUrl = e.target.result;
+                                        selectedFiles.value.push(newFileObj);
+                                    } else {
+                                        console.warn(`Résultat de lecture d'image non valide pour ${file.name}. Ignoré.`);
+                                        fileUploadError.value = `Impossible de prévisualiser l'image ${file.name}.`;
+                                    }
+                                };
+                                reader.onerror = (error) => {
+                                    console.error(`Erreur lecture fichier ${file.name}:\`, error);
+                                    fileUploadError.value = `Erreur lors de la lecture de l'image ${file.name}.`;
+                                };
+                                reader.readAsDataURL(file);
+                            } else {
+                                selectedFiles.value.push(newFileObj);
+                            }
+                        } else {
+                            fileUploadError.value = `Le fichier \"${file.name}\" de type \"${file.type}\" n'est pas pris en charge. Seules les images, les fichiers .txt et .pdf sont autorisés.`;
+                            console.warn(fileUploadError.value);
+                        }
+                    }
+                    console.log(\"selectedFiles après ajout:\", selectedFiles.value);
+                }
 
-    document.addEventListener("click", event => {
-        if (sidePanel.classList.contains("show") && !sidePanel.contains(event.target) && !event.target.closest(".vignette")) {
-            console.log("Équipe: Clic en dehors du panneau, fermeture.");
-            sidePanel.classList.remove("show");
-        }
-    });
+                function removeFile(fileIdToRemove) {
+                    selectedFiles.value = selectedFiles.value.filter(fileObj => fileObj.id !== fileIdToRemove);
+                    console.log(`Fichier avec ID ${fileIdToRemove} supprimé. selectedFiles:`, selectedFiles.value);
+                    fileUploadError.value = '';
+                }
 
-    filterPole.addEventListener("change", renderProfils);
-    searchInput.addEventListener("input", renderProfils);
+                function getFileIcon(fileType) {
+                    if (fileType === 'text/plain') return 'TXT';
+                    if (fileType === 'application/pdf') return 'PDF';
+                    return '📄';
+                }
 
-    async function loadHeader() {
-        try {
-            const response = await fetch("header.html");
-            if (!response.ok) {
-                throw new Error(`Erreur lors du chargement de l'en-tête: ${response.status}`);
+                async function submitForm() {
+                    console.log(\"Soumission du formulaire...\");
+                    if (!auteur.value || !titre.value.trim() || !description.value.trim()) {
+                        console.error(\"Veuillez remplir tous les champs obligatoires (Auteur, Titre, Description).\");
+                        console.warn(\"Soumission bloquée: Champs obligatoires manquants.\");
+                        // Vous pouvez ajouter une alerte visuelle ici pour l'utilisateur
+                        return;
+                    }
+                    if (outil.value === 'Autre' && !customOutil.value.trim()) {
+                        console.error(\"Veuillez spécifier le nom de l'outil personnalisé.\");
+                        // Alerte visuelle pour l'utilisateur
+                        return;
+                    }
+
+                    confirmationVisible.value = false;
+                    isLoading.value = true; // Active le loader du formulaire
+                    console.log(\"Formulaire en cours de traitement (isLoading = true).\");
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('auteur', auteur.value);
+                        formData.append('titre', titre.value);
+                        formData.append('description', description.value);
+                        formData.append('previewText', previewText.value);
+                        formData.append('promptText', promptText.value);
+                        formData.append('categorie', categorie.value);
+                        formData.append('outil', outil.value === 'Autre' ? customOutil.value : outil.value);
+                        formData.append('dateCreation', new Date().toISOString());
+
+                        // AJOUT IMPORTANT : Ajout du champ 'pageDePartage'
+                        // Cette valeur sera envoyée au backend avec les autres données du tip.
+                        formData.append('pageDePartage', 'Cas d\'usages');
+                        console.log(\"Champ 'pageDePartage' ajouté à FormData: 'Cas d\'usages'.\");
+
+                        const filteredUrls = urls.value.filter(url => url.trim() !== '');
+                        if (filteredUrls.length > 0) {
+                            formData.append('urls', JSON.stringify(filteredUrls));
+                            console.log(\"URLs ajoutées à FormData:\", filteredUrls);
+                        } else {
+                            formData.append('urls', '[]');
+                            console.log(\"Aucune URL valide à ajouter à FormData.\");
+                        }
+
+                        if (commentaireUrl.value.trim() !== '') {
+                            formData.append('commentaireUrl', commentaireUrl.value.trim());
+                            console.log(\"Commentaire sur les URLs ajouté à FormData:\", commentaireUrl.value.trim());
+                        }
+
+                        selectedFiles.value.forEach((fileObj) => {
+                            formData.append(`files`, fileObj.file, fileObj.name);
+                            console.log(`Ajout du fichier ${fileObj.name} à FormData.`);
+                        });
+
+                        const tipResp = await fetch(SAVE_TIP_URL, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        console.log(\"Réponse brute de la fonction pushTip:\", tipResp);
+
+                        if (!tipResp.ok) {
+                            const errorText = await tipResp.text();
+                            console.error(`Erreur HTTP lors de l'enregistrement du tip via Netlify Function: ${tipResp.status} - ${errorText}`);
+                            throw new Error(`Échec de l'enregistrement du tip: ${tipResp.status} - ${errorText}`);
+                        }
+
+                        const result = await tipResp.json();
+                        console.log(\"Résultat de l'enregistrement du tip via Netlify Function:\", result);
+
+                        confirmationImageUrls.value = [];
+                        if (result.imageUrls && Array.isArray(result.imageUrls)) {
+                            confirmationImageUrls.value = result.imageUrls;
+                            console.log(\"Images de confirmation définies avec les URLs publiques de GitHub:\", result.imageUrls);
+                        } else if (result.imageUrl) {
+                            confirmationImageUrls.value.push(result.imageUrl);
+                        }
+                        if (confirmationImageUrls.value.length === 0 && selectedFiles.value.some(f => f.type.startsWith('image/'))) {
+                            confirmationImageUrls.value = selectedFiles.value
+                                .filter(f => f.type.startsWith('image/') && f.previewUrl)
+                                .map(f => f.previewUrl);
+                            console.log(\"Utilisation des URL d'aperçu local pour la confirmation (backend n'a pas renvoyé d'URLs).\", confirmationImageUrls.value);
+                        }
+                        if (confirmationImageUrls.value.length === 0) {
+                            console.log(\"Aucune image de confirmation disponible.\");
+                        }
+
+                        confirmationUrls.value = result.urls || [];
+                        if (confirmationUrls.value.length === 0) {
+                            console.log(\"Aucune URL de confirmation disponible.\");
+                        } else {
+                            console.log(\"URLs de confirmation disponibles:\", confirmationUrls.value);
+                        }
+
+                        confirmationCommentaireUrl.value = result.commentaireUrl || commentaireUrl.value;
+                        if (confirmationCommentaireUrl.value.trim() === '') {
+                            console.log(\"Aucun commentaire URL de confirmation disponible.\");
+                        } else {
+                            console.log(\"Commentaire URL de confirmation disponible:\", confirmationCommentaireUrl.value);
+                        }
+
+                        confirmationTitre.value = titre.value;
+                        confirmationDescription.value = description.value;
+                        confirmationPreviewText.value = previewText.value;
+                        confirmationPromptText.value = promptText.value;
+                        confirmationVisible.value = true;
+                        console.log(\"Confirmation affichée. Redirection dans 5 secondes...\");
+
+                        setTimeout(() => {
+                            // Redirection vers la galerie avec un message de succès
+                            window.location.href = \"cas-usages.html?success=1\";
+                        }, 5000);
+
+                    } catch (error) {
+                        console.error(\"Erreur lors de la soumission du formulaire:\", error);
+                        console.error(`Une erreur est survenue lors de l'envoi du tip. Veuillez réessayer. Détails : ${error.message}`);
+                        // Vous pouvez afficher un message d'erreur visuel à l'utilisateur ici
+                    } finally {
+                        isLoading.value = false;
+                        console.log(\"Fin du traitement du formulaire (isLoading = false).\");
+                    }
+                }
+
+                return {
+                    auteur, titre, description, previewText, promptText, categorie, outil, customOutil, fileInput,
+                    urls, addUrlField, removeUrlField, commentaireUrl,
+                    selectedFiles, fileUploadError,
+                    confirmationVisible,
+                    confirmationImageUrls, confirmationUrls, confirmationCommentaireUrl,
+                    confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
+                    isLoading, profilsAuteurs, isLoadingProfils,
+                    lightboxVisible, lightboxImageUrl,
+                    openLightbox, closeLightbox,
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
+                    removeFile, getFileIcon, submitForm
+                };
             }
-            const headerHtml = await response.text();
-            headerPlaceholder.innerHTML = headerHtml;
+        };
 
+        // --- Initialisation au chargement du DOM ---
+        document.addEventListener(\"DOMContentLoaded\", async () => {
+            console.log(\"Creer-Tip: DOMContentLoaded, début de l'initialisation...\");
+
+            // Masquer la barre de défilement du body au début pour une meilleure expérience
+            bodyElement.style.overflow = 'hidden';
+
+            // 1. Charger les composants principaux (Header et Footer)
+            await loadComponent(\"header.html\", \"header-placeholder\");
+            await loadComponent(\"footer.html\", \"footer-placeholder\");
+
+            // 2. Mettre à jour l'état actif du menu après le chargement du header
             const currentPath = window.location.pathname.split('/').pop();
             document.querySelectorAll('nav a').forEach(link => {
                 const linkHref = link.getAttribute('href');
                 const linkFileName = linkHref ? linkHref.split('/').pop() : '';
 
-                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
-                    link.classList.add("active");
+                if (linkFileName === currentPath || (currentPath === \"\" && linkFileName === \"index.html\")) {
+                    link.classList.add(\"active\");
                 } else {
-                    link.classList.remove("active");
+                    link.classList.remove(\"active\");
                 }
             });
 
-            console.log("Équipe: Header chargé avec succès.");
-        } catch (error) {
-            console.error("Équipe: Erreur lors du chargement du header:", error);
-        }
-    }
+            // 3. Monter l'application Vue.js
+            // L'application Vue sera responsable du loader interne et du contenu du formulaire.
+            createApp(TipForm).mount('#app');
+            console.log(\"Application Vue.js montée sur #app.\");
 
-    async function mettreAJourBulleDemandes() {
-        const notif = document.getElementById('notif-count');
-        if (notif) {
-            try {
-                const res = await fetch(`${PROXY_URL}?action=getDemandesIA`);
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                }
-                const demandes = await res.json();
-                const demandesArray = demandes.data || [];
-                const demandesNonTraitees = demandesArray.filter(d => d.traite === false || d.traite === "FALSE");
-                notif.textContent = demandesNonTraitees.length;
-                notif.style.display = demandesNonTraitees.length > 0 ? "inline-block" : "none";
-            } catch (e) {
-                console.error("Équipe: Erreur lors de la mise à jour de la bulle de demandes:", e);
-                notif.style.display = 'none';
+            // 4. Cacher le loader global et révéler le contenu principal
+            if (globalLoader) {
+                globalLoader.classList.add(\"hidden\");
+                globalLoader.addEventListener('transitionend', () => {
+                    if (globalLoader.classList.contains('hidden')) {
+                        globalLoader.style.display = 'none';
+                    }
+                }, { once: true });
             }
-        }
-    }
 
-    document.addEventListener("DOMContentLoaded", async () => {
-        console.log("Équipe: DOMContentLoaded, début de l'initialisation...");
+            bodyElement.classList.add(\"show\"); // Révèle le body avec sa transition
+            mainElement.classList.add(\"show\"); // Révèle main avec sa transition
+            bodyElement.style.overflow = ''; // Restaurer le défilement du body
 
-        // Le loader DOIT être visible par défaut via CSS (display: flex; opacity: 1;)
-        // et n'aura pas la classe 'hidden' au début.
-        // On ne met PAS de styles en ligne ici pour éviter les conflits.
-
-        await loadHeader(); // Charge le header en premier, c'est rapide
-
-        const profilsPromise = fetchData('getProfils');
-        const galleryPromise = fetchData('getGalleryPrompts');
-        const tipsPromise = fetchData('getTips'); // Cette requête peut toujours échouer avec 400
-
-        await profilsPromise.then(data => {
-            profils = data || [];
-            console.log("Équipe: Profils chargés :", profils.length);
-            renderProfils(); // Rendre les profils dès qu'ils sont là
-        }).catch(error => {
-            console.error("Équipe: Impossible de charger les profils au démarrage. ", error);
-            listContainer.innerHTML = '<p style="text-align: center; color: red; width: 100%;">Erreur lors du chargement des profils. Veuillez réessayer.</p>';
-        }).finally(() => {
-            // Cette partie s'exécute QUEL QUE SOIT le résultat de profilsPromise.
-            // C'est le point où le loader DOIT disparaître et la page DOIT s'afficher.
-            if (loader) {
-                loader.classList.add("hidden"); // Déclenche la transition d'opacité du loader
-                // Le CSS de #loader.hidden gérera la transition d'opacité vers 0,
-                // puis la visibilité et le display: none; après le délai.
-            }
-            // Active la visibilité du body et du main via la classe 'loaded'
-            bodyElement.classList.add('loaded'); // Active body.loaded pour afficher main
-            console.log("Équipe: Contenu principal affiché (profils chargés).");
+            console.log(\"Creer-Tip: Initialisation terminée.\");
         });
-
-
-        // Gérer les promesses de galerie et de tips séparément après que la page soit visible
-        galleryPromise.then(data => {
-            galleryPrompts = data || [];
-            console.log("Équipe: Prompts de galerie chargés (arrière-plan) :", galleryPrompts.length);
-            // Si le panneau latéral est ouvert, mettre à jour son contenu si le profil est affiché
-            if (sidePanel.classList.contains("show") && panelContent.dataset.id) {
-                const currentProfileId = panelContent.dataset.id;
-                const currentProfile = profils.find(p => p.id === currentProfileId);
-                if (currentProfile) updateSidePanelContent(currentProfile);
-            }
-        }).catch(error => {
-            console.error("Équipe: Impossible de charger les prompts de galerie (arrière-plan).", error);
-        });
-
-        tipsPromise.then(data => {
-            sharedTips = data || [];
-            console.log("Équipe: TIPS chargés (arrière-plan) :", sharedTips.length);
-            // Si le panneau latéral est ouvert, mettre à jour son contenu si le profil est affiché
-            if (sidePanel.classList.contains("show") && panelContent.dataset.id) {
-                const currentProfileId = panelContent.dataset.id;
-                const currentProfile = profils.find(p => p.id === currentProfileId);
-                if (currentProfile) updateSidePanelContent(currentProfile);
-            }
-        }).catch(error => {
-            console.error("Équipe: Impossible de charger les TIPS (arrière-plan).", error);
-        });
-
-        await mettreAJourBulleDemandes(); // Met à jour la bulle de notification
-
-        console.log("Équipe: Initialisation terminée.");
-    });
-
-    history.replaceState({}, document.title, window.location.pathname);
-</script>
+    </script>
 </body>
 </html>
