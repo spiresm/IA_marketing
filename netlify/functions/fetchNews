@@ -2,7 +2,6 @@ const fetch = require('node-fetch');
 const { parseStringPromise } = require('xml2js');
 
 // URLs des flux RSS francophones choisis
-// Vous pouvez ajouter ou retirer des flux ici selon vos préférences
 const RSS_FEEDS = [
     { name: "Blog du Modérateur", url: "https://www.blogdumoderateur.com/feed/" },
     { name: "JDN IA", url: "https://www.journaldunet.com/web-tech/intelligence-artificielle/rss/" },
@@ -18,8 +17,9 @@ exports.handler = async (event, context) => {
             try {
                 const response = await fetch(feed.url);
                 if (!response.ok) {
-                    console.error(`Failed to fetch RSS feed from ${feed.name} (${feed.url}): ${response.statusText}`);
-                    continue; // Passe au flux suivant si celui-ci échoue
+                    // Log l'erreur mais ne jette pas d'exception pour ne pas bloquer les autres flux
+                    console.error(`Failed to fetch RSS feed from ${feed.name} (${feed.url}): ${response.status} ${response.statusText}`);
+                    continue; 
                 }
                 const xml = await response.text();
                 const result = await parseStringPromise(xml);
@@ -29,7 +29,7 @@ exports.handler = async (event, context) => {
                         title: item.title && item.title[0] ? item.title[0] : 'Titre inconnu',
                         url: item.link && item.link[0] ? item.link[0] : '#',
                         pubDate: item.pubDate && item.pubDate[0] ? item.pubDate[0] : new Date().toISOString(),
-                        source: feed.name // Pour savoir d'où vient l'article
+                        source: feed.name 
                     }));
                     allArticles = allArticles.concat(articles);
                 } else {
@@ -40,25 +40,21 @@ exports.handler = async (event, context) => {
             }
         }
 
-        // Trier tous les articles par date de publication (du plus récent au plus ancien)
         allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-
-        // Limiter au top X articles (ex: les 15 plus récents)
-        const topArticles = allArticles.slice(0, 15); // Vous pouvez ajuster ce nombre
+        const topArticles = allArticles.slice(0, 15); 
 
         return {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
-                // Très important : permet à votre frontend de faire la requête
                 "Access-Control-Allow-Origin": "*", 
-                "Cache-Control": "public, max-age=300, must-revalidate" // Cache la réponse pendant 5 minutes
+                "Cache-Control": "public, max-age=3600, must-revalidate" // MODIFIÉ : Cache la réponse pendant 1 heure (3600 secondes)
             },
             body: JSON.stringify(topArticles),
         };
 
     } catch (error) {
-        console.error("Error in fetch-ia-news function:", error);
+        console.error("Error in fetchNews function:", error);
         return {
             statusCode: 500,
             headers: {
