@@ -3,15 +3,15 @@
 const fetch = require('node-fetch');
 const { XMLParser } = require('fast-xml-parser');
 
-// Un seul flux RSS de BBC News pour le test
+// Un seul flux RSS de Numerama pour ce test
 const RSS_FEEDS = [
-    { name: "BBC News Top Stories", url: "http://feeds.bbci.co.uk/news/rss.xml" }
+    { name: "Numerama", url: "https://www.numerama.com/feed/" }
 ];
 
 const parser = new XMLParser({ ignoreAttributes: true });
 
 exports.handler = async (event, context) => {
-    console.log("📡 Lancement de fetchNews avec le flux BBC News...");
+    console.log("📡 Lancement de fetchNews avec le flux Numerama...");
 
     try {
         let allArticles = [];
@@ -34,6 +34,7 @@ exports.handler = async (event, context) => {
                 const result = parser.parse(xml);
 
                 let items = [];
+                // Logique pour gérer les formats RSS et Atom
                 if (result.rss?.channel?.item) {
                     items = Array.isArray(result.rss.channel.item)
                         ? result.rss.channel.item
@@ -46,7 +47,7 @@ exports.handler = async (event, context) => {
 
                 const articles = items.map(item => ({
                     title: item.title || 'Titre inconnu',
-                    url: item.link?.href || item.link || '#',
+                    url: item.link?.href || item.link || '#', // Gère les liens dans Atom (href) et RSS (directement link)
                     pubDate: item.pubDate || item.updated || new Date().toISOString(),
                     source: feed.name
                 }));
@@ -84,7 +85,8 @@ exports.handler = async (event, context) => {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=3600, must-revalidate" // Gardons 1 heure pour le moment
             },
             body: JSON.stringify(topArticles),
         };
