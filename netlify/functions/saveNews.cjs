@@ -23,38 +23,39 @@ exports.handler = async (event, context) => {
         };
     }
 
-    let actionType = 'add'; // 'add' ou 'delete'
-    let incomingData; // pour 'add'
-    let timestampToDelete = null; // <-- CHANGEMENT : Utilise le timestamp pour la suppression
+    let actionType = 'add';
+    let incomingData = null; // Pour les actions 'add'
+    let timestampToDelete = null; // Pour les actions 'delete'
 
     try {
         const body = JSON.parse(event.body);
-        if (body.action === 'delete' && typeof body.timestamp === 'string') { // <-- CHANGEMENT : Attend 'timestamp'
+        if (body.action === 'delete' && typeof body.timestamp === 'string') {
             actionType = 'delete';
             timestampToDelete = body.timestamp;
-            console.log(`Action: Delete item with timestamp ${timestampToDelete}`);
         } else {
-            incomingData = body; // Un nouvel article à ajouter
+            // Assume 'add' action if not 'delete'
+            incomingData = body;
             if (typeof incomingData !== 'object' || incomingData === null || Array.isArray(incomingData)) {
-                throw new Error('Invalid input: body must be a single news item object for add action.');
+                throw new Error('Invalid input for add action: expected a single news item object.');
             }
+            // IMPORTANT: Vérifier que tous les champs attendus par le front sont présents
             if (!incomingData.title || !incomingData.pole || !incomingData.collaborateur || !incomingData.color) {
-                throw new Error('Missing required fields: title, pole, collaborateur, and color are mandatory for add action.');
+                throw new Error('Missing required fields for add action: title, pole, collaborateur, color.');
             }
-            console.log("Action: Add new item.");
         }
     } catch (error) {
-        console.error('Invalid JSON body or missing action/timestamp/data:', error);
+        console.error('Error parsing request body or invalid action:', error);
         return {
             statusCode: 400,
-            body: JSON.stringify({ message: 'Invalid JSON format or data structure.', details: error.message }),
+            body: JSON.stringify({ message: 'Invalid request payload.', details: error.message }),
         };
     }
 
-    let existingNews = [];
-    let currentSha = null;
+    let currentFileContent = []; // Ce sera l'array d'actualités que nous allons manipuler
+    let fileSha = null; // SHA du fichier existant, nécessaire pour la mise à jour GitHub
 
     try {
+        // --- Tenter de récupérer le contenu actuel du fichier news-data.json ---
         const getContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`;
         const responseGet = await fetch(getContentsUrl, {
             method: 'GET',
@@ -67,78 +68,85 @@ exports.handler = async (event, context) => {
 
         if (responseGet.ok) {
             const fileData = await responseGet.json();
-            currentSha = fileData.sha;
+            fileSha = fileData.sha; // On récupère le SHA pour la mise à jour
             const content = Buffer.from(fileData.content, 'base64').toString('utf8');
             
             try {
+                // Tenter de parser le contenu. Si c'est un objet (ancien format), le convertir en tableau.
                 const parsedContent = JSON.parse(content);
                 if (Array.isArray(parsedContent)) {
-                    existingNews = parsedContent;
+                    currentFileContent = parsedContent;
                 } else if (typeof parsedContent === 'object' && parsedContent !== null) {
-                    existingNews = Object.values(parsedContent);
-                    console.warn(`Existing ${FILE_PATH} was an object, converted to array.`);
+                    currentFileContent = Object.values(parsedContent); // Convertir l'objet en tableau
+                    console.warn(`Existing ${FILE_PATH} was an object, converted to array for processing.`);
                 } else {
-                    existingNews = [];
+                    console.warn(`Existing ${FILE_PATH} content was not an array or object, initializing empty array.`);
+                    currentFileContent = [];
                 }
             } catch (parseError) {
-                console.error(`Error parsing existing ${FILE_PATH}:`, parseError);
-                existingNews = [];
+                console.error(`Error parsing JSON from existing ${FILE_PATH}:`, parseError);
+                currentFileContent = []; // En cas d'erreur de parsing, on repart d'un tableau vide
             }
-            console.log(`Existing ${FILE_PATH} found. SHA: ${currentSha}`);
-
+            console.log(`Successfully retrieved existing ${FILE_PATH}. Items: ${currentFileContent.length}`);
         } else if (responseGet.status === 404) {
-            console.log(`${FILE_PATH} not found, will create it.`);
+            console.log(`${FILE_PATH} not found. A new file will be created.`);
+            // fileSha reste null, ce qui est correct pour la création
         } else {
             const errorText = await responseGet.text();
             throw new Error(`GitHub getContents failed: ${responseGet.status} ${responseGet.statusText} - ${errorText}`);
         }
 
     } catch (error) {
-        console.error('Error retrieving existing file from GitHub:', error);
+        console.error('Failed to retrieve news file from GitHub:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: 'Failed to retrieve existing news file from GitHub.', details: error.message }),
+            body: JSON.stringify({ message: 'Failed to retrieve news data.', details: error.message }),
         };
     }
 
-    // --- LOGIQUE DE GESTION DES ARTICLES (AJOUT, SUPPRESSION, VIEILLISSEMENT) ---
-    let updatedNews = existingNews; // On part des articles existants non filtrés pour la suppression par timestamp
+    // --- MANIPULATION DES DONNÉES (AJOUT, SUPPRESSION, FILTRAGE PAR ÂGE, LIMITATION) ---
+    let updatedNewsArray = [...currentFileContent]; // Crée une copie pour travailler dessus
 
-    // 1. Traiter l'action demandée
     if (actionType === 'add') {
-        updatedNews.unshift({
+        // Ajoute le nouvel article en haut avec un timestamp frais
+        updatedNewsArray.unshift({
             title: incomingData.title,
             pole: incomingData.pole,
             collaborateur: incomingData.collaborateur,
             color: incomingData.color,
-            timestamp: new Date().toISOString() // Ajoute un horodatage pour le tri et la durée de vie
+            timestamp: new Date().toISOString()
         });
-        console.log("New item added.");
+        console.log("New item added to array.");
     } else if (actionType === 'delete') {
-        // CHANGEMENT ICI : Filtrer pour supprimer par timestamp
-        const initialLength = updatedNews.length;
-        updatedNews = updatedNews.filter(item => item.timestamp !== timestampToDelete);
-        if (updatedNews.length < initialLength) {
-            console.log(`Item with timestamp ${timestampToDelete} deleted.`);
+        // Filtre pour supprimer l'article par son timestamp unique
+        const initialLength = updatedNewsArray.length;
+        updatedNewsArray = updatedNewsArray.filter(item => item.timestamp !== timestampToDelete);
+        if (updatedNewsArray.length < initialLength) {
+            console.log(`Item with timestamp ${timestampToDelete} deleted from array.`);
         } else {
-            console.warn(`Item with timestamp ${timestampToDelete} not found for deletion.`);
+            console.warn(`Item with timestamp ${timestampToDelete} not found in array for deletion.`);
         }
     }
 
-    // 2. Filtrer les articles de plus de 48 heures (2 jours) - APPLIQUÉ APRÈS AJOUT/SUPPRESSION
+    // Filtrer les articles de plus de 48 heures (2 jours) - APPLIQUÉ APRÈS LES OPÉRATIONS ADD/DELETE
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-    updatedNews = updatedNews.filter(item => {
+    const beforeFilterCount = updatedNewsArray.length;
+    updatedNewsArray = updatedNewsArray.filter(item => {
         return !item.timestamp || new Date(item.timestamp) > fortyEightHoursAgo;
     });
-    console.log(`Filtered out old items. Remaining after age filter: ${updatedNews.length}`);
+    console.log(`Filtered out ${beforeFilterCount - updatedNewsArray.length} old items. Remaining: ${updatedNewsArray.length}`);
 
 
-    // 3. Limiter le nombre total d'articles (après ajout/suppression et vieillissement)
-    const MAX_NEWS_ITEMS = 20; // Maximum d'articles à conserver dans le fichier
-    if (updatedNews.length > MAX_NEWS_ITEMS) {
-        updatedNews = updatedNews.slice(0, MAX_NEWS_ITEMS);
+    // Limiter le nombre total d'articles (après toutes les manipulations)
+    const MAX_NEWS_ITEMS = 20; // Nombre maximum d'articles à conserver dans le fichier
+    if (updatedNewsArray.length > MAX_NEWS_ITEMS) {
+        updatedNewsArray = updatedNewsArray.slice(0, MAX_NEWS_ITEMS);
         console.log(`Trimmed news list to ${MAX_NEWS_ITEMS} items.`);
     }
+    
+    // Trier les actualités par timestamp (du plus récent au plus ancien) avant de sauvegarder
+    updatedNewsArray.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+
 
     // --- Sauvegarder le fichier mis à jour sur GitHub ---
     try {
@@ -146,13 +154,13 @@ exports.handler = async (event, context) => {
         
         const payload = {
             message: `Update news feed (action: ${actionType}) [skip ci]`,
-            content: Buffer.from(JSON.stringify(updatedNews, null, 2)).toString('base64'),
-            sha: currentSha,
+            content: Buffer.from(JSON.stringify(updatedNewsArray, null, 2)).toString('base64'), // Sauvegarde un tableau JSON valide
+            sha: fileSha, // Le SHA de l'ancienne version, null si nouveau fichier
             branch: BRANCH,
         };
 
         const responseUpdate = await fetch(updateContentsUrl, {
-            method: 'PUT',
+            method: 'PUT', // PUT pour créer ou mettre à jour
             headers: {
                 'Authorization': `token ${GITHUB_TOKEN}`,
                 'Accept': 'application/vnd.github.v3+json',
@@ -176,7 +184,7 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
-        console.error('Error creating/updating file on GitHub:', error);
+        console.error('Failed to save news to GitHub:', error);
         return {
             statusCode: 500,
             body: JSON.stringify({ message: 'Failed to save news to GitHub.', details: error.message }),
