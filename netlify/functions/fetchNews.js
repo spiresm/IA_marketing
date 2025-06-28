@@ -1,3 +1,6 @@
+// netlify/functions/fetchNews.js
+
+// Utilisez la syntaxe 'import' pour toutes les dépendances
 import fetch from 'node-fetch';
 import { parseStringPromise } from 'xml2js';
 
@@ -10,7 +13,11 @@ const RSS_FEEDS = [
     { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" }
 ];
 
-exports.handler = async (event, context) => {
+// ***********************************************************************************
+// CORRECTION TRÈS IMPORTANTE ICI :
+// Remplacez 'exports.handler = async (event, context) => {' par la ligne ci-dessous :
+export async function handler(event, context) { 
+// ***********************************************************************************
     try {
         let allArticles = [];
 
@@ -25,26 +32,25 @@ exports.handler = async (event, context) => {
                 const xml = await response.text();
                 
                 // Parsing du XML en JavaScript Object
-                const result = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true }); // explicitArray: false pour éviter les tableaux à un élément
+                const result = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true }); 
 
                 // Vérification de la structure du flux et extraction des articles
                 if (result.rss && result.rss.channel && result.rss.channel.item) {
-                    // Assurez-vous que item est toujours un tableau
                     const items = Array.isArray(result.rss.channel.item) ? result.rss.channel.item : [result.rss.channel.item];
 
                     const articles = items.map(item => ({
                         title: item.title || 'Titre inconnu',
                         url: item.link || '#',
-                        pubDate: item.pubDate || new Date().toISOString(), // Date de publication
-                        source: feed.name // Nom de la source
+                        pubDate: item.pubDate || new Date().toISOString(), 
+                        source: feed.name 
                     }));
                     allArticles = allArticles.concat(articles);
                 } else if (result.feed && result.feed.entry) { // Gérer aussi les flux Atom (type <feed>)
                     const items = Array.isArray(result.feed.entry) ? result.feed.entry : [result.feed.entry];
                     const articles = items.map(item => ({
                         title: item.title || 'Titre inconnu',
-                        url: item.link && item.link.$ && item.link.$.href ? item.link.$.href : '#',
-                        pubDate: item.updated || new Date().toISOString(), // Atom utilise 'updated' ou 'published'
+                        url: item.link && item.link.$ && item.link.$.href ? item.link.$.href : '#', 
+                        pubDate: item.updated || new Date().toISOString(), 
                         source: feed.name
                     }));
                     allArticles = allArticles.concat(articles);
@@ -57,10 +63,7 @@ exports.handler = async (event, context) => {
             }
         }
 
-        // Trier tous les articles par date de publication (du plus récent au plus ancien)
         allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-
-        // Limiter au top X articles (ex: les 15 plus récents)
         const topArticles = allArticles.slice(0, 15); 
 
         return {
@@ -68,7 +71,7 @@ exports.handler = async (event, context) => {
             headers: {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*", 
-                "Cache-Control": "public, max-age=3600, must-revalidate" // Cache la réponse pendant 1 heure pour éviter les abus
+                "Cache-Control": "public, max-age=3600, must-revalidate"
             },
             body: JSON.stringify(topArticles),
         };
@@ -84,4 +87,4 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({ error: "Failed to fetch IA news due to internal server error", details: error.message }),
         };
     }
-};
+}
