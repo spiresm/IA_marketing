@@ -24,27 +24,27 @@ exports.handler = async (event, context) => {
     }
 
     let actionType = 'add'; // 'add' ou 'delete'
-    let incomingData;
-    let indexToDelete = -1;
+    let incomingData; // pour 'add'
+    let timestampToDelete = null; // <-- CHANGEMENT : Utilise le timestamp pour la suppression
 
     try {
         const body = JSON.parse(event.body);
-        if (body.action === 'delete' && typeof body.index === 'number') {
+        if (body.action === 'delete' && typeof body.timestamp === 'string') { // <-- CHANGEMENT : Attend 'timestamp'
             actionType = 'delete';
-            indexToDelete = body.index;
-            console.log(`Action: Delete item at index ${indexToDelete}`);
+            timestampToDelete = body.timestamp;
+            console.log(`Action: Delete item with timestamp ${timestampToDelete}`);
         } else {
             incomingData = body; // Un nouvel article à ajouter
             if (typeof incomingData !== 'object' || incomingData === null || Array.isArray(incomingData)) {
                 throw new Error('Invalid input: body must be a single news item object for add action.');
             }
-            if (!incomingData.title || !incomingData.pole || !incomingData.color || !incomingData.collaborateur) { // Assurez-vous que collaborateur est là
+            if (!incomingData.title || !incomingData.pole || !incomingData.collaborateur || !incomingData.color) {
                 throw new Error('Missing required fields: title, pole, collaborateur, and color are mandatory for add action.');
             }
             console.log("Action: Add new item.");
         }
     } catch (error) {
-        console.error('Invalid JSON body or missing action/index:', error);
+        console.error('Invalid JSON body or missing action/timestamp/data:', error);
         return {
             statusCode: 400,
             body: JSON.stringify({ message: 'Invalid JSON format or data structure.', details: error.message }),
@@ -55,7 +55,6 @@ exports.handler = async (event, context) => {
     let currentSha = null;
 
     try {
-        // --- Récupérer le contenu existant du fichier (si il existe) ---
         const getContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`;
         const responseGet = await fetch(getContentsUrl, {
             method: 'GET',
@@ -79,7 +78,7 @@ exports.handler = async (event, context) => {
                     existingNews = Object.values(parsedContent);
                     console.warn(`Existing ${FILE_PATH} was an object, converted to array.`);
                 } else {
-                    existingNews = []; // Fallback si le contenu est invalide
+                    existingNews = [];
                 }
             } catch (parseError) {
                 console.error(`Error parsing existing ${FILE_PATH}:`, parseError);
@@ -103,17 +102,9 @@ exports.handler = async (event, context) => {
     }
 
     // --- LOGIQUE DE GESTION DES ARTICLES (AJOUT, SUPPRESSION, VIEILLISSEMENT) ---
-    let updatedNews = [];
+    let updatedNews = existingNews; // On part des articles existants non filtrés pour la suppression par timestamp
 
-    // 1. Filtrer les articles de plus de 48 heures (2 jours)
-    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-    updatedNews = existingNews.filter(item => {
-        // Garder les articles qui n'ont pas de timestamp (anciens) ou qui sont plus récents que 48h
-        return !item.timestamp || new Date(item.timestamp) > fortyEightHoursAgo;
-    });
-    console.log(`Filtered out old items. Remaining: ${updatedNews.length}`);
-
-    // 2. Traiter l'action demandée
+    // 1. Traiter l'action demandée
     if (actionType === 'add') {
         updatedNews.unshift({
             title: incomingData.title,
@@ -124,13 +115,23 @@ exports.handler = async (event, context) => {
         });
         console.log("New item added.");
     } else if (actionType === 'delete') {
-        if (indexToDelete >= 0 && indexToDelete < updatedNews.length) {
-            updatedNews.splice(indexToDelete, 1);
-            console.log(`Item at index ${indexToDelete} deleted.`);
+        // CHANGEMENT ICI : Filtrer pour supprimer par timestamp
+        const initialLength = updatedNews.length;
+        updatedNews = updatedNews.filter(item => item.timestamp !== timestampToDelete);
+        if (updatedNews.length < initialLength) {
+            console.log(`Item with timestamp ${timestampToDelete} deleted.`);
         } else {
-            console.warn(`Attempted to delete invalid index: ${indexToDelete}`);
+            console.warn(`Item with timestamp ${timestampToDelete} not found for deletion.`);
         }
     }
+
+    // 2. Filtrer les articles de plus de 48 heures (2 jours) - APPLIQUÉ APRÈS AJOUT/SUPPRESSION
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    updatedNews = updatedNews.filter(item => {
+        return !item.timestamp || new Date(item.timestamp) > fortyEightHoursAgo;
+    });
+    console.log(`Filtered out old items. Remaining after age filter: ${updatedNews.length}`);
+
 
     // 3. Limiter le nombre total d'articles (après ajout/suppression et vieillissement)
     const MAX_NEWS_ITEMS = 20; // Maximum d'articles à conserver dans le fichier
@@ -144,9 +145,9 @@ exports.handler = async (event, context) => {
         const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         
         const payload = {
-            message: `Update news feed (action: ${actionType}) [skip ci]`, // Message plus descriptif
+            message: `Update news feed (action: ${actionType}) [skip ci]`,
             content: Buffer.from(JSON.stringify(updatedNews, null, 2)).toString('base64'),
-            sha: currentSha, // SHA reste celui du fichier d'origine, même si le contenu change
+            sha: currentSha,
             branch: BRANCH,
         };
 
