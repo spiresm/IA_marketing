@@ -27,13 +27,13 @@ exports.handler = async (event, context) => {
         };
     }
 
-    let timestampToDelete; // Seule donnée attendue pour cette fonction
+    let timestampToDelete;
 
     try {
         const body = JSON.parse(event.body);
         if (typeof body.timestamp === 'string') {
             timestampToDelete = body.timestamp;
-            console.log(`Parsed timestampToDelete: ${timestampToDelete}`);
+            console.log(`Parsed timestampToDelete (string): ${timestampToDelete}`);
         } else {
             console.error("DELETE action: Missing or invalid timestamp in payload. Payload:", body);
             throw new Error('Invalid input for delete action: expected a string timestamp.');
@@ -50,7 +50,6 @@ exports.handler = async (event, context) => {
     let fileSha = null;
 
     try {
-        // --- Récupérer le contenu actuel du fichier news-data.json ---
         const getContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`;
         const responseGet = await fetch(getContentsUrl, {
             method: 'GET',
@@ -71,7 +70,7 @@ exports.handler = async (event, context) => {
                 if (Array.isArray(parsedContent)) {
                     currentFileContent = parsedContent;
                 } else if (typeof parsedContent === 'object' && parsedContent !== null) {
-                    currentFileContent = Object.values(parsedContent); // Convertir l'objet en tableau
+                    currentFileContent = Object.values(parsedContent);
                     console.warn(`Existing ${FILE_PATH} was an object, converted to array for processing.`);
                 } else {
                     console.warn(`Existing ${FILE_PATH} content was not an array or object, initializing empty array.`);
@@ -83,7 +82,6 @@ exports.handler = async (event, context) => {
             }
             console.log(`Successfully retrieved existing ${FILE_PATH}. Items: ${currentFileContent.length}`);
         } else if (responseGet.status === 404) {
-            // Si le fichier n'existe pas, il n'y a rien à supprimer.
             console.log(`${FILE_PATH} not found. Cannot delete from non-existent file.`);
             return {
                 statusCode: 404,
@@ -106,11 +104,23 @@ exports.handler = async (event, context) => {
     let updatedNewsArray = [...currentFileContent];
 
     const initialLength = updatedNewsArray.length;
-    updatedNewsArray = updatedNewsArray.filter(item => item.timestamp !== timestampToDelete);
+    
+    // CHANGEMENT CRUCIAL ICI : Comparaison des timestamps comme des nombres (ms depuis l'époque)
+    const payloadTimestampMs = new Date(timestampToDelete).getTime(); // Convertit le timestamp reçu en nombre
+    
+    updatedNewsArray = updatedNewsArray.filter(item => {
+        // Logique de débogage pour voir les comparaisons
+        const itemTimestampMs = new Date(item.timestamp || '').getTime();
+        console.log(`Comparing item: ${item.title} (ts: ${item.timestamp || 'N/A'}, ms: ${itemTimestampMs}) with delete_ts: ${timestampToDelete} (ms: ${payloadTimestampMs}). Match: ${itemTimestampMs === payloadTimestampMs}`);
+        
+        // Garde l'élément si son timestamp ne correspond PAS à celui à supprimer
+        return itemTimestampMs !== payloadTimestampMs;
+    });
+
     if (updatedNewsArray.length < initialLength) {
-        console.log(`Item with timestamp ${timestampToDelete} deleted from array.`);
+        console.log(`Item with timestamp ${timestampToDelete} successfully deleted.`);
     } else {
-        console.warn(`Item with timestamp ${timestampToDelete} not found in array for deletion.`);
+        console.warn(`Item with timestamp ${timestampToDelete} not found in array for deletion. No item removed.`);
         return {
             statusCode: 404,
             body: JSON.stringify({ message: 'Item not found in news feed for deletion.' }),
