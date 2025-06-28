@@ -362,15 +362,23 @@
         .news-item-display .delete-item-btn:hover {
             transform: scale(1.2);
         }
-        .news-item-display .item-details {
+        /* NOUVEAU STYLE POUR news-item-meta-details */
+        .news-item-meta-details {
             font-size: 0.8em;
             color: #888;
             white-space: nowrap; 
             text-align: right;
             min-width: 150px; 
+            display: flex; /* Utilise flexbox pour aligner verticalement les spans */
+            flex-direction: column; /* Les empile verticalement */
+            align-items: flex-end; /* Aligner les éléments à droite */
+            margin-left: 10px; /* Espace par rapport au texte principal */
         }
-        .news-item-display .item-details strong {
+        .news-item-meta-details strong {
             font-weight: bold;
+        }
+        .news-item-meta-details .item-details-line { /* Pour chaque ligne de détails */
+            white-space: nowrap;
         }
 
 
@@ -393,10 +401,11 @@
                 margin-bottom: 5px;
                 width: 100%; 
             }
-            .news-item-display .item-details {
+            .news-item-meta-details { /* Ajustement pour mobile */
                 text-align: left;
                 width: 100%;
                 min-width: unset;
+                margin-left: 0;
             }
             .news-item-display .delete-item-btn {
                 position: absolute; 
@@ -638,7 +647,7 @@
 
                 const result = await response.json();
                 showMessage(`Actualité supprimée avec succès ! Le site sera mis à jour dans quelques minutes. (${result.message})`, 'success');
-                loadCurrentNewsItems(); 
+                loadCurrentNewsItems(); // Recharger la liste après une suppression
 
             } catch (error) {
                 showMessage(`Erreur lors de la suppression : ${error.message}`, 'error');
@@ -683,15 +692,21 @@
                         const diffHours = Math.floor((now - itemAge) / (1000 * 60 * 60));
                         const remainingHours = 48 - diffHours;
                         
-                        const details = [];
-                        if (item.pole) details.push(item.pole);
-                        if (item.collaborateur) details.push(`par ${item.collaborateur}`);
+                        // CONSTRUIRE LE CONTENU SELON LE FORMAT SOUHAITÉ
+                        let itemTitleHtml = `<span style="color: ${item.color || '#333'};">${item.title || 'Titre inconnu'}</span>`;
+                        let itemMetaDetails = '';
+                        if (item.collaborateur || item.pole) {
+                            let details = [];
+                            if (item.collaborateur) details.push(item.collaborateur); // Collaborateur d'abord
+                            if (item.pole) details.push(`<i>${item.pole}</i>`); // Pôle en italique
+                            itemMetaDetails = ` <span class="news-item-meta-details">(${details.join(' ')})</span>`; // Appliquer la classe pour les styles
+                        }
                         
                         li.innerHTML = `
-                            <span class="news-text" style="color: ${item.color || '#333'};">${item.title}</span>
+                            <span class="news-text">${itemTitleHtml}${itemMetaDetails}</span>
                             <div style="text-align: right;">
-                                <span class="item-details">${details.join(' ')}</span><br>
-                                <span class="item-details">Il y a ${diffHours}h (${remainingHours}h restantes)</span>
+                                <span class="item-details-line">Il y a ${diffHours}h</span>
+                                <span class="item-details-line">(${remainingHours}h restantes)</span>
                             </div>
                             <button class="delete-item-btn" title="Supprimer ce message">
                                 <i class="fas fa-trash-alt"></i>
