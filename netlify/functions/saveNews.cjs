@@ -24,49 +24,56 @@ exports.handler = async (event, context) => {
     }
 
     let actionType;
-    let payloadData; // Contient les données pertinentes de la requête (message pour 'add', timestamp pour 'delete')
+    let requestPayload; // Contient les données JSON parsées du corps de la requête
 
     try {
-        const body = JSON.parse(event.body);
-
-        // --- Détection claire de l'action ---
-        if (body.action === 'delete' && typeof body.timestamp === 'string') {
-            actionType = 'delete';
-            payloadData = { timestamp: body.timestamp }; // On extrait juste le timestamp
-            console.log(`Detected action: DELETE for timestamp: ${payloadData.timestamp}`);
-        } else {
-            actionType = 'add'; // Action par défaut si ce n'est pas 'delete'
-            payloadData = body; // Le corps entier est le nouvel article
-            console.log("Detected action: ADD new item.");
-
-            // --- Validation pour l'action 'add' ---
-            if (typeof payloadData !== 'object' || payloadData === null || Array.isArray(payloadData)) {
-                throw new Error('Invalid input for add action: expected a single news item object.');
-            }
-            if (!payloadData.title || !payloadData.pole || !payloadData.collaborateur || !payloadData.color) {
-                // S'assurer que tous les champs nécessaires pour un ajout sont là
-                throw new Error('Missing required fields for add action: title, pole, collaborateur, color.');
-            }
-        }
+        requestPayload = JSON.parse(event.body);
     } catch (error) {
-        console.error('Error parsing request body or invalid action payload:', error);
+        console.error('Error parsing request body:', error);
         return {
             statusCode: 400,
-            body: JSON.stringify({ message: 'Invalid request payload.', details: error.message }),
+            body: JSON.stringify({ message: 'Invalid JSON format in request body.', details: error.message }),
         };
     }
+
+    // --- Détection et Validation de l'action ---
+    if (requestPayload && requestPayload.action === 'delete' && typeof requestPayload.timestamp === 'string') {
+        actionType = 'delete';
+        // Aucune validation supplémentaire du contenu de 'payloadData' n'est nécessaire pour 'delete'
+        console.log(`Detected action: DELETE for timestamp: ${requestPayload.timestamp}`);
+    } else {
+        actionType = 'add'; // Action par défaut si ce n'est pas 'delete'
+        console.log("Detected action: ADD new item.");
+
+        // --- Validation spécifique pour l'action 'add' ---
+        if (typeof requestPayload !== 'object' || requestPayload === null || Array.isArray(requestPayload)) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'Invalid input for add action: expected a single news item object.' }),
+            };
+        }
+        if (!requestPayload.title || !requestPayload.pole || !requestPayload.collaborateur || !requestPayload.color) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'Missing required fields for add action: title, pole, collaborateur, color.' }),
+            };
+        }
+    }
+
+    // Maintenant, 'actionType' est correctement défini et 'requestPayload' contient les données validées
+    // pour l'action correspondante.
 
     let currentFileContent = [];
     let fileSha = null;
 
     try {
-        // --- Récupérer le contenu actuel du fichier news-data.json ---
+        // --- Tenter de récupérer le contenu actuel du fichier news-data.json ---
         const getContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`;
         const responseGet = await fetch(getContentsUrl, {
             method: 'GET',
             headers: {
                 'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.com.v3+json', // Utiliser la bonne version de l'API
+                'Accept': 'application/vnd.github.com.v3+json', // Utiliser la bonne version de l'API Accept
                 'User-Agent': 'Netlify-Function'
             },
         });
@@ -81,7 +88,7 @@ exports.handler = async (event, context) => {
                 if (Array.isArray(parsedContent)) {
                     currentFileContent = parsedContent;
                 } else if (typeof parsedContent === 'object' && parsedContent !== null) {
-                    currentFileContent = Object.values(parsedContent);
+                    currentFileContent = Object.values(parsedContent); // Convertir l'objet en tableau
                     console.warn(`Existing ${FILE_PATH} was an object, converted to array for processing.`);
                 } else {
                     console.warn(`Existing ${FILE_PATH} content was not an array or object, initializing empty array.`);
@@ -108,26 +115,24 @@ exports.handler = async (event, context) => {
     }
 
     // --- MANIPULATION DES DONNÉES (AJOUT, SUPPRESSION, FILTRAGE PAR ÂGE, LIMITATION) ---
-    let updatedNewsArray = [...currentFileContent]; // Crée une copie pour travailler dessus
+    let updatedNewsArray = [...currentFileContent];
 
     if (actionType === 'add') {
-        // Ajoute le nouvel article en haut avec un timestamp frais
         updatedNewsArray.unshift({
-            title: payloadData.title,
-            pole: payloadData.pole,
-            collaborateur: payloadData.collaborateur,
-            color: payloadData.color,
+            title: requestPayload.title, // Utilise payloadData pour l'ajout
+            pole: requestPayload.pole,
+            collaborateur: requestPayload.collaborateur,
+            color: requestPayload.color,
             timestamp: new Date().toISOString()
         });
         console.log("New item added to array.");
     } else if (actionType === 'delete') {
-        // Filtre pour supprimer l'article par son timestamp unique
         const initialLength = updatedNewsArray.length;
-        updatedNewsArray = updatedNewsArray.filter(item => item.timestamp !== payloadData.timestamp);
+        updatedNewsArray = updatedNewsArray.filter(item => item.timestamp !== requestPayload.timestamp); // Utilise payloadData pour la suppression
         if (updatedNewsArray.length < initialLength) {
-            console.log(`Item with timestamp ${payloadData.timestamp} deleted from array.`);
+            console.log(`Item with timestamp ${requestPayload.timestamp} deleted from array.`);
         } else {
-            console.warn(`Item with timestamp ${payloadData.timestamp} not found in array for deletion.`);
+            console.warn(`Item with timestamp ${requestPayload.timestamp} not found in array for deletion.`);
         }
     }
 
@@ -141,7 +146,7 @@ exports.handler = async (event, context) => {
 
 
     // Limiter le nombre total d'articles (après toutes les manipulations)
-    const MAX_NEWS_ITEMS = 20; // Nombre maximum d'articles à conserver dans le fichier
+    const MAX_NEWS_ITEMS = 20; 
     if (updatedNewsArray.length > MAX_NEWS_ITEMS) {
         updatedNewsArray = updatedNewsArray.slice(0, MAX_NEWS_ITEMS);
         console.log(`Trimmed news list to ${MAX_NEWS_ITEMS} items.`);
@@ -156,7 +161,7 @@ exports.handler = async (event, context) => {
         const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         
         const payload = {
-            message: `News feed update (${actionType}) [skip ci]`, // Message plus descriptif
+            message: `News feed update (${actionType}) [skip ci]`,
             content: Buffer.from(JSON.stringify(updatedNewsArray, null, 2)).toString('base64'),
             sha: fileSha,
             branch: BRANCH,
