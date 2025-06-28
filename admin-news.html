@@ -146,7 +146,7 @@
             width: 100%;
         }
         .menu-container {
-            max-width: 1200px;
+            max-width: 1200px; /* C'est la largeur de référence de votre menu */
             margin: 0 auto;
             padding: 0 30px;
             box-sizing: border-box;
@@ -236,12 +236,13 @@
             padding: 20px; 
             background-color: var(--background-grey); 
         }
-        /* NOUVEAU WRAPPER POUR LES DEUX BOX CÔTE À CÔTE */
+
+        /* >>> DÉBUT DES STYLES POUR LES DEUX BOX CÔTE À CÔTE ET LE MESSAGE AU-DESSUS <<< */
         .admin-panels-wrapper {
             display: flex;
             flex-wrap: wrap; /* Permet aux éléments de passer à la ligne sur petits écrans */
             gap: 30px; /* Espace entre les deux boîtes */
-            max-width: 1200px; /* Largeur maximale pour l'ensemble des panneaux */
+            max-width: 1200px; /* <<<< C'est ici que la largeur est limitée pour correspondre au menu >>>> */
             margin: 40px auto; /* Centrer le wrapper principal */
             justify-content: center; /* Centrer les panneaux s'ils ne remplissent pas la max-width */
             align-items: flex-start; /* Aligner les éléments au début (haut) */
@@ -268,6 +269,20 @@
             margin: 0; /* Les marges externes sont gérées par le gap du wrapper */
         }
         
+        .message-box {
+            padding: 15px;
+            margin-top: 20px; 
+            margin-bottom: 20px; 
+            border-radius: 5px;
+            font-weight: bold;
+            display: none; 
+            text-align: center; 
+            margin-left: auto; 
+            margin-right: auto;
+            max-width: 600px; /* Une largeur raisonnable pour le message, centrée */
+        }
+        /* <<< FIN DES STYLES POUR LES DEUX BOX CÔTE À CÔTE ET LE MESSAGE AU-DESSUS >>> */
+
         h1, h2 { 
             text-align: center;
             color: var(--primary-blue);
@@ -317,18 +332,6 @@
         .btn:disabled {
             background-color: #a0a0a0;
             cursor: not-allowed;
-        }
-        .message-box {
-            padding: 15px;
-            margin-top: 20px; /* Espace au-dessus du message box */
-            margin-bottom: 20px; 
-            border-radius: 5px;
-            font-weight: bold;
-            display: none; 
-            text-align: center; 
-            margin-left: auto; 
-            margin-right: auto;
-            max-width: 600px; /* Adapte à la largeur du container pour une meilleure harmonie */
         }
         .message-box.success {
             background-color: #d4edda;
@@ -383,9 +386,10 @@
         .news-item-display .delete-item-btn:hover {
             transform: scale(1.2);
         }
+        /* NOUVEAU STYLE POUR news-item-meta-details */
         .news-item-meta-details {
             font-size: 0.8em;
-            color: #888; 
+            color: #888; /* Couleur par défaut si pas de couleur spécifique */
             white-space: nowrap; 
             text-align: right;
             min-width: 150px; 
@@ -412,7 +416,7 @@
             .container,
             .current-news-section {
                 width: 100%; 
-                max-width: 600px; /* Maintient une largeur maximale */
+                max-width: 600px; /* Maintient une largeur maximale raisonnable sur les écrans plus petits */
             }
         }
         @media (max-width: 768px) {
@@ -567,10 +571,9 @@
             messageBox.textContent = message;
             messageBox.className = `message-box ${type}`;
             messageBox.style.display = 'block';
-            // Le message reste visible 5s, puis la redirection prend le relais
-            // Si la redirection est instantanée, le message n'est pas vu.
-            // On s'assure qu'il soit visible au moins pendant la redirection si celle-ci prend du temps.
-            // Pour une redirection immédiate après 3s, la <div> de message reste visible 5s, c'est OK.
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 5000); 
         }
 
         function populateSelectors() {
@@ -704,7 +707,7 @@
         async function loadCurrentNewsItems() {
             currentNewsList.innerHTML = '<li>Chargement des messages actuels...</li>';
             try {
-                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); // Ajout d'un timestamp pour éviter le cache
+                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); 
                 if (response.ok) {
                     let newsItems = await response.json();
                     if (!Array.isArray(newsItems)) {
@@ -742,43 +745,49 @@
                         if (item.collaborateur && item.collaborateur !== 'Non spécifié' || item.pole && item.pole !== 'Autre') { 
                             let detailsParts = [];
                             if (item.collaborateur && item.collaborateur !== 'Non spécifié') detailsParts.push(item.collaborateur); 
-                            if (item.pole && item.pole !== 'Autre') detailsParts.push(`<i>${item.pole}</i>`); 
-                            itemMetaDetailsHtml = ` <span class="news-item-meta-details">(${detailsParts.join(' - ')})</span>`; 
+                            if (item.pole && item.pole !== 'Autre') detailsParts.push(`<i>${item.pole}</i>`);
+                            itemMetaDetailsHtml = `<div class="news-item-meta-details">
+                                <span class="item-details-line">${detailsParts.join(' - ')}</span>
+                                <span class="item-details-line">Reste: ${remainingHours}h</span>
+                            </div>`;
+                        } else {
+                            itemMetaDetailsHtml = `<div class="news-item-meta-details">
+                                <span class="item-details-line">Reste: ${remainingHours}h</span>
+                            </div>`;
                         }
-                        
+
                         li.innerHTML = `
-                            <span class="news-text">${itemTitleHtml}${itemMetaDetailsHtml}</span>
-                            <div class="news-item-meta-details">
-                                <span class="item-details-line">Il y a ${diffHours}h</span>
-                                <span class="item-details-line">(${remainingHours}h restantes)</span>
-                            </div>
-                            <button class="delete-item-btn" title="Supprimer ce message">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
+                            <div class="news-text">${itemTitleHtml}</div>
+                            ${itemMetaDetailsHtml}
+                            <button class="delete-item-btn" data-timestamp="${item.timestamp}" aria-label="Supprimer l'actualité"><i class="fas fa-trash-alt"></i></button>
                         `;
-                        const deleteButton = li.querySelector('.delete-item-btn');
-                        deleteButton.addEventListener('click', () => deleteNewsItem(item.timestamp)); 
                         currentNewsList.appendChild(li);
                     });
-                    showMessage('Liste des messages actualisée.', 'success');
+
+                    document.querySelectorAll('.delete-item-btn').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const timestamp = e.currentTarget.dataset.timestamp;
+                            deleteNewsItem(timestamp);
+                        });
+                    });
 
                 } else if (response.status === 404) {
                     currentNewsList.innerHTML = '<li>Aucun message actif dans le flux pour le moment.</li>';
                 } else {
-                    throw new Error(`Erreur lors du chargement des messages : ${response.status} ${response.statusText}`);
+                    throw new Error(`Erreur lors du chargement des news: ${response.status} ${response.statusText}`);
                 }
             } catch (error) {
-                currentNewsList.innerHTML = '<li>Erreur lors du chargement des messages.</li>';
-                showMessage(`Erreur lors du chargement des messages : ${error.message}`, 'error');
-                console.error("Erreur de chargement des messages actuels:", error);
+                console.error("Erreur lors du chargement des actualités:", error);
+                currentNewsList.innerHTML = `<li>Erreur lors du chargement des actualités : ${error.message}</li>`;
             }
         }
 
-
-        // Charger les composants header et footer
-        async function loadComponents() {
+        // --- Initialisation ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Charger le header et le footer
             const headerPlaceholder = document.getElementById("header-placeholder");
             const footerPlaceholder = document.getElementById("footer-placeholder");
+            
             try {
                 const headerResponse = await fetch("header.html");
                 if (headerResponse.ok) {
@@ -795,7 +804,7 @@
                         <div class="nav-wrapper">
                             <div class="menu-container">
                                 <nav>
-                                    <a href="index.html">Accueil</a>
+                                    <a href="index.html" class="active">Accueil</a>
                                     <a href="equipe.html">Équipe</a>
                                     <a href="outils.html">Outils IA</a>
                                     <a href="galerie.html">Galerie</a>
@@ -807,7 +816,7 @@
                                         Demandes IA
                                         <span class="notif-bubble" id="notif-count">0</span>
                                     </a>
-                                    <a href="admin-news.html" class="active">Admin News</a>
+                                    <a href="admin-news.html">Admin News</a>
                                     <a href="gestion-license.html">Licenses</a>
                                 </nav>
                             </div>
@@ -822,7 +831,55 @@
                     console.error("Erreur de chargement du footer.html:", footerResponse.statusText);
                     footerPlaceholder.innerHTML = `<div class="footer">© 2025 Espace IA Marketing. Tous droits réservés.</div>`;
                 }
-                
+
+                // Initialiser le mode sombre après le chargement du header
+                const darkModeToggle = document.getElementById('darkModeToggle');
+                if (darkModeToggle) {
+                    // Assurez-vous que initializeDarkMode est définie globalement ou incluse ici
+                    function initializeDarkMode() {
+                        const savedTheme = localStorage.getItem('theme');
+                        if (savedTheme) {
+                            document.body.classList.add(savedTheme);
+                            if (savedTheme === 'dark-mode') {
+                                darkModeToggle.checked = true;
+                            }
+                        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                            document.body.classList.add('dark-mode');
+                            darkModeToggle.checked = true;
+                        } else {
+                            document.body.classList.add('light-mode');
+                        }
+
+                        darkModeToggle.addEventListener('change', () => {
+                            if (darkModeToggle.checked) {
+                                document.body.classList.remove('light-mode');
+                                document.body.classList.add('dark-mode');
+                                localStorage.setItem('theme', 'dark-mode');
+                            } else {
+                                document.body.classList.remove('dark-mode');
+                                document.body.classList.add('light-mode');
+                                localStorage.setItem('theme', 'light-mode');
+                            }
+                        });
+
+                        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                            if (!localStorage.getItem('theme')) {
+                                if (event.matches) {
+                                    document.body.classList.remove('light-mode');
+                                    document.body.classList.add('dark-mode');
+                                    darkModeToggle.checked = true;
+                                } else {
+                                    document.body.classList.remove('dark-mode');
+                                    document.body.classList.add('light-mode');
+                                    darkModeToggle.checked = false;
+                                }
+                            }
+                        });
+                    }
+                    initializeDarkMode();
+                }
+
+                // Mettre à jour la classe active de la navigation
                 const currentPath = window.location.pathname.split('/').pop();
                 document.querySelectorAll('nav a').forEach(link => {
                     const linkHref = link.getAttribute('href');
@@ -834,23 +891,19 @@
                     }
                 });
 
-                // initializeDarkMode(); 
-                
             } catch (error) {
-                console.error("Erreur lors du chargement des composants:", error);
+                console.error("Erreur lors du chargement des composants header/footer:", error);
             }
-        }
 
-        // Initialisation à l'ouverture de la page
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadComponents();
             populateSelectors();
-            poleSelect.addEventListener('change', updateCollaborators);
+            loadCurrentNewsItems();
+
             newsForm.addEventListener('submit', addNewsItem);
-            refreshNewsListButton.addEventListener('click', loadCurrentNewsItems); 
-            
-            loadCurrentNewsItems(); 
-            document.body.style.opacity = "1"; 
+            poleSelect.addEventListener('change', updateCollaborators);
+            refreshNewsListButton.addEventListener('click', loadCurrentNewsItems);
+
+            // Rendre le body visible une fois que tout est chargé
+            document.body.style.opacity = '1';
         });
     </script>
 </body>
