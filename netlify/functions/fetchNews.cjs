@@ -3,107 +3,110 @@
 const fetch = require('node-fetch');
 const { XMLParser } = require('fast-xml-parser');
 
+// Gardez un seul flux pour le test
 const RSS_FEEDS = [
-  { name: "Blog du Modérateur", url: "https://www.blogdumoderateur.com/feed/" },
-  { name: "JDN Intelligence Artificielle", url: "https://www.journaldunet.com/web-tech/intelligence-artificielle/rss/" },
-  { name: "e-marketing.fr", url: "https://www.e-marketing.fr/rss.xml" },
-  { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" }
+    { name: "Blog du Modérateur", url: "https://www.blogdumoderateur.com/feed/" }
+    // Désactivez les autres pour le moment en les commentant ou en les supprimant
+    // { name: "JDN Intelligence Artificielle", url: "https://www.journaldunet.com/web-tech/intelligence-artificielle/rss/" },
+    // { name: "e-marketing.fr", url: "https://www.e-marketing.fr/rss.xml" },
+    // { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" }
 ];
 
 const parser = new XMLParser({ ignoreAttributes: true });
 
 exports.handler = async (event, context) => {
-  console.log("📡 Lancement de fetchNews...");
+    console.log("📡 Lancement de fetchNews avec un seul flux...");
 
-  try {
-    let allArticles = [];
+    try {
+        let allArticles = [];
 
-    for (const feed of RSS_FEEDS) {
-      try {
-        const response = await fetch(feed.url);
+        for (const feed of RSS_FEEDS) {
+            try {
+                const response = await fetch(feed.url);
 
-        if (response.status === 429) {
-          console.warn(`⏳ ${feed.name} a retourné un 429 Too Many Requests. Passage au flux suivant.`);
-          continue;
+                if (response.status === 429) {
+                    console.warn(`⏳ ${feed.name} a retourné un 429 Too Many Requests. Passage au flux suivant.`);
+                    continue;
+                }
+
+                if (!response.ok) {
+                    console.error(`❌ ${feed.name} (${feed.url}) a échoué : ${response.status} ${response.statusText}`);
+                    continue;
+                }
+
+                const xml = await response.text();
+                const result = parser.parse(xml);
+
+                let items = [];
+                // Logique pour gérer les formats RSS et Atom
+                if (result.rss?.channel?.item) {
+                    items = Array.isArray(result.rss.channel.item)
+                        ? result.rss.channel.item
+                        : [result.rss.channel.item];
+                } else if (result.feed?.entry) {
+                    items = Array.isArray(result.feed.entry)
+                        ? result.feed.entry
+                        : [result.feed.entry];
+                }
+
+                const articles = items.map(item => ({
+                    title: item.title || 'Titre inconnu',
+                    url: item.link?.href || item.link || '#', // Gère les liens dans Atom (href) et RSS (directement link)
+                    pubDate: item.pubDate || item.updated || new Date().toISOString(),
+                    source: feed.name
+                }));
+
+                console.log(`✅ ${feed.name} → ${articles.length} articles récupérés`);
+                allArticles = allArticles.concat(articles);
+
+            } catch (err) {
+                console.error(`❌ Erreur sur ${feed.name} (${feed.url}) :`, err.message);
+            }
         }
 
-        if (!response.ok) {
-          console.error(`❌ ${feed.name} (${feed.url}) a échoué : ${response.status} ${response.statusText}`);
-          continue;
+        if (allArticles.length === 0) {
+            console.warn("⚠️ Aucun article récupéré. Envoi d’un message par défaut.");
+            return {
+                statusCode: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*"
+                },
+                body: JSON.stringify([{
+                    title: "Aucune actualité disponible pour le moment",
+                    url: "#",
+                    pubDate: new Date().toISOString(),
+                    source: "System"
+                }])
+            };
         }
 
-        const xml = await response.text();
-        const result = parser.parse(xml);
+        allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+        const topArticles = allArticles.slice(0, 15);
+        console.log(`📰 Total articles final : ${topArticles.length}`);
 
-        let items = [];
-        if (result.rss?.channel?.item) {
-          items = Array.isArray(result.rss.channel.item)
-            ? result.rss.channel.item
-            : [result.rss.channel.item];
-        } else if (result.feed?.entry) {
-          items = Array.isArray(result.feed.entry)
-            ? result.feed.entry
-            : [result.feed.entry];
-        }
+        return {
+            statusCode: 200,
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=3600, must-revalidate"
+            },
+            body: JSON.stringify(topArticles),
+        };
 
-        const articles = items.map(item => ({
-          title: item.title || 'Titre inconnu',
-          url: item.link?.href || item.link || '#',
-          pubDate: item.pubDate || item.updated || new Date().toISOString(),
-          source: feed.name
-        }));
-
-        console.log(`✅ ${feed.name} → ${articles.length} articles récupérés`);
-        allArticles = allArticles.concat(articles);
-
-      } catch (err) {
-        console.error(`❌ Erreur sur ${feed.name} (${feed.url}) :`, err.message);
-      }
+    } catch (error) {
+        console.error("❌ Erreur générale dans fetchNews:", error.message);
+        return {
+            statusCode: 500,
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            body: JSON.stringify({
+                error: "Erreur serveur",
+                message: error.message
+            }),
+        };
     }
-
-    if (allArticles.length === 0) {
-      console.warn("⚠️ Aucun article récupéré. Envoi d’un message par défaut.");
-      return {
-        statusCode: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
-        body: JSON.stringify([{
-          title: "Aucune actualité disponible pour le moment",
-          url: "#",
-          pubDate: new Date().toISOString(),
-          source: "System"
-        }])
-      };
-    }
-
-    allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-    const topArticles = allArticles.slice(0, 15);
-    console.log(`📰 Total articles final : ${topArticles.length}`);
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "public, max-age=3600, must-revalidate"
-      },
-      body: JSON.stringify(topArticles),
-    };
-
-  } catch (error) {
-    console.error("❌ Erreur générale dans fetchNews:", error.message);
-    return {
-      statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
-      body: JSON.stringify({
-        error: "Erreur serveur",
-        message: error.message
-      }),
-    };
-  }
 };
