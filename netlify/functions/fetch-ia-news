@@ -1,0 +1,71 @@
+const fetch = require('node-fetch');
+const { parseStringPromise } = require('xml2js');
+
+// URLs des flux RSS francophones choisis
+// Vous pouvez ajouter ou retirer des flux ici selon vos préférences
+const RSS_FEEDS = [
+    { name: "Blog du Modérateur", url: "https://www.blogdumoderateur.com/feed/" },
+    { name: "JDN IA", url: "https://www.journaldunet.com/web-tech/intelligence-artificielle/rss/" },
+    { name: "e-marketing.fr", url: "https://www.e-marketing.fr/rss.xml" },
+    { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" }
+];
+
+exports.handler = async (event, context) => {
+    try {
+        let allArticles = [];
+
+        for (const feed of RSS_FEEDS) {
+            try {
+                const response = await fetch(feed.url);
+                if (!response.ok) {
+                    console.error(`Failed to fetch RSS feed from ${feed.name} (${feed.url}): ${response.statusText}`);
+                    continue; // Passe au flux suivant si celui-ci échoue
+                }
+                const xml = await response.text();
+                const result = await parseStringPromise(xml);
+
+                if (result.rss && result.rss.channel && result.rss.channel[0] && result.rss.channel[0].item) {
+                    const articles = result.rss.channel[0].item.map(item => ({
+                        title: item.title && item.title[0] ? item.title[0] : 'Titre inconnu',
+                        url: item.link && item.link[0] ? item.link[0] : '#',
+                        pubDate: item.pubDate && item.pubDate[0] ? item.pubDate[0] : new Date().toISOString(),
+                        source: feed.name // Pour savoir d'où vient l'article
+                    }));
+                    allArticles = allArticles.concat(articles);
+                } else {
+                    console.warn(`No articles found or unexpected structure in RSS feed from ${feed.name} (${feed.url})`);
+                }
+            } catch (feedError) {
+                console.error(`Error processing RSS feed from ${feed.name} (${feed.url}):`, feedError);
+            }
+        }
+
+        // Trier tous les articles par date de publication (du plus récent au plus ancien)
+        allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+
+        // Limiter au top X articles (ex: les 15 plus récents)
+        const topArticles = allArticles.slice(0, 15); // Vous pouvez ajuster ce nombre
+
+        return {
+            statusCode: 200,
+            headers: {
+                "Content-Type": "application/json",
+                // Très important : permet à votre frontend de faire la requête
+                "Access-Control-Allow-Origin": "*", 
+                "Cache-Control": "public, max-age=300, must-revalidate" // Cache la réponse pendant 5 minutes
+            },
+            body: JSON.stringify(topArticles),
+        };
+
+    } catch (error) {
+        console.error("Error in fetch-ia-news function:", error);
+        return {
+            statusCode: 500,
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            body: JSON.stringify({ error: "Failed to fetch IA news", details: error.message }),
+        };
+    }
+};
