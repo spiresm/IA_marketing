@@ -400,6 +400,28 @@
             box-shadow: 0 6px 12px rgba(0,0,0,0.1); /* Ombre plus prononcée au survol */
         }
 
+        /* NOUVEAUX STYLES pour les images et vidéos du tip */
+        .side-panel .tip-media-container {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .side-panel .tip-images img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 5px;
+            max-height: 120px; /* Limite la hauteur de l'image pour rester compact */
+            object-fit: cover;
+        }
+
+        .side-panel .tip-video iframe {
+            width: 100%;
+            aspect-ratio: 16 / 9; /* Ratio standard 16:9 pour les vidéos */
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
 
         footer {
             text-align: center;
@@ -521,12 +543,54 @@
         // 5. Remplace plusieurs espaces par un seul
         // 6. Supprime les espaces blancs au début et à la fin.
         // Cela assure que "Cas d'usages", "cas-usages", "CAS D USAGES ", etc. deviennent tous "cas d usages".
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
-                   .toLowerCase() 
-                   .replace(/'/g, ' ') 
-                   .replace(/-/g, ' ') 
-                   .replace(/\s+/g, ' ') 
-                   .trim(); 
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                   .toLowerCase()
+                   .replace(/'/g, ' ')
+                   .replace(/-/g, ' ')
+                   .replace(/\s+/g, ' ')
+                   .trim();
+    }
+
+    // NOUVELLE FONCTION : Tronque le texte à un certain nombre de lignes
+    function truncateTextByLines(text, maxLines) {
+        if (!text) return '';
+        const lines = text.split('\n');
+        if (lines.length <= maxLines) {
+            return text;
+        }
+        return lines.slice(0, maxLines).join('\n') + '...';
+    }
+
+    // NOUVELLE FONCTION : Rend le média (image ou vidéo YouTube) pour un tip
+    function renderTipMedia(fileUrls, urls) {
+        let mediaHtml = '';
+        const MAX_IMAGES_IN_TIP_CARD = 1; // Limite à 1 image dans la carte de tip
+
+        // Priorise les images si disponibles
+        if (Array.isArray(fileUrls) && fileUrls.length > 0) {
+            const imagesToDisplay = fileUrls.slice(0, MAX_IMAGES_IN_TIP_CARD);
+            mediaHtml += `<div class="tip-images">`;
+            imagesToDisplay.forEach(imgSrc => {
+                const fallbackSrc = 'https://placehold.co/150x100?text=Image';
+                const displaySrc = (imgSrc && typeof imgSrc === 'string' && (imgSrc.startsWith('http') || imgSrc.startsWith('/') || imgSrc.startsWith('./') || imgSrc.startsWith('../'))) ? imgSrc : fallbackSrc;
+                mediaHtml += `<img src="${displaySrc}" alt="Image du tip" onerror="this.onerror=null;this.src='${fallbackSrc}';">`;
+            });
+            mediaHtml += `</div>`;
+        }
+        // Sinon, cherche une vidéo YouTube dans les URLs
+        else if (Array.isArray(urls) && urls.length > 0) {
+            const youtubeUrl = urls.find(url => url.includes('youtube.com/watch?v=') || url.includes('youtu.be/'));
+            if (youtubeUrl) {
+                const videoId = youtubeUrl.split('v=')[1] || youtubeUrl.split('youtu.be/')[1];
+                if (videoId && videoId.length > 0) {
+                    const cleanVideoId = videoId.split(/[&?]/)[0]; // Nettoie l'ID de la vidéo
+                    mediaHtml += `<div class="tip-video">
+                                    <iframe src="https://www.youtube.com/embed/${cleanVideoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                                  </div>`;
+                }
+            }
+        }
+        return mediaHtml;
     }
 
 
@@ -775,7 +839,10 @@
                     <h3>Dernier TIP partagé</h3>
                     <a href="cas-usages.html" class="tip-link-card"> <div class="tip-card">
                             <h4>${latestTip.titre || 'Titre inconnu'}</h4>
-                            <p>${latestTip.contenu || latestTip.promptText || latestTip.prompt || 'Contenu non disponible'}</p> <span class="tip-date">${latestTip.date_creation ? new Date(latestTip.date_creation).toLocaleDateString('fr-FR') : 'Date inconnue'}</span> <span class="page-context">sur la page "${latestTip.pageDePartage || 'Inconnue'}"</span>
+                            <p>${truncateTextByLines(latestTip.contenu || latestTip.promptText || latestTip.prompt || 'Contenu non disponible', 10)}</p> <div class="tip-media-container">
+                                ${renderTipMedia(latestTip.fileUrls, latestTip.urls)}
+                            </div>
+                            <span class="tip-date">${latestTip.date_creation ? new Date(latestTip.date_creation).toLocaleDateString('fr-FR') : 'Date inconnue'}</span> <span class="page-context">sur la page "${latestTip.pageDePartage || 'Inconnue'}"</span>
                         </div>
                     </a> </div>
             `;
