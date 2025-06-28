@@ -54,7 +54,7 @@
             opacity: 0;
             pointer-events: none; /* Permet les clics à travers après la disparition */
             /* CORRECTION CLÉ ICI : Ajout de visibility: hidden; avec un délai.
-               Cela permet à la transition d'opacité de se faire, puis l'élément disparaît complètement */
+                Cela permet à la transition d'opacité de se faire, puis l'élément disparaît complètement */
             visibility: hidden;
             transition: opacity 0.3s ease-out, visibility 0s linear 0.3s;
         }
@@ -348,35 +348,43 @@
             font-size: 0.9rem;
             padding: 10px 0;
         }
-        /* Styles pour la liste des TIPS */
-        .side-panel .tips-list {
-            list-style: none;
-            padding: 0;
+        /* Styles pour la carte de tip dans le panneau latéral */
+        .side-panel .tip-card {
+            background: #e9f9ff; /* Un fond légèrement bleuté pour la carte */
+            border: 1px solid #b3e0ff; /* Une bordure assortie */
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05); /* Légère ombre pour donner du relief */
+            display: flex;
+            flex-direction: column;
+            gap: 8px; /* Espacement entre les éléments de la carte */
+        }
+
+        .side-panel .tip-card h4 {
             margin: 0;
-            background-color: #f0f8f0;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #d4edda;
+            color: #005f8a; /* Couleur plus foncée pour le titre du tip */
+            font-size: 1.1rem;
         }
-        .side-panel .tips-list li {
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px dashed #e0e0e0;
-            line-height: 1.4;
+
+        .side-panel .tip-card p {
+            margin: 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #333;
         }
-        .side-panel .tips-list li:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
-        }
-        .side-panel .tips-list strong {
-            color: #28a745;
-        }
-        .side-panel .tips-list .page-context {
+
+        .side-panel .tip-card .tip-date {
             font-size: 0.8em;
             color: #6c757d;
-            display: block;
+            text-align: right; /* Aligner la date à droite */
+            margin-top: auto; /* Pousser la date vers le bas si la carte a de l'espace */
+        }
+
+        .side-panel .tip-card .page-context {
+            font-size: 0.8em;
+            color: #6c757d;
+            display: block; /* S'assurer qu'il prend sa propre ligne */
             margin-top: 2px;
         }
 
@@ -527,8 +535,8 @@
             div.innerHTML = `
                <span class="note-badge" style="${hasNote ? 'display: inline-block;' : 'display: none;'}">Note</span>
                 <img src="${p.photo || 'https://placehold.co/80x80?text=Profil'}"
-                        alt="${p.name || 'Profil'}"
-                        onerror="this.onerror=null;this.src='https://placehold.co/80x80?text=Erreur%20Image';" />
+                            alt="${p.name || 'Profil'}"
+                            onerror="this.onerror=null;this.src='https://placehold.co/80x80?text=Erreur%20Image';" />
                 <h3>${p.name || 'Nom Inconnu'}</h3>
                 <div class="pole">${p.pole || 'Pôle Inconnu'}</div>
                 <div class="icon-bar">
@@ -724,29 +732,26 @@
             .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage))
             : []; // Si sharedTips est null, retourne un tableau vide
 
-        const latestTips = tipsFromAuthor.slice(0, 3);
+        // Prendre seulement le dernier tip
+        const latestTip = tipsFromAuthor.length > 0 ? tipsFromAuthor[0] : null;
 
         let tipsSection = '';
-        if (latestTips.length > 0) {
-            const tipsHtml = latestTips.map(tip => `
-                <li>
-                    <strong>${tip.titre || 'Titre inconnu'}</strong>
-                    <span class="page-context">sur la page "${tip.pageDePartage || 'Inconnue'}"</span>
-                </li>
-            `).join('');
-
+        if (latestTip) { // Vérifier si un tip existe
             tipsSection = `
                 <div class="tips-section">
-                    <h3>Derniers TIPS partagés</h3>
-                    <ul class="tips-list">
-                        ${tipsHtml}
-                    </ul>
+                    <h3>Dernier TIP partagé</h3>
+                    <div class="tip-card">
+                        <h4>${latestTip.titre || 'Titre inconnu'}</h4>
+                        <p>${latestTip.contenu || 'Contenu non disponible'}</p>
+                        <span class="tip-date">${latestTip.datePartage ? new Date(latestTip.datePartage).toLocaleDateString('fr-FR') : 'Date inconnue'}</span>
+                        <span class="page-context">sur la page "${latestTip.pageDePartage || 'Inconnue'}"</span>
+                    </div>
                 </div>
             `;
         } else {
             tipsSection = `
                 <div class="tips-section">
-                    <h3>Derniers TIPS partagés</h3>
+                    <h3>Dernier TIP partagé</h3>
                     <p class="no-item-placeholder">Aucun TIP partagé par ${profil.name} n'a été trouvé depuis la page "Cas d'usages".</p>
                     <p class="no-item-placeholder">
                         <a href="cas-usages.html">Partager un TIP maintenant !</a>
@@ -754,6 +759,7 @@
                 </div>
             `;
         }
+
 
         const toolsList = (Array.isArray(profil.tools) ? profil.tools : []).map(t => `<li>${t}</li>`).join('');
         const hasNote = (profil.note || '').trim() !== '';
