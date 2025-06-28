@@ -681,15 +681,14 @@
             position: relative;
         }
 
+        /* NOUVEAU STYLE POUR news-ticker-content */
         .news-ticker-content {
-            white-space: nowrap;
-            position: absolute;
-            top: 0;
-            left: 0;
-            will-change: transform;
-            animation: ticker var(--ticker-duration) linear infinite !important; /* Ajout de !important pour le test */
+            display: flex; /* Utilise flexbox pour aligner les éléments horizontalement */
+            white-space: nowrap; /* Empêche le retour à la ligne */
+            animation: ticker var(--ticker-duration) linear infinite; /* Animation définie par JS */
             animation-play-state: running; 
-            /* VISIBILITE : On retire visibility: hidden; ici */
+            /* Retire position: absolute, top, left, will-change: transform. Ces propriétés peuvent compliquer le calcul de scrollWidth et l'animation. */
+            /* La suppression de visibility: hidden; du CSS fait qu'il est visible par défaut */
         }
 
         .news-ticker-content:hover {
@@ -697,11 +696,10 @@
         }
 
         .news-item {
-            display: inline-block; /* CHANGEMENT ICI: était inline-block, devient inline-flex pour une meilleure mesure */
+            display: inline-flex; /* Changé de inline-block à inline-flex pour une meilleure mesure et alignement */
+            align-items: center; /* Centre verticalement le contenu de chaque élément */
             padding-right: 50px; /* Espace entre les actualités */
             font-size: 0.95em;
-            /* CHANGEMENT ICI: Ces deux lignes sont cruciales pour que inline-block ou inline-flex se comporte bien */
-            vertical-align: middle; 
             box-sizing: border-box; /* S'assure que le padding est inclus dans la largeur */
         }
 
@@ -731,6 +729,7 @@
             100% { transform: translateX(-100%); }
         }
 
+        /* Cette règle n'est plus utile, animation-duration est directement sur .news-ticker-content */
         .news-ticker-content[data-duration] {
         }
 
@@ -1228,19 +1227,17 @@
         // --- Fonctions pour le News Ticker ---
         async function loadNewsTicker() {
             const newsTickerContent = document.getElementById('newsTickerContent');
-            const tickerContainer = newsTickerContent.parentElement; // Le conteneur du news ticker
+            const tickerContainer = newsTickerContent.parentElement; 
 
             if (!newsTickerContent) {
                 console.error("L'élément #newsTickerContent n'a pas été trouvé.");
                 return;
             }
 
-            // D'abord, videz et affichez un message de chargement (optionnel mais utile)
             newsTickerContent.innerHTML = '<span class="news-item" style="color:#666;">Chargement des actualités...</span>';
-            newsTickerContent.style.animation = 'none'; // Arrête toute animation précédente
-            newsTickerContent.style.transform = 'translateX(0)'; // Positionne au début
-            // IMPORTANT : S'assurer que le contenu est visible pendant le chargement
-            // newsTickerContent.style.visibility = 'visible'; // Pas nécessaire si déjà enlevé dans CSS
+            newsTickerContent.style.animation = 'none'; 
+            newsTickerContent.style.transform = 'translateX(0)'; 
+            // newsTickerContent.style.visibility = 'visible'; // Assurez-vous qu'il est visible pendant le chargement
 
             let newsItems = [];
             try {
@@ -1259,18 +1256,16 @@
             }
             
             // Si pas d'articles valides, affiche le message et désactive l'animation
-            if (!Array.isArray(newsItems) || newsItems.length === 0) { // S'assurer que newsItems est bien un tableau
+            if (!Array.isArray(newsItems) || newsItems.length === 0) { 
                 newsTickerContent.innerHTML = '<span class="news-item">Aucune actualité disponible pour le moment.</span>';
                 newsTickerContent.style.animation = 'none';
                 newsTickerContent.style.transform = 'translateX(0)';
-                // newsTickerContent.style.visibility = 'visible'; // Déjà visible
                 return;
             }
 
-            // Pour s'assurer que les articles sont triés du plus récent au plus ancien (si timestamp existe)
             newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
-            newsTickerContent.innerHTML = ''; // Nettoyer le message de chargement
+            newsTickerContent.innerHTML = ''; 
 
             newsItems.forEach(item => {
                 const span = document.createElement('span');
@@ -1316,7 +1311,6 @@
                 if (totalContentWidth === 0 || totalContentWidth <= containerVisibleWidth) {
                     newsTickerContent.style.animation = 'none';
                     newsTickerContent.style.transform = 'translateX(0)';
-                    // newsTickerContent.style.visibility = 'visible'; // Déjà visible
                     return;
                 }
 
@@ -1327,9 +1321,8 @@
                 console.log(`[News Ticker] totalContentWidth: ${totalContentWidth}, effectiveContentWidth: ${effectiveContentWidth}, speed: ${speed}, calculated duration: ${duration}s`);
                 
                 newsTickerContent.style.setProperty('--ticker-duration', `${duration}s`);
-                newsTickerContent.style.animation = `ticker var(--ticker-duration) linear infinite !important`; 
+                newsTickerContent.style.animation = `ticker var(--ticker-duration) linear infinite`; // !important retiré pour voir si c'est la cause
                 newsTickerContent.style.animationPlayState = 'running';
-                // newsTickerContent.style.visibility = 'visible'; // Déjà visible
 
                 newsTickerContent.removeEventListener('mouseenter', null); 
                 newsTickerContent.removeEventListener('mouseleave', null);
@@ -1418,7 +1411,7 @@
         document.addEventListener("DOMContentLoaded", async () => {
             await loadComponents();
             displayLatestAdditions();
-            loadNewsTicker(); // Appeler une fois DOMContentLoaded
+            loadNewsTicker(); 
 
             if (loader) {
                 loader.classList.add("hidden");
