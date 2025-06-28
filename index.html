@@ -399,7 +399,7 @@
             transition: background-color 0.2s ease, transform 0.2s ease;
             flex-shrink: 0;    
 
-            /* NOUVELLES MODIFICATIONS POUR LE CENTRAGE */
+            /* MODIFICATION POUR CENTRER LE BOUTON */
             width: fit-content; /* Le bouton prendra la largeur de son contenu */
             min-width: 120px; /* Largeur minimale si le contenu est très court */
             max-width: 100%; /* S'assure qu'il ne dépasse pas la carte sur petit écran */
@@ -650,6 +650,106 @@
                 right: 10px;
             }
         }
+
+        /* NOUVEAUX STYLES POUR LE FLUX RSS DÉFILANT */
+        .news-ticker-section {
+            max-width: 900px;
+            margin: 40px auto 20px auto; /* Marge supérieure pour séparer des autres sections */
+            padding: 15px 20px;
+            background: #e0f7fa; /* Un fond clair pour le flux */
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden; /* Cache le contenu qui dépasse */
+            position: relative;
+            display: flex; /* Utilisation de flexbox pour l'icône et le texte */
+            align-items: center;
+        }
+
+        body.dark-mode .news-ticker-section {
+            background-color: #1a2a3a; /* Couleur plus foncée pour le dark mode */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        body.dark-mode .news-ticker-section .icon {
+            color: var(--dark-mode-accent-blue);
+        }
+        body.dark-mode .news-ticker-content a {
+            color: var(--dark-mode-text);
+        }
+
+        .news-ticker-section .icon {
+            font-size: 1.5em;
+            color: var(--primary-blue);
+            margin-right: 15px;
+            flex-shrink: 0; /* Empêche l'icône de rétrécir */
+        }
+
+        .news-ticker-container {
+            flex-grow: 1; /* Prend l'espace restant */
+            height: 1.5em; /* Hauteur pour une ligne de texte */
+            line-height: 1.5em; /* Centre le texte verticalement */
+            overflow: hidden;
+            position: relative;
+        }
+
+        .news-ticker-content {
+            white-space: nowrap; /* Empêche le retour à la ligne du texte */
+            position: absolute;
+            top: 0;
+            left: 0;
+            will-change: transform; /* Optimisation pour l'animation */
+            animation: ticker 25s linear infinite; /* Animation défilante */
+            animation-play-state: running; /* Par défaut, l'animation est lancée */
+        }
+
+        .news-ticker-content:hover {
+            animation-play-state: paused; /* Met en pause au survol */
+        }
+
+        .news-item {
+            display: inline-block; /* Affiche les éléments en ligne */
+            padding-right: 50px; /* Espace entre les actualités */
+            font-size: 0.95em;
+        }
+
+        .news-item a {
+            color: #333;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.2s ease;
+        }
+
+        .news-item a:hover {
+            color: var(--primary-blue);
+            text-decoration: underline;
+        }
+
+        /* Animation de défilement */
+        @keyframes ticker {
+            0% { transform: translateX(100%); } /* Commence hors de l'écran à droite */
+            100% { transform: translateX(-100%); } /* Finit hors de l'écran à gauche */
+        }
+
+        /* Ajustement de l'animation pour le contenu plus long */
+        .news-ticker-content[data-duration] {
+            animation-duration: var(--ticker-duration);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .news-ticker-section {
+                margin-left: 10px;
+                margin-right: 10px;
+                padding: 10px 15px;
+            }
+            .news-ticker-section .icon {
+                font-size: 1.2em;
+                margin-right: 10px;
+            }
+            .news-item {
+                font-size: 0.85em;
+                padding-right: 30px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -673,6 +773,15 @@
     </div>
 
     <main>
+        <section class="news-ticker-section">
+            <i class="fas fa-newspaper icon"></i>
+            <div class="news-ticker-container">
+                <div class="news-ticker-content" id="newsTickerContent">
+                    <span class="news-item"><a href="#">Chargement des actualités...</a></span>
+                </div>
+            </div>
+        </section>
+
         <div class="latest-additions-section">
             <h2>Derniers ajouts</h2>
             <div id="latest-additions-grid" class="latest-additions-grid">
@@ -878,8 +987,6 @@
             }
             
             // Priorité 3: Si rien trouvé dans item.urls, et si item.imageUrl existe (pour le cas de la galerie souvent)
-            // Cette condition est un fallback si 'item.imageUrl' est la seule source d'image pour certains éléments.
-            // Si toutes vos images/vidéos sont *toujours* dans `item.urls`, cette partie peut être superflue.
             if (!mediaToDisplay && item.imageUrl && isImageUrl(item.imageUrl)) {
                  mediaToDisplay = item.imageUrl;
                  mediaType = 'image';
@@ -942,11 +1049,8 @@
 
             const categoryDiv = document.createElement("div");
             categoryDiv.className = "category";
-            if (type === 'cas-usage') {
-                categoryDiv.innerHTML = `<strong>Catégorie:</strong> Tips`;
-            } else if (type === 'galerie') {
-                categoryDiv.innerHTML = `<strong>Catégorie:</strong> Galerie`;
-            }
+            // MODIFICATION ICI: Unifier la catégorie en "TIP"
+            categoryDiv.innerHTML = `<strong>Catégorie:</strong> TIP`; 
             meta.appendChild(categoryDiv);
 
             if (item.outil) {
@@ -1193,6 +1297,72 @@
             }
         };
 
+        // --- Fonctions pour le News Ticker ---
+        async function loadNewsTicker() {
+            const newsTickerContent = document.getElementById('newsTickerContent');
+            if (!newsTickerContent) {
+                console.error("L'élément #newsTickerContent n'a pas été trouvé.");
+                return;
+            }
+
+            try {
+                // Appel à votre fonction Netlify qui va chercher et parser le flux RSS
+                const response = await fetch('/.netlify/functions/fetch-ia-news');
+                if (!response.ok) {
+                    throw new Error(`Échec du chargement des actualités : ${response.statusText} (Status: ${response.status})`);
+                }
+                const newsItems = await response.json(); // La fonction Netlify devrait retourner un tableau JSON d'actualités
+
+                if (!newsItems || newsItems.length === 0) {
+                    newsTickerContent.innerHTML = '<span class="news-item">Aucune actualité trouvée pour le moment.</span>';
+                    return;
+                }
+
+                newsTickerContent.innerHTML = ''; // Nettoyer le contenu existant
+
+                newsItems.forEach(item => {
+                    const span = document.createElement('span');
+                    span.className = 'news-item';
+                    const a = document.createElement('a');
+                    a.href = item.url || '#'; 
+                    a.textContent = item.title || 'Titre inconnu'; 
+                    a.target = '_blank'; // Ouvre le lien dans un nouvel onglet
+                    a.rel = 'noopener noreferrer'; // Bonnes pratiques de sécurité
+                    span.appendChild(a);
+                    newsTickerContent.appendChild(span);
+                });
+
+                // Pour un défilement continu : calculer la largeur totale et cloner le contenu
+                // On clone pour que le défilement soit infini sans "saut"
+                const tickerContainer = newsTickerContent.parentElement;
+                const totalContentWidth = newsTickerContent.scrollWidth; // Largeur de tous les news-item mis bout à bout
+                const containerVisibleWidth = tickerContainer.offsetWidth; // Largeur de la fenêtre visible
+
+                // S'assurer qu'il y a assez de contenu pour défiler
+                if (totalContentWidth > containerVisibleWidth) {
+                    const clonesNeeded = Math.ceil(containerVisibleWidth / totalContentWidth) + 1; // Au moins 1 clone complet + 1 partiel
+                    for (let i = 0; i < clonesNeeded; i++) {
+                        newsTickerContent.appendChild(newsTickerContent.cloneNode(true).children[0]); // Clone chaque item individuellement pour éviter un trop gros DOM
+                    }
+                } else {
+                    // Si le contenu est trop court pour défiler, désactiver l'animation
+                    newsTickerContent.style.animation = 'none';
+                    newsTickerContent.style.transform = 'translateX(0)'; // S'assure que le contenu est visible
+                    console.log("Contenu du ticker trop court pour défiler, animation désactivée.");
+                }
+
+                // Ajuster la durée de l'animation en fonction de la largeur du contenu
+                const speed = 60; // Pixels par seconde (ajustez si vous voulez plus rapide/lent)
+                const duration = totalContentWidth / speed; // Durée de l'animation en secondes
+                newsTickerContent.style.setProperty('--ticker-duration', `${duration}s`);
+                
+            } catch (error) {
+                console.error("Erreur lors du chargement du flux d'actualités :", error);
+                newsTickerContent.innerHTML = '<span class="news-item">Impossible de charger les actualités. Vérifiez la console pour les erreurs.</span>';
+            }
+        }
+
+
         // --- Initialisation au chargement du DOM ---
         document.addEventListener("DOMContentLoaded", async () => {
             console.log("Accueil: DOMContentLoaded, début de l'initialisation...");
@@ -1201,10 +1371,11 @@
             bodyElement.style.overflow = 'hidden';
 
             // Lancez tous les chargements asynchrones en parallèle
-            const [headerLoad, footerLoad, latestAdditionsLoad] = await Promise.all([
+            const [headerLoad, footerLoad, latestAdditionsLoad, newsTickerLoad] = await Promise.all([
                 loadComponent("header.html", "header-placeholder"),
                 loadComponent("footer.html", "footer-placeholder"),
-                displayLatestAdditions() // Cette fonction gère déjà son propre chargement/affichage
+                displayLatestAdditions(), // Cette fonction gère déjà son propre chargement/affichage
+                loadNewsTicker() // Charger le flux de nouvelles
             ]);
             
             // Mettre à jour l'état actif du menu après le chargement du header
