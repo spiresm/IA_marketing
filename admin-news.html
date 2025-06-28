@@ -55,7 +55,7 @@
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
             border-color: var(--dark-mode-border);
         }
-        body.dark-mode h1, body.dark-mode h2, body.dark-mode label {
+        body.dark-mode h1, body.dark-mode h2 {
             color: var(--dark-mode-text);
         }
         body.dark-mode input[type="text"],
@@ -244,7 +244,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        h1, h2 { /* Ajout h2 pour le titre des messages existants */
+        h1, h2 { 
             text-align: center;
             color: var(--primary-blue);
             margin-bottom: 30px;
@@ -356,6 +356,7 @@
             color: #dc3545;
             font-size: 1.2em;
             cursor: pointer;
+            padding: 0 5px; /* Ajoutez un peu de padding pour faciliter le clic */
             transition: transform 0.2s ease;
         }
         .news-item-display .delete-item-btn:hover {
@@ -364,6 +365,9 @@
         .news-item-display .item-details {
             font-size: 0.8em;
             color: #888;
+            white-space: nowrap; /* Empêche les détails de casser la ligne */
+            text-align: right;
+            min-width: 150px; /* Donne une largeur minimale pour l'alignement */
         }
         .news-item-display .item-details strong {
             font-weight: bold;
@@ -379,6 +383,25 @@
             .form-group textarea,
             .form-group select {
                 width: 100%;
+            }
+            .news-item-display {
+                flex-direction: column; /* Empile les éléments sur mobile */
+                align-items: flex-start;
+            }
+            .news-item-display .news-text {
+                margin-right: 0;
+                margin-bottom: 5px;
+                width: 100%; /* Prend toute la largeur */
+            }
+            .news-item-display .item-details {
+                text-align: left;
+                width: 100%;
+                min-width: unset;
+            }
+            .news-item-display .delete-item-btn {
+                position: absolute; /* Positionne le bouton pour ne pas prendre de place */
+                top: 10px;
+                right: 10px;
             }
         }
     </style>
@@ -423,7 +446,9 @@
 
     <script>
         const NEWS_DATA_PATH = 'news-data.json';
-        const SAVE_NEWS_FUNCTION_URL = '/.netlify/functions/saveNews';
+        // CHANGEMENT ICI : Définir deux URLs distinctes pour les fonctions
+        const ADD_NEWS_FUNCTION_URL = '/.netlify/functions/addNews'; 
+        const DELETE_NEWS_FUNCTION_URL = '/.netlify/functions/deleteNews';
 
         const newsForm = document.getElementById('newsForm');
         const poleSelect = document.getElementById('poleSelect');
@@ -434,7 +459,6 @@
         const currentNewsList = document.getElementById('currentNewsList');
         const refreshNewsListButton = document.getElementById('refreshNewsList');
 
-        // Définition des listes de pôles et collaborateurs, et des couleurs par défaut
         const collaborateursParPole = {
             "Pôle créa.": [
                 "Anne-Françoise LELEUX", "Baptiste TARTAS", "Béatrice MARLIER",
@@ -564,7 +588,8 @@
             };
 
             try {
-                const response = await fetch(SAVE_NEWS_FUNCTION_URL, {
+                // CHANGEMENT ICI : Appel de la fonction addNews.cjs
+                const response = await fetch(ADD_NEWS_FUNCTION_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -593,19 +618,20 @@
             }
         }
 
-        async function deleteNewsItem(indexToDelete) {
+        async function deleteNewsItem(timestampToDelete) { 
             if (!confirm("Êtes-vous sûr de vouloir supprimer cette actualité ?")) {
                 return;
             }
             showMessage('Suppression en cours...', 'info');
 
             try {
-                const response = await fetch(SAVE_NEWS_FUNCTION_URL, {
-                    method: 'POST', // Toujours POST, mais avec une action spécifique
+                // CHANGEMENT ICI : Appel de la fonction deleteNews.cjs
+                const response = await fetch(DELETE_NEWS_FUNCTION_URL, {
+                    method: 'POST', 
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ action: 'delete', index: indexToDelete })
+                    body: JSON.stringify({ timestamp: timestampToDelete }) // Seul le timestamp est envoyé
                 });
 
                 if (!response.ok) {
@@ -615,7 +641,7 @@
 
                 const result = await response.json();
                 showMessage(`Actualité supprimée avec succès ! Le site sera mis à jour dans quelques minutes. (${result.message})`, 'success');
-                loadCurrentNewsItems(); // Recharger la liste après une suppression
+                loadCurrentNewsItems(); 
 
             } catch (error) {
                 showMessage(`Erreur lors de la suppression : ${error.message}`, 'error');
@@ -627,10 +653,15 @@
         async function loadCurrentNewsItems() {
             currentNewsList.innerHTML = '<li>Chargement des messages actuels...</li>';
             try {
-                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); // Ajout d'un timestamp pour éviter le cache
+                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); 
                 if (response.ok) {
                     let newsItems = await response.json();
-                    if (!Array.isArray(newsItems) || newsItems.length === 0) {
+                    if (!Array.isArray(newsItems)) {
+                        console.warn("Le fichier news-data.json n'est pas un tableau, tentative de conversion.");
+                        newsItems = Object.values(newsItems);
+                    }
+
+                    if (newsItems.length === 0) {
                         currentNewsList.innerHTML = '<li>Aucun message actif dans le flux pour le moment.</li>';
                         return;
                     }
@@ -639,9 +670,10 @@
                     newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
                     currentNewsList.innerHTML = ''; // Nettoyer la liste
-                    newsItems.forEach((item, index) => {
+                    newsItems.forEach((item) => { 
                         const li = document.createElement('li');
                         li.className = 'news-item-display';
+                        
                         const itemAge = new Date(item.timestamp);
                         const now = new Date();
                         const diffHours = Math.floor((now - itemAge) / (1000 * 60 * 60));
@@ -657,12 +689,12 @@
                                 <span class="item-details">${details.join(' ')}</span><br>
                                 <span class="item-details">Il y a ${diffHours}h (${remainingHours}h restantes)</span>
                             </div>
-                            <button class="delete-item-btn" data-index="${index}" title="Supprimer ce message">
+                            <button class="delete-item-btn" title="Supprimer ce message">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                         `;
                         const deleteButton = li.querySelector('.delete-item-btn');
-                        deleteButton.addEventListener('click', () => deleteNewsItem(index));
+                        deleteButton.addEventListener('click', () => deleteNewsItem(item.timestamp)); 
                         currentNewsList.appendChild(li);
                     });
                     showMessage('Liste des messages actualisée.', 'success');
@@ -685,7 +717,6 @@
             const headerPlaceholder = document.getElementById("header-placeholder");
             const footerPlaceholder = document.getElementById("footer-placeholder");
             try {
-                // Charge le header (peut être un fichier header.html ou directement du HTML)
                 const headerResponse = await fetch("header.html");
                 if (headerResponse.ok) {
                     headerPlaceholder.innerHTML = await headerResponse.text();
@@ -755,9 +786,9 @@
             populateSelectors();
             poleSelect.addEventListener('change', updateCollaborators);
             newsForm.addEventListener('submit', addNewsItem);
-            refreshNewsListButton.addEventListener('click', loadCurrentNewsItems); // Bouton d'actualisation
+            refreshNewsListButton.addEventListener('click', loadCurrentNewsItems); 
             
-            loadCurrentNewsItems(); // Charger la liste des messages au démarrage de la page
+            loadCurrentNewsItems(); 
             document.body.style.opacity = "1"; 
         });
     </script>
