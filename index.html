@@ -806,6 +806,15 @@
         }
 
         /**
+         * Vérifie si une URL se termine par une extension d'image courante.
+         * @param {string} url L'URL à vérifier.
+         * @returns {boolean} True si l'URL semble être une image, false sinon.
+         */
+        function isImageUrl(url) {
+            return (/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i).test(url);
+        }
+
+        /**
          * Crée une carte pour les derniers ajouts (Cas d'usage ou Galerie).
          * @param {object} item Les données de l'élément (tip ou prompt).
          * @param {'cas-usage'|'galerie'} type Le type de carte à créer.
@@ -835,7 +844,18 @@
             descriptionElement.textContent = item.description || item.promptText || item.prompt || '';
             card.appendChild(descriptionElement);
 
+            // Priorité 1: Chercher la première URL YouTube
             const firstYoutubeUrl = item.urls ? item.urls.find(url => getYouTubeVideoId(url)) : null;
+
+            // Priorité 2: Chercher la première URL d'image statique (si pas de YouTube)
+            // On vérifie item.urls ET item.imageUrl (si une image est directement specifiée pour la carte)
+            let imageToDisplayUrl = null;
+            if (item.imageUrl) { // Si item.imageUrl est explicitement définie (ex: pour la galerie)
+                imageToDisplayUrl = item.imageUrl;
+            } else if (item.urls) { // Sinon, chercher dans le tableau des urls
+                imageToDisplayUrl = item.urls.find(url => isImageUrl(url));
+            }
+
 
             if (firstYoutubeUrl) {
                 const youtubeId = getYouTubeVideoId(firstYoutubeUrl);
@@ -853,16 +873,16 @@
                 iframe.title = `Vidéo intégrée pour ${item.titre}`;
                 iframe.onerror = () => {
                     console.error(`Erreur de chargement de l'iframe vidéo pour ${item.titre}, ID: ${youtubeId}`);
-                    videoContainer.style.display = 'none';
+                    videoContainer.style.display = 'none'; // Cache le conteneur en cas d'erreur
                 };
 
                 videoContainer.appendChild(iframe);
                 card.appendChild(videoContainer);
-            } else if (item.imageUrl) { // NOUVEAU: Ajout de cette condition pour les images de tips
+            } else if (imageToDisplayUrl) { // Si pas de YouTube, on affiche la première image trouvée (ou item.imageUrl)
                 const imgContainer = document.createElement('div');
                 imgContainer.className = 'card-image-container';
                 const img = document.createElement('img');
-                img.src = item.imageUrl;
+                img.src = imageToDisplayUrl; // Utilisez l'URL d'image déterminée
                 img.alt = `Vignette de ${item.titre}`;
                 imgContainer.appendChild(img);
                 card.appendChild(imgContainer);
@@ -924,9 +944,6 @@
          */
         async function displayLatestAdditions() {
             const container = document.getElementById("latest-additions-grid");
-            // Le message de chargement initial est géré par le loader global
-            // const loadingMessage = document.getElementById("post-it-loading-message");
-            // loadingMessage.style.display = 'block';
 
             if (!container) {
                 console.error("Conteneur des derniers ajouts non trouvé !");
@@ -1005,7 +1022,7 @@
 
                 // Trier par date effective (du plus récent au plus ancien)
                 casUsages.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
-                const imagePrompts = prompts.filter(item => item.imageUrl || (item.urls && item.urls.some(url => getYouTubeVideoId(url))));
+                const imagePrompts = prompts.filter(item => item.imageUrl || (item.urls && item.urls.some(url => getYouTubeVideoId(url) || isImageUrl(url)))); // Filtrer les prompts qui ont une image ou vidéo
                 imagePrompts.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
 
                 const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
