@@ -47,13 +47,15 @@
             background-color: var(--dark-mode-bg);
             color: var(--dark-mode-text);
         }
-        body.dark-mode .container {
+        body.dark-mode .container,
+        body.dark-mode .current-news-section,
+        body.dark-mode .news-item-display { /* Ajout pour le style du tableau de messages */
             background-color: var(--dark-mode-card-bg);
             color: var(--dark-mode-text);
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
             border-color: var(--dark-mode-border);
         }
-        body.dark-mode h1, body.dark-mode label {
+        body.dark-mode h1, body.dark-mode h2, body.dark-mode label {
             color: var(--dark-mode-text);
         }
         body.dark-mode input[type="text"],
@@ -74,6 +76,12 @@
         body.dark-mode .btn:hover {
             background-color: var(--primary-blue);
         }
+        body.dark-mode .btn-secondary {
+            background-color: var(--dark-mode-border);
+        }
+        body.dark-mode .btn-secondary:hover {
+            background-color: #6a6a6a;
+        }
         body.dark-mode .message-box.success {
             background-color: #4CAF50;
             color: white;
@@ -81,6 +89,12 @@
         body.dark-mode .message-box.error {
             background-color: #dc3545;
             color: white;
+        }
+        body.dark-mode .news-item-display {
+            border-color: var(--dark-mode-border);
+        }
+        body.dark-mode .news-item-display .delete-item-btn {
+            color: var(--error-text);
         }
 
 
@@ -223,14 +237,14 @@
             background-color: var(--background-grey); 
         }
         .container {
-            max-width: 600px; /* Conteneur plus petit pour une administration simplifiée */
+            max-width: 600px;
             margin: 40px auto;
             background: #fff;
             padding: 30px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        h1 {
+        h1, h2 { /* Ajout h2 pour le titre des messages existants */
             text-align: center;
             color: var(--primary-blue);
             margin-bottom: 30px;
@@ -256,7 +270,7 @@
             min-height: 80px;
         }
         .form-group select {
-            min-height: 40px; /* Hauteur standard pour les select */
+            min-height: 40px; 
         }
         .form-actions {
             text-align: right;
@@ -297,7 +311,7 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-        /* Footer - Copié de index.html pour la cohérence */
+        /* Style pour le footer */
         .footer {
             margin-top: auto; 
             padding: 20px;
@@ -307,9 +321,58 @@
             font-size: 0.9em;
         }
 
+        /* Styles pour l'affichage des messages existants */
+        .current-news-section {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .news-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 20px;
+        }
+        .news-item-display {
+            border: 1px solid #eee;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .news-item-display .news-text {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .news-item-display .delete-item-btn {
+            background: none;
+            border: none;
+            color: #dc3545;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .news-item-display .delete-item-btn:hover {
+            transform: scale(1.2);
+        }
+        .news-item-display .item-details {
+            font-size: 0.8em;
+            color: #888;
+        }
+        .news-item-display .item-details strong {
+            font-weight: bold;
+        }
+
+
         /* Media Queries spécifiques pour cette page */
         @media (max-width: 768px) {
-            .container {
+            .container, .current-news-section {
                 margin: 20px auto;
                 padding: 20px;
             }
@@ -347,11 +410,19 @@
                 </div>
             </form>
         </div>
+
+        <div class="current-news-section">
+            <h2>Messages Actuels du Flux</h2>
+            <ul id="currentNewsList" class="news-list">
+                </ul>
+            <button type="button" id="refreshNewsList" class="btn btn-secondary">Actualiser la liste</button>
+        </div>
     </main>
 
     <div id="footer-placeholder"></div>
 
     <script>
+        const NEWS_DATA_PATH = 'news-data.json';
         const SAVE_NEWS_FUNCTION_URL = '/.netlify/functions/saveNews';
 
         const newsForm = document.getElementById('newsForm');
@@ -360,6 +431,8 @@
         const newsMessage = document.getElementById('newsMessage');
         const addNewsButton = document.getElementById('addNewsButton');
         const messageBox = document.getElementById('messageBox');
+        const currentNewsList = document.getElementById('currentNewsList');
+        const refreshNewsListButton = document.getElementById('refreshNewsList');
 
         // Définition des listes de pôles et collaborateurs, et des couleurs par défaut
         const collaborateursParPole = {
@@ -410,18 +483,17 @@
             ].sort()
         };
         const poles = Object.keys(collaborateursParPole).sort();
-        poles.unshift("Autre"); // Ajoutez "Autre" en début de liste des pôles
+        poles.unshift("Autre"); 
 
-        // Couleurs par défaut par pôle
         const defaultColorsByPole = {
-            "Pôle créa.": "#FF6347",     // Rouge Tomate
-            "CRM": "#4682B4",            // Bleu Acier
-            "Communication": "#32CD32",  // Vert Citron
-            "Partenariats": "#FFD700",   // Or
-            "Marketing digital": "#9370DB", // Mauve Moyen
-            "Positionnement": "#20B2AA", // Vert Mer Clair
-            "Staff": "#A9A9A9",          // Gris Foncé
-            "Autre": "#808080"           // Gris
+            "Pôle créa.": "#FF6347",     
+            "CRM": "#4682B4",            
+            "Communication": "#32CD32",  
+            "Partenariats": "#FFD700",   
+            "Marketing digital": "#9370DB", 
+            "Positionnement": "#20B2AA", 
+            "Staff": "#A9A9A9",          
+            "Autre": "#808080"           
         };
 
 
@@ -434,7 +506,6 @@
             }, 5000); 
         }
 
-        // Remplir les sélecteurs de pôle et de collaborateur
         function populateSelectors() {
             poles.forEach(pole => {
                 const option = document.createElement('option');
@@ -442,12 +513,12 @@
                 option.textContent = pole;
                 poleSelect.appendChild(option);
             });
-            updateCollaborators(); // Initialise les collaborateurs basés sur le premier pôle
+            updateCollaborators(); 
         }
 
         function updateCollaborators() {
             const selectedPole = poleSelect.value;
-            collaborateurSelect.innerHTML = ''; // Vide les options existantes
+            collaborateurSelect.innerHTML = ''; 
             
             const collabsForPole = collaborateursParPole[selectedPole] || [];
             
@@ -464,12 +535,11 @@
                     collaborateurSelect.appendChild(option);
                 });
             }
-            // Sélectionne le premier collaborateur ou 'Non spécifié'
             collaborateurSelect.value = collabsForPole[0] || 'Non spécifié';
         }
 
         async function addNewsItem(event) {
-            event.preventDefault(); // Empêche le rechargement de la page
+            event.preventDefault(); 
             addNewsButton.disabled = true;
             addNewsButton.textContent = 'Ajout en cours...';
             messageBox.style.display = 'none';
@@ -477,7 +547,7 @@
             const title = newsMessage.value.trim();
             const pole = poleSelect.value;
             const collaborateur = collaborateurSelect.value;
-            const color = defaultColorsByPole[pole] || '#333'; // Récupère la couleur par défaut du pôle
+            const color = defaultColorsByPole[pole] || '#333'; 
 
             if (!title || !pole || !collaborateur) {
                 showMessage('Veuillez sélectionner un pôle, un collaborateur et taper un message.', 'error');
@@ -509,9 +579,10 @@
 
                 const result = await response.json();
                 showMessage(`Actualité ajoutée avec succès ! Le site sera mis à jour dans quelques minutes. (${result.message})`, 'success');
-                newsMessage.value = ''; // Réinitialise le champ message
-                poleSelect.value = poles[0]; // Réinitialise le pôle
-                updateCollaborators(); // Réinitialise les collaborateurs
+                newsMessage.value = ''; 
+                poleSelect.value = poles[0]; 
+                updateCollaborators(); 
+                loadCurrentNewsItems(); // Recharger la liste après un ajout
                 
             } catch (error) {
                 showMessage(`Erreur lors de l'ajout : ${error.message}`, 'error');
@@ -522,11 +593,99 @@
             }
         }
 
+        async function deleteNewsItem(indexToDelete) {
+            if (!confirm("Êtes-vous sûr de vouloir supprimer cette actualité ?")) {
+                return;
+            }
+            showMessage('Suppression en cours...', 'info');
+
+            try {
+                const response = await fetch(SAVE_NEWS_FUNCTION_URL, {
+                    method: 'POST', // Toujours POST, mais avec une action spécifique
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'delete', index: indexToDelete })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Échec de la suppression : ${response.status} ${response.statusText} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                showMessage(`Actualité supprimée avec succès ! Le site sera mis à jour dans quelques minutes. (${result.message})`, 'success');
+                loadCurrentNewsItems(); // Recharger la liste après une suppression
+
+            } catch (error) {
+                showMessage(`Erreur lors de la suppression : ${error.message}`, 'error');
+                console.error("Erreur lors de la suppression du flux:", error);
+            }
+        }
+
+        // Fonction pour charger et afficher les messages actuels dans le panneau
+        async function loadCurrentNewsItems() {
+            currentNewsList.innerHTML = '<li>Chargement des messages actuels...</li>';
+            try {
+                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); // Ajout d'un timestamp pour éviter le cache
+                if (response.ok) {
+                    let newsItems = await response.json();
+                    if (!Array.isArray(newsItems) || newsItems.length === 0) {
+                        currentNewsList.innerHTML = '<li>Aucun message actif dans le flux pour le moment.</li>';
+                        return;
+                    }
+
+                    // Trier par timestamp (le plus récent en premier)
+                    newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+
+                    currentNewsList.innerHTML = ''; // Nettoyer la liste
+                    newsItems.forEach((item, index) => {
+                        const li = document.createElement('li');
+                        li.className = 'news-item-display';
+                        const itemAge = new Date(item.timestamp);
+                        const now = new Date();
+                        const diffHours = Math.floor((now - itemAge) / (1000 * 60 * 60));
+                        const remainingHours = 48 - diffHours;
+                        
+                        const details = [];
+                        if (item.pole) details.push(item.pole);
+                        if (item.collaborateur) details.push(`par ${item.collaborateur}`);
+                        
+                        li.innerHTML = `
+                            <span class="news-text" style="color: ${item.color || '#333'};">${item.title}</span>
+                            <div style="text-align: right;">
+                                <span class="item-details">${details.join(' ')}</span><br>
+                                <span class="item-details">Il y a ${diffHours}h (${remainingHours}h restantes)</span>
+                            </div>
+                            <button class="delete-item-btn" data-index="${index}" title="Supprimer ce message">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        `;
+                        const deleteButton = li.querySelector('.delete-item-btn');
+                        deleteButton.addEventListener('click', () => deleteNewsItem(index));
+                        currentNewsList.appendChild(li);
+                    });
+                    showMessage('Liste des messages actualisée.', 'success');
+
+                } else if (response.status === 404) {
+                    currentNewsList.innerHTML = '<li>Aucun message actif dans le flux pour le moment.</li>';
+                } else {
+                    throw new Error(`Erreur lors du chargement des messages : ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                currentNewsList.innerHTML = '<li>Erreur lors du chargement des messages.</li>';
+                showMessage(`Erreur lors du chargement des messages : ${error.message}`, 'error');
+                console.error("Erreur de chargement des messages actuels:", error);
+            }
+        }
+
+
         // Charger les composants header et footer
         async function loadComponents() {
             const headerPlaceholder = document.getElementById("header-placeholder");
             const footerPlaceholder = document.getElementById("footer-placeholder");
             try {
+                // Charge le header (peut être un fichier header.html ou directement du HTML)
                 const headerResponse = await fetch("header.html");
                 if (headerResponse.ok) {
                     headerPlaceholder.innerHTML = await headerResponse.text();
@@ -583,7 +742,6 @@
                 });
 
                 // Optionnel : Initialiser le dark mode si la logique est dans le header ou ici.
-                // Si initializeDarkMode est une fonction globale, appelez-la ici.
                 // initializeDarkMode(); 
                 
             } catch (error) {
@@ -593,11 +751,14 @@
 
         // Initialisation à l'ouverture de la page
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadComponents(); // Charge le header et le footer
-            populateSelectors(); // Remplir les listes déroulantes
-            poleSelect.addEventListener('change', updateCollaborators); // Met à jour les collaborateurs quand le pôle change
-            newsForm.addEventListener('submit', addNewsItem); // Soumet le formulaire
-            document.body.style.opacity = "1"; // Afficher la page après le chargement initial
+            await loadComponents();
+            populateSelectors();
+            poleSelect.addEventListener('change', updateCollaborators);
+            newsForm.addEventListener('submit', addNewsItem);
+            refreshNewsListButton.addEventListener('click', loadCurrentNewsItems); // Bouton d'actualisation
+            
+            loadCurrentNewsItems(); // Charger la liste des messages au démarrage de la page
+            document.body.style.opacity = "1"; 
         });
     </script>
 </body>
