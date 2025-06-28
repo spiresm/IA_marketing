@@ -821,6 +821,9 @@
          * @returns {HTMLElement} L'élément div représentant la carte.
          */
         const createCard = (item, type) => {
+            console.log(`[createCard] Création de la carte pour le type: ${type}, titre: ${item.titre}`);
+            console.log("[createCard] Données de l'élément:", item);
+
             const card = document.createElement("div");
             card.className = `addition-card ${type}`;
 
@@ -844,34 +847,43 @@
             descriptionElement.textContent = item.description || item.promptText || item.prompt || '';
             card.appendChild(descriptionElement);
 
-            // Rechercher d'abord une URL YouTube dans item.urls
+            // LOGIQUE HARMONISÉE POUR DÉTECTER LE MÉDIA À AFFICHER (IMAGE OU VIDÉO)
             let mediaToDisplay = null;
             let mediaType = null; // 'youtube' ou 'image'
 
+            // Priorité 1: Chercher dans item.urls pour une vidéo YouTube
             if (item.urls && Array.isArray(item.urls)) {
                 const youtubeUrl = item.urls.find(url => getYouTubeVideoId(url));
                 if (youtubeUrl) {
                     mediaToDisplay = youtubeUrl;
                     mediaType = 'youtube';
+                    console.log("[createCard] Média trouvé: YouTube URL:", mediaToDisplay);
                 } else {
+                    // Priorité 2: Si pas de YouTube, chercher la première image dans item.urls
                     const imageUrl = item.urls.find(url => isImageUrl(url));
                     if (imageUrl) {
                         mediaToDisplay = imageUrl;
                         mediaType = 'image';
+                        console.log("[createCard] Média trouvé: Image URL (depuis urls):", mediaToDisplay);
                     }
                 }
             }
-            // Si le type est "galerie" et qu'il y a une imageUrl directe (priorité sur le tableau urls si c'est le cas)
-            // (La logique existante de la galerie utilise peut-être 'imageUrl' directement pour la vignette)
-            if (type === 'galerie' && item.imageUrl && !mediaToDisplay) { // Si galerie ET imageUrl direct ET pas encore de média trouvé
-                mediaToDisplay = item.imageUrl;
-                mediaType = 'image';
+            
+            // Priorité 3: Si rien trouvé dans item.urls, et si item.imageUrl existe (pour le cas de la galerie souvent)
+            // Cette condition est un fallback si 'item.imageUrl' est la seule source d'image pour certains éléments.
+            // Si toutes vos images/vidéos sont *toujours* dans `item.urls`, cette partie peut être superflue.
+            if (!mediaToDisplay && item.imageUrl && isImageUrl(item.imageUrl)) {
+                 mediaToDisplay = item.imageUrl;
+                 mediaType = 'image';
+                 console.log("[createCard] Média trouvé: Image URL (depuis item.imageUrl):", mediaToDisplay);
             }
+            // FIN LOGIQUE HARMONISÉE
 
 
             if (mediaType === 'youtube') {
                 const youtubeId = getYouTubeVideoId(mediaToDisplay);
-                const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&controls=0&modestbranding=1&rel=0&showinfo=0`;
+                // Utilisation de youtube-nocookie.com pour une meilleure confidentialité
+                const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&controls=0&modestbranding=1&rel=0&showinfo=0`;
                 
                 const videoContainer = document.createElement('div');
                 videoContainer.className = 'card-small-video-container';
@@ -883,8 +895,11 @@
                 iframe.allowFullscreen = true;
                 iframe.title = `Vidéo intégrée pour ${item.titre}`;
                 iframe.onerror = () => {
-                    console.error(`Erreur de chargement de l'iframe vidéo pour ${item.titre}, ID: ${youtubeId}`);
+                    console.error(`Erreur de chargement de l'iframe vidéo pour ${item.titre}, ID: ${youtubeId}. URL: ${embedUrl}`);
                     videoContainer.style.display = 'none'; // Cache le conteneur en cas d'erreur
+                };
+                iframe.onload = () => {
+                    console.log(`Iframe YouTube chargée pour ${item.titre}.`);
                 };
 
                 videoContainer.appendChild(iframe);
@@ -895,8 +910,17 @@
                 const img = document.createElement('img');
                 img.src = mediaToDisplay;
                 img.alt = `Vignette de ${item.titre}`;
+                img.onerror = () => {
+                    console.error(`Erreur de chargement de l'image pour ${item.titre}. URL: ${mediaToDisplay}`);
+                    imgContainer.style.display = 'none'; // Cache le conteneur en cas d'erreur
+                };
+                img.onload = () => {
+                    console.log(`Image chargée pour ${item.titre}. URL: ${mediaToDisplay}`);
+                };
                 imgContainer.appendChild(img);
                 card.appendChild(imgContainer);
+            } else {
+                console.log(`[createCard] Aucun média visuel (YouTube ou Image) trouvé pour la carte '${item.titre}'.`);
             }
             
             const meta = document.createElement('div');
@@ -975,6 +999,7 @@
                 if (!Array.isArray(casUsages)) {
                     throw new Error("Les données des cas d'usages ne sont pas un tableau.");
                 }
+                console.log("[displayLatestAdditions] Données brutes des cas d'usages:", casUsages);
 
                 if (!promptsResponse.ok) {
                     throw new Error(`Erreur lors du chargement des prompts de la galerie: ${promptsResponse.statusText}`);
@@ -983,6 +1008,7 @@
                 if (!Array.isArray(prompts)) {
                     throw new Error("Les données des prompts ne sont pas un tableau.");
                 }
+                console.log("[displayLatestAdditions] Données brutes des prompts de la galerie:", prompts);
                 
                 // Harmonisation et parsing des URLs et dates pour les deux sources
                 casUsages = casUsages.map(item => {
@@ -1003,16 +1029,27 @@
                         itemUrls = [item.url];
                     }
 
-                    // Add item.imageUrl to itemUrls if it exists and is not already there
-                    if (item.imageUrl && itemUrls.indexOf(item.imageUrl) === -1) {
-                        itemUrls.push(item.imageUrl);
+                    // NOUVEAU : Ajouter item.fileUrls si elles existent, en leur donnant la priorité
+                    if (item.fileUrls && Array.isArray(item.fileUrls)) {
+                        itemUrls = [...item.fileUrls, ...itemUrls];
                     }
 
-                    return {   
+                    // Add item.imageUrl to itemUrls if it exists and is not already there
+                    // IMPORTANT: Si item.imageUrl est la SOURCE PRIMAIRE pour la vignette, elle doit être PREMIERE dans le tableau.
+                    // Pour le moment, cette ligne l'ajoute à la fin. Si 'imageUrl' est toujours la vignette désirée,
+                    // il faudrait faire `itemUrls = [item.imageUrl, ...itemUrls];`
+                    if (item.imageUrl && !itemUrls.includes(item.imageUrl)) { // Utiliser includes pour vérifier l'existence
+                        itemUrls.unshift(item.imageUrl); // Ajouter en début de tableau pour la priorité
+                    }
+
+
+                    const processedItem = {   
                         ...item,   
                         urls: itemUrls, // Ensure urls is an array, potentially including imageUrl
                         effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString())   
                     };
+                    console.log("[displayLatestAdditions] Cas d'usage traité:", processedItem);
+                    return processedItem;
                 });
 
                 prompts = prompts.map(item => {
@@ -1033,25 +1070,37 @@
                         itemUrls = [item.url];
                     }
 
-                    // Add item.imageUrl to itemUrls if it exists and is not already there
-                    if (item.imageUrl && itemUrls.indexOf(item.imageUrl) === -1) {
-                        itemUrls.push(item.imageUrl);
+                    // NOUVEAU : Ajouter item.fileUrls si elles existent, en leur donnant la priorité
+                    if (item.fileUrls && Array.isArray(item.fileUrls)) {
+                        itemUrls = [...item.fileUrls, ...itemUrls];
                     }
 
-                    return {   
+                    // Add item.imageUrl to itemUrls if it exists and is not already there
+                    if (item.imageUrl && !itemUrls.includes(item.imageUrl)) {
+                        itemUrls.unshift(item.imageUrl); // Ajouter en début de tableau pour la priorité
+                    }
+
+                    const processedItem = {   
                         ...item,   
                         urls: itemUrls, // Ensure urls is an array, potentially including imageUrl
                         effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString())   
                     };
+                    console.log("[displayLatestAdditions] Prompt traité:", processedItem);
+                    return processedItem;
                 });
 
                 // Trier par date effective (du plus récent au plus ancien)
                 casUsages.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
-                const imagePrompts = prompts.filter(item => item.urls && item.urls.some(url => getYouTubeVideoId(url) || isImageUrl(url))); // Filtrer les prompts qui ont une image ou vidéo dans leur tableau 'urls'
+                // Filtrer les prompts qui ont une image ou vidéo dans leur tableau 'urls' ou une imageUrl directe
+                const imagePrompts = prompts.filter(item => (item.urls && item.urls.some(url => getYouTubeVideoId(url) || isImageUrl(url))) || (item.imageUrl && isImageUrl(item.imageUrl)));
                 imagePrompts.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
 
                 const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
                 const latestGalerieItem = imagePrompts.length > 0 ? imagePrompts[0] : null;
+
+                console.log("[displayLatestAdditions] Dernier cas d'usage à afficher:", latestCasUsage);
+                console.log("[displayLatestAdditions] Dernier élément de galerie à afficher:", latestGalerieItem);
+
 
                 let itemsDisplayed = 0;
 
