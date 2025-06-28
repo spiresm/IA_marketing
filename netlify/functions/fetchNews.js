@@ -1,5 +1,5 @@
-const fetch = require('node-fetch');
-const { parseStringPromise } = require('xml2js');
+import fetch from 'node-fetch';
+import { parseStringPromise } from 'xml2js';
 
 // URLs des flux RSS francophones GRATUITS choisis pour l'IA Marketing
 // Vous pouvez ajuster cette liste. Ce sont des flux publics et généralement fiables.
