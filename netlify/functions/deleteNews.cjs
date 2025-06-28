@@ -107,7 +107,6 @@ exports.handler = async (event, context) => {
     
     updatedNewsArray = updatedNewsArray.filter(item => {
         const itemTimestampMs = new Date(item.timestamp || '').getTime();
-        // Log pour le débogage de la comparaison
         console.log(`Comparing item: "${item.title}" (ts: ${item.timestamp || 'N/A'}, ms: ${itemTimestampMs}) with delete_ts: ${timestampToDelete} (ms: ${payloadTimestampMs}). Match: ${itemTimestampMs === payloadTimestampMs}`);
         
         return itemTimestampMs !== payloadTimestampMs;
@@ -143,7 +142,7 @@ exports.handler = async (event, context) => {
         const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         
         const payload = {
-            message: `News feed update (delete) [skip ci]`,
+            message: `News feed update (delete)`, // CHANGEMENT ICI: [skip ci] RETIRÉ
             content: Buffer.from(JSON.stringify(updatedNewsArray, null, 2)).toString('base64'),
             sha: fileSha,
             branch: BRANCH,
