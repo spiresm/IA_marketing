@@ -23,61 +23,65 @@ exports.handler = async (event, context) => {
         };
     }
 
-    let actionType = 'add';
-    let incomingData = null; // Pour les actions 'add'
-    let timestampToDelete = null; // Pour les actions 'delete'
+    let actionType;
+    let payloadData; // Contient les données pertinentes de la requête (message pour 'add', timestamp pour 'delete')
 
     try {
         const body = JSON.parse(event.body);
+
+        // --- Détection claire de l'action ---
         if (body.action === 'delete' && typeof body.timestamp === 'string') {
             actionType = 'delete';
-            timestampToDelete = body.timestamp;
+            payloadData = { timestamp: body.timestamp }; // On extrait juste le timestamp
+            console.log(`Detected action: DELETE for timestamp: ${payloadData.timestamp}`);
         } else {
-            // Assume 'add' action if not 'delete'
-            incomingData = body;
-            if (typeof incomingData !== 'object' || incomingData === null || Array.isArray(incomingData)) {
+            actionType = 'add'; // Action par défaut si ce n'est pas 'delete'
+            payloadData = body; // Le corps entier est le nouvel article
+            console.log("Detected action: ADD new item.");
+
+            // --- Validation pour l'action 'add' ---
+            if (typeof payloadData !== 'object' || payloadData === null || Array.isArray(payloadData)) {
                 throw new Error('Invalid input for add action: expected a single news item object.');
             }
-            // IMPORTANT: Vérifier que tous les champs attendus par le front sont présents
-            if (!incomingData.title || !incomingData.pole || !incomingData.collaborateur || !incomingData.color) {
+            if (!payloadData.title || !payloadData.pole || !payloadData.collaborateur || !payloadData.color) {
+                // S'assurer que tous les champs nécessaires pour un ajout sont là
                 throw new Error('Missing required fields for add action: title, pole, collaborateur, color.');
             }
         }
     } catch (error) {
-        console.error('Error parsing request body or invalid action:', error);
+        console.error('Error parsing request body or invalid action payload:', error);
         return {
             statusCode: 400,
             body: JSON.stringify({ message: 'Invalid request payload.', details: error.message }),
         };
     }
 
-    let currentFileContent = []; // Ce sera l'array d'actualités que nous allons manipuler
-    let fileSha = null; // SHA du fichier existant, nécessaire pour la mise à jour GitHub
+    let currentFileContent = [];
+    let fileSha = null;
 
     try {
-        // --- Tenter de récupérer le contenu actuel du fichier news-data.json ---
+        // --- Récupérer le contenu actuel du fichier news-data.json ---
         const getContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`;
         const responseGet = await fetch(getContentsUrl, {
             method: 'GET',
             headers: {
                 'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json',
+                'Accept': 'application/vnd.github.com.v3+json', // Utiliser la bonne version de l'API
                 'User-Agent': 'Netlify-Function'
             },
         });
 
         if (responseGet.ok) {
             const fileData = await responseGet.json();
-            fileSha = fileData.sha; // On récupère le SHA pour la mise à jour
+            fileSha = fileData.sha;
             const content = Buffer.from(fileData.content, 'base64').toString('utf8');
             
             try {
-                // Tenter de parser le contenu. Si c'est un objet (ancien format), le convertir en tableau.
                 const parsedContent = JSON.parse(content);
                 if (Array.isArray(parsedContent)) {
                     currentFileContent = parsedContent;
                 } else if (typeof parsedContent === 'object' && parsedContent !== null) {
-                    currentFileContent = Object.values(parsedContent); // Convertir l'objet en tableau
+                    currentFileContent = Object.values(parsedContent);
                     console.warn(`Existing ${FILE_PATH} was an object, converted to array for processing.`);
                 } else {
                     console.warn(`Existing ${FILE_PATH} content was not an array or object, initializing empty array.`);
@@ -85,12 +89,11 @@ exports.handler = async (event, context) => {
                 }
             } catch (parseError) {
                 console.error(`Error parsing JSON from existing ${FILE_PATH}:`, parseError);
-                currentFileContent = []; // En cas d'erreur de parsing, on repart d'un tableau vide
+                currentFileContent = [];
             }
             console.log(`Successfully retrieved existing ${FILE_PATH}. Items: ${currentFileContent.length}`);
         } else if (responseGet.status === 404) {
             console.log(`${FILE_PATH} not found. A new file will be created.`);
-            // fileSha reste null, ce qui est correct pour la création
         } else {
             const errorText = await responseGet.text();
             throw new Error(`GitHub getContents failed: ${responseGet.status} ${responseGet.statusText} - ${errorText}`);
@@ -110,21 +113,21 @@ exports.handler = async (event, context) => {
     if (actionType === 'add') {
         // Ajoute le nouvel article en haut avec un timestamp frais
         updatedNewsArray.unshift({
-            title: incomingData.title,
-            pole: incomingData.pole,
-            collaborateur: incomingData.collaborateur,
-            color: incomingData.color,
+            title: payloadData.title,
+            pole: payloadData.pole,
+            collaborateur: payloadData.collaborateur,
+            color: payloadData.color,
             timestamp: new Date().toISOString()
         });
         console.log("New item added to array.");
     } else if (actionType === 'delete') {
         // Filtre pour supprimer l'article par son timestamp unique
         const initialLength = updatedNewsArray.length;
-        updatedNewsArray = updatedNewsArray.filter(item => item.timestamp !== timestampToDelete);
+        updatedNewsArray = updatedNewsArray.filter(item => item.timestamp !== payloadData.timestamp);
         if (updatedNewsArray.length < initialLength) {
-            console.log(`Item with timestamp ${timestampToDelete} deleted from array.`);
+            console.log(`Item with timestamp ${payloadData.timestamp} deleted from array.`);
         } else {
-            console.warn(`Item with timestamp ${timestampToDelete} not found in array for deletion.`);
+            console.warn(`Item with timestamp ${payloadData.timestamp} not found in array for deletion.`);
         }
     }
 
@@ -153,17 +156,17 @@ exports.handler = async (event, context) => {
         const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         
         const payload = {
-            message: `Update news feed (action: ${actionType}) [skip ci]`,
-            content: Buffer.from(JSON.stringify(updatedNewsArray, null, 2)).toString('base64'), // Sauvegarde un tableau JSON valide
-            sha: fileSha, // Le SHA de l'ancienne version, null si nouveau fichier
+            message: `News feed update (${actionType}) [skip ci]`, // Message plus descriptif
+            content: Buffer.from(JSON.stringify(updatedNewsArray, null, 2)).toString('base64'),
+            sha: fileSha,
             branch: BRANCH,
         };
 
         const responseUpdate = await fetch(updateContentsUrl, {
-            method: 'PUT', // PUT pour créer ou mettre à jour
+            method: 'PUT',
             headers: {
                 'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json',
+                'Accept': 'application/vnd.github.com.v3+json',
                 'User-Agent': 'Netlify-Function',
                 'Content-Type': 'application/json'
             },
