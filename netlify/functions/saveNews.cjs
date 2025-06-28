@@ -3,8 +3,8 @@ const fetch = require('node-fetch'); // On réutilise node-fetch que vous avez d
 
 // Récupérer le token et les infos du dépôt depuis les variables d'environnement Netlify
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const REPO_OWNER = 'VOTRE_NOM_D_UTILISATEUR_GITHUB'; // <-- REMPLACEZ PAR VOTRE NOM D'UTILISATEUR
-const REPO_NAME = 'NOM_DE_VOTRE_DEPOT'; // <-- REMPLACEZ PAR LE NOM DE VOTRE DÉPÔT
+const REPO_OWNER = 'spiresm'; //
+const REPO_NAME = 'IA_marketing';
 const FILE_PATH = 'news-data.json';
 const BRANCH = 'main'; // Ou 'master' selon votre branche principale
 
