@@ -3,19 +3,15 @@
 const fetch = require('node-fetch');
 const { XMLParser } = require('fast-xml-parser');
 
-// Gardez un seul flux pour le test
+// Un seul flux RSS de BBC News pour le test
 const RSS_FEEDS = [
-    { name: "Blog du Modérateur", url: "https://www.blogdumoderateur.com/feed/" }
-    // Désactivez les autres pour le moment en les commentant ou en les supprimant
-    // { name: "JDN Intelligence Artificielle", url: "https://www.journaldunet.com/web-tech/intelligence-artificielle/rss/" },
-    // { name: "e-marketing.fr", url: "https://www.e-marketing.fr/rss.xml" },
-    // { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" }
+    { name: "BBC News Top Stories", url: "http://feeds.bbci.co.uk/news/rss.xml" }
 ];
 
 const parser = new XMLParser({ ignoreAttributes: true });
 
 exports.handler = async (event, context) => {
-    console.log("📡 Lancement de fetchNews avec un seul flux...");
+    console.log("📡 Lancement de fetchNews avec le flux BBC News...");
 
     try {
         let allArticles = [];
@@ -38,12 +34,11 @@ exports.handler = async (event, context) => {
                 const result = parser.parse(xml);
 
                 let items = [];
-                // Logique pour gérer les formats RSS et Atom
                 if (result.rss?.channel?.item) {
                     items = Array.isArray(result.rss.channel.item)
                         ? result.rss.channel.item
                         : [result.rss.channel.item];
-                } else if (result.feed?.entry) {
+                } else if (result.feed?.entry) { // Pour les flux Atom au cas où
                     items = Array.isArray(result.feed.entry)
                         ? result.feed.entry
                         : [result.feed.entry];
@@ -51,7 +46,7 @@ exports.handler = async (event, context) => {
 
                 const articles = items.map(item => ({
                     title: item.title || 'Titre inconnu',
-                    url: item.link?.href || item.link || '#', // Gère les liens dans Atom (href) et RSS (directement link)
+                    url: item.link?.href || item.link || '#',
                     pubDate: item.pubDate || item.updated || new Date().toISOString(),
                     source: feed.name
                 }));
@@ -89,8 +84,7 @@ exports.handler = async (event, context) => {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=3600, must-revalidate"
+                "Access-Control-Allow-Origin": "*"
             },
             body: JSON.stringify(topArticles),
         };
