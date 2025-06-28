@@ -1,107 +1,109 @@
+// netlify/functions/fetchNews.cjs
+
 const fetch = require('node-fetch');
 const { XMLParser } = require('fast-xml-parser');
 
 const RSS_FEEDS = [
-    { name: "Blog du Modérateur", url: "https://www.blogdumoderateur.com/feed/" },
-    { name: "JDN Intelligence Artificielle", url: "https://www.journaldunet.com/web-tech/intelligence-artificielle/rss/" },
-    { name: "e-marketing.fr", url: "https://www.e-marketing.fr/rss.xml" },
-    { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" }
+  { name: "Blog du Modérateur", url: "https://www.blogdumoderateur.com/feed/" },
+  { name: "JDN Intelligence Artificielle", url: "https://www.journaldunet.com/web-tech/intelligence-artificielle/rss/" },
+  { name: "e-marketing.fr", url: "https://www.e-marketing.fr/rss.xml" },
+  { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" }
 ];
 
 const parser = new XMLParser({ ignoreAttributes: true });
 
 exports.handler = async (event, context) => {
-    console.log("📡 fetchNews démarré");
-    try {
-        let allArticles = [];
+  console.log("📡 Lancement de fetchNews...");
 
-        for (const feed of RSS_FEEDS) {
-            try {
-                const response = await fetch(feed.url);
+  try {
+    let allArticles = [];
 
-                if (response.status === 429) {
-                    console.warn(`⏳ ${feed.name} a retourné un 429 Too Many Requests. Passage au flux suivant.`);
-                    continue;
-                }
+    for (const feed of RSS_FEEDS) {
+      try {
+        const response = await fetch(feed.url);
 
-                if (!response.ok) {
-                    console.error(`❌ Erreur HTTP ${response.status} sur ${feed.name} (${feed.url})`);
-                    continue;
-                }
-
-                const xml = await response.text();
-                if (!xml || xml.trim().length < 20) {
-                    console.warn(`⚠️ Flux vide ou incomplet : ${feed.name}`);
-                    continue;
-                }
-
-                const result = parser.parse(xml);
-
-                let items = [];
-                if (result.rss?.channel?.item) {
-                    items = Array.isArray(result.rss.channel.item)
-                        ? result.rss.channel.item
-                        : [result.rss.channel.item];
-                } else if (result.feed?.entry) {
-                    items = Array.isArray(result.feed.entry)
-                        ? result.feed.entry
-                        : [result.feed.entry];
-                }
-
-                const articles = items.map(item => ({
-                    title: item.title || 'Titre inconnu',
-                    url: item.link?.href || item.link || '#',
-                    pubDate: item.pubDate || item.updated || new Date().toISOString(),
-                    source: feed.name
-                }));
-
-                allArticles = allArticles.concat(articles);
-
-            } catch (feedError) {
-                console.error(`❌ Erreur lors du traitement du flux ${feed.name}:`, feedError.message);
-            }
+        if (response.status === 429) {
+          console.warn(`⏳ ${feed.name} a retourné un 429 Too Many Requests. Passage au flux suivant.`);
+          continue;
         }
 
-        // ✅ Si tous les flux ont échoué
-        if (allArticles.length === 0) {
-            console.warn("⚠️ Aucun article récupéré : tous les flux ont échoué ou sont bloqués.");
-            return {
-                statusCode: 200,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                    "Cache-Control": "no-store"
-                },
-                body: JSON.stringify([]),
-            };
+        if (!response.ok) {
+          console.error(`❌ ${feed.name} (${feed.url}) a échoué : ${response.status} ${response.statusText}`);
+          continue;
         }
 
-        // ✅ Normalisation et tri
-        allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-        const topArticles = allArticles.slice(0, 15);
+        const xml = await response.text();
+        const result = parser.parse(xml);
 
-        return {
-            statusCode: 200,
-            headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=3600, must-revalidate"
-            },
-            body: JSON.stringify(topArticles),
-        };
+        let items = [];
+        if (result.rss?.channel?.item) {
+          items = Array.isArray(result.rss.channel.item)
+            ? result.rss.channel.item
+            : [result.rss.channel.item];
+        } else if (result.feed?.entry) {
+          items = Array.isArray(result.feed.entry)
+            ? result.feed.entry
+            : [result.feed.entry];
+        }
 
-    } catch (error) {
-        console.error("❌ Erreur générale dans fetchNews:", error);
-        return {
-            statusCode: 500,
-            headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            body: JSON.stringify({
-                error: "Erreur serveur",
-                message: error.message
-            }),
-        };
+        const articles = items.map(item => ({
+          title: item.title || 'Titre inconnu',
+          url: item.link?.href || item.link || '#',
+          pubDate: item.pubDate || item.updated || new Date().toISOString(),
+          source: feed.name
+        }));
+
+        console.log(`✅ ${feed.name} → ${articles.length} articles récupérés`);
+        allArticles = allArticles.concat(articles);
+
+      } catch (err) {
+        console.error(`❌ Erreur sur ${feed.name} (${feed.url}) :`, err.message);
+      }
     }
+
+    if (allArticles.length === 0) {
+      console.warn("⚠️ Aucun article récupéré. Envoi d’un message par défaut.");
+      return {
+        statusCode: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify([{
+          title: "Aucune actualité disponible pour le moment",
+          url: "#",
+          pubDate: new Date().toISOString(),
+          source: "System"
+        }])
+      };
+    }
+
+    allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    const topArticles = allArticles.slice(0, 15);
+    console.log(`📰 Total articles final : ${topArticles.length}`);
+
+    return {
+      statusCode: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600, must-revalidate"
+      },
+      body: JSON.stringify(topArticles),
+    };
+
+  } catch (error) {
+    console.error("❌ Erreur générale dans fetchNews:", error.message);
+    return {
+      statusCode: 500,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: JSON.stringify({
+        error: "Erreur serveur",
+        message: error.message
+      }),
+    };
+  }
 };
