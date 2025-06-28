@@ -75,18 +75,10 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Conteneur des contrôles en haut (filtres et boutons) */
-        .header-controls-container {
-            max-width: 900px; /* Alignement sur la largeur du contenu principal */
-            margin: 20px auto 25px auto;
-            padding: 0 20px;
-            box-sizing: border-box;
-        }
-
-        /* NOUVEAU: Section pour les logos des outils */
+        /* NOUVEAU: Section pour les logos des outils (Maintenant au-dessus des filtres) */
         .tool-logos-section {
             max-width: 900px; /* Aligné sur la largeur du contenu principal */
-            margin: 0 auto 40px auto; /* Marge en bas pour séparer de la galerie */
+            margin: 20px auto; /* Marge au-dessus et en dessous */
             padding: 20px;
             background: #fff;
             border-radius: 12px;
@@ -99,18 +91,18 @@
         }
         .tools-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Plus petit pour les logos */
-            gap: 15px; /* Espace réduit entre les logos */
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Grille flexible */
+            gap: 15px; /* Espace réduit entre les cartes de logos */
             margin-top: 20px;
             justify-content: center; /* Centrer les logos */
         }
         .tool-card {
-            background-color: #f9f9f9;
+            background-color: #f9f9f9; /* Fond clair pour la carte */
             padding: 10px; /* Padding réduit */
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Ombre plus subtile */
             transition: transform 0.2s ease, box-shadow 0.2s ease; /* Effet de transition au survol */
-            cursor: default; /* Curseur par défaut, non cliquable */
+            cursor: pointer; /* Curseur main pour indiquer que c'est cliquable */
             display: flex;
             flex-direction: column;
             align-items: center; /* Centre les éléments verticalement */
@@ -150,6 +142,13 @@
             color: var(--dark-mode-text);
         }
 
+        /* Conteneur des contrôles en haut (filtres et boutons) - Maintenant en dessous des logos */
+        .header-controls-container {
+            max-width: 900px;
+            margin: 0px auto 25px auto; /* Marge supérieure réduite */
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
 
         /* Conteneur principal de la galerie (la "box" blanche) */
         .galerie-container {
@@ -1097,6 +1096,15 @@
             filtreOutilSelect.addEventListener('change', applyFiltersAndSort);
             previewTextInput.addEventListener('input', applyFiltersAndSort);
             filtreTriDateSelect.addEventListener('change', applyFiltersAndSort);
+            
+            // NOUVEAU : Écouteur pour le filtre d'outil pour s'assurer que le champ est mis à jour
+            filtreOutilSelect.addEventListener('change', () => {
+                applyFiltersAndSort();
+                // Si "Tous les outils" est sélectionné, l'URL n'a pas de filtre spécifique d'outil
+                if (filtreOutilSelect.value === "") {
+                    // Ici, vous pourriez avoir une logique pour "désélectionner" visuellement les logos
+                }
+            });
         }
 
         async function loadAndDisplayTips() {
@@ -1482,13 +1490,32 @@
 
             toolLogosGrid.innerHTML = ''; // Nettoie le contenu existant
 
+            // NOUVEAU: Ajouter le logo "Tous les outils" en premier
+            const allToolsCard = document.createElement('div');
+            allToolsCard.className = 'tool-card';
+            allToolsCard.innerHTML = `
+                <i class="fas fa-tools" style="font-size: 50px; color: #0077b6; margin-bottom: 8px;"></i>
+                <span class="tool-name">Tous les outils</span>
+            `;
+            allToolsCard.addEventListener('click', () => {
+                filtreOutilSelect.value = ""; // Sélectionne l'option "Tous les outils"
+                applyFiltersAndSort(); // Applique le filtre
+            });
+            toolLogosGrid.appendChild(allToolsCard);
+
+
             toolsData.forEach(tool => {
                 const toolCard = document.createElement('div');
-                toolCard.className = 'tool-card'; // Utilise la classe CSS pour les cartes de logos
+                toolCard.className = 'tool-card'; 
                 toolCard.innerHTML = `
                     <img src="${tool.img}" alt="Logo de ${tool.name}" loading="lazy">
                     <span class="tool-name">${tool.name}</span>
                 `;
+                // NOUVEAU: Ajouter l'écouteur de clic pour le filtrage
+                toolCard.addEventListener('click', () => {
+                    filtreOutilSelect.value = tool.name; // Met à jour le sélecteur d'outil
+                    applyFiltersAndSort(); // Applique le filtre
+                });
                 toolLogosGrid.appendChild(toolCard);
             });
         }
@@ -1507,7 +1534,6 @@
             document.querySelectorAll('nav a').forEach(link => {
                 const linkHref = link.getAttribute('href');
                 const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-                // Spécifie explicitement 'cas-usages.html' pour cette page
                 if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "Cas-usages.html") {
                     link.classList.add("active");
                 } else {
@@ -1534,14 +1560,14 @@
             // 4. Mettre en place les filtres
             setupFilters();
 
-            // 5. Charger et afficher les logos des outils (NOUVEAU)
+            // 5. Charger et afficher les logos des outils
             renderToolLogos();
 
             // 6. Charger et afficher les tips
             loadAndDisplayTips();
 
             // 7. Rendre le body et main visibles
-            document.body.style.opacity = '1'; // Rendre le body visible après le chargement initial.
+            document.body.style.opacity = '1'; 
             mainElement.classList.add("show");
 
             console.log("cas-usages: Initialisation terminée.");
