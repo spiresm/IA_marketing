@@ -8,9 +8,7 @@ const RSS_FEEDS = [
     { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" }
 ];
 
-const parser = new XMLParser({
-    ignoreAttributes: true,
-});
+const parser = new XMLParser({ ignoreAttributes: true });
 
 exports.handler = async (event, context) => {
     console.log("📡 fetchNews démarré");
@@ -32,6 +30,11 @@ exports.handler = async (event, context) => {
                 }
 
                 const xml = await response.text();
+                if (!xml || xml.trim().length < 20) {
+                    console.warn(`⚠️ Flux vide ou incomplet : ${feed.name}`);
+                    continue;
+                }
+
                 const result = parser.parse(xml);
 
                 let items = [];
@@ -59,6 +62,21 @@ exports.handler = async (event, context) => {
             }
         }
 
+        // ✅ Si tous les flux ont échoué
+        if (allArticles.length === 0) {
+            console.warn("⚠️ Aucun article récupéré : tous les flux ont échoué ou sont bloqués.");
+            return {
+                statusCode: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                    "Cache-Control": "no-store"
+                },
+                body: JSON.stringify([]),
+            };
+        }
+
+        // ✅ Normalisation et tri
         allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
         const topArticles = allArticles.slice(0, 15);
 
