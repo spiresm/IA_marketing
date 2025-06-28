@@ -500,9 +500,16 @@
 
     function normalizeString(str) {
         if (typeof str !== 'string') return '';
-        // CORRECTION APPORTÉE ICI : Ajout de .trim() pour supprimer les espaces blancs au début et à la fin.
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        // CORRECTION FINALE APPORTÉE ICI : Ajout de .trim() et transformation de l'apostrophe en caractère standard
+        // et remplacement de tiret par espace pour match la cible "cas d'usages"
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Supprime les accents
+                   .toLowerCase() // Tout en minuscules
+                   .replace(/'/g, ' ') // Remplace l'apostrophe par un espace (si présente dans la source)
+                   .replace(/-/g, ' ') // Remplace les tirets par des espaces
+                   .replace(/\s+/g, ' ') // Remplace plusieurs espaces par un seul espace
+                   .trim(); // Supprime les espaces blancs au début et à la fin
     }
+
 
     function renderProfils() {
         console.log("Équipe: Début du rendu des profils...");
@@ -726,11 +733,17 @@
         // --- Nouvelle section TIPS (gère les données déjà chargées ou l'absence) ---
         const tipsFromAuthor = sharedTips
             ? sharedTips.filter(tip => {
-                const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === normalizeString('cas-usages');
+                // MODIFICATION ICI: La chaîne de comparaison est maintenant 'cas d usages'
+                const isFromCorrectPage = normalizeString(tip.pageDePartage || '') === 'cas d usages';
                 const isByThisAuthor = normalizeString(tip.auteur || '') === profilNameNormalized;
                 return isByThisAuthor && isFromCorrectPage;
             })
-            .sort((a, b) => new Date(b.datePartage) - new Date(a.datePartage))
+            .sort((a, b) => {
+                // Utilisation flexible des champs de date pour le tri
+                const dateA = new Date(b.date_creation || b.date_ajout || b.dateCreation || 0);
+                const dateB = new Date(a.date_creation || a.date_ajout || a.dateCreation || 0);
+                return dateA - dateB;
+            })
             : []; // Si sharedTips est null, retourne un tableau vide
 
         // Prendre seulement le dernier tip
