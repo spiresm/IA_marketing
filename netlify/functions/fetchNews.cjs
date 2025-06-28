@@ -1,4 +1,4 @@
-// netlify/functions/fetchNews.js
+// netlify/functions/fetchNews.cjs
 
 // Utilisez la syntaxe 'import' pour toutes les dépendances
 import fetch from 'node-fetch';
