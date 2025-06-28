@@ -689,7 +689,7 @@
             will-change: transform;
             animation: ticker var(--ticker-duration) linear infinite !important; /* Ajout de !important pour le test */
             animation-play-state: running; 
-            visibility: hidden; /* Cache le contenu tant que l'animation n'est pas lancée */
+            /* VISIBILITE : On retire visibility: hidden; ici */
         }
 
         .news-ticker-content:hover {
@@ -1228,10 +1228,17 @@
         // --- Fonctions pour le News Ticker ---
         async function loadNewsTicker() {
             const newsTickerContent = document.getElementById('newsTickerContent');
+            const tickerContainer = newsTickerContent.parentElement; // Le conteneur du news ticker
+
             if (!newsTickerContent) {
                 console.error("L'élément #newsTickerContent n'a pas été trouvé.");
                 return;
             }
+
+            // D'abord, videz et affichez un message de chargement (optionnel mais utile)
+            newsTickerContent.innerHTML = '<span class="news-item" style="color:#666;">Chargement des actualités...</span>';
+            newsTickerContent.style.animation = 'none'; // Arrête toute animation précédente
+            newsTickerContent.style.transform = 'translateX(0)'; // Positionne au début
 
             let newsItems = [];
             try {
@@ -1253,13 +1260,14 @@
                 newsTickerContent.innerHTML = '<span class="news-item">Aucune actualité disponible pour le moment.</span>';
                 newsTickerContent.style.animation = 'none';
                 newsTickerContent.style.transform = 'translateX(0)';
+                // newsTickerContent.style.visibility = 'visible'; // Assurez-vous qu'il est visible même vide
                 return;
             }
 
             // Pour s'assurer que les articles sont triés du plus récent au plus ancien (si timestamp existe)
             newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
-            newsTickerContent.innerHTML = ''; 
+            newsTickerContent.innerHTML = ''; // Nettoyer le contenu de chargement
 
             newsItems.forEach(item => {
                 const span = document.createElement('span');
@@ -1286,52 +1294,51 @@
                 newsTickerContent.appendChild(span);
             });
 
-            const tickerContainer = newsTickerContent.parentElement;
-            
-            // Forcer un reflow / recalcul de la mise en page
-            newsTickerContent.offsetWidth; // Déclenche un reflow
-
-            // Utilisation de requestAnimationFrame + setTimeout pour garantir que scrollWidth est correct
-            requestAnimationFrame(async () => {
-                await new Promise(resolve => setTimeout(resolve, 50)); // Petite attente pour le rendu
-
+            // Utilisation d'un setTimeout avec un délai court pour laisser le temps au navigateur de rendre les éléments
+            // avant de calculer les largeurs et de lancer l'animation.
+            setTimeout(() => {
                 let totalContentWidth = newsTickerContent.scrollWidth; 
                 const containerVisibleWidth = tickerContainer.offsetWidth; 
 
-                // Si le contenu est plus petit que le conteneur, le cloner pour qu'il défile
                 let currentCloneCount = 0;
-                const originalItems = Array.from(newsTickerContent.children); // Récupérer les éléments originaux
-                // Cloner tant que la largeur totale est insuffisante ou qu'on n'a pas atteint la limite de clones
-                while (totalContentWidth > 0 && totalContentWidth < containerVisibleWidth * 2 && currentCloneCount < 5) {
-                    originalItems.forEach(child => newsTickerContent.appendChild(child.cloneNode(true)));
+                const originalChildren = Array.from(newsTickerContent.children); // Récupérer les éléments originaux pour le clonage
+
+                // Cloner le contenu si nécessaire pour assurer un défilement continu
+                while (totalContentWidth > 0 && totalContentWidth < containerVisibleWidth * 2 && currentCloneCount < 5) { 
+                    originalChildren.forEach(child => {
+                        newsTickerContent.appendChild(child.cloneNode(true));
+                    });
                     totalContentWidth = newsTickerContent.scrollWidth; 
                     currentCloneCount++;
                 }
-
+                
                 // Si le contenu est toujours trop court ou vide après clonage, désactiver l'animation
                 if (totalContentWidth === 0 || totalContentWidth <= containerVisibleWidth) {
                     newsTickerContent.style.animation = 'none';
                     newsTickerContent.style.transform = 'translateX(0)';
-                    newsTickerContent.style.visibility = 'visible'; // Rendre visible même sans défilement
+                    // newsTickerContent.style.visibility = 'visible'; // Déjà visible
                     return;
                 }
 
                 // MODIFICATION DE LA VITESSE ICI
-                const speed = 1.0; // Pixels par seconde. Mettre 1.0 pour le test.
+                const speed = 1.0; // Pixels par seconde.
+                // La largeur effective est la largeur totale divisée par le nombre de fois que le contenu original a été ajouté.
                 const effectiveContentWidth = newsTickerContent.scrollWidth / (currentCloneCount + 1); 
                 const duration = effectiveContentWidth / speed; 
 
                 console.log(`[News Ticker] totalContentWidth: ${totalContentWidth}, effectiveContentWidth: ${effectiveContentWidth}, speed: ${speed}, calculated duration: ${duration}s`);
                 
                 newsTickerContent.style.setProperty('--ticker-duration', `${duration}s`);
-                // Enlève toutes les animations existantes pour être sûr de repartir de zéro
+                // Enlève toutes les animations existantes pour être sûr de repartir de zéro et applique la nouvelle
                 newsTickerContent.style.animation = `ticker var(--ticker-duration) linear infinite !important`; 
                 newsTickerContent.style.animationPlayState = 'running';
-                newsTickerContent.style.visibility = 'visible'; // Rendre visible une fois l'animation configurée
+                // newsTickerContent.style.visibility = 'visible'; // Déjà visible
 
-                // Rattachage des événements (si la div est recréée ou son contenu vidé)
-                newsTickerContent.removeEventListener('mouseenter', null); // S'assurer de ne pas avoir de doublons
-                newsTickerContent.removeEventListener('mouseleave', null); // S'assurer de ne pas avoir de doublons
+                // Rattachage des événements (important car newsTickerContent.innerHTML = '' recrée les enfants)
+                // Enlève les écouteurs existants pour éviter les doublons
+                newsTickerContent.removeEventListener('mouseenter', null); 
+                newsTickerContent.removeEventListener('mouseleave', null);
+                
                 newsTickerContent.addEventListener('mouseenter', () => {
                     newsTickerContent.style.animationPlayState = 'paused';
                     console.log("[News Ticker] Animation paused.");
@@ -1340,8 +1347,8 @@
                     newsTickerContent.style.animationPlayState = 'running';
                     console.log("[News Ticker] Animation running.");
                 });
-            }); // Fin requestAnimationFrame
 
+            }, 100); // Délai de 100ms pour s'assurer du rendu avant calcul
         }
 
         async function loadComponents() {
@@ -1416,7 +1423,7 @@
         document.addEventListener("DOMContentLoaded", async () => {
             await loadComponents();
             displayLatestAdditions();
-            loadNewsTicker();
+            loadNewsTicker(); // Appeler une fois DOMContentLoaded
 
             if (loader) {
                 loader.classList.add("hidden");
