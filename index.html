@@ -1239,6 +1239,8 @@
             newsTickerContent.innerHTML = '<span class="news-item" style="color:#666;">Chargement des actualités...</span>';
             newsTickerContent.style.animation = 'none'; // Arrête toute animation précédente
             newsTickerContent.style.transform = 'translateX(0)'; // Positionne au début
+            // IMPORTANT : S'assurer que le contenu est visible pendant le chargement
+            // newsTickerContent.style.visibility = 'visible'; // Pas nécessaire si déjà enlevé dans CSS
 
             let newsItems = [];
             try {
@@ -1256,18 +1258,19 @@
                 newsItems = [{ title: "Erreur de chargement du flux d'actualités. Contactez l'administrateur.", url: "#", pole: "Support", collaborateur: "IT", color: "#dc3545" }];
             }
             
-            if (!newsItems || newsItems.length === 0) {
+            // Si pas d'articles valides, affiche le message et désactive l'animation
+            if (!Array.isArray(newsItems) || newsItems.length === 0) { // S'assurer que newsItems est bien un tableau
                 newsTickerContent.innerHTML = '<span class="news-item">Aucune actualité disponible pour le moment.</span>';
                 newsTickerContent.style.animation = 'none';
                 newsTickerContent.style.transform = 'translateX(0)';
-                // newsTickerContent.style.visibility = 'visible'; // Assurez-vous qu'il est visible même vide
+                // newsTickerContent.style.visibility = 'visible'; // Déjà visible
                 return;
             }
 
             // Pour s'assurer que les articles sont triés du plus récent au plus ancien (si timestamp existe)
             newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
-            newsTickerContent.innerHTML = ''; // Nettoyer le contenu de chargement
+            newsTickerContent.innerHTML = ''; // Nettoyer le message de chargement
 
             newsItems.forEach(item => {
                 const span = document.createElement('span');
@@ -1276,16 +1279,13 @@
                 a.href = item.url || '#';
                 
                 let itemContent = item.title || 'Titre inconnu';
-                // Ajoute le pôle et le collaborateur si présents
                 if (item.pole || item.collaborateur) {
                     let details = [];
                     if (item.pole) details.push(item.pole);
                     if (item.collaborateur) details.push(`par ${item.collaborateur}`);
-                    // Utilise une balise strong pour le pôle/collaborateur et met la couleur
                     itemContent += ` <strong class="details" style="color: ${item.color || '#666'};">(${details.join(' ')})</strong>`;
                 }
 
-                // Applique la couleur sur le titre principal, et les détails ont leur propre couleur
                 a.innerHTML = `<span style="color: ${item.color || '#333'};">${itemContent}</span>`;
                 
                 a.target = '_blank';
@@ -1301,7 +1301,7 @@
                 const containerVisibleWidth = tickerContainer.offsetWidth; 
 
                 let currentCloneCount = 0;
-                const originalChildren = Array.from(newsTickerContent.children); // Récupérer les éléments originaux pour le clonage
+                const originalChildren = Array.from(newsTickerContent.children); 
 
                 // Cloner le contenu si nécessaire pour assurer un défilement continu
                 while (totalContentWidth > 0 && totalContentWidth < containerVisibleWidth * 2 && currentCloneCount < 5) { 
@@ -1320,22 +1320,17 @@
                     return;
                 }
 
-                // MODIFICATION DE LA VITESSE ICI
                 const speed = 1.0; // Pixels par seconde.
-                // La largeur effective est la largeur totale divisée par le nombre de fois que le contenu original a été ajouté.
                 const effectiveContentWidth = newsTickerContent.scrollWidth / (currentCloneCount + 1); 
                 const duration = effectiveContentWidth / speed; 
 
                 console.log(`[News Ticker] totalContentWidth: ${totalContentWidth}, effectiveContentWidth: ${effectiveContentWidth}, speed: ${speed}, calculated duration: ${duration}s`);
                 
                 newsTickerContent.style.setProperty('--ticker-duration', `${duration}s`);
-                // Enlève toutes les animations existantes pour être sûr de repartir de zéro et applique la nouvelle
                 newsTickerContent.style.animation = `ticker var(--ticker-duration) linear infinite !important`; 
                 newsTickerContent.style.animationPlayState = 'running';
                 // newsTickerContent.style.visibility = 'visible'; // Déjà visible
 
-                // Rattachage des événements (important car newsTickerContent.innerHTML = '' recrée les enfants)
-                // Enlève les écouteurs existants pour éviter les doublons
                 newsTickerContent.removeEventListener('mouseenter', null); 
                 newsTickerContent.removeEventListener('mouseleave', null);
                 
@@ -1348,7 +1343,7 @@
                     console.log("[News Ticker] Animation running.");
                 });
 
-            }, 100); // Délai de 100ms pour s'assurer du rendu avant calcul
+            }, 100); 
         }
 
         async function loadComponents() {
