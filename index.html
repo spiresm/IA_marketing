@@ -654,7 +654,7 @@
         /* NOUVEAUX STYLES POUR LE FLUX RSS DÉFILANT */
         .news-ticker-section {
             max-width: 900px;
-            margin: 40px auto 20px auto; /* Marge supérieure pour séparer des autres sections */
+            margin: 0 auto 20px auto; /* <-- Marge supérieure réglée à 0 pour "coller" */
             padding: 15px 20px;
             background: #e0f7fa; /* Un fond clair pour le flux */
             border-radius: 8px;
@@ -697,7 +697,7 @@
             top: 0;
             left: 0;
             will-change: transform; /* Optimisation pour l'animation */
-            animation: ticker 25s linear infinite; /* Animation défilante */
+            animation: ticker 25s linear infinite; /* Animation défilante, durée sera ajustée par JS */
             animation-play-state: running; /* Par défaut, l'animation est lancée */
         }
 
@@ -777,8 +777,7 @@
             <i class="fas fa-newspaper icon"></i>
             <div class="news-ticker-container">
                 <div class="news-ticker-content" id="newsTickerContent">
-                    <span class="news-item"><a href="#">Chargement des actualités...</a></span>
-                </div>
+                    </div>
             </div>
         </section>
 
@@ -952,7 +951,7 @@
                 icon.className = 'fas fa-lightbulb icon';
             } else if (type === 'galerie') {
                 icon.className = 'fas fa-image icon';
-            }   
+            }    
             header.appendChild(icon);
 
             const title = document.createElement("h4");
@@ -988,9 +987,9 @@
             
             // Priorité 3: Si rien trouvé dans item.urls, et si item.imageUrl existe (pour le cas de la galerie souvent)
             if (!mediaToDisplay && item.imageUrl && isImageUrl(item.imageUrl)) {
-                 mediaToDisplay = item.imageUrl;
-                 mediaType = 'image';
-                 console.log("[createCard] Média trouvé: Image URL (depuis item.imageUrl):", mediaToDisplay);
+                mediaToDisplay = item.imageUrl;
+                mediaType = 'image';
+                console.log("[createCard] Média trouvé: Image URL (depuis item.imageUrl):", mediaToDisplay);
             }
             // FIN LOGIQUE HARMONISÉE
 
@@ -1147,9 +1146,6 @@
                     }
 
                     // Add item.imageUrl to itemUrls if it exists and is not already there
-                    // IMPORTANT: Si item.imageUrl est la SOURCE PRIMAIRE pour la vignette, elle doit être PREMIERE dans le tableau.
-                    // Pour le moment, cette ligne l'ajoute à la fin. Si 'imageUrl' est toujours la vignette désirée,
-                    // il faudrait faire `itemUrls = [item.imageUrl, ...itemUrls];`
                     if (item.imageUrl && !itemUrls.includes(item.imageUrl)) { // Utiliser includes pour vérifier l'existence
                         itemUrls.unshift(item.imageUrl); // Ajouter en début de tableau pour la priorité
                     }
@@ -1315,6 +1311,9 @@
 
                 if (!newsItems || newsItems.length === 0) {
                     newsTickerContent.innerHTML = '<span class="news-item">Aucune actualité trouvée pour le moment.</span>';
+                    // S'assurer que l'animation est arrêtée s'il n'y a pas de contenu
+                    newsTickerContent.style.animation = 'none';
+                    newsTickerContent.style.transform = 'translateX(0)';
                     return;
                 }
 
@@ -1324,8 +1323,10 @@
                     const span = document.createElement('span');
                     span.className = 'news-item';
                     const a = document.createElement('a');
-                    a.href = item.url || '#'; 
+                    a.href = item.url || '#';
+                    // `item.title` devrait déjà être décodé grâce à `htmlEntities: true` dans la fonction Netlify.
                     a.textContent = item.title || 'Titre inconnu'; 
+                    
                     a.target = '_blank'; // Ouvre le lien dans un nouvel onglet
                     a.rel = 'noopener noreferrer'; // Bonnes pratiques de sécurité
                     span.appendChild(a);
@@ -1333,32 +1334,39 @@
                 });
 
                 // Pour un défilement continu : calculer la largeur totale et cloner le contenu
-                // On clone pour que le défilement soit infini sans "saut"
                 const tickerContainer = newsTickerContent.parentElement;
                 const totalContentWidth = newsTickerContent.scrollWidth; // Largeur de tous les news-item mis bout à bout
                 const containerVisibleWidth = tickerContainer.offsetWidth; // Largeur de la fenêtre visible
 
-                // S'assurer qu'il y a assez de contenu pour défiler
-                if (totalContentWidth > containerVisibleWidth) {
-                    const clonesNeeded = Math.ceil(containerVisibleWidth / totalContentWidth) + 1; // Au moins 1 clone complet + 1 partiel
-                    for (let i = 0; i < clonesNeeded; i++) {
-                        newsTickerContent.appendChild(newsTickerContent.cloneNode(true).children[0]); // Clone chaque item individuellement pour éviter un trop gros DOM
+                // Cloner le contenu si nécessaire pour assurer un défilement continu
+                // On clone au moins une fois le contenu entier du ticker.
+                // Cela évite les "sauts" et assure un défilement infini visuellement.
+                if (totalContentWidth > 0 && totalContentWidth < containerVisibleWidth * 2) {
+                    const originalContent = newsTickerContent.innerHTML;
+                    newsTickerContent.innerHTML += originalContent; // Ajoutez le clone
+                    // Si le contenu reste trop court après un premier clonage, clonez encore
+                    if (newsTickerContent.scrollWidth < containerVisibleWidth * 2) {
+                        newsTickerContent.innerHTML += originalContent;
                     }
-                } else {
-                    // Si le contenu est trop court pour défiler, désactiver l'animation
+                } else if (totalContentWidth === 0) {
+                    // Aucun contenu réel, désactiver l'animation
                     newsTickerContent.style.animation = 'none';
-                    newsTickerContent.style.transform = 'translateX(0)'; // S'assure que le contenu est visible
-                    console.log("Contenu du ticker trop court pour défiler, animation désactivée.");
+                    newsTickerContent.style.transform = 'translateX(0)';
+                    return;
                 }
 
-                // Ajuster la durée de l'animation en fonction de la largeur du contenu
-                const speed = 60; // Pixels par seconde (ajustez si vous voulez plus rapide/lent)
-                const duration = totalContentWidth / speed; // Durée de l'animation en secondes
-                newsTickerContent.style.setProperty('--ticker-duration', `${duration}s`);
+                // Ajuster la durée de l'animation en fonction de la largeur totale DU CONTENU CLONE et de la vitesse désirée
+                const adjustedTotalWidth = newsTickerContent.scrollWidth / 2; // On divise par 2 car l'animation déplace 2 fois le contenu (original + clone)
+                const speed = 15; // Pixels par seconde (plus petit = plus lent). Vous pouvez ajuster cette valeur.
+                const duration = adjustedTotalWidth / speed; // Durée de l'animation en secondes
                 
+                newsTickerContent.style.setProperty('--ticker-duration', `${duration}s`);
+                newsTickerContent.style.animationPlayState = 'running'; // S'assurer que l'animation est lancée
+
             } catch (error) {
                 console.error("Erreur lors du chargement du flux d'actualités :", error);
                 newsTickerContent.innerHTML = '<span class="news-item">Impossible de charger les actualités. Vérifiez la console pour les erreurs.</span>';
+                newsTickerContent.style.animation = 'none'; // Arrêter l'animation en cas d'erreur
             }
         }
 
@@ -1404,9 +1412,6 @@
             }
             
             // Révéler le body et main. Si vous voulez un fondu, ajoutez des transitions sur .show
-            // Pour le moment, les styles CSS initiaux du body/main sont retirés, donc ils seront visibles directement après le loader.
-            // bodyElement.classList.add("show"); // Décommentez si vous voulez une transition d'opacité sur le body
-            // mainElement.classList.add("show"); // Décommentez si vous voulez une transition d'opacité sur le main
             bodyElement.style.overflow = ''; // Restaurer le défilement du body une fois la page visible
 
             console.log("Accueil: Initialisation terminée.");
