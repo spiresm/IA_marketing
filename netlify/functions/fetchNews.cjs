@@ -1,5 +1,3 @@
-// netlify/functions/fetchNews.cjs
-
 const fetch = require('node-fetch');
 const { XMLParser } = require('fast-xml-parser');
 
@@ -11,7 +9,10 @@ const RSS_FEEDS = [
     { name: "IA France (The AI Observer)", url: "https://ia.media.lemde.fr/rss/full.xml" } // Nouveau flux IA
 ];
 
-const parser = new XMLParser({ ignoreAttributes: true });
+const parser = new XMLParser({
+    ignoreAttributes: true,
+    htmlEntities: true // Active le décodage des entités HTML
+});
 
 exports.handler = async (event, context) => {
     console.log("📡 Lancement de fetchNews avec plusieurs flux (IA + Marketing)...");
@@ -37,12 +38,12 @@ exports.handler = async (event, context) => {
                 const result = parser.parse(xml);
 
                 let items = [];
-                // Logique pour gérer les formats RSS et Atom
+                // Logique pour gérer les formats RSS (rss.channel.item) et Atom (feed.entry)
                 if (result.rss?.channel?.item) {
                     items = Array.isArray(result.rss.channel.item)
                         ? result.rss.channel.item
                         : [result.rss.channel.item];
-                } else if (result.feed?.entry) { // Pour les flux Atom au cas où
+                } else if (result.feed?.entry) {
                     items = Array.isArray(result.feed.entry)
                         ? result.feed.entry
                         : [result.feed.entry];
@@ -50,7 +51,7 @@ exports.handler = async (event, context) => {
 
                 const articles = items.map(item => ({
                     title: item.title || 'Titre inconnu',
-                    url: item.link?.href || item.link || '#',
+                    url: item.link?.href || item.link || '#', // Gère les liens dans Atom (href) et RSS (directement link)
                     pubDate: item.pubDate || item.updated || new Date().toISOString(),
                     source: feed.name
                 }));
@@ -89,7 +90,7 @@ exports.handler = async (event, context) => {
             headers: {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=3600, must-revalidate"
+                "Cache-Control": "public, max-age=3600, must-revalidate" // Cache d'1 heure
             },
             body: JSON.stringify(topArticles),
         };
