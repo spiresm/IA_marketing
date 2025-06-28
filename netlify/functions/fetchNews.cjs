@@ -3,15 +3,18 @@
 const fetch = require('node-fetch');
 const { XMLParser } = require('fast-xml-parser');
 
-// Un seul flux RSS de Numerama pour ce test
 const RSS_FEEDS = [
-    { name: "Numerama", url: "https://www.numerama.com/feed/" }
+    { name: "Blog du Modérateur", url: "https://www.blogdumoderateur.com/feed/" },
+    { name: "JDN Intelligence Artificielle", url: "https://www.journaldunet.com/web-tech/intelligence-artificielle/rss/" },
+    { name: "e-marketing.fr", url: "https://www.e-marketing.fr/rss.xml" },
+    { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" },
+    { name: "IA France (The AI Observer)", url: "https://ia.media.lemde.fr/rss/full.xml" } // Nouveau flux IA
 ];
 
 const parser = new XMLParser({ ignoreAttributes: true });
 
 exports.handler = async (event, context) => {
-    console.log("📡 Lancement de fetchNews avec le flux Numerama...");
+    console.log("📡 Lancement de fetchNews avec plusieurs flux (IA + Marketing)...");
 
     try {
         let allArticles = [];
@@ -47,7 +50,7 @@ exports.handler = async (event, context) => {
 
                 const articles = items.map(item => ({
                     title: item.title || 'Titre inconnu',
-                    url: item.link?.href || item.link || '#', // Gère les liens dans Atom (href) et RSS (directement link)
+                    url: item.link?.href || item.link || '#',
                     pubDate: item.pubDate || item.updated || new Date().toISOString(),
                     source: feed.name
                 }));
@@ -86,7 +89,7 @@ exports.handler = async (event, context) => {
             headers: {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=3600, must-revalidate" // Gardons 1 heure pour le moment
+                "Cache-Control": "public, max-age=3600, must-revalidate"
             },
             body: JSON.stringify(topArticles),
         };
