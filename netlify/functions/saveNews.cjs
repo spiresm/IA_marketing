@@ -1,18 +1,12 @@
 // netlify/functions/saveNews.cjs
-const { Octokit } = require("@octokit/rest");
-const path = require('path');
+const fetch = require('node-fetch'); // On réutilise node-fetch que vous avez déjà
 
-// Récupérer le token depuis les variables d'environnement Netlify
+// Récupérer le token et les infos du dépôt depuis les variables d'environnement Netlify
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-
-// Informations sur votre dépôt GitHub
 const REPO_OWNER = 'VOTRE_NOM_D_UTILISATEUR_GITHUB'; // <-- REMPLACEZ PAR VOTRE NOM D'UTILISATEUR
 const REPO_NAME = 'NOM_DE_VOTRE_DEPOT'; // <-- REMPLACEZ PAR LE NOM DE VOTRE DÉPÔT
-const FILE_PATH = 'news-data.json'; // Le nom du fichier JSON qui contiendra les articles
-
-const octokit = new Octokit({
-    auth: GITHUB_TOKEN,
-});
+const FILE_PATH = 'news-data.json';
+const BRANCH = 'main'; // Ou 'master' selon votre branche principale
 
 exports.handler = async (event, context) => {
     if (event.httpMethod !== 'POST') {
@@ -49,64 +43,89 @@ exports.handler = async (event, context) => {
     }
 
     let existingNews = [];
-    let currentSha = null; // Initialise le SHA à null
+    let currentSha = null;
 
     try {
-        // Tenter de récupérer le SHA du fichier existant et son contenu
-        // CORRECTION ICI : Utilisation de octokit.rest.repos.getContents
-        const { data: fileData } = await octokit.rest.repos.getContents({
-            owner: REPO_OWNER,
-            repo: REPO_NAME,
-            path: FILE_PATH,
+        // --- Récupérer le contenu existant du fichier (si il existe) ---
+        const getContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`;
+        const responseGet = await fetch(getContentsUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'Netlify-Function' // Requis par GitHub
+            },
         });
-        currentSha = fileData.sha; // Récupère le SHA
-        const content = Buffer.from(fileData.content, 'base64').toString('utf8');
-        existingNews = JSON.parse(content);
-        if (!Array.isArray(existingNews)) {
-            existingNews = [];
-        }
-        console.log(`Existing ${FILE_PATH} found. SHA: ${currentSha}`);
 
-    } catch (error) {
-        if (error.status === 404) {
+        if (responseGet.ok) {
+            const fileData = await responseGet.json();
+            currentSha = fileData.sha;
+            const content = Buffer.from(fileData.content, 'base64').toString('utf8');
+            existingNews = JSON.parse(content);
+            if (!Array.isArray(existingNews)) {
+                existingNews = [];
+            }
+            console.log(`Existing ${FILE_PATH} found. SHA: ${currentSha}`);
+        } else if (responseGet.status === 404) {
             console.log(`${FILE_PATH} not found, will create it.`);
             // currentSha reste null, ce qui est correct pour la création
         } else {
-            console.error('Error getting existing file contents:', error);
-            return {
-                statusCode: 500,
-                body: JSON.stringify({ message: 'Failed to retrieve existing news file from GitHub.', details: error.message }),
-            };
+            const errorText = await responseGet.text();
+            throw new Error(`GitHub getContents failed: ${responseGet.status} ${responseGet.statusText} - ${errorText}`);
         }
+
+    } catch (error) {
+        console.error('Error retrieving existing file from GitHub:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Failed to retrieve existing news file from GitHub.', details: error.message }),
+        };
     }
 
-    // On ajoute le nouvel article en haut de la liste (le plus récent en premier)
+    // Ajouter le nouvel article en haut de la liste
     existingNews.unshift({
         title: incomingNewsItem.title,
         pole: incomingNewsItem.pole,
-        collaborateur: incomingNewsItem.collaborateur, // Assurez-vous d'envoyer collaborateur depuis le front
+        collaborateur: incomingNewsItem.collaborateur,
         color: incomingNewsItem.color,
         timestamp: new Date().toISOString()
     });
 
-    // Limitez le nombre d'articles dans le flux (ex: 20 derniers articles)
+    // Limiter le nombre d'articles
     const MAX_NEWS_ITEMS = 20;
     if (existingNews.length > MAX_NEWS_ITEMS) {
         existingNews = existingNews.slice(0, MAX_NEWS_ITEMS);
     }
 
     try {
-        // Mettre à jour (ou créer) le fichier
-        // CORRECTION ICI : Utilisation de octokit.rest.repos.createOrUpdateFileContents
-        await octokit.rest.repos.createOrUpdateFileContents({
-            owner: REPO_OWNER,
-            repo: REPO_NAME,
-            path: FILE_PATH,
+        // --- Mettre à jour (ou créer) le fichier sur GitHub ---
+        const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+        
+        const payload = {
             message: `Update news feed via admin panel [skip ci]`, // [skip ci] pour éviter une boucle de build infinie
             content: Buffer.from(JSON.stringify(existingNews, null, 2)).toString('base64'),
-            sha: currentSha, // Fournir le SHA (null pour la création, valeur réelle pour la mise à jour)
-            branch: 'main', // Ou 'master' selon votre branche principale
+            sha: currentSha, // Fournir le SHA pour la mise à jour, ou null pour la création
+            branch: BRANCH,
+        };
+
+        const responseUpdate = await fetch(updateContentsUrl, {
+            method: 'PUT', // PUT pour créer ou mettre à jour
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'Netlify-Function',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload),
         });
+
+        if (!responseUpdate.ok) {
+            const errorText = await responseUpdate.text();
+            throw new Error(`GitHub updateContents failed: ${responseUpdate.status} ${responseUpdate.statusText} - ${errorText}`);
+        }
+
+        const result = await responseUpdate.json();
+        console.log('GitHub API response for file update:', result);
 
         return {
             statusCode: 200,
@@ -114,7 +133,7 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
-        console.error('Error interacting with GitHub API on create/update:', error);
+        console.error('Error creating/updating file on GitHub:', error);
         return {
             statusCode: 500,
             body: JSON.stringify({ message: 'Failed to save news to GitHub.', details: error.message }),
