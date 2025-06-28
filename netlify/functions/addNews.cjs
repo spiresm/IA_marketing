@@ -129,7 +129,7 @@ exports.handler = async (event, context) => {
         const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         
         const payload = {
-            message: `News feed update (add) [skip ci]`,
+            message: `News feed update (add)`, // CHANGEMENT ICI: [skip ci] RETIRÉ
             content: Buffer.from(JSON.stringify(updatedNewsArray, null, 2)).toString('base64'),
             sha: fileSha,
             branch: BRANCH,
