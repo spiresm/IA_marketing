@@ -1,12 +1,11 @@
 // netlify/functions/saveNews.cjs
-const fetch = require('node-fetch'); // On réutilise node-fetch que vous avez déjà
+const fetch = require('node-fetch');
 
-// Récupérer le token et les infos du dépôt depuis les variables d'environnement Netlify
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const REPO_OWNER = 'spiresm'; //
-const REPO_NAME = 'IA_marketing';
+const REPO_OWNER = 'spiresm'; // Utilisez la valeur exacte de votre REPO_OWNER
+const REPO_NAME = 'IA_marketing'; // Utilisez la valeur exacte de votre REPO_NAME
 const FILE_PATH = 'news-data.json';
-const BRANCH = 'main'; // Ou 'master' selon votre branche principale
+const BRANCH = 'main'; // Assurez-vous que c'est la bonne branche (main ou master)
 
 exports.handler = async (event, context) => {
     if (event.httpMethod !== 'POST') {
@@ -27,7 +26,7 @@ exports.handler = async (event, context) => {
     let incomingNewsItem;
     try {
         incomingNewsItem = JSON.parse(event.body);
-        if (typeof incomingNewsItem !== 'object' || incomingNewsItem === null) {
+        if (typeof incomingNewsItem !== 'object' || incomingNewsItem === null || Array.isArray(incomingNewsItem)) {
             throw new Error('Invalid input: body must be a single news item object.');
         }
         if (!incomingNewsItem.title || !incomingNewsItem.pole || !incomingNewsItem.color) {
@@ -53,7 +52,7 @@ exports.handler = async (event, context) => {
             headers: {
                 'Authorization': `token ${GITHUB_TOKEN}`,
                 'Accept': 'application/vnd.github.v3+json',
-                'User-Agent': 'Netlify-Function' // Requis par GitHub
+                'User-Agent': 'Netlify-Function'
             },
         });
 
@@ -61,14 +60,26 @@ exports.handler = async (event, context) => {
             const fileData = await responseGet.json();
             currentSha = fileData.sha;
             const content = Buffer.from(fileData.content, 'base64').toString('utf8');
-            existingNews = JSON.parse(content);
-            if (!Array.isArray(existingNews)) {
+            
+            try {
+                const parsedContent = JSON.parse(content);
+                // S'assurer que le contenu existant est bien un tableau
+                if (Array.isArray(parsedContent)) {
+                    existingNews = parsedContent;
+                } else {
+                    // Si ce n'est pas un tableau (comme l'objet {0: ..., 1: ...}), tentez de le convertir
+                    existingNews = Object.values(parsedContent);
+                    console.warn(`Existing ${FILE_PATH} was an object, converted to array.`);
+                }
+            } catch (parseError) {
+                console.error(`Error parsing existing ${FILE_PATH}:`, parseError);
+                // Si le parsing échoue, réinitialiser existingNews à un tableau vide
                 existingNews = [];
             }
             console.log(`Existing ${FILE_PATH} found. SHA: ${currentSha}`);
+
         } else if (responseGet.status === 404) {
             console.log(`${FILE_PATH} not found, will create it.`);
-            // currentSha reste null, ce qui est correct pour la création
         } else {
             const errorText = await responseGet.text();
             throw new Error(`GitHub getContents failed: ${responseGet.status} ${responseGet.statusText} - ${errorText}`);
@@ -102,14 +113,14 @@ exports.handler = async (event, context) => {
         const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         
         const payload = {
-            message: `Update news feed via admin panel [skip ci]`, // [skip ci] pour éviter une boucle de build infinie
-            content: Buffer.from(JSON.stringify(existingNews, null, 2)).toString('base64'),
-            sha: currentSha, // Fournir le SHA pour la mise à jour, ou null pour la création
+            message: `Update news feed via admin panel [skip ci]`,
+            content: Buffer.from(JSON.stringify(existingNews, null, 2)).toString('base64'), // S'assurer que JSON.stringify produit un ARRAY
+            sha: currentSha,
             branch: BRANCH,
         };
 
         const responseUpdate = await fetch(updateContentsUrl, {
-            method: 'PUT', // PUT pour créer ou mettre à jour
+            method: 'PUT',
             headers: {
                 'Authorization': `token ${GITHUB_TOKEN}`,
                 'Accept': 'application/vnd.github.v3+json',
