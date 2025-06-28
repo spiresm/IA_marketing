@@ -658,12 +658,8 @@
         body.dark-mode .news-ticker-section .icon {
             color: var(--dark-mode-accent-blue);
         }
-        body.dark-mode .news-item a { /* Ajout de ce style pour le dark mode */
-            color: var(--dark-mode-text) !important;
-        }
-        body.dark-mode .news-item a span { /* Cibler le span pour la couleur spécifique */
-            color: inherit !important; 
-        }
+        /* RETIRÉ: body.dark-mode .news-item a */
+        /* RETIRÉ: body.dark-mode .news-item a span */
 
 
         .news-ticker-section .icon {
@@ -683,9 +679,9 @@
 
         /* NOUVEAU STYLE POUR news-ticker-content */
         .news-ticker-content {
-            display: flex; /* Utilise flexbox pour aligner les éléments horizontalement */
-            white-space: nowrap; /* Empêche le retour à la ligne */
-            animation: ticker var(--ticker-duration) linear infinite; /* Animation définie par JS */
+            display: flex; 
+            white-space: nowrap; 
+            animation: ticker var(--ticker-duration) linear infinite; 
             animation-play-state: running; 
         }
 
@@ -694,29 +690,41 @@
         }
 
         .news-item {
-            display: inline-flex; /* Changé de inline-block à inline-flex pour une meilleure mesure et alignement */
-            padding-right: 50px; /* Espace entre les actualités */
+            display: inline-flex; 
+            align-items: center; 
+            padding-right: 50px; 
             font-size: 0.95em;
-            box-sizing: border-box; /* S'assure que le padding est inclus dans la largeur */
+            box-sizing: border-box; 
+        }
+        /* Nouveau style pour le conteneur du texte */
+        .news-item-text-container {
+            display: flex;
+            align-items: baseline;
+            white-space: nowrap;
         }
 
-        .news-item a {
-            text-decoration: none;
+        .news-item-title {
             font-weight: bold;
             transition: color 0.2s ease;
-            color: #333;
+            color: #333; /* Couleur par défaut si non spécifiée par JS */
+            white-space: nowrap;
         }
 
-        .news-item a:hover {
-            color: var(--primary-blue);
-            text-decoration: underline;
-        }
-        /* Style pour le texte avec le pôle/collaborateur */
-        .news-item a .details {
+        /* Style pour les détails (collaborateur, pôle) */
+        .news-item-details {
             font-size: 0.8em;
+            font-style: italic; /* Pôle en italique */
             font-weight: normal;
-            color: #666; 
-            margin-left: 10px;
+            color: #666; /* Couleur plus discrète pour les détails */
+            margin-left: 10px; /* Espace entre le titre et les détails */
+            white-space: nowrap;
+        }
+        /* DARK MODE pour le texte du news-ticker */
+        body.dark-mode .news-item-title {
+            color: var(--dark-mode-text) !important; /* Force la couleur du titre en dark mode */
+        }
+        body.dark-mode .news-item-details {
+            color: var(--dark-mode-text) !important; /* Force la couleur des détails en dark mode */
         }
 
 
@@ -1230,13 +1238,13 @@
                 return;
             }
 
-            newsTickerContent.innerHTML = '<span class="news-item" style="color:#666;">Chargement des actualités...</span>';
+            newsTickerContent.innerHTML = '<span class="news-item-text-container" style="color:#666;">Chargement des actualités...</span>'; // Utilise la nouvelle classe
             newsTickerContent.style.animation = 'none'; 
             newsTickerContent.style.transform = 'translateX(0)'; 
 
             let newsItems = [];
             try {
-                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); // AJOUTÉ : Cache-busting pour index.html
+                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); 
                 if (response.ok) {
                     newsItems = await response.json();
                 } else if (response.status === 404) {
@@ -1251,7 +1259,7 @@
             }
             
             if (!Array.isArray(newsItems) || newsItems.length === 0) { 
-                newsTickerContent.innerHTML = '<span class="news-item">Aucune actualité disponible pour le moment.</span>';
+                newsTickerContent.innerHTML = '<span class="news-item-text-container">Aucune actualité disponible pour le moment.</span>';
                 newsTickerContent.style.animation = 'none';
                 newsTickerContent.style.transform = 'translateX(0)';
                 return;
@@ -1264,22 +1272,19 @@
             newsItems.forEach(item => {
                 const span = document.createElement('span');
                 span.className = 'news-item';
-                const a = document.createElement('a');
-                a.href = item.url || '#';
                 
-                let itemContent = item.title || 'Titre inconnu';
+                let itemTitleHtml = `<span class="news-item-title" style="color: ${item.color || '#333'};">${item.title || 'Titre inconnu'}</span>`;
+                let itemDetailsHtml = '';
                 if (item.pole || item.collaborateur) {
                     let details = [];
-                    if (item.pole) details.push(item.pole);
-                    if (item.collaborateur) details.push(`par ${item.collaborateur}`);
-                    itemContent += ` <strong class="details" style="color: ${item.color || '#666'};">(${details.join(' ')})</strong>`;
+                    if (item.collaborateur) details.push(item.collaborateur); // Collaborateur en premier
+                    if (item.pole) details.push(`<i>${item.pole}</i>`); // Pôle en italique
+                    itemDetailsHtml = ` <span class="news-item-details">(${details.join(' ')})</span>`;
                 }
 
-                a.innerHTML = `<span style="color: ${item.color || '#333'};">${itemContent}</span>`;
+                // Construire le contenu sans balise <a> pour le rendre non-cliquable
+                span.innerHTML = `${itemTitleHtml}${itemDetailsHtml}`;
                 
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                span.appendChild(a);
                 newsTickerContent.appendChild(span);
             });
 
@@ -1304,7 +1309,7 @@
                     return;
                 }
 
-                const speed = 25.0; 
+                const speed = 1.0; 
                 const effectiveContentWidth = newsTickerContent.scrollWidth / (currentCloneCount + 1); 
                 const duration = effectiveContentWidth / speed; 
 
