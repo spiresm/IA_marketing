@@ -100,20 +100,16 @@ exports.handler = async (event, context) => {
         };
     }
 
-    // --- MANIPULATION DES DONNÉES : SUPPRESSION et FILTRAGE ---
     let updatedNewsArray = [...currentFileContent];
 
     const initialLength = updatedNewsArray.length;
-    
-    // CHANGEMENT CRUCIAL ICI : Comparaison des timestamps comme des nombres (ms depuis l'époque)
-    const payloadTimestampMs = new Date(timestampToDelete).getTime(); // Convertit le timestamp reçu en nombre
+    const payloadTimestampMs = new Date(timestampToDelete).getTime(); 
     
     updatedNewsArray = updatedNewsArray.filter(item => {
-        // Logique de débogage pour voir les comparaisons
         const itemTimestampMs = new Date(item.timestamp || '').getTime();
-        console.log(`Comparing item: ${item.title} (ts: ${item.timestamp || 'N/A'}, ms: ${itemTimestampMs}) with delete_ts: ${timestampToDelete} (ms: ${payloadTimestampMs}). Match: ${itemTimestampMs === payloadTimestampMs}`);
+        // Log pour le débogage de la comparaison
+        console.log(`Comparing item: "${item.title}" (ts: ${item.timestamp || 'N/A'}, ms: ${itemTimestampMs}) with delete_ts: ${timestampToDelete} (ms: ${payloadTimestampMs}). Match: ${itemTimestampMs === payloadTimestampMs}`);
         
-        // Garde l'élément si son timestamp ne correspond PAS à celui à supprimer
         return itemTimestampMs !== payloadTimestampMs;
     });
 
@@ -127,7 +123,6 @@ exports.handler = async (event, context) => {
         };
     }
 
-    // Filtrer les articles de plus de 48 heures (2 jours) - APPLIQUÉ APRÈS LA SUPPRESSION MANUELLE
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const beforeFilterCount = updatedNewsArray.length;
     updatedNewsArray = updatedNewsArray.filter(item => {
@@ -135,25 +130,22 @@ exports.handler = async (event, context) => {
     });
     console.log(`Filtered out ${beforeFilterCount - updatedNewsArray.length} old items after deletion. Remaining: ${updatedNewsArray.length}`);
 
-    // Limiter le nombre total d'articles
     const MAX_NEWS_ITEMS = 20;
     if (updatedNewsArray.length > MAX_NEWS_ITEMS) {
         updatedNewsArray = updatedNewsArray.slice(0, MAX_NEWS_ITEMS);
         console.log(`Trimmed news list to ${MAX_NEWS_ITEMS} items.`);
     }
     
-    // Trier les actualités par timestamp (du plus récent au plus ancien) avant de sauvegarder
     updatedNewsArray.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
 
-    // --- Sauvegarder le fichier mis à jour sur GitHub ---
     try {
         const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         
         const payload = {
             message: `News feed update (delete) [skip ci]`,
             content: Buffer.from(JSON.stringify(updatedNewsArray, null, 2)).toString('base64'),
-            sha: fileSha, // Le SHA de l'ancienne version
+            sha: fileSha,
             branch: BRANCH,
         };
 
