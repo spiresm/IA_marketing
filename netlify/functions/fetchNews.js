@@ -32,6 +32,7 @@ export async function handler(event, context) {
                 const xml = await response.text();
                 
                 // Parsing du XML en JavaScript Object
+                // Ajoutez explicitArray: false pour un objet plus facile à manipuler
                 const result = await parseStringPromise(xml, { explicitArray: false, ignoreAttrs: true }); 
 
                 // Vérification de la structure du flux et extraction des articles
