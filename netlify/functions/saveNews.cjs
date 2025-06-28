@@ -2,10 +2,10 @@
 const fetch = require('node-fetch');
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const REPO_OWNER = 'spiresm'; // Utilisez la valeur exacte de votre REPO_OWNER
-const REPO_NAME = 'IA_marketing'; // Utilisez la valeur exacte de votre REPO_NAME
+const REPO_OWNER = 'spiresm'; // <-- REMPLACEZ PAR VOTRE NOM D'UTILISATEUR
+const REPO_NAME = 'IA_marketing'; // <-- REMPLACEZ PAR LE NOM DE VOTRE DÉPÔT
 const FILE_PATH = 'news-data.json';
-const BRANCH = 'main'; // Assurez-vous que c'est la bonne branche (main ou master)
+const BRANCH = 'main'; // Ou 'master' selon votre branche principale
 
 exports.handler = async (event, context) => {
     if (event.httpMethod !== 'POST') {
@@ -23,18 +23,28 @@ exports.handler = async (event, context) => {
         };
     }
 
-    let incomingNewsItem;
-    try {
-        incomingNewsItem = JSON.parse(event.body);
-        if (typeof incomingNewsItem !== 'object' || incomingNewsItem === null || Array.isArray(incomingNewsItem)) {
-            throw new Error('Invalid input: body must be a single news item object.');
-        }
-        if (!incomingNewsItem.title || !incomingNewsItem.pole || !incomingNewsItem.color) {
-            throw new Error('Missing required fields: title, pole, and color are mandatory.');
-        }
+    let actionType = 'add'; // 'add' ou 'delete'
+    let incomingData;
+    let indexToDelete = -1;
 
+    try {
+        const body = JSON.parse(event.body);
+        if (body.action === 'delete' && typeof body.index === 'number') {
+            actionType = 'delete';
+            indexToDelete = body.index;
+            console.log(`Action: Delete item at index ${indexToDelete}`);
+        } else {
+            incomingData = body; // Un nouvel article à ajouter
+            if (typeof incomingData !== 'object' || incomingData === null || Array.isArray(incomingData)) {
+                throw new Error('Invalid input: body must be a single news item object for add action.');
+            }
+            if (!incomingData.title || !incomingData.pole || !incomingData.color || !incomingData.collaborateur) { // Assurez-vous que collaborateur est là
+                throw new Error('Missing required fields: title, pole, collaborateur, and color are mandatory for add action.');
+            }
+            console.log("Action: Add new item.");
+        }
     } catch (error) {
-        console.error('Invalid JSON body:', error);
+        console.error('Invalid JSON body or missing action/index:', error);
         return {
             statusCode: 400,
             body: JSON.stringify({ message: 'Invalid JSON format or data structure.', details: error.message }),
@@ -63,17 +73,16 @@ exports.handler = async (event, context) => {
             
             try {
                 const parsedContent = JSON.parse(content);
-                // S'assurer que le contenu existant est bien un tableau
                 if (Array.isArray(parsedContent)) {
                     existingNews = parsedContent;
-                } else {
-                    // Si ce n'est pas un tableau (comme l'objet {0: ..., 1: ...}), tentez de le convertir
+                } else if (typeof parsedContent === 'object' && parsedContent !== null) {
                     existingNews = Object.values(parsedContent);
                     console.warn(`Existing ${FILE_PATH} was an object, converted to array.`);
+                } else {
+                    existingNews = []; // Fallback si le contenu est invalide
                 }
             } catch (parseError) {
                 console.error(`Error parsing existing ${FILE_PATH}:`, parseError);
-                // Si le parsing échoue, réinitialiser existingNews à un tableau vide
                 existingNews = [];
             }
             console.log(`Existing ${FILE_PATH} found. SHA: ${currentSha}`);
@@ -93,29 +102,51 @@ exports.handler = async (event, context) => {
         };
     }
 
-    // Ajouter le nouvel article en haut de la liste
-    existingNews.unshift({
-        title: incomingNewsItem.title,
-        pole: incomingNewsItem.pole,
-        collaborateur: incomingNewsItem.collaborateur,
-        color: incomingNewsItem.color,
-        timestamp: new Date().toISOString()
-    });
+    // --- LOGIQUE DE GESTION DES ARTICLES (AJOUT, SUPPRESSION, VIEILLISSEMENT) ---
+    let updatedNews = [];
 
-    // Limiter le nombre d'articles
-    const MAX_NEWS_ITEMS = 20;
-    if (existingNews.length > MAX_NEWS_ITEMS) {
-        existingNews = existingNews.slice(0, MAX_NEWS_ITEMS);
+    // 1. Filtrer les articles de plus de 48 heures (2 jours)
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    updatedNews = existingNews.filter(item => {
+        // Garder les articles qui n'ont pas de timestamp (anciens) ou qui sont plus récents que 48h
+        return !item.timestamp || new Date(item.timestamp) > fortyEightHoursAgo;
+    });
+    console.log(`Filtered out old items. Remaining: ${updatedNews.length}`);
+
+    // 2. Traiter l'action demandée
+    if (actionType === 'add') {
+        updatedNews.unshift({
+            title: incomingData.title,
+            pole: incomingData.pole,
+            collaborateur: incomingData.collaborateur,
+            color: incomingData.color,
+            timestamp: new Date().toISOString() // Ajoute un horodatage pour le tri et la durée de vie
+        });
+        console.log("New item added.");
+    } else if (actionType === 'delete') {
+        if (indexToDelete >= 0 && indexToDelete < updatedNews.length) {
+            updatedNews.splice(indexToDelete, 1);
+            console.log(`Item at index ${indexToDelete} deleted.`);
+        } else {
+            console.warn(`Attempted to delete invalid index: ${indexToDelete}`);
+        }
     }
 
+    // 3. Limiter le nombre total d'articles (après ajout/suppression et vieillissement)
+    const MAX_NEWS_ITEMS = 20; // Maximum d'articles à conserver dans le fichier
+    if (updatedNews.length > MAX_NEWS_ITEMS) {
+        updatedNews = updatedNews.slice(0, MAX_NEWS_ITEMS);
+        console.log(`Trimmed news list to ${MAX_NEWS_ITEMS} items.`);
+    }
+
+    // --- Sauvegarder le fichier mis à jour sur GitHub ---
     try {
-        // --- Mettre à jour (ou créer) le fichier sur GitHub ---
         const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         
         const payload = {
-            message: `Update news feed via admin panel [skip ci]`,
-            content: Buffer.from(JSON.stringify(existingNews, null, 2)).toString('base64'), // S'assurer que JSON.stringify produit un ARRAY
-            sha: currentSha,
+            message: `Update news feed (action: ${actionType}) [skip ci]`, // Message plus descriptif
+            content: Buffer.from(JSON.stringify(updatedNews, null, 2)).toString('base64'),
+            sha: currentSha, // SHA reste celui du fichier d'origine, même si le contenu change
             branch: BRANCH,
         };
 
@@ -140,7 +171,7 @@ exports.handler = async (event, context) => {
 
         return {
             statusCode: 200,
-            body: JSON.stringify({ message: 'Actualité ajoutée et pushée sur GitHub ! Netlify va redéployer.' }),
+            body: JSON.stringify({ message: 'Flux mis à jour et pushé sur GitHub ! Netlify va redéployer.' }),
         };
 
     } catch (error) {
