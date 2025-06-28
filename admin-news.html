@@ -621,6 +621,11 @@
                 updateCollaborators(); 
                 loadCurrentNewsItems(); 
                 
+                // REDIRECTION APRÈS AJOUT
+                setTimeout(() => { 
+                    window.location.href = 'index.html'; 
+                }, 3000); // Redirige après 3 secondes
+                
             } catch (error) {
                 showMessage(`Erreur lors de l'ajout : ${error.message}`, 'error');
                 console.error("Erreur lors de l'ajout au flux:", error);
@@ -654,6 +659,11 @@
                 showMessage(`Actualité supprimée avec succès ! Le site sera mis à jour dans quelques minutes. (${result.message})`, 'success');
                 loadCurrentNewsItems(); 
 
+                // REDIRECTION APRÈS SUPPRESSION
+                setTimeout(() => { 
+                    window.location.href = 'index.html'; 
+                }, 3000); // Redirige après 3 secondes
+                
             } catch (error) {
                 showMessage(`Erreur lors de la suppression : ${error.message}`, 'error');
                 console.error("Erreur lors de la suppression du flux:", error);
@@ -664,7 +674,7 @@
         async function loadCurrentNewsItems() {
             currentNewsList.innerHTML = '<li>Chargement des messages actuels...</li>';
             try {
-                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); 
+                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`); // Ajout d'un timestamp pour éviter le cache
                 if (response.ok) {
                     let newsItems = await response.json();
                     if (!Array.isArray(newsItems)) {
@@ -697,13 +707,15 @@
                         const diffHours = Math.floor((now - itemAge) / (1000 * 60 * 60));
                         const remainingHours = 48 - diffHours;
                         
+                        // CONSTRUIRE LE CONTENU SELON LE FORMAT SOUHAITÉ
+                        // Le titre a la couleur du pôle, les détails sont en gris neutre
                         let itemTitleHtml = `<span style="color: ${item.color || '#333'};">${item.title || 'Titre inconnu'}</span>`;
                         let itemMetaDetailsHtml = '';
-                        if (item.collaborateur || item.pole) {
+                        if (item.collaborateur && item.collaborateur !== 'Non spécifié' || item.pole && item.pole !== 'Autre') { // Vérifie si au moins un des deux est significatif
                             let detailsParts = [];
-                            if (item.collaborateur) detailsParts.push(item.collaborateur); 
-                            if (item.pole) detailsParts.push(`<i>${item.pole}</i>`); 
-                            itemMetaDetailsHtml = ` <span class="news-item-meta-details">(${detailsParts.join(' ')})</span>`; 
+                            if (item.collaborateur && item.collaborateur !== 'Non spécifié') detailsParts.push(item.collaborateur); 
+                            if (item.pole && item.pole !== 'Autre') detailsParts.push(`<i>${item.pole}</i>`); 
+                            itemMetaDetailsHtml = ` <span class="news-item-meta-details">(${detailsParts.join(' - ')})</span>`; // Format avec tiret
                         }
                         
                         li.innerHTML = `
@@ -794,7 +806,7 @@
                     }
                 });
 
-                // initializeDarkMode(); // Appel si nécessaire, doit être disponible globalement
+                // initializeDarkMode(); 
                 
             } catch (error) {
                 console.error("Erreur lors du chargement des composants:", error);
