@@ -30,7 +30,6 @@ exports.handler = async (event, context) => {
     let incomingNewsItem;
     try {
         incomingNewsItem = JSON.parse(event.body);
-        // Validation spécifique pour l'ajout
         if (typeof incomingNewsItem !== 'object' || incomingNewsItem === null || Array.isArray(incomingNewsItem)) {
             console.error("ADD action: Invalid payload structure.");
             throw new Error('Invalid input for add action: expected a single news item object.');
@@ -53,7 +52,6 @@ exports.handler = async (event, context) => {
     let fileSha = null;
 
     try {
-        // --- Récupérer le contenu actuel du fichier news-data.json ---
         const getContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`;
         const responseGet = await fetch(getContentsUrl, {
             method: 'GET',
@@ -100,10 +98,8 @@ exports.handler = async (event, context) => {
         };
     }
 
-    // --- MANIPULATION DES DONNÉES : AJOUT et FILTRAGE ---
     let updatedNewsArray = [...currentFileContent];
 
-    // Ajoute le nouvel article en haut avec un timestamp frais
     updatedNewsArray.unshift({
         title: incomingNewsItem.title,
         pole: incomingNewsItem.pole,
@@ -113,7 +109,6 @@ exports.handler = async (event, context) => {
     });
     console.log("New item added to array.");
 
-    // Filtrer les articles de plus de 48 heures (2 jours)
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const beforeFilterCount = updatedNewsArray.length;
     updatedNewsArray = updatedNewsArray.filter(item => {
@@ -121,18 +116,15 @@ exports.handler = async (event, context) => {
     });
     console.log(`Filtered out ${beforeFilterCount - updatedNewsArray.length} old items. Remaining: ${updatedNewsArray.length}`);
 
-    // Limiter le nombre total d'articles
     const MAX_NEWS_ITEMS = 20;
     if (updatedNewsArray.length > MAX_NEWS_ITEMS) {
         updatedNewsArray = updatedNewsArray.slice(0, MAX_NEWS_ITEMS);
         console.log(`Trimmed news list to ${MAX_NEWS_ITEMS} items.`);
     }
     
-    // Trier les actualités par timestamp (du plus récent au plus ancien) avant de sauvegarder
     updatedNewsArray.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
 
-    // --- Sauvegarder le fichier mis à jour sur GitHub ---
     try {
         const updateContentsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
         
