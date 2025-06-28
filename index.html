@@ -1283,45 +1283,55 @@
             });
 
             const tickerContainer = newsTickerContent.parentElement;
-            await new Promise(resolve => setTimeout(resolve, 0)); 
+            
+            // Forcer un reflow / recalcul de la mise en page
+            // newsTickerContent.offsetWidth; 
 
-            let totalContentWidth = newsTickerContent.scrollWidth; 
-            const containerVisibleWidth = tickerContainer.offsetWidth; 
+            // Utilisation de requestAnimationFrame + setTimeout pour garantir que scrollWidth est correct
+            requestAnimationFrame(async () => {
+                await new Promise(resolve => setTimeout(resolve, 50)); // Petite attente après le reflow
 
-            let cloneCount = 0;
-            while (totalContentWidth > 0 && totalContentWidth < containerVisibleWidth * 2 && cloneCount < 5) { 
-                const originalContentClone = newsTickerContent.cloneNode(true);
-                while (originalContentClone.firstChild) {
-                    newsTickerContent.appendChild(originalContentClone.firstChild);
+                let totalContentWidth = newsTickerContent.scrollWidth; 
+                const containerVisibleWidth = tickerContainer.offsetWidth; 
+
+                // Si le contenu est plus petit que le conteneur, le cloner pour qu'il défile
+                let currentCloneCount = 0;
+                while (totalContentWidth > 0 && totalContentWidth < containerVisibleWidth * 2 && currentCloneCount < 5) {
+                    const children = Array.from(newsTickerContent.children); // Cloner les enfants pour éviter de cloner l'élément parent
+                    children.forEach(child => newsTickerContent.appendChild(child.cloneNode(true)));
+                    totalContentWidth = newsTickerContent.contentWidth; // <-- Correction: newsTickerContent.scrollWidth
+                    currentCloneCount++;
                 }
-                totalContentWidth = newsTickerContent.scrollWidth;
-                cloneCount++;
-            }
-            
-            if (totalContentWidth === 0) {
-                newsTickerContent.style.animation = 'none';
-                newsTickerContent.style.transform = 'translateX(0)';
-                return;
-            }
 
-            // MODIFICATION DE LA VITESSE ICI
-            const speed = 1.0; // Pixels par seconde. Mettre 1.0 pour le test.
-            const effectiveContentWidth = newsTickerContent.scrollWidth / (cloneCount + 1); 
-            const duration = effectiveContentWidth / speed; 
+                // Si le contenu est toujours trop court, désactiver l'animation
+                if (totalContentWidth <= containerVisibleWidth) { // Correction: comparaison avec containerVisibleWidth
+                    newsTickerContent.style.animation = 'none';
+                    newsTickerContent.style.transform = 'translateX(0)';
+                    return;
+                }
 
-            console.log(`[News Ticker] totalContentWidth: ${totalContentWidth}, effectiveContentWidth: ${effectiveContentWidth}, speed: ${speed}, calculated duration: ${duration}s`);
-            
-            newsTickerContent.style.setProperty('--ticker-duration', `${duration}s`);
-            newsTickerContent.style.animationPlayState = 'running';
+                // MODIFICATION DE LA VITESSE ICI
+                const speed = 1.0; // Pixels par seconde.
+                const effectiveContentWidth = newsTickerContent.scrollWidth / (currentCloneCount + 1); // Utilise currentCloneCount
+                const duration = effectiveContentWidth / speed; 
 
-            newsTickerContent.addEventListener('mouseenter', () => {
-                newsTickerContent.style.animationPlayState = 'paused';
-                console.log("[News Ticker] Animation paused.");
-            });
-            newsTickerContent.addEventListener('mouseleave', () => {
+                console.log(`[News Ticker] totalContentWidth: ${totalContentWidth}, effectiveContentWidth: ${effectiveContentWidth}, speed: ${speed}, calculated duration: ${duration}s`);
+                
+                newsTickerContent.style.setProperty('--ticker-duration', `${duration}s`);
+                // Enlève toutes les animations existantes pour être sûr de repartir de zéro
+                newsTickerContent.style.animation = `ticker var(--ticker-duration) linear infinite !important`; 
                 newsTickerContent.style.animationPlayState = 'running';
-                console.log("[News Ticker] Animation running.");
-            });
+
+                newsTickerContent.addEventListener('mouseenter', () => {
+                    newsTickerContent.style.animationPlayState = 'paused';
+                    console.log("[News Ticker] Animation paused.");
+                });
+                newsTickerContent.addEventListener('mouseleave', () => {
+                    newsTickerContent.style.animationPlayState = 'running';
+                    console.log("[News Ticker] Animation running.");
+                });
+            }); // Fin requestAnimationFrame
+
         }
 
         async function loadComponents() {
