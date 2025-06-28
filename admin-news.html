@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration du Flux d'Actualités</title>
+    <link rel="stylesheet" href="style.css"> 
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-grey);
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-blue);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--dark-blue);
+        }
+
+        .form-group input[type="text"],
+        .form-group textarea,
+        .form-group select, /* Ajout pour les sélecteurs */
+        .form-group input[type="color"] { /* Ajout pour le sélecteur de couleur */
+            width: calc(100% - 20px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            box-sizing: border-box; /* Inclut le padding dans la largeur */
+        }
+        
+        .form-group input[type="color"] {
+            width: 80px; /* Plus petit pour le sélecteur de couleur */
+            padding: 5px;
+            height: 40px;
+            cursor: pointer;
+        }
+
+
+        .form-group textarea {
+            resize: vertical; 
+            min-height: 80px;
+        }
+
+        .form-actions {
+            text-align: right;
+            margin-top: 30px;
+        }
+
+        .btn {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease;
+            margin-left: 10px;
+        }
+
+        .btn:hover {
+            background-color: var(--dark-blue);
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .news-item-editor {
+            border: 1px solid #eee;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            position: relative;
+        }
+
+        .news-item-editor button.remove-item {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 1em;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            line-height: 1;
+            text-align: center;
+            transition: background-color 0.2s ease;
+        }
+
+        .news-item-editor button.remove-item:hover {
+            background-color: #c82333;
+        }
+
+        .message-box {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none; 
+        }
+
+        .message-box.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message-box.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Administration du Flux d'Actualités</h1>
+
+        <div id="messageBox" class="message-box"></div>
+
+        <div id="newsItemsContainer">
+            </div>
+
+        <div class="form-actions">
+            <button type="button" id="addNewsItem" class="btn btn-secondary">Ajouter un Article</button>
+            <button type="submit" id="saveNews" class="btn">Sauvegarder le Flux</button>
+        </div>
+    </div>
+
+    <script>
+        const NEWS_DATA_PATH = 'news-data.json';
+        const SAVE_NEWS_FUNCTION_URL = '/.netlify/functions/saveNews';
+
+        let newsItems = []; 
+
+        const newsItemsContainer = document.getElementById('newsItemsContainer');
+        const addNewsItemButton = document.getElementById('addNewsItem');
+        const saveNewsButton = document.getElementById('saveNews');
+        const messageBox = document.getElementById('messageBox');
+
+        // Listes prédéfinies pour les sélecteurs
+        const poles = ["Marketing", "Tech", "RH", "Finance", "Direction", "Autre"];
+        const collaborateurs = ["Jean Dupont", "Marie Curie", "Pierre Lefevre", "Sophie Martin", "Fatima Benali", "Autres"];
+        // Couleurs par défaut (vous pouvez en ajouter d'autres)
+        const defaultColors = ["#0077b6", "#FFD700", "#FF4500", "#32CD32", "#8A2BE2"]; 
+
+        function showMessage(message, type) {
+            messageBox.textContent = message;
+            messageBox.className = `message-box ${type}`;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 5000); 
+        }
+
+        function createNewsItemEditor(item = { title: '', url: '', source: '', pole: '', collaborateur: '', color: defaultColors[0] }, index) {
+            const editorDiv = document.createElement('div');
+            editorDiv.className = 'news-item-editor';
+            editorDiv.dataset.index = index;
+
+            const poleOptions = poles.map(p => `<option value="${p}" ${item.pole === p ? 'selected' : ''}>${p}</option>`).join('');
+            const collaborateurOptions = collaborateurs.map(c => `<option value="${c}" ${item.collaborateur === c ? 'selected' : ''}>${c}</option>`).join('');
+
+            editorDiv.innerHTML = `
+                <div class="form-group">
+                    <label for="title-${index}">Titre de l'article :</label>
+                    <textarea id="title-${index}" rows="2">${item.title}</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="url-${index}">URL (lien) :</label>
+                    <input type="text" id="url-${index}" value="${item.url}">
+                </div>
+                <div class="form-group">
+                    <label for="source-${index}">Source (optionnel) :</label>
+                    <input type="text" id="source-${index}" value="${item.source}">
+                </div>
+                <div class="form-group">
+                    <label for="pole-${index}">Pôle :</label>
+                    <select id="pole-${index}">${poleOptions}</select>
+                </div>
+                <div class="form-group">
+                    <label for="collaborateur-${index}">Collaborateur :</label>
+                    <select id="collaborateur-${index}">${collaborateurOptions}</select>
+                </div>
+                <div class="form-group">
+                    <label for="color-${index}">Couleur du texte :</label>
+                    <input type="color" id="color-${index}" value="${item.color}">
+                </div>
+                <button type="button" class="remove-item">X</button>
+            `;
+
+            const removeButton = editorDiv.querySelector('.remove-item');
+            removeButton.addEventListener('click', () => {
+                removeNewsItem(index);
+            });
+
+            editorDiv.querySelectorAll('textarea, input, select').forEach(input => {
+                input.addEventListener('input', () => {
+                    const currentId = parseInt(editorDiv.dataset.index);
+                    if (newsItems[currentId]) {
+                        newsItems[currentId].title = document.getElementById(`title-${currentId}`).value;
+                        newsItems[currentId].url = document.getElementById(`url-${currentId}`).value;
+                        newsItems[currentId].source = document.getElementById(`source-${currentId}`).value;
+                        newsItems[currentId].pole = document.getElementById(`pole-${currentId}`).value;
+                        newsItems[currentId].collaborateur = document.getElementById(`collaborateur-${currentId}`).value;
+                        newsItems[currentId].color = document.getElementById(`color-${currentId}`).value;
+                    }
+                });
+            });
+
+            return editorDiv;
+        }
+
+        function addNewsItem() {
+            const newItem = { 
+                title: '', 
+                url: '', 
+                source: '', 
+                pole: poles[0], // Défaut premier pôle
+                collaborateur: collaborateurs[0], // Défaut premier collaborateur
+                color: defaultColors[Math.floor(Math.random() * defaultColors.length)] // Couleur aléatoire par défaut
+            };
+            newsItems.push(newItem);
+            renderNewsItems(); // Re-render pour que le nouvel élément ait le bon index après les existants
+            const editor = newsItemsContainer.lastElementChild; // Le nouvel éditeur est le dernier
+            if (editor) {
+                editor.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        }
+
+        function removeNewsItem(indexToRemove) {
+            newsItems.splice(indexToRemove, 1);
+            renderNewsItems(); 
+        }
+
+        function renderNewsItems() {
+            newsItemsContainer.innerHTML = ''; 
+            newsItems.forEach((item, index) => {
+                const editor = createNewsItemEditor(item, index);
+                newsItemsContainer.appendChild(editor);
+            });
+            updateEditorIndexes(); 
+        }
+
+        function updateEditorIndexes() {
+            newsItemsContainer.querySelectorAll('.news-item-editor').forEach((editorDiv, newIndex) => {
+                editorDiv.dataset.index = newIndex;
+                editorDiv.querySelector('textarea[id^="title-"]').id = `title-${newIndex}`;
+                editorDiv.querySelector('label[for^="title-"]').setAttribute('for', `title-${newIndex}`);
+                editorDiv.querySelector('input[id^="url-"]').id = `url-${newIndex}`;
+                editorDiv.querySelector('label[for^="url-"]').setAttribute('for', `url-${newIndex}`);
+                editorDiv.querySelector('input[id^="source-"]').id = `source-${newIndex}`;
+                editorDiv.querySelector('label[for^="source-"]').setAttribute('for', `source-${newIndex}`);
+                editorDiv.querySelector('select[id^="pole-"]').id = `pole-${newIndex}`;
+                editorDiv.querySelector('label[for^="pole-"]').setAttribute('for', `pole-${newIndex}`);
+                editorDiv.querySelector('select[id^="collaborateur-"]').id = `collaborateur-${newIndex}`;
+                editorDiv.querySelector('label[for^="collaborateur-"]').setAttribute('for', `collaborateur-${newIndex}`);
+                editorDiv.querySelector('input[id^="color-"]').id = `color-${newIndex}`;
+                editorDiv.querySelector('label[for^="color-"]').setAttribute('for', `color-${newIndex}`);
+                
+                const removeButton = editorDiv.querySelector('.remove-item');
+                removeButton.onclick = null; 
+                removeButton.addEventListener('click', () => {
+                    removeNewsItem(newIndex); 
+                });
+            });
+        }
+
+        async function loadExistingNews() {
+            try {
+                const response = await fetch(`/${NEWS_DATA_PATH}`); 
+                if (response.ok) {
+                    newsItems = await response.json();
+                    // Assurez-vous que les anciens articles ont les nouvelles propriétés par défaut
+                    newsItems = newsItems.map(item => ({
+                        color: defaultColors[0], // Couleur par défaut si absente
+                        pole: poles[0],       // Pôle par défaut si absent
+                        collaborateur: collaborateurs[0], // Collaborateur par défaut si absent
+                        ...item // Les propriétés existantes écrasent les défauts si elles existent
+                    }));
+                    renderNewsItems();
+                    showMessage('Flux d\'actualités existant chargé.', 'success');
+                } else if (response.status === 404) {
+                    showMessage('Aucun flux d\'actualités existant trouvé. Commencez à ajouter des articles !', 'info');
+                    addNewsItem(); 
+                } else {
+                    throw new Error(`Erreur lors du chargement des articles : ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                showMessage(`Erreur lors du chargement : ${error.message}.`, 'error');
+                console.error("Erreur de chargement du flux existant:", error);
+                addNewsItem(); 
+            }
+        }
+
+        async function saveNews() {
+            saveNewsButton.disabled = true;
+            saveNewsButton.textContent = 'Sauvegarde en cours...';
+            messageBox.style.display = 'none';
+
+            try {
+                const response = await fetch(SAVE_NEWS_FUNCTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newsItems)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Échec de la sauvegarde : ${response.status} ${response.statusText} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                showMessage(`Flux sauvegardé avec succès ! Le site sera mis à jour dans quelques minutes. (${result.message})`, 'success');
+
+            } catch (error) {
+                showMessage(`Erreur de sauvegarde : ${error.message}`, 'error');
+                console.error("Erreur de sauvegarde du flux:", error);
+            } finally {
+                saveNewsButton.disabled = false;
+                saveNewsButton.textContent = 'Sauvegarder le Flux';
+            }
+        }
+
+        addNewsItemButton.addEventListener('click', addNewsItem);
+        saveNewsButton.addEventListener('click', saveNews);
+
+        document.addEventListener('DOMContentLoaded', loadExistingNews);
+    </script>
+</body>
+</html>
