@@ -844,22 +844,33 @@
             descriptionElement.textContent = item.description || item.promptText || item.prompt || '';
             card.appendChild(descriptionElement);
 
-            // Priorité 1: Chercher la première URL YouTube
-            const firstYoutubeUrl = item.urls ? item.urls.find(url => getYouTubeVideoId(url)) : null;
+            // Rechercher d'abord une URL YouTube dans item.urls
+            let mediaToDisplay = null;
+            let mediaType = null; // 'youtube' ou 'image'
 
-            // Priorité 2: Chercher la première URL d'image statique (si pas de YouTube)
-            // On vérifie item.urls ET item.imageUrl (si une image est directement specifiée pour la carte)
-            let imageToDisplayUrl = null;
-            if (item.imageUrl) { // Si item.imageUrl est explicitement définie (ex: pour la galerie)
-                imageToDisplayUrl = item.imageUrl;
-            } else if (item.urls) { // Sinon, chercher dans le tableau des urls
-                imageToDisplayUrl = item.urls.find(url => isImageUrl(url));
+            if (item.urls && Array.isArray(item.urls)) {
+                const youtubeUrl = item.urls.find(url => getYouTubeVideoId(url));
+                if (youtubeUrl) {
+                    mediaToDisplay = youtubeUrl;
+                    mediaType = 'youtube';
+                } else {
+                    const imageUrl = item.urls.find(url => isImageUrl(url));
+                    if (imageUrl) {
+                        mediaToDisplay = imageUrl;
+                        mediaType = 'image';
+                    }
+                }
+            }
+            // Si le type est "galerie" et qu'il y a une imageUrl directe (priorité sur le tableau urls si c'est le cas)
+            // (La logique existante de la galerie utilise peut-être 'imageUrl' directement pour la vignette)
+            if (type === 'galerie' && item.imageUrl && !mediaToDisplay) { // Si galerie ET imageUrl direct ET pas encore de média trouvé
+                mediaToDisplay = item.imageUrl;
+                mediaType = 'image';
             }
 
 
-            if (firstYoutubeUrl) {
-                const youtubeId = getYouTubeVideoId(firstYoutubeUrl);
-                // Correction: Utilisez l'URL standard d'intégration de YouTube
+            if (mediaType === 'youtube') {
+                const youtubeId = getYouTubeVideoId(mediaToDisplay);
                 const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=0&controls=0&modestbranding=1&rel=0&showinfo=0`;
                 
                 const videoContainer = document.createElement('div');
@@ -878,11 +889,11 @@
 
                 videoContainer.appendChild(iframe);
                 card.appendChild(videoContainer);
-            } else if (imageToDisplayUrl) { // Si pas de YouTube, on affiche la première image trouvée (ou item.imageUrl)
+            } else if (mediaType === 'image') {
                 const imgContainer = document.createElement('div');
                 imgContainer.className = 'card-image-container';
                 const img = document.createElement('img');
-                img.src = imageToDisplayUrl; // Utilisez l'URL d'image déterminée
+                img.src = mediaToDisplay;
                 img.alt = `Vignette de ${item.titre}`;
                 imgContainer.appendChild(img);
                 card.appendChild(imgContainer);
@@ -976,6 +987,7 @@
                 // Harmonisation et parsing des URLs et dates pour les deux sources
                 casUsages = casUsages.map(item => {
                     let itemUrls = [];
+                    // Handle urls property as an array, potentially parsing stringified JSON
                     if (Array.isArray(item.urls)) {
                         itemUrls = item.urls;
                     } else if (typeof item.urls === 'string' && item.urls.startsWith('[')) {
@@ -987,18 +999,25 @@
                         } catch (e) {
                             console.error("Erreur de parsing des URLs du cas d'usage:", e, item.urls);
                         }
-                    } else if (item.url) {
+                    } else if (item.url) { // Fallback for single 'url' property
                         itemUrls = [item.url];
                     }
+
+                    // Add item.imageUrl to itemUrls if it exists and is not already there
+                    if (item.imageUrl && itemUrls.indexOf(item.imageUrl) === -1) {
+                        itemUrls.push(item.imageUrl);
+                    }
+
                     return {   
                         ...item,   
-                        urls: itemUrls, // Assure que les URLs sont un tableau
+                        urls: itemUrls, // Ensure urls is an array, potentially including imageUrl
                         effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString())   
                     };
                 });
 
                 prompts = prompts.map(item => {
                     let itemUrls = [];
+                     // Handle urls property as an array, potentially parsing stringified JSON
                     if (Array.isArray(item.urls)) {
                         itemUrls = item.urls;
                     } else if (typeof item.urls === 'string' && item.urls.startsWith('[')) {
@@ -1010,19 +1029,25 @@
                         } catch (e) {
                             console.error("Erreur de parsing des URLs du prompt:", e, item.urls);
                         }
-                    } else if (item.url) {
+                    } else if (item.url) { // Fallback for single 'url' property
                         itemUrls = [item.url];
                     }
+
+                    // Add item.imageUrl to itemUrls if it exists and is not already there
+                    if (item.imageUrl && itemUrls.indexOf(item.imageUrl) === -1) {
+                        itemUrls.push(item.imageUrl);
+                    }
+
                     return {   
                         ...item,   
-                        urls: itemUrls, // Assure que les URLs sont un tableau
+                        urls: itemUrls, // Ensure urls is an array, potentially including imageUrl
                         effectiveDate: new Date(item.date_creation || item.dateCreation || item.date_ajout || item.date || new Date(0).toISOString())   
                     };
                 });
 
                 // Trier par date effective (du plus récent au plus ancien)
                 casUsages.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
-                const imagePrompts = prompts.filter(item => item.imageUrl || (item.urls && item.urls.some(url => getYouTubeVideoId(url) || isImageUrl(url)))); // Filtrer les prompts qui ont une image ou vidéo
+                const imagePrompts = prompts.filter(item => item.urls && item.urls.some(url => getYouTubeVideoId(url) || isImageUrl(url))); // Filtrer les prompts qui ont une image ou vidéo dans leur tableau 'urls'
                 imagePrompts.sort((a, b) => b.effectiveDate.getTime() - a.effectiveDate.getTime());
 
                 const latestCasUsage = casUsages.length > 0 ? casUsages[0] : null;
