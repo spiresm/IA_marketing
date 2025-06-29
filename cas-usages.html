@@ -75,15 +75,14 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Conteneur des contrôles en haut (filtres et boutons) */
-        /* Ancien .header-controls-container - sera splité en .filters-area-container et .header-action-buttons */
-        /* La classe elle-même n'est plus utilisée directement comme wrapper principal dans le HTML */
+        /* Conteneur des contrôles en haut (sera splité et réorganisé) */
+        /* N'est plus utilisé comme un wrapper direct, mais ses styles sont réappliqués à de nouveaux wrappers */
 
 
         /* NOUVEAU: Section pour les logos des outils (Maintenant au-dessus des filtres) */
         .tool-logos-section {
             max-width: 960px; /* Largeur pour aligner avec la galerie de tips */
-            margin: 20px auto; /* Marge au-dessus et en dessous */
+            margin: 20px auto; 
             padding: 20px;
             background: #fff;
             border-radius: 12px;
@@ -113,7 +112,7 @@
             align-items: center; 
             justify-content: center; 
             text-align: center;
-            min-height: 100px; /* Hauteur réduite pour les cartes de logos */
+            min-height: 100px; 
         }
         .tool-card:hover {
             transform: translateY(-3px); 
@@ -153,18 +152,22 @@
             margin: 0px auto 25px auto; /* Marge pour espacer des logos et des boutons */
             padding: 0 20px;
             box-sizing: border-box;
+            display: flex; /* Utilise flexbox pour le conteneur des filtres */
+            justify-content: center; /* Centre les filtres */
+            gap: 15px; /* Espacement entre les filtres */
+            flex-wrap: wrap; /* Permet aux filtres de passer à la ligne */
         }
 
         /* NOUVEAU: Conteneur pour les boutons d'action et "Créer un Tip" */
         .header-action-buttons {
             max-width: 960px; /* Largeur pour aligner avec le reste */
-            margin: 0px auto 30px auto;
+            margin: 0px auto 30px auto; /* Espace après les boutons */
             padding: 0 20px;
             box-sizing: border-box;
             display: flex;
             flex-wrap: wrap;
-            justify-content: flex-end; /* Aligner à droite les boutons d'action */
-            gap: 15px; /* Espacement entre les groupes de boutons */
+            justify-content: center; /* Centre les boutons d'action */
+            gap: 15px; /* Espacement entre les boutons */
         }
 
 
@@ -179,12 +182,13 @@
         }
 
         /* Conteneur des filtres (la flexbox interne) */
-        #filters {
+        #filters { /* Garde ces styles pour les éléments à l'intérieur */
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
             flex-grow: 1;
             min-width: 0;
+            /* Retire les styles de justification et gap externes car gérés par .filters-area-container */
         }
         
         #filters select,
@@ -193,7 +197,7 @@
             border: 1px solid var(--border-color);
             border-radius: 8px;
             font-size: 0.9em;
-            flex: 1;
+            flex: 1; /* Permet aux éléments de filtre de grandir/rétrécir */
             min-width: 120px;
             box-sizing: border-box; 
         }
@@ -204,12 +208,11 @@
 
         /* Styles pour les boutons d'action et "Créer un Tip" */
         .action-buttons, .create-tip-button-container {
-            display: flex; /* Maintient les sous-groupes de boutons comme flex */
+            display: flex; 
             gap: 10px;
             flex-wrap: wrap;
-            justify-content: flex-end;
+            justify-content: flex-end; /* Garde l'alignement à droite par défaut */
             align-items: center;
-            /* Retire les marges externes car gérées par .header-action-buttons */
         }
         .create-tip-button-container { 
             /* Retire les marges externes */
@@ -931,7 +934,8 @@
                 </div>
         </div>
 
-        <div class="filters-area-container header-controls-container"> <div id="filters">
+        <div class="filters-area-container header-controls-container"> 
+            <div id="filters">
                 <input type="text" id="preview-text" placeholder="Rechercher dans le texte de prévisualisation..." />
                 <select id="filtre-categorie">
                     <option value="">Toutes les catégories</option>
@@ -954,14 +958,12 @@
             </div>
         </div>
         
-        <div class="header-action-buttons header-controls-container"> <div class="action-buttons">
+        <div class="header-action-buttons header-controls-container"> 
+            <div class="action-buttons">
                 </div>
             <div class="create-tip-button-container">
                 <a href="creer-tip.html" class="create-tip-button">Créer un Tip</a>
-                <a href="compresseur.html" class="compress-image-button">
-                    <i class="fas fa-cut"></i> Compresser une image
-                </a>
-            </div>
+                </div>
         </div>
 
 
@@ -988,11 +990,11 @@
     </div>
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
-        let allTips = []; // Ceci contiendra vos données de tips
+        let allTips = []; 
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
         const filtreCategorieSelect = document.getElementById('filtre-categorie');
-        const filtreOutilSelect = document.getElementById('filtre-outil'); // Assurez-vous que cet ID existe
+        const filtreOutilSelect = document.getElementById('filtre-outil'); 
         const filtreTriDateSelect = document.getElementById('filtre-tri-date');
         const previewTextInput = document.getElementById('preview-text');
 
@@ -1004,11 +1006,6 @@
         const mainElement = document.querySelector('main'); 
         const previewOverlay = document.getElementById('previewOverlay');
 
-        /**
-         * Fonction utilitaire pour échapper le HTML pour éviter les XSS.
-         * @param {string} text Le texte à échapper.
-         * @returns {string} Le texte échappé.
-         */
         function escapeHtml(text) {
             if (text === null || text === undefined) {
                 return '';
@@ -1024,7 +1021,6 @@
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
-        // Fonction utilitaire pour extraire l'ID d'une vidéo YouTube
         function getYouTubeVideoId(url) {
             let videoId = null;
             const youtubeRegex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -1035,7 +1031,6 @@
             return videoId;
         }
 
-        // Fonction utilitaire pour charger des composants HTML via fetch.
         async function loadComponent(url, placeholderId) {
             try {
                 const res = await fetch(url);
@@ -1046,7 +1041,7 @@
                 document.getElementById(placeholderId).innerHTML = await res.text();
                 console.log(`${url} loaded successfully into #${placeholderId}.`);
             } catch (error) {
-                console.error(`Error loading ${url}:`, error);
+                console.error(`Erreur lors du chargement de ${url}:`, error);
                 document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
             }
         };
@@ -1061,7 +1056,6 @@
 
             const outil = filtreOutilSelect.value; 
             if (outil) {
-                // Modifié pour la correspondance exacte du nom de l'outil
                 filtered = filtered.filter(tip => tip.outil === outil);
             }
 
@@ -1093,20 +1087,17 @@
             previewTextInput.addEventListener('input', applyFiltersAndSort);
             filtreTriDateSelect.addEventListener('change', applyFiltersAndSort);
             
-            // Écouteur pour le filtre d'outil pour s'assurer que le champ est mis à jour et filtré
             filtreOutilSelect.addEventListener('change', () => {
                 applyFiltersAndSort();
             });
 
-            populateOutilFilter();
+            populateOutilFilter(); // Appelle la fonction pour peupler le filtre outil
         }
         
         // NOUVEAU: Fonction pour peupler le sélecteur de filtre outil
         function populateOutilFilter() {
-            // Efface les options existantes sauf "Tous les outils"
             filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>'; 
 
-            // Utilise toolsData pour remplir les options, assurant la cohérence des noms
             const uniqueTools = [...new Set(toolsData.map(tool => tool.name))].sort();
 
             uniqueTools.forEach(toolName => {
@@ -1152,8 +1143,8 @@
                         titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
                         auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
                         description: tip.description || '',
-                        outil: tip.outil && tip.outil.trim() !== '' ? tip.outil : "Non spécifié", // S'assurer que 'outil' est défini
-                        categorie: tip.categorie && tip.categorie.trim() !== '' ? tip.categorie : "Autre", // S'assurer que 'categorie' est défini
+                        outil: tip.outil && tip.outil.trim() !== '' ? tip.outil : "Non spécifié", 
+                        categorie: tip.categorie && tip.categorie.trim() !== '' ? tip.categorie : "Autre", 
                         urls: tipUrls 
                     };
                 });
@@ -1181,7 +1172,7 @@
 
                 const actualPromptContent = tip.promptText || tip.prompt;
 
-                const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}">${escapeHtml(tip.auteur)}</a>`;
+                const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
 
                 const cardHtml = `
                     <div class="carte" style="border-left-color: ${getCategoryColor(tip.categorie)};">
@@ -1481,7 +1472,7 @@
         }
 
         // --- Données des logos des outils (noms harmonisés) ---
-        // Assurez-vous que ces noms correspondent EXACTEMENT aux valeurs 'outil' de vos tips dans le backend
+        // Ces noms sont la source de vérité pour le filtrage et doivent correspondre aux 'outil' de vos tips
         const toolsData = [
             { name: "Premiere Pro", img: "logo_premiere.png" },
             { name: "n8n", img: "logo_n8n.png" },
@@ -1489,9 +1480,9 @@
             { name: "Midjourney", img: "logo_midjourney.png" },
             { name: "Stable Diffusion", img: "logo_stable_diff.png" },
             { name: "ChatGPT", img: "logo_chatgpt.png" },
-            { name: "DALL-E", img: "logo_dall_E.png" }, // Harmonisé : DALL-E (sans · 3)
+            { name: "DALL-E", img: "logo_dall_E.png" }, // Harmonisé pour le filtre
             { name: "Claude", img: "logo_claude.png" },
-            { name: "Adobe Firefly", img: "logo_firefly.png" } // Harmonisé : Adobe Firefly
+            { name: "Adobe Firefly", img: "logo_firefly.png" } // Harmonisé pour le filtre
         ];
 
         // Fonction pour générer et afficher les cartes de logos
@@ -1573,7 +1564,7 @@
             // 4. Mettre en place les filtres
             setupFilters();
 
-            // 5. Charger et afficher les logos des outils (NOUVEAU)
+            // 5. Charger et afficher les logos des outils
             renderToolLogos();
 
             // 6. Charger et afficher les tips
