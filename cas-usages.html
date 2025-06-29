@@ -1349,8 +1349,9 @@
                     const hasYouTubeVideo = tipUrls.some(url => getYouTubeVideoId(url));
                     let actualPromptText = tip.promptText || tip.prompt; // On garde l'original au début
 
+                    // Si vidéo YT, on vide le promptText selon la règle
                     if (hasYouTubeVideo) {
-                        actualPromptText = ''; // La règle est: si vidéo YT, pas de prompt
+                        actualPromptText = ''; 
                     }
 
                     return {
@@ -1397,7 +1398,7 @@
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
-                // actualPromptContent est maintenant le promptText (qui est vide si vidéo YT)
+                // actualPromptContent est le promptText (qui est vide si vidéo YT selon la règle)
                 const actualPromptContent = tip.promptText; 
                 // Pour le bouton Copier, si promptText est vide, on utilise la description
                 const contentForCopyButton = actualPromptContent || tip.description;
@@ -1405,8 +1406,9 @@
                 const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
 
                 let copyButtonHtml = '';
-                // Le bouton copier s'affiche si contentForCopyButton a du texte
-                if (contentForCopyButton && contentForCopyButton.trim() !== '') {
+                // Le bouton copier s'affiche si contentForCopyButton a du texte ET si il n'y a PAS de vidéo YT (car si vidéo YT, actualPromptContent sera vide)
+                // C'est la ligne clé pour la règle "pas de bouton si vidéo YT"
+                if (contentForCopyButton && contentForCopyButton.trim() !== '' && !(tip.urls && tip.urls.some(url => getYouTubeVideoId(url)))) {
                     copyButtonHtml = `<button class="copier-btn" data-copy="${escapeHtml(contentForCopyButton)}">Copier le prompt</button>`;
                 }
 
@@ -1429,9 +1431,7 @@
                             <div class="card-actions">
                                 <div class="top-buttons-group">
                                     <button class="toggle-content-btn" data-id="${tip.id}">Voir le Tip</button>
-                                    ${copyButtonHtml}
-                                    <button class="edit-btn" data-id="${tip.id}">Éditer</button>
-                                    <div class="card-preview-icons-inline">
+                                    ${copyButtonHtml} <div class="card-preview-icons-inline">
                                         ${((tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl) ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
                                         ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
                                         ${(tip.urls && tip.urls.some(url => getYouTubeVideoId(url))) ? `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>` : ''}
@@ -1489,9 +1489,10 @@
                 button.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target);
             });
 
-            document.querySelectorAll('.edit-btn').forEach(button => {
-                button.onclick = (e) => redirectToEditPage(e.target.dataset.id);
-            });
+            // Bouton Éditer supprimé ici
+            // document.querySelectorAll('.edit-btn').forEach(button => {
+            //     button.onclick = (e) => redirectToEditPage(e.target.dataset.id);
+            // });
 
             document.querySelectorAll('.supprimer-btn').forEach(button => {
                 button.onclick = (e) => confirmAndDeleteTip(e.target.dataset.id || e.target.closest('button').dataset.id);
@@ -1510,7 +1511,7 @@
 
                 // URLs (avec gestion spécifique YouTube) - Affichées en premier pour les vidéos de workflow
                 if (tip.urls && tip.urls.length > 0) {
-                    let hasContentToDisplayUrl = false;
+                    let hasContentToDisplayInUrls = false; // Renommée pour être plus spécifique aux URLs
                     let linksAndVideosHtml = '';
 
                     const urlsToProcess = Array.isArray(tip.urls) ? tip.urls : (typeof tip.urls === 'string' && tip.urls.startsWith('[') ? JSON.parse(tip.urls) : [tip.urls]);
@@ -1519,7 +1520,7 @@
                         if (url && typeof url === 'string') {
                             const youtubeId = getYouTubeVideoId(url);
                             if (youtubeId) {
-                                hasContentToDisplayUrl = true;
+                                hasContentToDisplayInUrls = true;
                                 const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0`;
                                 console.log(`Détection d'une vidéo YouTube. ID: ${youtubeId}, URL d'intégration: ${embedUrl}`);
                                 linksAndVideosHtml += `
@@ -1535,7 +1536,7 @@
                                     </div>
                                 `;
                             } else if (url.trim() !== '') {
-                                hasContentToDisplayUrl = true;
+                                hasContentToDisplayInUrls = true;
                                 linksAndVideosHtml += `
                                     <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
                                 `;
@@ -1543,32 +1544,39 @@
                         }
                     });
 
-                    if (hasContentToDisplayUrl) {
+                    if (hasContentToDisplayInUrls) {
                         contentHtml += `<h4>Liens / Vidéos associées :</h4>${linksAndVideosHtml}`;
                     }
                 }
 
-                // Section Prompt / Contenu Principal (dans le panneau latéral)
-                let panelContentToDisplay = '';
+                // Section du contenu principal (Prompt ou Description si pas de prompt)
+                let panelMainContentToDisplay = '';
                 let sectionTitle = '';
-                const buttonText = "Copier le prompt"; 
                 let copyButtonPanelHtml = '';
+                const buttonText = "Copier le prompt"; 
 
-                // Déterminer le contenu à afficher comme "principal" et potentiellement à copier
+                // Priorité: promptText, sinon description
                 if (tip.promptText && tip.promptText.trim() !== '') {
-                    panelContentToDisplay = tip.promptText;
+                    panelMainContentToDisplay = tip.promptText;
                     sectionTitle = "Prompt :";
                 } else if (tip.description && tip.description.trim() !== '') {
-                    panelContentToDisplay = tip.description;
-                    sectionTitle = "Description du tip :";
+                    panelMainContentToDisplay = tip.description;
+                    sectionTitle = "Description du tip :"; // Utilisez un titre plus générique pour la description
                 }
                 
-                if (panelContentToDisplay && panelContentToDisplay.trim() !== '') {
-                    copyButtonPanelHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelContentToDisplay)}">${buttonText}</button>`;
+                // Afficher le contenu principal et le bouton Copier si du texte est disponible
+                // Le bouton copier ne doit PAS apparaître s'il y a une vidéo YouTube
+                const hasYouTubeVideoInTip = tip.urls && tip.urls.some(url => getYouTubeVideoId(url));
+                
+                if (panelMainContentToDisplay && panelMainContentToDisplay.trim() !== '') {
+                    if (!hasYouTubeVideoInTip) { // Seulement si PAS de vidéo YouTube
+                         copyButtonPanelHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelMainContentToDisplay)}">${buttonText}</button>`;
+                    }
+                   
                     contentHtml += `
                         <h4>${sectionTitle}</h4>
                         ${copyButtonPanelHtml}
-                        <pre class="prompt-content-pre">${escapeHtml(panelContentToDisplay)}</pre>
+                        <pre class="prompt-content-pre">${escapeHtml(panelMainContentToDisplay)}</pre>
                     `;
                 }
 
@@ -1693,9 +1701,11 @@
             }
         }
 
-        function redirectToEditPage(tipId) {
-            window.location.href = `modifier-tip.html?id=${tipId}`;
-        }
+        // Fonction redirectToEditPage et le bouton Edit ont été retirés du HTML pour respecter la demande
+        // Si vous souhaitez la fonctionnalité d'édition, elle devra être gérée ailleurs dans l'interface
+        // function redirectToEditPage(tipId) {
+        //     window.location.href = `modifier-tip.html?id=${tipId}`;
+        // }
 
         async function confirmAndDeleteTip(tipId) {
             const userConfirmed = confirm("Êtes-vous sûr de vouloir supprimer ce tip ?");
