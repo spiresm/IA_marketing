@@ -1272,10 +1272,10 @@
             
             displayTips(filtered);
 
-            // Défiler vers le conteneur de la galerie pour s'assurer que le bouton "Créer un Tip" reste visible
-            const galerieContainer = document.querySelector('.galerie-container');
-            if (galerieContainer) {
-                galerieContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Défiler vers le premier tip après l'application des filtres
+            const firstTip = galerieDiv.querySelector('.carte');
+            if (firstTip) {
+                firstTip.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
 
@@ -1624,4 +1624,183 @@
                 }, 1500);
             } catch (err) {
                 console.error('Échec de la copie: ', err);
-                alert('La copie automat
+                alert('La copie automatique a échoué. Veuillez copier le texte manuellement : \n' + text);
+            }
+        }
+
+        function redirectToEditPage(tipId) {
+            window.location.href = `modifier-tip.html?id=${tipId}`;
+        }
+
+        async function confirmAndDeleteTip(tipId) {
+            const userConfirmed = confirm("Êtes-vous sûr de vouloir supprimer ce tip ?");
+            console.log("Confirmation de suppression (simulée):", userConfirmed);
+
+            if (userConfirmed) {
+                try {
+                    const response = await fetch(`${apiBase}delete-tip`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ id: tipId })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: 'Erreur inconnue' }));
+                        throw new Error(errorData.message || `Erreur HTTP! statut: ${response.status}`);
+                    }
+
+                    console.log("Tip supprimé avec succès !");
+                    const msg = document.getElementById('success-message');
+                    msg.textContent = '✅ Tip supprimé avec succès !';
+                    msg.style.opacity = '1';
+                    setTimeout(() => msg.style.opacity = '0', 2000);
+
+                    loadAndDisplayTips();
+                }
+                catch (error) {
+                    console.error("Erreur lors de la suppression du tip:", error);
+                    errorDisplay.style.display = 'block';
+                    errorDisplay.textContent = `Échec de la suppression du tip: ${error.message}`;
+                    setTimeout(() => errorDisplay.style.display = 'none', 3000);
+                }
+            }
+        }
+
+        // --- Données des logos des outils (noms harmonisés) ---
+        // Ces noms sont la source de vérité pour le filtrage et doivent correspondre aux 'outil' de vos tips
+        const toolsData = [
+            { name: "Premiere Pro", img: "logo_premiere.png" },
+            { name: "n8n", img: "logo_n8n.png" },
+            { name: "Runway ML", img: "logo_runwayML.png" },
+            { name: "Midjourney", img: "logo_midjourney.png" },
+            { name: "Stable Diffusion", img: "logo_stable_diff.png" },
+            { name: "ChatGPT", img: "logo_chatgpt.png" },
+            { name: "DALL-E", img: "logo_dall_E.png" }, // Harmonisé pour le filtre
+            { name: "Claude", img: "logo_claude.png" },
+            { name: "Adobe Firefly", img: "logo_firefly.png" }, // Harmonisé pour le filtre
+            { name: "ElevenLabs", img: "logo_elevenlabs.png" }, // Nouveau logo
+            { name: "Photoshop", img: "logo_photoshop.png" } // Nouveau logo
+        ];
+
+        // Fonction pour générer et afficher les cartes de logos
+        function renderToolLogos() {
+            const toolLogosGrid = document.getElementById('tool-logos-grid');
+            if (!toolLogosGrid) {
+                console.error("L'élément #tool-logos-grid n'a pas été trouvé.");
+                return;
+            }
+
+            toolLogosGrid.innerHTML = '';
+
+            // Ajouter le logo "Tous les outils" en premier (qui efface le filtre)
+            const allToolsCard = document.createElement('div');
+            allToolsCard.className = 'tool-card';
+            allToolsCard.innerHTML = `
+                <i class="fas fa-tools" style="font-size: 50px; color: var(--primary-blue); margin-bottom: 8px;"></i>
+                <span class="tool-name">Tous les outils</span>
+            `;
+            allToolsCard.addEventListener('click', () => {
+                filtreOutilSelect.value = ""; // Sélectionne l'option "Tous les outils"
+                applyFiltersAndSort(); // Applique le filtre
+                // Désélectionner toutes les autres cartes visuellement si nécessaire
+                document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('selected'));
+                allToolsCard.classList.add('selected');
+            });
+            toolLogosGrid.appendChild(allToolsCard);
+
+
+            toolsData.forEach(tool => {
+                const toolCard = document.createElement('div');
+                toolCard.className = 'tool-card';
+                toolCard.innerHTML = `
+                    <img src="${tool.img}" alt="Logo de ${tool.name}" loading="lazy">
+                    <span class="tool-name">${tool.name}</span>
+                `;
+                toolCard.addEventListener('click', () => {
+                    filtreOutilSelect.value = tool.name; // Met à jour le sélecteur d'outil avec le nom exact
+                    applyFiltersAndSort(); // Applique le filtre
+                    // Mettre à jour la sélection visuelle
+                    document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('selected'));
+                    toolCard.classList.add('selected');
+                });
+                toolLogosGrid.appendChild(toolCard);
+            });
+        }
+
+        // Fonction de défilement pour les boutons
+        function setupScrollButtons() {
+            if (scrollLeftBtn && scrollRightBtn && toolLogosGrid) {
+                scrollRightBtn.addEventListener('click', () => {
+                    toolLogosGrid.scrollBy({
+                        left: 200, // Défile de 200px vers la droite
+                        behavior: 'smooth'
+                    });
+                });
+
+                scrollLeftBtn.addEventListener('click', () => {
+                    toolLogosGrid.scrollBy({
+                        left: -200, // Défile de 200px vers la gauche
+                        behavior: 'smooth'
+                    });
+                });
+            }
+        }
+
+
+        // --- Initialisation au chargement du DOM ---
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("cas-usages: DOMContentLoaded, début de l'initialisation...");
+
+            // 1. Charger le header et le footer de manière séquentielle
+            await loadComponent("header.html", "header-placeholder");
+            await loadComponent("footer.html", "footer-placeholder");
+
+            // 2. Mettre à jour l'état actif du menu après le chargement du header
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "Cas-usages.html") {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            // 3. Traiter les messages de succès/erreur de l'URL
+            if (window.location.search.includes('success=1')) {
+                const msg = document.getElementById('success-message');
+                msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+            }
+            if (window.location.search.includes('editSuccess=1')) {
+                const msg = document.getElementById('success-message');
+                msg.textContent = '✅ Tip/Prompt modifié avec succès !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+            }
+
+            // 4. Mettre en place les filtres
+            setupFilters();
+
+            // 5. Charger et afficher les logos des outils
+            renderToolLogos();
+            setupScrollButtons(); // Configurer les boutons de défilement après le rendu des logos
+
+            // 6. Charger et afficher les tips
+            loadAndDisplayTips();
+
+            // 7. Rendre le body et main visibles
+            document.body.style.opacity = '1';
+            mainElement.classList.add("show");
+
+            console.log("cas-usages: Initialisation terminée.");
+        });
+    </script>
+</body>
+</html>
