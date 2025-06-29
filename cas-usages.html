@@ -964,7 +964,7 @@
             font-size: 0.9em;
             font-weight: 600;
             transition: background-color 0.2s, transform 0.1s;
-            margin-top: -10px;
+            /* margin-top: -10px; */ /* Retiré pour le positionnement en dessous du pre */
             margin-bottom: 15px;
             align-self: flex-start;
         }
@@ -1206,6 +1206,12 @@
         const scrollLeftBtn = document.getElementById('scrollLeftBtn');
         const scrollRightBtn = document.getElementById('scrollRightBtn');
 
+        // Fonction de décodage des entités HTML, utile pour le textContent
+        function decodeHtml(html) {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = html;
+            return textarea.textContent;
+        }
 
         function escapeHtml(text) {
             if (text === null || text === undefined) {
@@ -1217,7 +1223,7 @@
                 '<': '&lt;',
                 '>': '&gt;',
                 '"': '&quot;',
-                "'": '&#039;'
+                "'": '&#039;' // L'apostrophe est échappée ici pour insertion HTML
             };
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
@@ -1262,7 +1268,8 @@
 
             const searchText = previewTextInput.value.toLowerCase();
             if (searchText) {
-                filtered = filtered.filter(tip => tip.previewText && String(tip.previewText).toLowerCase().includes(searchText));
+                // Utiliser decodeHtml pour la recherche si le texte est stocké encodé
+                filtered = filtered.filter(tip => tip.previewText && decodeHtml(String(tip.previewText)).toLowerCase().includes(searchText));
             }
 
             const sortOrder = filtreTriDateSelect.value;
@@ -1506,12 +1513,30 @@
             if (tip) {
                 console.log("Données du tip pour le panneau d'aperçu:", tip);
                 
-                previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
+                // Correction de l'affichage de l'apostrophe dans le titre du panneau
+                previewPanelTitle.textContent = decodeHtml(tip.titre || "Détail du Tip"); 
+                
                 let contentHtml = '';
 
-                // URLs (avec gestion spécifique YouTube) - Affichées en premier pour les vidéos de workflow
+                // Post-it (previewText) - Maintenant en dessous du titre
+                if (tip.previewText) {
+                    contentHtml += `
+                        <h4>Post-it :</h4>
+                        <div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>
+                    `;
+                }
+
+                // Section Description (si présente)
+                if (tip.description && tip.description.trim() !== '') {
+                    contentHtml += `
+                        <h4>Description :</h4>
+                        <div class="content-card-blue">${escapeHtml(tip.description)}</div>
+                    `;
+                }
+                
+                // URLs (avec gestion spécifique YouTube)
                 if (tip.urls && tip.urls.length > 0) {
-                    let hasContentToDisplayInUrls = false; // Renommée pour être plus spécifique aux URLs
+                    let hasContentToDisplayInUrls = false; 
                     let linksAndVideosHtml = '';
 
                     const urlsToProcess = Array.isArray(tip.urls) ? tip.urls : (typeof tip.urls === 'string' && tip.urls.startsWith('[') ? JSON.parse(tip.urls) : [tip.urls]);
@@ -1561,7 +1586,7 @@
                     sectionTitle = "Prompt :";
                 } else if (tip.description && tip.description.trim() !== '') {
                     panelMainContentToDisplay = tip.description;
-                    sectionTitle = "Description du tip :"; // Utilisez un titre plus générique pour la description
+                    sectionTitle = "Description du tip :"; 
                 }
                 
                 // Afficher le contenu principal et le bouton Copier si du texte est disponible
@@ -1569,15 +1594,15 @@
                 const hasYouTubeVideoInTip = tip.urls && tip.urls.some(url => getYouTubeVideoId(url));
                 
                 if (panelMainContentToDisplay && panelMainContentToDisplay.trim() !== '') {
-                    if (!hasYouTubeVideoInTip) { // Seulement si PAS de vidéo YouTube
-                         copyButtonPanelHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelMainContentToDisplay)}">${buttonText}</button>`;
-                    }
-                   
                     contentHtml += `
                         <h4>${sectionTitle}</h4>
-                        ${copyButtonPanelHtml}
                         <pre class="prompt-content-pre">${escapeHtml(panelMainContentToDisplay)}</pre>
                     `;
+                    // Ajout du bouton copier APRÈS le bloc <pre>
+                    if (!hasYouTubeVideoInTip) { // Seulement si PAS de vidéo YouTube
+                         copyButtonPanelHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelMainContentToDisplay)}">${buttonText}</button>`;
+                         contentHtml += copyButtonPanelHtml;
+                    }
                 }
 
                 // Images
@@ -1617,14 +1642,6 @@
                         </div>
                     `;
                 }
-
-                // Post-it (previewText)
-                if (tip.previewText) {
-                    contentHtml += `
-                        <h4>Post-it :</h4>
-                        <div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>
-                    `;
-                }
                 
                 const dateObj = new Date(tip.dateCreation);
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -1650,6 +1667,7 @@
                 previewOverlay.classList.add('open');
                 bodyElement.style.overflow = 'hidden';
 
+                // Attache l'écouteur après que le contenu soit dans le DOM
                 document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
                     copyToClipboard(e.target.dataset.copy, e.target);
                 });
