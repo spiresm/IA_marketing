@@ -312,7 +312,7 @@
             border-radius: 12px;
             box-shadow: var(--card-shadow);
             /* Le display:flex et flex-direction:column ont été retirés d'ici
-               car le compteur est maintenant à l'extérieur de #galerie */
+                car le compteur est maintenant à l'extérieur de #galerie */
         }
         /* Dark mode adjustments for galerie container */
         body.dark-mode .galerie-container {
@@ -1132,6 +1132,23 @@
                     <option>Outils IA</option>
                     <option>Stratégie</option>
                     <option>Autre</option>
+                    <option>Montage Vidéo</option>
+                    <option>Effets Visuels</option>
+                    <option>Retouche Image</option>
+                    <option>Automatisation</option>
+                    <option>Création Visuelle</option>
+                    <option>Productivité</option>
+                    <option>Création de Contenu</option>
+                    <option>Recherche & Analyse</option>
+                    <option>Rédaction</option>
+                    <option>Design Graphique</option>
+                    <option>Audio</option>
+                    <option>Voix</option>
+                    <option>Synthèse Vocale</option>
+                    <option>Animation</option>
+                    <option>Motion Graphics</option>
+                    <option>Workflow</option>
+                    <option>Accessibilité</option>
                 </select>
                 <select id="filtre-tri-date">
                     <option value="recent" selected>Plus récent</option>
@@ -1318,14 +1335,27 @@
                             const parsed = JSON.parse(tip.urls);
                             if (Array.isArray(parsed)) {
                                 tipUrls = parsed;
-                            } else {
-                                console.warn("Parsed URLs string is not an array:", parsed);
                             }
                         } catch (e) {
                             console.error("Erreur de parsing de la chaîne URLs:", e, tip.urls);
                         }
-                    } else if (tip.url) {
+                    } else if (tip.url) { // Gérer l'ancien format 'url' unique
                         tipUrls = [tip.url];
+                    }
+
+                    // Déduction du contentType basée sur la nouvelle règle
+                    let inferredContentType = 'prompt'; // Par défaut
+                    const hasYouTubeVideo = tipUrls.some(url => getYouTubeVideoId(url));
+                    const hasPromptText = tip.promptText && tip.promptText.trim() !== '';
+
+                    if (hasYouTubeVideo) {
+                        // Règle : Si vidéo YT, c'est un workflow, PAS un prompt.
+                        // On s'assure aussi que promptText est vide pour ces cas si ce n'est pas déjà fait à la source.
+                        inferredContentType = 'workflow';
+                        tip.promptText = ''; // S'assurer que le champ prompt est vide si la règle s'applique
+                    } else if (!hasPromptText && tip.description && tip.description.trim().length > 100) {
+                        // Heuristique pour les workflows textuels sans vidéo ni prompt explicite
+                        inferredContentType = 'workflow';
                     }
 
                     return {
@@ -1336,7 +1366,8 @@
                         description: tip.description || '',
                         outil: tip.outil && tip.outil.trim() !== '' ? tip.outil : "Non spécifié",
                         categorie: tip.categorie && tip.categorie.trim() !== '' ? tip.categorie : "Autre",
-                        urls: tipUrls
+                        urls: tipUrls,
+                        contentType: inferredContentType // AJOUT DU CHAMP DÉDUIT
                     };
                 });
                 
@@ -1364,7 +1395,6 @@
 
             if (tipsToDisplay.length === 0) {
                 galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos filtres.</p>';
-                // Le compteur total ne change PAS ici, car il affiche le total disponible, non le filtré.
                 return;
             }
 
@@ -1373,9 +1403,27 @@
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
-                const actualPromptContent = tip.promptText || tip.prompt;
-
                 const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
+
+                let copyButtonHtml = '';
+                let contentToCopy = '';
+                let buttonText = '';
+
+                // Utilisation du contentType déduit ou défini
+                if (tip.contentType === 'prompt') {
+                    contentToCopy = tip.promptText || tip.prompt;
+                    buttonText = "Copier le prompt";
+                } else if (tip.contentType === 'workflow') {
+                    // Pour un workflow, on offre de copier la description si elle existe
+                    contentToCopy = tip.description;
+                    buttonText = "Copier la description";
+                }
+
+                // Afficher le bouton seulement si il y a du contenu à copier et un texte de bouton défini
+                if (contentToCopy && contentToCopy.trim() !== '' && buttonText) {
+                    copyButtonHtml = `<button class="copier-btn" data-copy="${escapeHtml(contentToCopy)}">${buttonText}</button>`;
+                }
+                // Sinon, copyButtonHtml reste vide, et le bouton ne s'affiche pas.
 
                 const cardHtml = `
                     <div class="carte" style="border-left-color: ${getCategoryColor(tip.categorie)};">
@@ -1396,9 +1444,7 @@
                             <div class="card-actions">
                                 <div class="top-buttons-group">
                                     <button class="toggle-content-btn" data-id="${tip.id}">Voir le Tip</button>
-                                    ${actualPromptContent && actualPromptContent.trim() !== '' ? `<button class="copier-btn" data-copy="${escapeHtml(actualPromptContent)}">Copier le prompt</button>` : ''}
-                                    <button class="edit-btn" data-id="${tip.id}">Éditer</button>
-                                    <div class="card-preview-icons-inline">
+                                    ${copyButtonHtml} <div class="card-preview-icons-inline">
                                         ${((tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl) ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
                                         ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
                                         ${(tip.urls && tip.urls.some(url => getYouTubeVideoId(url))) ? `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>` : ''}
@@ -1412,9 +1458,6 @@
                 `;
                 galerieDiv.insertAdjacentHTML('beforeend', cardHtml);
             });
-
-            // Le compteur total ne change PAS ici, car il affiche le total disponible, non le filtré.
-            // Si vous voulez aussi un compteur pour les tips *filtrés*, il faudrait ajouter un autre élément HTML et le mettre à jour ici.
 
             attachEventListenersToCards();
         }
@@ -1459,9 +1502,10 @@
                 button.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target);
             });
 
-            document.querySelectorAll('.edit-btn').forEach(button => {
-                button.onclick = (e) => redirectToEditPage(e.target.dataset.id);
-            });
+            // Le code pour le bouton .edit-btn a été supprimé
+            // document.querySelectorAll('.edit-btn').forEach(button => {
+            //     button.onclick = (e) => redirectToEditPage(e.target.dataset.id);
+            // });
 
             document.querySelectorAll('.supprimer-btn').forEach(button => {
                 button.onclick = (e) => confirmAndDeleteTip(e.target.dataset.id || e.target.closest('button').dataset.id);
@@ -1481,7 +1525,7 @@
                 // Add Description section
                 if (tip.description && tip.description.trim() !== '') {
                     contentHtml += `
-                        <h4>Description:</h4>
+                        <h4>Description :</h4>
                         <div class="content-card-blue">${escapeHtml(tip.description)}</div>
                     `;
                 }
@@ -1491,16 +1535,14 @@
                     let hasContentToDisplay = false;
                     let linksAndVideosHtml = '';
 
-                    // Ensure tip.urls is an array before iterating
                     const urlsToProcess = Array.isArray(tip.urls) ? tip.urls : (typeof tip.urls === 'string' && tip.urls.startsWith('[') ? JSON.parse(tip.urls) : [tip.urls]);
 
                     urlsToProcess.forEach((url, index) => {
-                        if (url && typeof url === 'string') { // Check if url is a valid string
+                        if (url && typeof url === 'string') {
                             const youtubeId = getYouTubeVideoId(url);
                             if (youtubeId) {
                                 hasContentToDisplay = true;
                                 const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0`;
-                                console.log(`Détection d'une vidéo YouTube. ID: ${youtubeId}, URL d'intégration: ${embedUrl}`);
                                 linksAndVideosHtml += `
                                     <div class="video-responsive">
                                         <iframe
@@ -1523,24 +1565,38 @@
                     });
 
                     if (hasContentToDisplay) {
-                        contentHtml += `<h4>Liens/Vidéos associées:</h4>${linksAndVideosHtml}`;
+                        contentHtml += `<h4>Liens / Vidéos associées :</h4>${linksAndVideosHtml}`;
                     }
                 }
 
+                // Section Prompt / Contenu Principal (dans le panneau latéral)
+                let panelContentToDisplay = '';
+                let panelCopyButtonHtml = '';
+                let sectionTitle = '';
 
-                const panelPromptContent = tip.promptText || tip.prompt;
-                
-                if (panelPromptContent) {
+                if (tip.contentType === 'prompt' && (tip.promptText || tip.prompt)) {
+                    panelContentToDisplay = tip.promptText || tip.prompt;
+                    sectionTitle = "Prompt :";
+                    panelCopyButtonHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelContentToDisplay)}">Copier le prompt</button>`;
+                } else if (tip.contentType === 'workflow' && tip.description) {
+                    // Pour un workflow, le contenu principal est la description
+                    panelContentToDisplay = tip.description;
+                    sectionTitle = "Description du workflow :";
+                    // On peut aussi offrir de copier cette description si elle est pertinente.
+                    panelCopyButtonHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelContentToDisplay)}">Copier la description</button>`;
+                }
+
+                if (panelContentToDisplay && panelContentToDisplay.trim() !== '') {
                     contentHtml += `
-                        <h4>Prompt:</h4>
-                        <button class="copy-panel-btn" data-copy="${escapeHtml(panelPromptContent)}">Copier le prompt</button>
-                        <pre class="prompt-content-pre">${escapeHtml(panelPromptContent)}</pre>
+                        <h4>${sectionTitle}</h4>
+                        ${panelCopyButtonHtml}
+                        <pre class="prompt-content-pre">${escapeHtml(panelContentToDisplay)}</pre>
                     `;
                 }
-                
+
                 // Images
                 if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
-                    contentHtml += `<h4>Images associées:</h4><div class="preview-panel-image-container">`;
+                    contentHtml += `<h4>Images associées :</h4><div class="preview-panel-image-container">`;
                     let imageCounter = 1;
                     const imageUrlsToDisplay = [];
                     if (tip.fileUrls && Array.isArray(tip.fileUrls)) {
@@ -1565,7 +1621,7 @@
 
                 // Documents
                 if (tip.documentUrl && tip.documentUrl.trim() !== '') {
-                    contentHtml += `<h4>Document associé:</h4>
+                    contentHtml += `<h4>Document associé :</h4>
                         <div class="preview-panel-document-square-container">
                             <a href="${escapeHtml(tip.documentUrl)}" target="_blank" class="preview-panel-pdf-square">
                                 <img src="PDF_file_icon.svg.webp" alt="Icône PDF">
@@ -1576,20 +1632,16 @@
                     `;
                 }
 
-                // Post-it (previewText)
+                // Post-it (previewText) - maintenant au-dessus de la description générale pour visibilité
                 if (tip.previewText) {
                     contentHtml += `
-                        <h4>Post-it:</h4>
+                        <h4>Post-it :</h4>
                         <div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>
                     `;
                 }
                 
-                const dateObj = new Date(tip.dateCreation);
-                const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
-
+                // Métadonnées
                 const auteurPanelLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
-
                 contentHtml += `
                     <div class="metadata-section" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
                         <span class="metadata-label">Auteur:</span>
@@ -1616,21 +1668,6 @@
                 console.error("Tip non trouvé pour l'ID:", tipId);
             }
         }
-
-        function closePreviewPanel() {
-            previewPanel.classList.remove('open');
-            previewOverlay.classList.remove('open');
-            bodyElement.style.overflow = '';
-        }
-
-        closePreviewBtn.addEventListener('click', closePreviewPanel);
-        previewOverlay.addEventListener('click', closePreviewPanel);
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && previewPanel.classList.contains('open')) {
-                closePreviewPanel();
-            }
-        });
-
 
         async function copyToClipboard(text, buttonElement) {
             try {
@@ -1659,6 +1696,7 @@
             }
         }
 
+        // Cette fonction n'est plus appelée depuis la suppression du bouton éditer
         function redirectToEditPage(tipId) {
             window.location.href = `modifier-tip.html?id=${tipId}`;
         }
