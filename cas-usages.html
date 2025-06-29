@@ -1335,27 +1335,22 @@
                             const parsed = JSON.parse(tip.urls);
                             if (Array.isArray(parsed)) {
                                 tipUrls = parsed;
+                            } else {
+                                console.warn("Parsed URLs string is not an array:", parsed);
                             }
                         } catch (e) {
                             console.error("Erreur de parsing de la chaîne URLs:", e, tip.urls);
                         }
-                    } else if (tip.url) { // Gérer l'ancien format 'url' unique
+                    } else if (tip.url) {
                         tipUrls = [tip.url];
                     }
 
-                    // Déduction du contentType basée sur la nouvelle règle
-                    let inferredContentType = 'prompt'; // Par défaut, on suppose que c'est un prompt
+                    // Déduction du contentType : pas de promptText si vidéo YouTube
                     const hasYouTubeVideo = tipUrls.some(url => getYouTubeVideoId(url));
-                    const hasPromptText = tip.promptText && tip.promptText.trim() !== '';
+                    let actualPromptText = tip.promptText || tip.prompt; // On garde l'original au début
 
                     if (hasYouTubeVideo) {
-                        // Règle : Si vidéo YT, c'est un workflow vidéo, PAS un prompt.
-                        inferredContentType = 'workflow_video';
-                        // IMPORTANT: Si c'est une vidéo, le promptText doit être vidé pour ne pas être copié comme prompt
-                        tip.promptText = ''; 
-                    } else if (!hasPromptText && tip.description && tip.description.trim().length > 100) {
-                        // Heuristique pour les workflows textuels sans vidéo ni prompt explicite
-                        inferredContentType = 'workflow_text';
+                        actualPromptText = ''; // La règle est: si vidéo YT, pas de prompt
                     }
 
                     return {
@@ -1367,23 +1362,22 @@
                         outil: tip.outil && tip.outil.trim() !== '' ? tip.outil : "Non spécifié",
                         categorie: tip.categorie && tip.categorie.trim() !== '' ? tip.categorie : "Autre",
                         urls: tipUrls,
-                        contentType: inferredContentType // AJOUT DU CHAMP DÉDUIT
+                        // Utilise actualPromptText qui a été modifié si vidéo YT
+                        promptText: actualPromptText 
                     };
                 });
                 
-                // Mettre à jour le compteur de tips TOTAUX après le chargement initial
                 if (tipCountDisplay) {
                     tipCountDisplay.textContent = `${allTips.length} tips disponibles.`;
                 }
 
-                applyFiltersAndSort(); // Ceci affichera les tips filtrés, mais le compteur restera sur le total.
+                applyFiltersAndSort();
 
             } catch (error) {
                 console.error("Erreur lors du chargement des tips:", error);
                 errorDisplay.style.display = 'block';
                 errorDisplay.textContent = `Erreur de chargement des tips: ${error.message}`;
                 galerieDiv.innerHTML = '';
-                // Mettre à jour le compteur même en cas d'erreur
                 if (tipCountDisplay) {
                     tipCountDisplay.textContent = '0 tip disponible.';
                 }
@@ -1403,26 +1397,18 @@
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
+                // actualPromptContent est maintenant le promptText (qui est vide si vidéo YT)
+                const actualPromptContent = tip.promptText; 
+                // Pour le bouton Copier, si promptText est vide, on utilise la description
+                const contentForCopyButton = actualPromptContent || tip.description;
+
                 const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
 
                 let copyButtonHtml = '';
-                let contentToCopy = '';
-                const buttonText = "Copier le prompt"; // Le texte du bouton est toujours "Copier le prompt"
-
-                // Logique pour le bouton "Copier" sur la carte
-                if (tip.contentType === 'prompt') {
-                    contentToCopy = tip.promptText || tip.prompt;
-                } else if (tip.contentType === 'workflow_text') {
-                    // Pour un workflow textuel, on offre de copier la description
-                    contentToCopy = tip.description;
+                // Le bouton copier s'affiche si contentForCopyButton a du texte
+                if (contentForCopyButton && contentForCopyButton.trim() !== '') {
+                    copyButtonHtml = `<button class="copier-btn" data-copy="${escapeHtml(contentForCopyButton)}">Copier le prompt</button>`;
                 }
-                // Si tip.contentType est 'workflow_video', contentToCopy reste vide, donc pas de bouton.
-
-                // Afficher le bouton seulement si il y a du contenu à copier
-                if (contentToCopy && contentToCopy.trim() !== '') {
-                    copyButtonHtml = `<button class="copier-btn" data-copy="${escapeHtml(contentToCopy)}">${buttonText}</button>`;
-                }
-                // Sinon, copyButtonHtml reste vide, et le bouton ne s'affiche pas.
 
                 const cardHtml = `
                     <div class="carte" style="border-left-color: ${getCategoryColor(tip.categorie)};">
@@ -1443,7 +1429,9 @@
                             <div class="card-actions">
                                 <div class="top-buttons-group">
                                     <button class="toggle-content-btn" data-id="${tip.id}">Voir le Tip</button>
-                                    ${copyButtonHtml} <div class="card-preview-icons-inline">
+                                    ${copyButtonHtml}
+                                    <button class="edit-btn" data-id="${tip.id}">Éditer</button>
+                                    <div class="card-preview-icons-inline">
                                         ${((tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl) ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
                                         ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
                                         ${(tip.urls && tip.urls.some(url => getYouTubeVideoId(url))) ? `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>` : ''}
@@ -1501,10 +1489,9 @@
                 button.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target);
             });
 
-            // Le code pour le bouton .edit-btn a été supprimé
-            // document.querySelectorAll('.edit-btn').forEach(button => {
-            //     button.onclick = (e) => redirectToEditPage(e.target.dataset.id);
-            // });
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.onclick = (e) => redirectToEditPage(e.target.dataset.id);
+            });
 
             document.querySelectorAll('.supprimer-btn').forEach(button => {
                 button.onclick = (e) => confirmAndDeleteTip(e.target.dataset.id || e.target.closest('button').dataset.id);
@@ -1523,7 +1510,7 @@
 
                 // URLs (avec gestion spécifique YouTube) - Affichées en premier pour les vidéos de workflow
                 if (tip.urls && tip.urls.length > 0) {
-                    let hasContentToDisplayUrl = false; // Renommée pour éviter conflit avec hasContentToDisplay plus bas
+                    let hasContentToDisplayUrl = false;
                     let linksAndVideosHtml = '';
 
                     const urlsToProcess = Array.isArray(tip.urls) ? tip.urls : (typeof tip.urls === 'string' && tip.urls.startsWith('[') ? JSON.parse(tip.urls) : [tip.urls]);
@@ -1534,6 +1521,7 @@
                             if (youtubeId) {
                                 hasContentToDisplayUrl = true;
                                 const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0`;
+                                console.log(`Détection d'une vidéo YouTube. ID: ${youtubeId}, URL d'intégration: ${embedUrl}`);
                                 linksAndVideosHtml += `
                                     <div class="video-responsive">
                                         <iframe
@@ -1563,20 +1551,18 @@
                 // Section Prompt / Contenu Principal (dans le panneau latéral)
                 let panelContentToDisplay = '';
                 let sectionTitle = '';
-                const buttonText = "Copier le prompt"; // Texte du bouton toujours "Copier le prompt"
-                let copyButtonPanelHtml = ''; // HTML du bouton copier dans le panneau
+                const buttonText = "Copier le prompt"; 
+                let copyButtonPanelHtml = '';
 
                 // Déterminer le contenu à afficher comme "principal" et potentiellement à copier
                 if (tip.promptText && tip.promptText.trim() !== '') {
                     panelContentToDisplay = tip.promptText;
                     sectionTitle = "Prompt :";
                 } else if (tip.description && tip.description.trim() !== '') {
-                    // Si pas de promptText, mais une description, on utilise la description comme contenu principal
                     panelContentToDisplay = tip.description;
-                    sectionTitle = "Description du tip :"; // Plus générique
+                    sectionTitle = "Description du tip :";
                 }
-                // Si panelContentToDisplay est vide (ni prompt, ni description), cette section ne sera pas affichée.
-
+                
                 if (panelContentToDisplay && panelContentToDisplay.trim() !== '') {
                     copyButtonPanelHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelContentToDisplay)}">${buttonText}</button>`;
                     contentHtml += `
@@ -1594,7 +1580,7 @@
                     if (tip.fileUrls && Array.isArray(tip.fileUrls)) {
                         imageUrlsToDisplay.push(...tip.fileUrls);
                     }
-                    if (tip.imageUrl && !imageUrlsToDisplay.includes(tip.imageUrl)) { // Éviter les doublons
+                    if (tip.imageUrl && !imageUrlsToDisplay.includes(tip.imageUrl)) {
                         imageUrlsToDisplay.push(tip.imageUrl);
                     }
 
@@ -1624,7 +1610,7 @@
                     `;
                 }
 
-                // Post-it (previewText) - Il est important que le previewText soit toujours affiché s'il existe
+                // Post-it (previewText)
                 if (tip.previewText) {
                     contentHtml += `
                         <h4>Post-it :</h4>
@@ -1632,8 +1618,12 @@
                     `;
                 }
                 
-                // Métadonnées
+                const dateObj = new Date(tip.dateCreation);
+                const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
+
                 const auteurPanelLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
+
                 contentHtml += `
                     <div class="metadata-section" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
                         <span class="metadata-label">Auteur:</span>
@@ -1647,13 +1637,11 @@
                     </div>
                 `;
 
-                previewPanelContent.innerHTML = contentHtml; // Insère le contenu
-                previewPanel.classList.add('open');         // Ouvre le panneau
-                previewOverlay.classList.add('open');       // Affiche l'overlay
-                bodyElement.style.overflow = 'hidden';      // Empêche le défilement de l'arrière-plan
+                previewPanelContent.innerHTML = contentHtml;
+                previewPanel.classList.add('open');
+                previewOverlay.classList.add('open');
+                bodyElement.style.overflow = 'hidden';
 
-                // Attache l'écouteur après que le contenu soit dans le DOM
-                // Le sélecteur doit être précis car le bouton n'existe que si copyButtonPanelHtml est généré
                 document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
                     copyToClipboard(e.target.dataset.copy, e.target);
                 });
@@ -1662,6 +1650,21 @@
                 console.error("Tip non trouvé pour l'ID:", tipId);
             }
         }
+
+        function closePreviewPanel() {
+            previewPanel.classList.remove('open');
+            previewOverlay.classList.remove('open');
+            bodyElement.style.overflow = '';
+        }
+
+        closePreviewBtn.addEventListener('click', closePreviewPanel);
+        previewOverlay.addEventListener('click', closePreviewPanel);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && previewPanel.classList.contains('open')) {
+                closePreviewPanel();
+            }
+        });
+
 
         async function copyToClipboard(text, buttonElement) {
             try {
@@ -1690,7 +1693,6 @@
             }
         }
 
-        // Cette fonction n'est plus appelée depuis la suppression du bouton éditer
         function redirectToEditPage(tipId) {
             window.location.href = `modifier-tip.html?id=${tipId}`;
         }
