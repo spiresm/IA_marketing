@@ -234,29 +234,36 @@
             flex-wrap: wrap; /* Permet aux filtres de passer à la ligne */
         }
         
-        /* Compteur de tips */
-        .tip-count {
-            text-align: center;
-            font-size: 1.1em;
-            color: var(--dark-blue);
-            margin-top: 10px;
-            margin-bottom: 20px; /* Espace après le compteur */
-            font-weight: bold;
-        }
-        body.dark-mode .tip-count {
-            color: var(--dark-mode-text);
-        }
-
-
-        /* NOUVEAU: Conteneur pour le bouton "Créer un Tip" (maintenant en haut) */
+        /* Styles pour le conteneur du bouton et du compteur */
         .create-tip-button-container {
             max-width: 960px; /* Largeur pour aligner avec le reste */
             margin: 0px auto 30px auto; /* Espace après le bouton */
             padding: 0 20px;
             box-sizing: border-box;
-            display: flex;
-            justify-content: center; /* Centre le bouton */
-            flex-wrap: wrap;
+            display: flex; /* Utiliser flexbox pour aligner */
+            justify-content: center; /* Centrer horizontalement */
+            align-items: center; /* Centrer verticalement */
+            gap: 20px; /* Espacement entre le bouton et le compteur */
+            flex-wrap: wrap; /* Permet aux éléments de passer à la ligne sur petits écrans */
+        }
+
+        /* Styles pour le compteur de tips (Nouveau look) */
+        .tip-count {
+            background-color: var(--primary-blue); /* Couleur bleue */
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px; /* Bords arrondis */
+            font-size: 1.1em;
+            font-weight: bold;
+            display: flex; /* Pour centrer le texte si besoin */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Ombre cohérente */
+            flex-shrink: 0; /* Empêche de rétrécir sur les petits écrans */
+        }
+        body.dark-mode .tip-count {
+            background-color: var(--dark-mode-border); /* Couleur en mode sombre */
+            color: var(--dark-mode-bg);
         }
 
 
@@ -268,6 +275,8 @@
             background: white;
             border-radius: 12px;
             box-shadow: var(--card-shadow);
+            /* Le display:flex et flex-direction:column ont été retirés d'ici
+               car le compteur est maintenant à l'extérieur de #galerie */
         }
         /* Dark mode adjustments for galerie container */
         body.dark-mode .galerie-container {
@@ -275,79 +284,12 @@
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
 
-        /* Conteneur des filtres (la flexbox interne) */
-        #filters { /* Garde ces styles pour les éléments à l'intérieur */
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            flex-grow: 1;
-            min-width: 0;
-            /* Retire les styles de justification et gap externes car gérés par .filters-area-container */
-        }
-        
-        #filters select,
-        #filters input[type="text"] {
-            padding: 8px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 0.9em;
-            flex: 1; /* Permet aux éléments de filtre de grandir/rétrécir */
-            min-width: 120px;
-            box-sizing: border-box;
-        }
-        #preview-text {
-            min-width: 180px;
-            max-width: 250px;
-        }
-        /* Dark mode adjustments for filters */
-        body.dark-mode #filters select,
-        body.dark-mode #filters input[type="text"] {
-            background-color: var(--dark-mode-bg);
-            color: var(--dark-mode-text);
-            border-color: var(--dark-mode-border);
-        }
-
-
-        /* Styles pour les boutons d'action et "Créer un Tip" */
-        .action-buttons { /* Ce conteneur peut être vide si plus d'autres boutons */
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end; /* Garde l'alignement à droite par default */
-            align-items: center;
-        }
-        /* .create-tip-button-container styles sont déplacés plus haut */
-
-        .action-buttons a, .create-tip-button {
-            background: var(--primary-blue);
-            color: white;
-            text-decoration: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: background 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        .create-tip-button {
-            padding: 12px 25px;
-            font-size: 1.1em;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .action-buttons a:hover, .create-tip-button:hover {
-            background: var(--dark-blue);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
-
         /* Galerie en colonne */
         #galerie {
             display: flex;
             flex-direction: column;
             gap: 20px;
-            padding: 20px 0;
+            padding: 0; /* Plus de padding ici, il est sur le galerie-container */
             position: relative;
             z-index: 1;
         }
@@ -1130,7 +1072,7 @@
     <main>
         <div class="create-tip-button-container">
             <a href="creer-tip.html" class="create-tip-button">Créer un Tip</a>
-        </div>
+            <div id="tipCount" class="tip-count"></div> </div>
 
         <div class="tool-logos-section">
             <h2>Outils IA Populaires</h2>
@@ -1172,7 +1114,7 @@
             <div id="galerie">
                 <p style="text-align: center;">Chargement des tips...</p>
             </div>
-            <div id="tipCount" class="tip-count"></div> </div>
+            </div>
     </main>
 
     <div id="footer-placeholder"></div>
@@ -1362,12 +1304,23 @@
                         urls: tipUrls
                     };
                 });
-                applyFiltersAndSort();
+                
+                // Mettre à jour le compteur de tips TOTAUX après le chargement initial
+                if (tipCountDisplay) {
+                    tipCountDisplay.textContent = `${allTips.length} tips disponibles.`;
+                }
+
+                applyFiltersAndSort(); // Ceci affichera les tips filtrés, mais le compteur restera sur le total.
+
             } catch (error) {
                 console.error("Erreur lors du chargement des tips:", error);
                 errorDisplay.style.display = 'block';
                 errorDisplay.textContent = `Erreur de chargement des tips: ${error.message}`;
                 galerieDiv.innerHTML = '';
+                // Mettre à jour le compteur même en cas d'erreur
+                if (tipCountDisplay) {
+                    tipCountDisplay.textContent = '0 tip disponible.';
+                }
             }
         }
 
@@ -1376,7 +1329,7 @@
 
             if (tipsToDisplay.length === 0) {
                 galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos filtres.</p>';
-                tipCountDisplay.textContent = '0 tip affiché.';
+                // Le compteur total ne change PAS ici, car il affiche le total disponible, non le filtré.
                 return;
             }
 
@@ -1425,8 +1378,8 @@
                 galerieDiv.insertAdjacentHTML('beforeend', cardHtml);
             });
 
-            // Mettre à jour le compteur de tips
-            tipCountDisplay.textContent = `${tipsToDisplay.length} tip${tipsToDisplay.length > 1 ? 's' : ''} affiché${tipsToDisplay.length > 1 ? 's' : ''}.`;
+            // Le compteur total ne change PAS ici, car il affiche le total disponible, non le filtré.
+            // Si vous voulez aussi un compteur pour les tips *filtrés*, il faudrait ajouter un autre élément HTML et le mettre à jour ici.
 
             attachEventListenersToCards();
         }
