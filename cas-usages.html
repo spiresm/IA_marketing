@@ -777,7 +777,7 @@
 
         <div class="tool-logos-section">
             <button class="scroll-arrow left" id="scroll-left-arrow" aria-label="Défiler vers la gauche"><i class="fas fa-chevron-left"></i></button>
-            <div id="scrollable-tools-container" class="scrollable-tools-container">
+            <div class="scrollable-tools-container">
                 <div id="tool-logos-grid" class="tools-grid">
                     
                 </div>
@@ -864,16 +864,19 @@
         });
 
         // Données des outils (récupérées des fichiers précédemment fournis par l'utilisateur)
+        // Les noms des logos doivent correspondre exactement aux valeurs de 'outil' dans vos tips backend
         const toolsData = [
             { name: "Premiere Pro", img: "logo_premiere.png" },
             { name: "n8n", img: "logo_n8n.png" },
-            { name: "Runway ML", img: "logo_runwayML.png" },
+            { name: "RunwayML", img: "logo_runwayML.png" }, 
             { name: "Midjourney", img: "logo_midjourney.png" },
             { name: "Stable Diffusion", img: "logo_stable_diff.png" },
             { name: "ChatGPT", img: "logo_chatgpt.png" },
             { name: "DALL-E 3", img: "logo_dall_E.png" }, 
             { name: "Claude", img: "logo_claude.png" },
-            { name: "Firefly", img: "logo_firefly.png" } 
+            { name: "Firefly", img: "logo_firefly.png" }, 
+            { name: "Photoshop", img: "logo_photoshop.png" }, // Nouveau logo
+            { name: "ElevenLabs", img: "logo_elevenlabs.png" } // Nouveau logo
         ];
 
         // Variables pour le défilement des logos
@@ -883,7 +886,7 @@
         const scrollRightArrow = document.getElementById('scroll-right-arrow');
 
         let currentToolScrollIndex = 0; // Index du premier logo visible
-        const maxVisibleLogos = 10; // Nombre maximal de logos à afficher en même temps
+        const maxVisibleLogos = 10; // Cible: Afficher 10 logos max (si l'espace le permet)
 
         // Fonctions pour la page Cas d'usages
         const apiBase = window.location.origin + '/.netlify/functions/';
@@ -900,8 +903,8 @@
         const previewPanelCategory = document.getElementById('panel-category');
         const previewPanelAuthor = document.getElementById('panel-author');
         const previewPanelDescription = document.getElementById('panel-description');
-        const previewPanelUsage = document.getElementById('panel-usage'); // Nouveau pour le champ usage
-        const previewPanelContentArea = document.querySelector('#previewPanel .panel-content-area'); // Zone de contenu riche
+        const previewPanelUsage = document.getElementById('panel-usage'); 
+        const previewPanelContentArea = document.querySelector('#previewPanel .panel-content-area'); 
         const previewPanelPrompt = document.getElementById('panel-prompt');
         const copyPromptPanelBtn = document.getElementById('copy-prompt-panel-btn');
         const closePreviewPanelBtn = document.getElementById('close-preview-panel');
@@ -942,7 +945,12 @@
 
             const outil = filtreOutilSelect.value; 
             if (outil) {
-                filtered = filtered.filter(tip => tip.outil === outil);
+                // Pour gérer les légères variations de noms comme DALL-E 3 vs DALL-E ou Adobe Firefly vs Firefly
+                const normalizedOutilFilter = outil.toLowerCase().replace(/[^a-z0-9]/g, ''); // Ex: "dalle3", "firefly"
+                filtered = filtered.filter(tip => {
+                    const normalizedTipOutil = String(tip.outil).toLowerCase().replace(/[^a-z0-9]/g, ''); // Ex: "dalle", "adobefirefly"
+                    return normalizedTipOutil.includes(normalizedOutilFilter) || normalizedOutilFilter.includes(normalizedTipOutil);
+                });
             }
 
             const searchText = previewTextInput.value.toLowerCase();
@@ -991,7 +999,6 @@
         function populateOutilFilter() {
             filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>'; 
 
-            // Utilise toolsData pour remplir les options, assurant la cohérence des noms
             const uniqueTools = [...new Set(toolsData.map(tool => tool.name))].sort();
 
             uniqueTools.forEach(toolName => {
@@ -1066,7 +1073,7 @@
 
                 const actualPromptContent = tip.promptText || tip.prompt;
 
-                const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}">${escapeHtml(tip.auteur)}</a>`;
+                const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
 
                 const cardHtml = `
                     <div class="carte" style="border-left-color: ${getCategoryColor(tip.categorie)};">
@@ -1271,7 +1278,7 @@
 
                 previewPanelContent.innerHTML = contentHtml;
                 previewPanel.classList.add('open');
-                previewOverlay.classList.add('open');
+                previewOverlay.classList.add('active'); // Utilise 'active' pour l'overlay
                 bodyElement.style.overflow = 'hidden';
 
                 document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
@@ -1285,7 +1292,7 @@
 
         function closePreviewPanel() {
             previewPanel.classList.remove('open');
-            previewOverlay.classList.remove('open');
+            previewOverlay.classList.remove('active'); // Utilise 'active' pour l'overlay
             bodyElement.style.overflow = '';
         }
 
@@ -1365,34 +1372,28 @@
             }
         }
 
-        // --- Données des logos des outils (noms d'origine) ---
+        // --- Données des logos des outils (noms d'origine + Photoshop, ElevenLabs) ---
         // Ces noms sont la source de vérité pour le filtrage et doivent correspondre aux 'outil' de vos tips
+        // Les chemins des images sont à la racine du projet, comme vous l'avez indiqué
         const toolsData = [
-            // IMPORTANT: J'ai retiré le logo "Tous les outils" ici car il est ajouté dynamiquement
-            // dans renderToolLogos() pour être le premier élément avec une icône fas fa-tools.
-            // Si vos tips ont "Tous les outils" comme valeur d'outil, il ne filtrera pas.
             { name: "Premiere Pro", img: "logo_premiere.png" },
             { name: "n8n", img: "logo_n8n.png" },
-            { name: "RunwayML", img: "logo_runwayML.png" }, // Renommé selon le fichier
+            { name: "Runway ML", img: "logo_runwayML.png" }, 
             { name: "Midjourney", img: "logo_midjourney.png" },
             { name: "Stable Diffusion", img: "logo_stable_diff.png" },
             { name: "ChatGPT", img: "logo_chatgpt.png" },
-            { name: "DALL-E 3", img: "logo_dall_E.png" }, // Renommé selon le fichier
+            { name: "DALL-E 3", img: "logo_dall_E.png" }, // Reconfirmé avec le nom exact du logo fourni
             { name: "Claude", img: "logo_claude.png" },
-            { name: "Firefly", img: "logo_firefly.png" } // Renommé selon le fichier
+            { name: "Firefly", img: "logo_firefly.png" }, // Reconfirmé avec le nom exact du logo fourni
+            { name: "Photoshop", img: "logo_photoshop.png" }, // Nouveau logo
+            { name: "ElevenLabs", img: "logo_elevenlabs.png" } // Nouveau logo
         ];
 
         // Fonction pour générer et afficher les cartes de logos
         function renderToolLogos() {
-            // toolLogosGrid, scrollableToolsContainer, scrollLeftArrow, scrollRightArrow sont définis globalement
-            // Assurez-vous que ces éléments existent dans le DOM.
             const toolLogosGrid = document.getElementById('tool-logos-grid'); 
-            const scrollableToolsContainer = document.getElementById('scrollable-tools-container');
-            const scrollLeftArrow = document.getElementById('scroll-left-arrow');
-            const scrollRightArrow = document.getElementById('scroll-right-arrow');
-
-            if (!toolLogosGrid || !scrollableToolsContainer || !scrollLeftArrow || !scrollRightArrow) {
-                console.error("Un ou plusieurs éléments du défilement des logos sont introuvables.");
+            if (!toolLogosGrid) {
+                console.error("L'élément #tool-logos-grid n'a pas été trouvé.");
                 return;
             }
 
@@ -1406,12 +1407,15 @@
                 <span class="tool-name">Tous les outils</span>
             `;
             allToolsCard.addEventListener('click', () => {
-                filtreOutilSelect.value = ""; 
-                applyFiltersAndSort(); 
+                filtreOutilSelect.value = ""; // Sélectionne l'option "Tous les outils"
+                applyFiltersAndSort(); // Applique le filtre
             });
             toolLogosGrid.appendChild(allToolsCard);
 
-            toolsData.forEach(tool => {
+            // Triez toolsData par nom d'outil pour un affichage cohérent
+            const sortedToolsData = [...toolsData].sort((a, b) => a.name.localeCompare(b.name));
+
+            sortedToolsData.forEach(tool => {
                 const toolCard = document.createElement('div');
                 toolCard.className = 'tool-card'; 
                 toolCard.innerHTML = `
@@ -1419,8 +1423,8 @@
                     <span class="tool-name">${tool.name}</span>
                 `;
                 toolCard.addEventListener('click', () => {
-                    filtreOutilSelect.value = tool.name; 
-                    applyFiltersAndSort(); 
+                    filtreOutilSelect.value = tool.name; // Met à jour le sélecteur d'outil avec le nom exact
+                    applyFiltersAndSort(); // Applique le filtre
                 });
                 toolLogosGrid.appendChild(toolCard);
             });
@@ -1435,25 +1439,21 @@
         }
 
         // --- Fonctions de défilement des logos (révisées) ---
-        let currentToolScrollIndex = 0; // Garde la trace de l'index du premier logo visible
-        const maxVisibleLogos = 10; // Cible: Afficher 10 logos max (si l'espace le permet)
+        let currentToolScrollIndex = 0; 
+        const maxVisibleLogos = 10; 
 
         function updateToolScrollPosition() {
-            // Calculer la largeur d'une carte + son espacement
             const toolCardElement = toolLogosGrid.querySelector('.tool-card');
-            if (!toolCardElement) { // S'il n'y a pas de cartes, pas de défilement
+            if (!toolCardElement) { 
                 toolLogosGrid.style.transform = `translateX(0px)`;
                 checkToolArrowVisibility();
                 return;
             }
-            const cardWidth = toolCardElement.offsetWidth; // Largeur réelle de la carte (100px + padding + border)
-            const cardComputedStyle = window.getComputedStyle(toolCardElement);
-            const cardMarginRight = parseFloat(cardComputedStyle.marginRight); // S'il y a une marge droite
-            const gap = parseFloat(window.getComputedStyle(toolLogosGrid).gap); // Récupérer le gap réel
+            const cardWidth = toolCardElement.offsetWidth; 
+            const gap = parseFloat(window.getComputedStyle(toolLogosGrid).gap); 
             
-            const totalCardWidth = cardWidth + gap; // Largeur d'une carte y compris son espacement
+            const totalCardWidth = cardWidth + gap;
             
-            // Calculer l'offset de défilement
             const offset = -currentToolScrollIndex * totalCardWidth;
             toolLogosGrid.style.transform = `translateX(${offset}px)`;
             
@@ -1469,14 +1469,13 @@
             const totalCardWidth = cardWidth + gap;
 
             const containerWidth = scrollableToolsContainer.offsetWidth;
-            // Calculer combien de cartes on peut défiler par "page"
             let scrollStepCount = Math.floor(containerWidth / totalCardWidth);
-            if (scrollStepCount === 0) scrollStepCount = 1; // Toujours défiler d'au moins 1 carte
+            if (scrollStepCount === 0) scrollStepCount = 1; 
 
             if (direction === 'left') {
                 currentToolScrollIndex = Math.max(0, currentToolScrollIndex - scrollStepCount);
             } else { // direction === 'right'
-                const maxIndex = toolLogosGrid.children.length - scrollStepCount; // Le dernier index possible
+                const maxIndex = toolLogosGrid.children.length - scrollStepCount; 
                 currentToolScrollIndex = Math.min(maxIndex, currentToolScrollIndex + scrollStepCount);
             }
             updateToolScrollPosition();
@@ -1484,7 +1483,7 @@
 
         function checkToolArrowVisibility() {
             const toolCardElement = toolLogosGrid.querySelector('.tool-card');
-            if (!toolCardElement) { // Pas de logos, cacher les flèches
+            if (!toolCardElement) { 
                 scrollLeftArrow.classList.add('hidden');
                 scrollRightArrow.classList.add('hidden');
                 return;
@@ -1497,26 +1496,21 @@
             const containerWidth = scrollableToolsContainer.offsetWidth;
             const totalContentWidth = toolLogosGrid.scrollWidth;
 
-            // Déterminer combien de cartes tiennent dans la vue
             const visibleCardsInContainer = Math.floor(containerWidth / totalCardWidth);
 
-            // Cacher la flèche gauche si on est au début
-            if (currentToolScrollIndex <= 0) { // On est au début ou avant
+            if (currentToolScrollIndex <= 0) { 
                 scrollLeftArrow.classList.add('hidden');
             } else {
                 scrollLeftArrow.classList.remove('hidden');
             }
 
-            // Cacher la flèche droite si tout le contenu est visible ou si on est à la fin
-            // On est à la fin si l'index actuel + le nombre de cartes visibles couvre toutes les cartes
             if (currentToolScrollIndex + visibleCardsInContainer >= toolLogosGrid.children.length) {
                 scrollRightArrow.classList.add('hidden');
             } else {
                 scrollRightArrow.classList.remove('hidden');
             }
             
-            // Si le contenu total est plus petit ou égal à la zone visible, cacher les deux flèches
-            if (totalContentWidth <= containerWidth + 1) { // +1 pour gérer les arrondis
+            if (totalContentWidth <= containerWidth + 1) { 
                 scrollLeftArrow.classList.add('hidden');
                 scrollRightArrow.classList.add('hidden');
             }
@@ -1562,7 +1556,7 @@
             // 4. Mettre en place les filtres
             setupFilters();
 
-            // 5. Charger et afficher les logos des outils (y compris le réglage du défilement)
+            // 5. Charger et afficher les logos des outils
             renderToolLogos();
             // NOUVEAU: Réécouter l'événement de redimensionnement pour les logos
             window.addEventListener('resize', () => {
