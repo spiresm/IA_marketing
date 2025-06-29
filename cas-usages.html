@@ -1426,7 +1426,7 @@
             });
 
             // Mettre à jour le compteur de tips
-            tipCountDisplay.textContent = `${filteredTips.length} tip${filteredTips.length > 1 ? 's' : ''} affiché${filteredTips.length > 1 ? 's' : ''}.`;
+            tipCountDisplay.textContent = `${tipsToDisplay.length} tip${tipsToDisplay.length > 1 ? 's' : ''} affiché${tipsToDisplay.length > 1 ? 's' : ''}.`;
 
             attachEventListenersToCards();
         }
@@ -1503,29 +1503,34 @@
                     let hasContentToDisplay = false;
                     let linksAndVideosHtml = '';
 
-                    tip.urls.forEach((url, index) => {
-                        const youtubeId = getYouTubeVideoId(url);
-                        if (youtubeId) {
-                            hasContentToDisplay = true;
-                            const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0`;
-                            console.log(`Détection d'une vidéo YouTube. ID: ${youtubeId}, URL d'intégration: ${embedUrl}`);
-                            linksAndVideosHtml += `
-                                <div class="video-responsive">
-                                    <iframe
-                                        src="${escapeHtml(embedUrl)}"
-                                        frameborder="0"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                        allowfullscreen
-                                        title="YouTube video player"
-                                        onerror="console.error('Échec du chargement de l\\'intégration YouTube pour l\\'ID: ${youtubeId}. Vérifiez la disponibilité de la vidéo ou le réseau. URL tentée: ${embedUrl}');"
-                                    ></iframe>
-                                </div>
-                            `;
-                        } else if (url.trim() !== '') {
-                            hasContentToDisplay = true;
-                            linksAndVideosHtml += `
-                                <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
-                            `;
+                    // Ensure tip.urls is an array before iterating
+                    const urlsToProcess = Array.isArray(tip.urls) ? tip.urls : (typeof tip.urls === 'string' && tip.urls.startsWith('[') ? JSON.parse(tip.urls) : [tip.urls]);
+
+                    urlsToProcess.forEach((url, index) => {
+                        if (url && typeof url === 'string') { // Check if url is a valid string
+                            const youtubeId = getYouTubeVideoId(url);
+                            if (youtubeId) {
+                                hasContentToDisplay = true;
+                                const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0`;
+                                console.log(`Détection d'une vidéo YouTube. ID: ${youtubeId}, URL d'intégration: ${embedUrl}`);
+                                linksAndVideosHtml += `
+                                    <div class="video-responsive">
+                                        <iframe
+                                            src="${escapeHtml(embedUrl)}"
+                                            frameborder="0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowfullscreen
+                                            title="YouTube video player"
+                                            onerror="console.error('Échec du chargement de l\\'intégration YouTube pour l\\'ID: ${youtubeId}. Vérifiez la disponibilité de la vidéo ou le réseau. URL tentée: ${embedUrl}');"
+                                        ></iframe>
+                                    </div>
+                                `;
+                            } else if (url.trim() !== '') {
+                                hasContentToDisplay = true;
+                                linksAndVideosHtml += `
+                                    <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
+                                `;
+                            }
                         }
                     });
 
