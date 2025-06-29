@@ -60,15 +60,16 @@
         }
 
         /* --- Styles du Loader (si toujours utilisé) --- */
-        .loader {
+        /* Loader spécifique à la galerie des tips */
+        #galerie .loader { /* Cible le loader à l'intérieur de la galerie */
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
+            border-top: 4px solid var(--primary-blue); /* Utilise une variable du thème */
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
             margin: 50px auto;
-            display: none;
+            display: block; /* Visible par défaut quand HTML est injecté */
         }
 
         @keyframes spin {
@@ -187,10 +188,10 @@
             background: var(--dark-blue);
         }
         .scroll-arrow.left {
-            left: 0; 
+            left: 5px; 
         }
         .scroll-arrow.right {
-            right: 0; 
+            right: 5px; 
         }
         .scroll-arrow.hidden {
             opacity: 0;
@@ -768,7 +769,6 @@
     <div id="header-placeholder"></div>
 
     <main>
-        
         <div class="create-tip-button-container">
             <a href="creer-tip.html" class="create-tip-button">
                 <i class="fas fa-plus-circle"></i> Créer un nouveau Tip
@@ -779,7 +779,6 @@
             <button class="scroll-arrow left" id="scroll-left-arrow" aria-label="Défiler vers la gauche"><i class="fas fa-chevron-left"></i></button>
             <div id="scrollable-tools-container" class="scrollable-tools-container">
                 <div id="tool-logos-grid" class="tools-grid">
-                    
                 </div>
             </div>
             <button class="scroll-arrow right" id="scroll-right-arrow" aria-label="Défiler vers la droite"><i class="fas fa-chevron-right"></i></button>
@@ -865,7 +864,7 @@
             $("#footer-placeholder").load("footer.html");
         });
 
-        // --- TOUTES LES DÉCLARATIONS ET FONCTIONS SPÉCIFIQUES À cas-usages.html SONT ICI ---
+        // --- TOUTES LES DÉCLARATIONS ET FONCTIONS LOCALES À cas-usages.html SONT ICI ---
         // Elles sont encapsulées dans le bloc DOMContentLoaded pour éviter les conflits globaux.
 
         document.addEventListener("DOMContentLoaded", async () => {
@@ -881,7 +880,7 @@
             const previewTextInput = document.getElementById('preview-text');
 
             const previewPanel = document.getElementById('previewPanel');
-            const previewPanelTitle = document.getElementById('panel-title');
+            const previewPanelTitle = document.getElementById('previewPanelTitle');
             const previewPanelCategory = document.getElementById('panel-category');
             const previewPanelAuthor = document.getElementById('panel-author');
             const previewPanelDescription = document.getElementById('panel-description');
@@ -902,7 +901,7 @@
             const maxVisibleLogos = 10; 
 
             // --- Données des logos des outils (locales à ce script) ---
-            // Noms exacts pour le filtrage par outil
+            // Les noms dans 'name' doivent correspondre exactement aux valeurs 'outil' de vos tips dans le backend
             const toolsData = [
                 { name: "Premiere Pro", img: "logo_premiere.png" },
                 { name: "n8n", img: "logo_n8n.png" },
@@ -910,9 +909,9 @@
                 { name: "Midjourney", img: "logo_midjourney.png" },
                 { name: "Stable Diffusion", img: "logo_stable_diff.png" },
                 { name: "ChatGPT", img: "logo_chatgpt.png" },
-                { name: "DALL-E 3", img: "logo_dall_E.png" }, // Nom exact du fichier
+                { name: "DALL-E 3", img: "logo_dall_E.png" }, 
                 { name: "Claude", img: "logo_claude.png" },
-                { name: "Firefly", img: "logo_firefly.png" }, // Nom exact du fichier
+                { name: "Firefly", img: "logo_firefly.png" }, 
                 { name: "Photoshop", img: "logo_photoshop.png" }, 
                 { name: "ElevenLabs", img: "logo_elevenlabs.png" } 
             ];
@@ -1021,6 +1020,7 @@
             }
 
             async function loadAndDisplayTips() {
+                // S'assurer que le loader et le texte de chargement sont visibles au début
                 galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
                 try {
                     const response = await fetch(`${apiBase}get-tips`);
@@ -1045,18 +1045,29 @@
                             urls: tipUrls 
                         };
                     });
-                    applyFiltersAndSort();
+                    applyFiltersAndSort(); // Applique les filtres et affiche les tips
                 } catch (error) {
                     console.error("Erreur lors du chargement des tips:", error);
                     errorDisplay.style.display = 'block';
                     errorDisplay.textContent = `Erreur de chargement des tips: ${error.message}`;
-                    galerieDiv.innerHTML = '';
+                    galerieDiv.innerHTML = ''; // Vide la galerie en cas d'erreur
+                } finally {
+                    // Masquer le loader spécifique à la galerie après la tentative de chargement
+                    const localLoader = galerieDiv.querySelector('.loader');
+                    if (localLoader) localLoader.style.display = 'none';
+                    const loadingText = galerieDiv.querySelector('p[style="text-align: center;"]');
+                    if (loadingText) loadingText.remove(); // Supprimer le texte "Chargement des tips..."
                 }
             }
 
             function displayTips(tipsToDisplay) {
-                galerieDiv.innerHTML = '';
-                if (tipsToDisplay.length === 0) { galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos filtres.</p>'; return; }
+                galerieDiv.innerHTML = ''; // Vide la galerie
+
+                if (tipsToDisplay.length === 0) {
+                    galerieDiv.innerHTML = '<p style="text-align: center; color: #555;">Aucun tip ne correspond à vos filtres.</p>';
+                    return;
+                }
+
                 tipsToDisplay.forEach(tip => {
                     const dateObj = new Date(tip.dateCreation);
                     const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -1102,12 +1113,11 @@
             function getCategoryColor(category) {
                 switch (category) {
                     case 'Marketing Digital': return '#0077b6';
-                    case 'Réseaux Sociaux': return '#38a3a5';
-                    case 'SEO': return '#ffc300';
-                    case 'Contenu': return '#c70039';
-                    case 'Publicité': return '#8ac926';
-                    case 'Outils IA': return '#9d4edd';
-                    case 'Stratégie': return '#3c096c';
+                    case 'Création de Contenu': return '#38a3a5';
+                    case 'Analyse de Données': return '#ffc300';
+                    case 'Automatisation': return '#c70039';
+                    case 'Stratégie': return '#8ac926';
+                    case 'Productivité': return '#9d4edd';
                     case 'Autre': return '#6c757d';
                     default: return '#cccccc';
                 }
@@ -1126,8 +1136,13 @@
                 if (tip) {
                     console.log("Données du tip pour le panneau d'aperçu:", tip);
                     previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
+                    // Remplir les autres champs du panneau
+                    previewPanelCategory.textContent = escapeHtml(tip.categorie || 'Catégorie inconnue');
+                    previewPanelAuthor.innerHTML = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
+                    previewPanelDescription.textContent = escapeHtml(tip.description || '');
+                    previewPanelUsage.textContent = escapeHtml(tip.usage || ''); // Assurez-vous que 'usage' est un champ de vos tips
+                    
                     let contentHtml = '';
-                    if (tip.description && tip.description.trim() !== '') { contentHtml += `<h4>Description:</h4><div class="content-card-blue">${escapeHtml(tip.description)}</div>`; }
                     if (tip.urls && tip.urls.length > 0) {
                         let hasContentToDisplay = false; let linksAndVideosHtml = '';
                         tip.urls.forEach((url) => {
@@ -1142,7 +1157,15 @@
                         if (hasContentToDisplay) { contentHtml += `<h4>Liens/Vidéos associées:</h4>${linksAndVideosHtml}`; }
                     }
                     const panelPromptContent = tip.promptText || tip.prompt;
-                    if (panelPromptContent) { contentHtml += `<h4>Prompt:</h4><button class="copy-panel-btn" data-copy="${escapeHtml(panelPromptContent)}">Copier le prompt</button><pre class="prompt-content-pre">${escapeHtml(panelPromptContent)}</pre>`; }
+                    if (panelPromptContent) {
+                        previewPanelPrompt.textContent = escapeHtml(panelPromptContent);
+                        previewPanel.querySelector('.prompt-code').style.display = 'block'; // Afficher le bloc prompt
+                        // Attacher le listener pour le bouton de copie du prompt dans le panneau
+                        copyPromptPanelBtn.onclick = () => { copyToClipboard(panelPromptContent, copyPromptPanelBtn); };
+                    } else {
+                        previewPanel.querySelector('.prompt-code').style.display = 'none'; // Masquer le bloc prompt
+                    }
+
                     if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
                         contentHtml += `<h4>Images associées:</h4><div class="preview-panel-image-container">`; let imageCounter = 1; const imageUrlsToDisplay = [];
                         if (tip.fileUrls && Array.isArray(tip.fileUrls)) { imageUrlsToDisplay.push(...tip.fileUrls); }
@@ -1157,8 +1180,10 @@
                     const auteurPanelLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
 
                     contentHtml += `<div class="metadata-section" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;"><span class="metadata-label">Auteur:</span><span class="metadata-value auteur-value">${auteurPanelLink}</span><span class="metadata-label">Catégorie:</span><span class="metadata-value">${escapeHtml(tip.categorie)}</span><span class="metadata-label">Outil:</span><span class="metadata-value">${escapeHtml(tip.outil || 'Non spécifié')}</span><span class="metadata-label">Date de création:</span><span class="metadata-value">${formattedDate}</span></div>`;
-                    previewPanelContent.innerHTML = contentHtml; previewPanel.classList.add('open'); previewOverlay.classList.add('active'); bodyElement.style.overflow = 'hidden';
-                    document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => { copyToClipboard(e.target.dataset.copy, e.target); });
+                    
+                    previewPanelContentArea.innerHTML = contentHtml; // Remplir la zone de contenu riche
+                    
+                    previewPanel.classList.add('open'); previewOverlay.classList.add('active'); bodyElement.style.overflow = 'hidden';
                 } else { console.error("Tip non trouvé pour l'ID:", tipId); }
             }
 
@@ -1200,6 +1225,65 @@
                     }
                 }
             }
+
+
+            // --- FIN DES FONCTIONS LOCALES À CAS-USAGES.HTML ---
+
+            // --- Initialisation au chargement du DOM ---
+            // Ces appels s'exécutent APRÈS que le DOM est prêt.
+
+            // 1. Charger le header et le footer de manière séquentielle
+            // loadComponent est définie au début de ce même bloc DOMContentLoaded, donc elle est accessible.
+            await loadComponent("header.html", "header-placeholder");
+            await loadComponent("footer.html", "footer-placeholder");
+
+            // 2. Mettre à jour l'état actif du menu après le chargement du header
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "Cas-usages.html") {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            // 3. Traiter les messages de succès/erreur de l'URL
+            // Ces variables sont définies localement dans ce bloc DOMContentLoaded
+            const msg = document.getElementById('success-message');
+            const errorMsg = document.getElementById('error-display'); // Renommé pour éviter conflit avec errorDisplay plus haut
+            if (window.location.search.includes('success=1')) {
+                msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+            }
+            if (window.location.search.includes('editSuccess=1')) {
+                msg.textContent = '✅ Tip/Prompt modifié avec succès !';
+                msg.style.opacity = '1';
+                setTimeout(() => msg.style.opacity = '0', 2000);
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
+            }
+
+            // 4. Mettre en place les filtres
+            setupFilters();
+
+            // 5. Charger et afficher les logos des outils
+            renderToolLogos();
+            window.addEventListener('resize', () => {
+                updateToolScrollPosition();
+                checkToolArrowVisibility();
+            });
+
+            // 6. Charger et afficher les tips
+            loadAndDisplayTips();
+
+            // 7. Rendre le body visible (mainElement.classList.add("show") est déjà fait dans CSS si body.show)
+            document.body.style.opacity = '1'; 
+            bodyElement.classList.add("show"); // S'assure que le body devient visible
+
+            console.log("cas-usages: Initialisation terminée.");
         });
     </script>
 </body>
