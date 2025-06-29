@@ -20,7 +20,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Variables CSS harmonisées avec le reste du site */
+        /* Variables CSS harmonisées avec le rest du site */
         :root {
             --primary-blue: #0077b6;
             --dark-blue: #005f8a;
@@ -410,6 +410,7 @@
         .tool-details-panel-content ul {
             padding-left: 20px;
             margin-top: 5px;
+            list-style: disc; /* Ajouter des puces à la liste */
         }
         .tool-details-panel-content ul li {
             margin-bottom: 5px;
@@ -478,15 +479,11 @@
             </div>
             <div id="panelContent" class="tool-details-panel-content">
                 <img id="panelToolLogo" src="" alt="Logo de l'outil" class="panel-logo">
-                <h4>Description :</h4>
-                <p id="panelToolDescription"></p>
-                <h4>Type(s) :</h4>
+                <p id="panelToolFullDescription"></p> <h4>Type(s) :</h4>
                 <div id="panelToolTypes"></div>
                 <h4 id="panelValidationTitle">Validation RTBF :</h4>
                 <p id="panelToolValidationStatus" class="panel-validation-status"></p>
-                <h4 id="panelUrlTitle">Lien :</h4>
-                <p><a id="panelToolUrl" href="#" target="_blank">Visiter le site</a></p>
-            </div>
+                <h4 id="panelUrlTitle">Liens utiles :</h4> <ul id="panelToolLinks"></ul> </div>
         </div>
     </div>
 
@@ -505,6 +502,22 @@
                     <option value="audio">audio</option>
                     <option value="document">document</option>
                     <option value="automatisation">automatisation</option>
+                    <option value="generative-ai">generative-ai</option> <option value="design">design</option>
+                    <option value="montage">montage</option>
+                    <option value="workflow">workflow</option>
+                    <option value="creative">creative</option>
+                    <option value="art">art</option>
+                    <option value="open-source">open-source</option>
+                    <option value="conversationnel">conversationnel</option>
+                    <option value="codage">codage</option>
+                    <option value="sécurité">sécurité</option>
+                    <option value="voix">voix</option>
+                    <option value="synthèse vocale">synthèse vocale</option>
+                    <option value="retouche">retouche</option>
+                    <option value="vectoriel">vectoriel</option>
+                    <option value="illustration">illustration</option> <option value="animation">animation</option>
+                    <option value="effets visuels">effets visuels</option> <option value="motion graphics">motion graphics</option> <option value="présentation">présentation</option>
+                    <option value="intégration">intégration</option>
                 </select>
                 <select id="filtre-rtbf">
                     <option value="valide">Validés par la RTBF</option>
@@ -543,13 +556,13 @@
         const closeToolDetailsBtn = document.getElementById('closeToolDetailsBtn');
         const panelToolName = document.getElementById('panelToolName');
         const panelToolLogo = document.getElementById('panelToolLogo');
-        const panelToolDescription = document.getElementById('panelToolDescription');
+        // Nouveaux éléments pour la description complète et les liens
+        const panelToolFullDescription = document.getElementById('panelToolFullDescription');
         const panelToolTypes = document.getElementById('panelToolTypes');
         const panelToolValidationStatus = document.getElementById('panelToolValidationStatus');
         const panelValidationTitle = document.getElementById('panelValidationTitle');
-        const panelToolUrl = document.getElementById('panelToolUrl');
-        const panelUrlTitle = document.getElementById('panelUrlTitle');
-
+        const panelToolLinks = document.getElementById('panelToolLinks'); // Cible l'UL pour les liens
+        const panelUrlTitle = document.getElementById('panelUrlTitle'); // Le titre "Liens utiles"
 
         // Déclaration de la variable 'tools' (maintenant toolsData de tools-data.js)
         let tools = []; // Sera rempli par toolsData.
@@ -595,7 +608,12 @@
             filteredTools.forEach(tool => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.classList.add(`type-${tool.type[0]}`); // Ajoute la classe de couleur basée sur le premier type
+                // Assurez-vous que tool.type est un tableau et a au moins un élément
+                if (tool.type && tool.type.length > 0) {
+                    card.classList.add(`type-${tool.type[0]}`); 
+                } else {
+                    card.classList.add(`type-general`); // Fallback si pas de type
+                }
 
                 let validationBadge = '';
                 if (tool.validated) {
@@ -628,12 +646,13 @@
             if (searchTerm) {
                 filtered = filtered.filter(tool =>
                     tool.name.toLowerCase().includes(searchTerm) ||
-                    tool.description.toLowerCase().includes(searchTerm)
+                    (tool.description && tool.description.toLowerCase().includes(searchTerm)) || // Vérifier l'existence de la description
+                    (tool.details && tool.details.fullDescription && tool.details.fullDescription.toLowerCase().includes(searchTerm)) // Recherche dans la description complète
                 );
             }
 
             if (selectedType) {
-                filtered = filtered.filter(tool => tool.type.includes(selectedType));
+                filtered = filtered.filter(tool => tool.type && tool.type.includes(selectedType));
             }
 
             if (rtbfFilter === 'valide') {
@@ -651,10 +670,12 @@
             panelToolName.textContent = tool.name;
             panelToolLogo.src = tool.img;
             panelToolLogo.alt = `Logo ${tool.name}`;
-            panelToolDescription.textContent = tool.description;
+            
+            // Afficher la description complète si disponible, sinon la description courte
+            panelToolFullDescription.textContent = tool.details && tool.details.fullDescription ? tool.details.fullDescription : tool.description || 'Aucune description détaillée disponible.';
 
             // Afficher les types sous forme de badges
-            panelToolTypes.innerHTML = tool.type.map(t => `<span class="panel-badge">${t}</span>`).join('');
+            panelToolTypes.innerHTML = tool.type && tool.type.length > 0 ? tool.type.map(t => `<span class="panel-badge">${t}</span>`).join('') : 'Non spécifié';
 
             // Afficher le statut de validation RTBF
             if (tool.validated) {
@@ -665,15 +686,26 @@
                 panelToolValidationStatus.className = 'panel-validation-status not-validated';
             }
 
-            // Afficher le lien si disponible
-            if (tool.url && tool.url.trim() !== '') {
-                panelToolUrl.href = tool.url;
-                panelToolUrl.textContent = tool.url.replace(/^https?:\/\//, ''); // Afficher le lien sans le préfixe http(s)
-                panelUrlTitle.style.display = 'block'; // S'assurer que le titre du lien est visible
-                panelToolUrl.style.display = 'inline'; // S'assurer que le lien est visible
+            // Gérer et afficher les liens multiples
+            panelToolLinks.innerHTML = ''; // Nettoyer la liste des liens existante
+            if (tool.details && tool.details.links && tool.details.links.length > 0) {
+                tool.details.links.forEach(link => {
+                    const li = document.createElement('li');
+                    // Utiliser le nom du lien si disponible, sinon l'URL sans http(s)
+                    li.innerHTML = `<a href="${link.url}" target="_blank">${link.name || link.url.replace(/^https?:\/\//, '')}</a>`;
+                    panelToolLinks.appendChild(li);
+                });
+                panelUrlTitle.style.display = 'block'; // Afficher le titre "Liens utiles"
+                panelToolLinks.style.display = 'block'; // Afficher la liste
+            } else if (tool.url && tool.url.trim() !== '') { // Fallback to main URL if no details.links
+                const li = document.createElement('li');
+                li.innerHTML = `<a href="${tool.url}" target="_blank">Site officiel</a>`; // Texte par défaut pour le lien principal
+                panelToolLinks.appendChild(li);
+                panelUrlTitle.style.display = 'block';
+                panelToolLinks.style.display = 'block';
             } else {
-                panelUrlTitle.style.display = 'none'; // Masquer le titre du lien
-                panelToolUrl.style.display = 'none'; // Masquer le lien
+                panelUrlTitle.style.display = 'none'; // Masquer le titre
+                panelToolLinks.style.display = 'none'; // Masquer la liste
             }
 
             toolDetailsPanelOverlay.classList.add('visible');
