@@ -1344,18 +1344,17 @@
                     }
 
                     // Déduction du contentType basée sur la nouvelle règle
-                    let inferredContentType = 'prompt'; // Par défaut
+                    let inferredContentType = 'prompt'; // Par défaut, on suppose que c'est un prompt
                     const hasYouTubeVideo = tipUrls.some(url => getYouTubeVideoId(url));
                     const hasPromptText = tip.promptText && tip.promptText.trim() !== '';
 
                     if (hasYouTubeVideo) {
-                        // Règle : Si vidéo YT, c'est un workflow, PAS un prompt.
-                        // On s'assure aussi que promptText est vide pour ces cas si ce n'est pas déjà fait à la source.
-                        inferredContentType = 'workflow';
-                        tip.promptText = ''; // S'assurer que le champ prompt est vide si la règle s'applique
+                        // Règle : Si vidéo YT, c'est un workflow vidéo, PAS un prompt.
+                        inferredContentType = 'workflow_video';
+                        tip.promptText = ''; // Assurez-vous que le champ prompt est vide si la règle s'applique
                     } else if (!hasPromptText && tip.description && tip.description.trim().length > 100) {
                         // Heuristique pour les workflows textuels sans vidéo ni prompt explicite
-                        inferredContentType = 'workflow';
+                        inferredContentType = 'workflow_text';
                     }
 
                     return {
@@ -1409,15 +1408,16 @@
                 let contentToCopy = '';
                 let buttonText = '';
 
-                // Utilisation du contentType déduit ou défini
+                // Logique pour le bouton "Copier" sur la carte
                 if (tip.contentType === 'prompt') {
                     contentToCopy = tip.promptText || tip.prompt;
                     buttonText = "Copier le prompt";
-                } else if (tip.contentType === 'workflow') {
-                    // Pour un workflow, on offre de copier la description si elle existe
+                } else if (tip.contentType === 'workflow_text') {
+                    // Pour un workflow textuel, on offre de copier la description
                     contentToCopy = tip.description;
                     buttonText = "Copier la description";
                 }
+                // Si tip.contentType est 'workflow_video', copyButtonHtml reste vide, donc pas de bouton.
 
                 // Afficher le bouton seulement si il y a du contenu à copier et un texte de bouton défini
                 if (contentToCopy && contentToCopy.trim() !== '' && buttonText) {
@@ -1574,17 +1574,18 @@
                 let panelCopyButtonHtml = '';
                 let sectionTitle = '';
 
+                // Logique pour le contenu principal et le bouton "Copier" dans le panneau latéral
                 if (tip.contentType === 'prompt' && (tip.promptText || tip.prompt)) {
                     panelContentToDisplay = tip.promptText || tip.prompt;
                     sectionTitle = "Prompt :";
                     panelCopyButtonHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelContentToDisplay)}">Copier le prompt</button>`;
-                } else if (tip.contentType === 'workflow' && tip.description) {
-                    // Pour un workflow, le contenu principal est la description
+                } else if (tip.contentType === 'workflow_text' && tip.description) {
+                    // Pour un workflow textuel, le contenu principal est la description
                     panelContentToDisplay = tip.description;
                     sectionTitle = "Description du workflow :";
-                    // On peut aussi offrir de copier cette description si elle est pertinente.
                     panelCopyButtonHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelContentToDisplay)}">Copier la description</button>`;
                 }
+                // Si tip.contentType est 'workflow_video', panelContentToDisplay et panelCopyButtonHtml restent vides, donc pas de section.
 
                 if (panelContentToDisplay && panelContentToDisplay.trim() !== '') {
                     contentHtml += `
