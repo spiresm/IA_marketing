@@ -1351,7 +1351,8 @@
                     if (hasYouTubeVideo) {
                         // Règle : Si vidéo YT, c'est un workflow vidéo, PAS un prompt.
                         inferredContentType = 'workflow_video';
-                        tip.promptText = ''; // Assurez-vous que le champ prompt est vide si la règle s'applique
+                        // IMPORTANT: Si c'est une vidéo, le promptText doit être vidé pour ne pas être copié comme prompt
+                        tip.promptText = ''; 
                     } else if (!hasPromptText && tip.description && tip.description.trim().length > 100) {
                         // Heuristique pour les workflows textuels sans vidéo ni prompt explicite
                         inferredContentType = 'workflow_text';
@@ -1412,6 +1413,7 @@
                 if (tip.contentType === 'prompt') {
                     contentToCopy = tip.promptText || tip.prompt;
                 } else if (tip.contentType === 'workflow_text') {
+                    // Pour un workflow textuel, on offre de copier la description
                     contentToCopy = tip.description;
                 }
                 // Si tip.contentType est 'workflow_video', contentToCopy reste vide, donc pas de bouton.
@@ -1519,18 +1521,9 @@
                 previewPanelTitle.textContent = escapeHtml(tip.titre || "Détail du Tip");
                 let contentHtml = '';
 
-                // Add Description section
-                // La description est toujours affichée si elle existe
-                if (tip.description && tip.description.trim() !== '') {
-                    contentHtml += `
-                        <h4>Description :</h4>
-                        <div class="content-card-blue">${escapeHtml(tip.description)}</div>
-                    `;
-                }
-                
-                // URLs (avec gestion spécifique YouTube)
+                // URLs (avec gestion spécifique YouTube) - Affichées en premier pour les vidéos de workflow
                 if (tip.urls && tip.urls.length > 0) {
-                    let hasContentToDisplay = false;
+                    let hasContentToDisplayUrl = false; // Renommée pour éviter conflit avec hasContentToDisplay plus bas
                     let linksAndVideosHtml = '';
 
                     const urlsToProcess = Array.isArray(tip.urls) ? tip.urls : (typeof tip.urls === 'string' && tip.urls.startsWith('[') ? JSON.parse(tip.urls) : [tip.urls]);
@@ -1539,7 +1532,7 @@
                         if (url && typeof url === 'string') {
                             const youtubeId = getYouTubeVideoId(url);
                             if (youtubeId) {
-                                hasContentToDisplay = true;
+                                hasContentToDisplayUrl = true;
                                 const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0`;
                                 linksAndVideosHtml += `
                                     <div class="video-responsive">
@@ -1554,7 +1547,7 @@
                                     </div>
                                 `;
                             } else if (url.trim() !== '') {
-                                hasContentToDisplay = true;
+                                hasContentToDisplayUrl = true;
                                 linksAndVideosHtml += `
                                     <p><a href="${escapeHtml(url)}" target="_blank" style="word-break: break-all;"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>
                                 `;
@@ -1562,31 +1555,33 @@
                         }
                     });
 
-                    if (hasContentToDisplay) {
+                    if (hasContentToDisplayUrl) {
                         contentHtml += `<h4>Liens / Vidéos associées :</h4>${linksAndVideosHtml}`;
                     }
                 }
 
                 // Section Prompt / Contenu Principal (dans le panneau latéral)
                 let panelContentToDisplay = '';
-                let panelCopyButtonHtml = '';
                 let sectionTitle = '';
                 const buttonText = "Copier le prompt"; // Texte du bouton toujours "Copier le prompt"
+                let copyButtonPanelHtml = ''; // HTML du bouton copier dans le panneau
 
-                if (tip.contentType === 'prompt' && (tip.promptText || tip.prompt)) {
-                    panelContentToDisplay = tip.promptText || tip.prompt;
+                // Déterminer le contenu à afficher comme "principal" et potentiellement à copier
+                if (tip.promptText && tip.promptText.trim() !== '') {
+                    panelContentToDisplay = tip.promptText;
                     sectionTitle = "Prompt :";
-                } else if (tip.contentType === 'workflow_text' && tip.description) {
+                } else if (tip.description && tip.description.trim() !== '') {
+                    // Si pas de promptText, mais une description, on utilise la description comme contenu principal
                     panelContentToDisplay = tip.description;
-                    sectionTitle = "Description du workflow :";
+                    sectionTitle = "Description du tip :"; // Plus générique
                 }
-                // Si tip.contentType est 'workflow_video', panelContentToDisplay reste vide, pas de section principale à copier.
+                // Si panelContentToDisplay est vide (ni prompt, ni description), cette section ne sera pas affichée.
 
                 if (panelContentToDisplay && panelContentToDisplay.trim() !== '') {
-                    panelCopyButtonHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelContentToDisplay)}">${buttonText}</button>`;
+                    copyButtonPanelHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelContentToDisplay)}">${buttonText}</button>`;
                     contentHtml += `
                         <h4>${sectionTitle}</h4>
-                        ${panelCopyButtonHtml}
+                        ${copyButtonPanelHtml}
                         <pre class="prompt-content-pre">${escapeHtml(panelContentToDisplay)}</pre>
                     `;
                 }
@@ -1629,7 +1624,7 @@
                     `;
                 }
 
-                // Post-it (previewText)
+                // Post-it (previewText) - Il est important que le previewText soit toujours affiché s'il existe
                 if (tip.previewText) {
                     contentHtml += `
                         <h4>Post-it :</h4>
@@ -1652,12 +1647,13 @@
                     </div>
                 `;
 
-                previewPanelContent.innerHTML = contentHtml;
-                previewPanel.classList.add('open');
-                previewOverlay.classList.add('open');
-                bodyElement.style.overflow = 'hidden';
+                previewPanelContent.innerHTML = contentHtml; // Insère le contenu
+                previewPanel.classList.add('open');         // Ouvre le panneau
+                previewOverlay.classList.add('open');       // Affiche l'overlay
+                bodyElement.style.overflow = 'hidden';      // Empêche le défilement de l'arrière-plan
 
                 // Attache l'écouteur après que le contenu soit dans le DOM
+                // Le sélecteur doit être précis car le bouton n'existe que si copyButtonPanelHtml est généré
                 document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
                     copyToClipboard(e.target.dataset.copy, e.target);
                 });
