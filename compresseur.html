@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compresseur d'Image IA</title>
+    <title>Compresseur d'Image & Vidéo IA</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -333,15 +332,15 @@
         .alert-warning { background-color: var(--warning-bg); color: var(--warning-text); border-color: var(--warning-text); }
         .alert-error { background-color: var(--error-bg); color: var(--error-text); border-color: var(--error-text); }
 
-        /* Conteneur d'image compressée */
-        #compressedImageContainer {
+        /* Conteneur d'image/GIF compressé */
+        #compressedOutputContainer { /* Renommé pour être générique */
             margin-top: 30px;
             text-align: center;
             border-top: 1px solid var(--border-color);
             padding-top: 25px;
             display: none;
         }
-        #compressedImage {
+        #compressedOutput { /* Renommé pour être générique */
             max-width: 100%;
             height: auto;
             border: 1px solid var(--border-color);
@@ -518,7 +517,7 @@
                 padding: 10px;
                 margin-top: 15px;
             }
-            #compressedImageContainer {
+            #compressedOutputContainer { /* Renommé */
                 padding-top: 15px;
                 margin-top: 20px;
             }
@@ -542,47 +541,57 @@
 
     <div id="header-placeholder"></div>
 
-    <main class="section"> <div class="container">
+    <main class="section"> 
+        <div class="container">
             <a href="index.html" class="back-button">
                 <span class="fas fa-arrow-left"></span> Retour
             </a>
 
-            <h1>Compresseur d'Image IA</h1>
+            <h1>Compresseur d'Image & Convertisseur Vidéo en GIF IA</h1>
 
-            <div id="imageCompressorForm">
+            <div id="converterForm">
                 <div class="form-group">
-                    <label for="fileInput">Sélectionner ou glisser-déposer une image :</label>
-                    <input type="file" id="fileInput" accept="image/*">
+                    <label for="fileInput">Sélectionner ou glisser-déposer une image ou une vidéo :</label>
+                    <input type="file" id="fileInput" accept="image/*,video/*"> 
                     <div id="dropArea">
                         <p class="fas fa-download icon"></p>
-                        <p>Glissez & déposez votre image ici, ou cliquez pour sélectionner</p>
+                        <p>Glissez & déposez votre fichier ici, ou cliquez pour sélectionner</p>
                         <p id="fileNameDisplay"></p>
                     </div>
                     <div id="sizeLimitWarning" class="alert-error">
-                        Attention : La taille maximale recommandée pour l'image est de **6 Mo**. Des fichiers plus grands pourraient ne pas être traités.
+                        Attention : La taille maximale recommandée est de **6 Mo** pour les images et **20 Mo** pour les vidéos. Des fichiers plus grands pourraient ne pas être traités.
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="qualityRange">Qualité de compression (1-100) :</label>
+                <div class="form-group" id="imageOptions">
+                    <label for="qualityRange">Qualité de compression d'image (1-100) :</label>
                     <input type="range" id="qualityRange" min="1" max="100" value="80">
                     <div class="quality-display">
                         <span>Qualité sélectionnée : <span id="qualityValue">80</span></span>
                     </div>
                 </div>
 
-                <button type="button" id="compressBtn">Compresser l'image</button>
-            </div>
+                <div class="form-group" id="videoOptions" style="display: none;"> 
+                    <label for="gifDuration">Durée du GIF (secondes) :</label>
+                    <input type="number" id="gifDuration" min="1" max="15" value="5">
+                    <label for="gifStart">Début du GIF (secondes, optionnel) :</label>
+                    <input type="number" id="gifStart" min="0" value="0">
+                    <label for="gifFps">FPS du GIF (frames par seconde) :</label>
+                    <input type="number" id="gifFps" min="5" max="30" value="10">
+                </div>
+
+                <button type="button" id="processBtn">Traiter le fichier</button> 
+            </div> 
 
             <div id="message" class="alert"></div>
-            <div id="compressedImageContainer">
-                <h2>Image Compressée</h2>
-                <img id="compressedImage" src="#" alt="Image compressée">
+            <div id="compressedOutputContainer">
+                <h2 id="outputTitle">Fichier Traité</h2> 
+                <img id="compressedOutput" src="#" alt="Fichier traité"> 
                 <div class="result-info">
-                    Taille compressée : <span id="compressedSize">N/A</span><br>
+                    Taille finale : <span id="outputSize">N/A</span><br>
                     Réduction de taille : <span id="reduction">N/A</span>
                 </div>
-                <button type="button" id="downloadBtn" class="button">Télécharger l'image</button>
+                <button type="button" id="downloadBtn" class="button">Télécharger le fichier</button> 
             </div>
         </div>
     </main>
@@ -593,7 +602,7 @@
         // Références aux éléments globaux
         const globalLoader = document.getElementById("global-loader");
         const bodyElement = document.body;
-        const mainElement = document.querySelector("main"); // `main` a maintenant la classe `section`
+        const mainElement = document.querySelector("main"); 
 
         // Fonction utilitaire pour charger des composants HTML
         async function loadComponent(url, placeholderId) {
@@ -614,11 +623,12 @@
         // Références aux éléments spécifiques à la page
         const fileInput = document.getElementById('fileInput');
         const qualityRange = document.getElementById('qualityRange');
-        const compressBtn = document.getElementById('compressBtn');
-        const compressedImage = document.getElementById('compressedImage');
-        const compressedSize = document.getElementById('compressedSize');
+        const processBtn = document.getElementById('processBtn'); 
+        const compressedOutput = document.getElementById('compressedOutput'); 
+        const compressedOutputContainer = document.getElementById('compressedOutputContainer'); 
+        const outputTitle = document.getElementById('outputTitle'); 
+        const outputSize = document.getElementById('outputSize'); 
         const reduction = document.getElementById('reduction');
-        const compressedImageContainer = document.getElementById('compressedImageContainer');
         const downloadBtn = document.getElementById('downloadBtn');
         const messageDiv = document.getElementById('message');
         const dropArea = document.getElementById('dropArea');
@@ -626,10 +636,21 @@
         const qualityValueSpan = document.getElementById('qualityValue');
         const sizeLimitWarning = document.getElementById('sizeLimitWarning');
 
-        let selectedFile = null;
-        let compressedBlob = null;
-        const apiBase = window.location.origin + '/.netlify/functions/';
+        const imageOptionsDiv = document.getElementById('imageOptions'); 
+        const videoOptionsDiv = document.getElementById('videoOptions'); 
+        const gifDurationInput = document.getElementById('gifDuration'); 
+        const gifStartInput = document.getElementById('gifStart'); 
+        const gifFpsInput = document.getElementById('gifFps'); 
 
+        let selectedFile = null;
+        let processedBlob = null; 
+        let fileType = null; 
+        // Assurez-vous que l'appel à la fonction Netlify utilise le nom correct du fichier,
+        // potentiellement avec l'extension .cjs si vous avez renommé vos fonctions.
+        // Exemple : const apiBase = window.location.origin + '/.netlify/functions/';
+        // Si vous avez renommé compressImage.js en compressImage.cjs et convertToGif.js en convertToGif.cjs,
+        // le code de l'endpoint dans processBtn.addEventListener doit être mis à jour.
+        const apiBase = window.location.origin + '/.netlify/functions/';
 
         // Fonction pour afficher des messages à l'utilisateur
         function showMessage(msg, type) {
@@ -642,30 +663,60 @@
         // Gère la sélection d'un fichier (via input ou drag/drop)
         function handleFileSelection(file) {
             sizeLimitWarning.style.display = 'none';
+            processedBlob = null; 
+            compressedOutputContainer.style.display = 'none';
+            downloadBtn.style.display = 'none';
 
-            if (!file || !file.type.startsWith('image/')) {
+            if (!file) {
                 selectedFile = null;
-                showMessage('Veuillez sélectionner un fichier image valide (JPEG, PNG, GIF, etc.).', 'warning');
+                showMessage('Aucun fichier sélectionné.', 'warning');
                 fileNameDisplay.textContent = '';
-                compressedImageContainer.style.display = 'none';
-                downloadBtn.style.display = 'none';
+                processBtn.disabled = true;
                 return;
             }
 
-            const MAX_FILE_SIZE_MB = 6;
-            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-                sizeLimitWarning.style.display = 'block';
-                showMessage(`Le fichier est trop volumineux (${(file.size / 1024 / 1024).toFixed(2)} Mo). Max: ${MAX_FILE_SIZE_MB} Mo. Il pourrait ne pas être traité.`, 'error');
-                // On permet de sélectionner le fichier, mais on avertit fortement
+            if (file.type.startsWith('image/')) {
+                fileType = 'image';
+                imageOptionsDiv.style.display = 'block';
+                videoOptionsDiv.style.display = 'none';
+                outputTitle.textContent = 'Image Compressée';
+                fileInput.setAttribute('accept', 'image/*,video/*'); 
+                
+                const MAX_FILE_SIZE_MB = 6;
+                if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                    sizeLimitWarning.style.display = 'block';
+                    showMessage(`Le fichier est trop volumineux (${(file.size / 1024 / 1024).toFixed(2)} Mo). Max recommandé pour image: ${MAX_FILE_SIZE_MB} Mo.`, 'error');
+                } else {
+                    showMessage(`Fichier sélectionné : ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} Mo)`, 'info');
+                }
+
+            } else if (file.type.startsWith('video/')) {
+                fileType = 'video';
+                imageOptionsDiv.style.display = 'none';
+                videoOptionsDiv.style.display = 'block';
+                outputTitle.textContent = 'GIF Converti';
+                fileInput.setAttribute('accept', 'image/*,video/*'); 
+
+                const MAX_VIDEO_SIZE_MB = 20; 
+                if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+                    sizeLimitWarning.style.display = 'block';
+                    showMessage(`Le fichier est trop volumineux (${(file.size / 1024 / 1024).toFixed(2)} Mo). Max recommandé pour vidéo: ${MAX_VIDEO_SIZE_MB} Mo. Il pourrait ne pas être traité.`, 'error');
+                } else {
+                    showMessage(`Fichier sélectionné : ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} Mo)`, 'info');
+                }
             } else {
-                showMessage(`Fichier sélectionné : ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} Mo)`, 'info');
+                selectedFile = null;
+                showMessage('Type de fichier non supporté. Veuillez sélectionner une image ou une vidéo.', 'warning');
+                fileNameDisplay.textContent = '';
+                imageOptionsDiv.style.display = 'none';
+                videoOptionsDiv.style.display = 'none';
+                processBtn.disabled = true;
+                return;
             }
             
-            selectedFile = file; // Toujours stocker le fichier sélectionné
+            selectedFile = file; 
             fileNameDisplay.textContent = selectedFile.name;
-            compressedImageContainer.style.display = 'none';
-            downloadBtn.style.display = 'none';
-            compressBtn.disabled = false; // Rendre le bouton de compression actif si un fichier est sélectionné
+            processBtn.disabled = false;
         }
 
         // Écouteur pour le changement de fichier via l'input
@@ -676,7 +727,7 @@
         // --- Logique Drag & Drop ---
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, preventDefaults, false);
-            document.body.addEventListener(eventName, preventDefaults, false); // Empêche l'ouverture des fichiers dans le navigateur
+            document.body.addEventListener(eventName, preventDefaults, false); 
         });
 
         function preventDefaults(e) {
@@ -707,33 +758,76 @@
         });
         // --- FIN Logique Drag & Drop ---
 
-        compressBtn.addEventListener('click', async (event) => {
+        processBtn.addEventListener('click', async (event) => {
             if (!selectedFile) {
-                showMessage('Veuillez d\'abord sélectionner ou glisser-déposer une image.', 'warning');
+                showMessage('Veuillez d\'abord sélectionner ou glisser-déposer un fichier.', 'warning');
                 return;
             }
 
-            compressBtn.disabled = true;
-            compressBtn.textContent = 'Compression en cours...';
-            showMessage('Compression en cours...', 'info');
-            sizeLimitWarning.style.display = 'none'; // Cache l'avertissement pendant la compression
+            processBtn.disabled = true;
+            processBtn.textContent = (fileType === 'image') ? 'Compression en cours...' : 'Conversion en cours...';
+            showMessage((fileType === 'image') ? 'Compression en cours...' : 'Conversion en cours...', 'info');
+            sizeLimitWarning.style.display = 'none'; 
 
             const reader = new FileReader();
 
             reader.onload = async (e) => {
-                const base64Image = e.target.result;
-                const quality = qualityRange.value;
+                const base64File = e.target.result;
+                let endpoint = '';
+                let requestBody = {};
+                let outputFileName = '';
+
+                if (fileType === 'image') {
+                    // Si vous avez renommé compressImage.js en compressImage.cjs, mettez à jour l'endpoint ici
+                    endpoint = `${apiBase}compressImage.cjs`; 
+                    requestBody = {
+                        image: base64File,
+                        quality: parseInt(qualityRange.value, 10)
+                    };
+                    outputFileName = `compressed_${selectedFile.name.replace(/\.[^/.]+$/, "")}.jpeg`;
+                } else if (fileType === 'video') {
+                    // Si vous avez renommé convertToGif.js en convertToGif.cjs, mettez à jour l'endpoint ici
+                    endpoint = `${apiBase}convertToGif.cjs`; 
+                    const duration = parseFloat(gifDurationInput.value);
+                    const start = parseFloat(gifStartInput.value);
+                    const fps = parseInt(gifFpsInput.value, 10);
+
+                    // Valider les entrées pour le GIF
+                    if (isNaN(duration) || duration <= 0 || duration > 15) {
+                        showMessage('Durée du GIF invalide. Doit être entre 1 et 15 secondes.', 'error');
+                        processBtn.disabled = false;
+                        processBtn.textContent = 'Traiter le fichier';
+                        return;
+                    }
+                    if (isNaN(start) || start < 0) {
+                        showMessage('Début du GIF invalide. Doit être un nombre positif.', 'error');
+                        processBtn.disabled = false;
+                        processBtn.textContent = 'Traiter le fichier';
+                        return;
+                    }
+                    if (isNaN(fps) || fps < 5 || fps > 30) {
+                        showMessage('FPS du GIF invalide. Doit être entre 5 et 30.', 'error');
+                        processBtn.disabled = false;
+                        processBtn.textContent = 'Traiter le fichier';
+                        return;
+                    }
+
+                    requestBody = {
+                        video: base64File,
+                        duration: duration,
+                        start: start,
+                        fps: fps
+                    };
+                    outputFileName = `${selectedFile.name.replace(/\.[^/.]+$/, "")}.gif`;
+                }
 
                 try {
-                    const response = await fetch(`${apiBase}compressImage`, {
+                    const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({
-                            image: base64Image,
-                            quality: parseInt(quality, 10)
-                        }),
+                        body: JSON.stringify(requestBody),
                     });
 
                     if (!response.ok) {
@@ -742,30 +836,31 @@
                     }
 
                     const blob = await response.blob();
-                    compressedBlob = blob;
+                    processedBlob = blob;
 
                     if (!blob || blob.size === 0) {
                         throw new Error('Réponse vide ou invalide de la fonction Netlify.');
                     }
 
-                    const compressedSizeMB = (blob.size / 1024 / 1024).toFixed(2);
+                    const processedSizeMB = (blob.size / 1024 / 1024).toFixed(2);
                     const originalSizeMB = (selectedFile.size / 1024 / 1024).toFixed(2);
-                    const reductionPercentage = originalSizeMB > 0 ? (((originalSizeMB - compressedSizeMB) / originalSizeMB) * 100).toFixed(2) : 0;
+                    const reductionPercentage = originalSizeMB > 0 ? (((originalSizeMB - processedSizeMB) / originalSizeMB) * 100).toFixed(2) : 0;
 
-                    compressedImage.src = URL.createObjectURL(blob);
-                    compressedSize.textContent = `${compressedSizeMB} Mo`;
+                    compressedOutput.src = URL.createObjectURL(blob);
+                    outputSize.textContent = `${processedSizeMB} Mo`;
                     reduction.textContent = `${reductionPercentage}%`;
 
-                    compressedImageContainer.style.display = 'block';
+                    compressedOutputContainer.style.display = 'block';
                     downloadBtn.style.display = 'inline-block';
-                    showMessage('Image compressée avec succès ! Vous pouvez maintenant la télécharger.', 'success');
-
+                    showMessage((fileType === 'image') ? 'Image compressée avec succès !' : 'Vidéo convertie en GIF avec succès !', 'success');
+                    downloadBtn.download = outputFileName; 
+                    
                 } catch (error) {
-                    console.error('Erreur lors de la compression de l\'image:', error);
-                    showMessage(`Erreur de compression: ${error.message}. Veuillez essayer avec une image plus petite ou une qualité inférieure.`, 'error');
+                    console.error(`Erreur lors du traitement du fichier (${fileType}):`, error);
+                    showMessage(`Erreur de traitement: ${error.message}. Veuillez essayer avec un fichier plus petit ou des options différentes.`, 'error');
                 } finally {
-                    compressBtn.disabled = false;
-                    compressBtn.textContent = 'Compresser l\'image';
+                    processBtn.disabled = false;
+                    processBtn.textContent = 'Traiter le fichier';
                 }
             };
 
@@ -773,31 +868,28 @@
         });
 
         downloadBtn.addEventListener('click', () => {
-            if (compressedBlob) {
-                const url = URL.createObjectURL(compressedBlob);
+            if (processedBlob) {
+                const url = URL.createObjectURL(processedBlob);
                 const a = document.createElement('a');
                 a.href = url;
-                // Donne un nom de fichier pour le téléchargement
-                a.download = `compressed_${selectedFile.name.replace(/\.[^/.]+$/, "")}.jpeg`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
 
                 showMessage('Téléchargement en cours...', 'info');
-                // Redirection après un court délai pour que le téléchargement puisse commencer
                 setTimeout(() => {
-                    window.location.href = 'index.html'; // Redirige vers la page d'accueil après le téléchargement
-                }, 1000); // Laissez un peu plus de temps pour le téléchargement
+                    window.location.href = 'index.html'; 
+                }, 1000); 
             } else {
-                showMessage('Aucune image compressée à télécharger.', 'warning');
+                showMessage('Aucun fichier traité à télécharger.', 'warning');
             }
         });
 
         qualityRange.addEventListener('input', () => {
             qualityValueSpan.textContent = qualityRange.value;
         });
-        qualityValueSpan.textContent = qualityRange.value; // Initialise la valeur affichée
+        qualityValueSpan.textContent = qualityRange.value; 
 
 
         // Fonction pour initialiser le mode sombre, à appeler après le chargement du header
@@ -854,19 +946,15 @@
         document.addEventListener("DOMContentLoaded", async () => {
             console.log("Compresseur: DOMContentLoaded, début de l'initialisation...");
 
-            // Masquer la barre de défilement du body au début pour une meilleure expérience
             bodyElement.style.overflow = 'hidden'; 
 
-            // 1. Charger les composants principaux (Header et Footer)
             await loadComponent("header.html", "header-placeholder");
             await loadComponent("footer.html", "footer-placeholder");
 
-            // 2. Mettre à jour l'état actif du menu après le chargement du header
             const currentPath = window.location.pathname.split('/').pop();
             document.querySelectorAll('nav a').forEach(link => {
                 const linkHref = link.getAttribute('href');
                 const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-                // Spécifie explicitement 'compresseur.html' pour cette page
                 if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "compresseur.html") {
                     link.classList.add("active");
                 } else {
@@ -874,10 +962,8 @@
                 }
             });
 
-            // 3. Initialiser le mode sombre après le chargement du header
             initializeDarkMode();
 
-            // 4. Cacher le loader global et révéler le contenu principal
             if (globalLoader) {
                 globalLoader.classList.add("hidden");
                 globalLoader.addEventListener('transitionend', () => {
@@ -887,10 +973,11 @@
                 }, { once: true });
             }
             
-            bodyElement.classList.add("show"); // Révèle le body avec sa transition
-            mainElement.classList.add("show"); // Révèle main avec sa transition
-            bodyElement.style.overflow = ''; // Restaurer le défilement du body
+            bodyElement.classList.add("show"); 
+            mainElement.classList.add("show"); 
+            bodyElement.style.overflow = ''; 
 
+            processBtn.disabled = true; // Désactiver le bouton au démarrage
             console.log("Compresseur: Initialisation terminée.");
         });
     </script>
