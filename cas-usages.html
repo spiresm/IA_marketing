@@ -1024,14 +1024,12 @@
 
         <div class="filters-area-container header-controls-container">
             <div id="filters">
-                <input type="text" id="preview-text" placeholder="Rechercher dans le texte..." />
+                <input type="text" id="search-input" placeholder="Rechercher un mot clé..." />
                 <select id="filtre-outil">
                     <option value="">Tous les outils</option>
                 </select>
-                <select id="filtre-tri-nom">
-                    <option value="none" selected>Trier par nom...</option>
-                    <option value="az">De A à Z</option>
-                    <option value="za">De Z à A</option>
+                <select id="filtre-auteur">
+                    <option value="">Tous les auteurs</option>
                 </select>
                 <select id="filtre-tri-date">
                     <option value="recent" selected>Plus récent</option>
@@ -1067,7 +1065,7 @@
         const errorDisplay = document.getElementById('error-display');
         const filtreOutilSelect = document.getElementById('filtre-outil');
         const filtreTriDateSelect = document.getElementById('filtre-tri-date');
-        const previewTextInput = document.getElementById('preview-text');
+        const searchInput = document.getElementById('search-input');
         const previewPanel = document.getElementById('previewPanel');
         const previewPanelTitle = document.getElementById('previewPanelTitle');
         const previewPanelContent = document.getElementById('previewPanelContent');
@@ -1078,7 +1076,7 @@
 
         // MODIFICATION: Références pour les nouveaux éléments
         const workflowCounterDisplay = document.getElementById('workflow-counter');
-        const filtreTriNomSelect = document.getElementById('filtre-tri-nom');
+        const filtreAuteurSelect = document.getElementById('filtre-auteur'); // Nouveau filtre
 
         const toolLogosGrid = document.getElementById('tool-logos-grid');
         const scrollLeftBtn = document.getElementById('scrollLeftBtn');
@@ -1118,12 +1116,20 @@
         function applyFiltersAndSort() {
             let filtered = [...allTips];
 
+            // Filtre par Outil
             const outil = filtreOutilSelect.value;
             if (outil) {
                 filtered = filtered.filter(tip => tip.outil === outil);
             }
 
-            const searchText = previewTextInput.value.toLowerCase();
+            // MODIFICATION: Filtre par Auteur
+            const auteur = filtreAuteurSelect.value;
+            if (auteur) {
+                filtered = filtered.filter(tip => tip.auteur === auteur);
+            }
+
+            // Filtre par recherche textuelle
+            const searchText = searchInput.value.toLowerCase();
             if (searchText) {
                 filtered = filtered.filter(tip =>
                     (tip.titre && decodeHtml(tip.titre).toLowerCase().includes(searchText)) ||
@@ -1132,20 +1138,9 @@
                 );
             }
 
-            // MODIFICATION: Logique de tri combinée (Nom puis Date)
+            // Tri par date
             const sortOrderDate = filtreTriDateSelect.value;
-            const sortOrderNom = filtreTriNomSelect.value;
-
             filtered.sort((a, b) => {
-                // Tri par nom en premier s'il est sélectionné
-                if (sortOrderNom !== 'none') {
-                    const titleA = a.titre.toLowerCase();
-                    const titleB = b.titre.toLowerCase();
-                    if (titleA < titleB) return sortOrderNom === 'az' ? -1 : 1;
-                    if (titleA > titleB) return sortOrderNom === 'az' ? 1 : -1;
-                }
-
-                // Ensuite, tri par date
                 const dateA = new Date(a.dateCreation || a.date);
                 const dateB = new Date(b.dateCreation || b.date);
                 return sortOrderDate === 'recent' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
@@ -1155,14 +1150,13 @@
         }
 
         function setupFilters() {
-            previewTextInput.addEventListener('input', applyFiltersAndSort);
+            searchInput.addEventListener('input', applyFiltersAndSort);
             filtreTriDateSelect.addEventListener('change', applyFiltersAndSort);
             filtreOutilSelect.addEventListener('change', applyFiltersAndSort);
-
-            // MODIFICATION: Ajout de l'écouteur pour le tri par nom
-            filtreTriNomSelect.addEventListener('change', applyFiltersAndSort);
+            filtreAuteurSelect.addEventListener('change', applyFiltersAndSort); // Ajout de l'écouteur pour l'auteur
 
             populateOutilFilter();
+            // La population du filtre auteur se fera après le chargement des données
         }
 
         function populateOutilFilter() {
@@ -1176,6 +1170,19 @@
             });
         }
 
+        // MODIFICATION: Nouvelle fonction pour peupler le filtre des auteurs
+        function populateAuteurFilter() {
+            filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
+            const uniqueAuteurs = [...new Set(allTips.map(tip => tip.auteur))].sort((a, b) => a.localeCompare(b));
+            uniqueAuteurs.forEach(auteurName => {
+                const option = document.createElement('option');
+                option.value = auteurName;
+                option.textContent = auteurName;
+                filtreAuteurSelect.appendChild(option);
+            });
+        }
+
+
         async function loadAndDisplayTips() {
             galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des workflows...</p>';
             try {
@@ -1185,6 +1192,7 @@
 
                 allTips = fetchedTips.map(tip => ({
                     ...tip,
+                    id: String(tip.id), // S'assurer que l'ID est une chaîne
                     dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
                     titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
                     auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
@@ -1195,11 +1203,11 @@
                     promptText: tip.promptText || tip.prompt || ''
                 }));
 
-                // MODIFICATION: Mettre à jour le nouveau compteur
                 if (workflowCounterDisplay) {
                     workflowCounterDisplay.textContent = allTips.length;
                 }
 
+                populateAuteurFilter(); // Peuple le filtre auteur une fois les données chargées
                 applyFiltersAndSort();
 
             } catch (error) {
@@ -1315,33 +1323,46 @@
             });
         }
 
-        async function openPreviewPanel(tipId) {
+        // --- DÉBUT DE LA LOGIQUE DU PANNEAU LATÉRAL (Preview Panel) ---
+        // Cette section contient tout le code qui construit et contrôle le panneau latéral.
+
+        function openPreviewPanel(tipId) {
             const tip = allTips.find(t => t.id === tipId);
-            if (!tip) return;
+            if (!tip) {
+                console.error("Workflow non trouvé pour l'ID:", tipId);
+                return;
+            }
 
             previewPanelTitle.textContent = decodeHtml(tip.titre || "Détail du Workflow");
             let contentHtml = '';
 
+            // Post-it (previewText)
             if (tip.previewText) {
                 contentHtml += `<h4>Post-it :</h4><div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>`;
             }
+
+            // Description
             if (tip.description && tip.description.trim() !== '') {
                 contentHtml += `<h4>Description :</h4><div class="content-card-blue">${escapeHtml(tip.description)}</div>`;
             }
+
+            // URLs (Vidéos et Liens)
             if (tip.urls && tip.urls.length > 0) {
                 let linksAndVideosHtml = tip.urls.map(url => {
+                    if (!url || !url.trim()) return '';
                     const youtubeId = getYouTubeVideoId(url);
                     if (youtubeId) {
-                        return `<div class="video-responsive"><iframe src="https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0" frameborder="0" allowfullscreen></iframe></div>`;
-                    } else if (url && url.trim()) {
-                        return `<p><a href="${escapeHtml(url)}" target="_blank"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>`;
+                        return `<div class="video-responsive"><iframe src="https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0" frameborder="0" allowfullscreen title="Lecteur vidéo YouTube"></iframe></div>`;
                     }
-                    return '';
+                    return `<p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt"></i> ${escapeHtml(url)}</a></p>`;
                 }).join('');
+
                 if (linksAndVideosHtml) {
                     contentHtml += `<h4>Liens / Vidéos :</h4>${linksAndVideosHtml}`;
                 }
             }
+
+            // Prompt / Contenu Principal
             let panelMainContentToDisplay = tip.promptText || '';
             if (panelMainContentToDisplay.trim()) {
                  contentHtml += `<h4>Prompt / Contenu :</h4><pre class="prompt-content-pre">${escapeHtml(panelMainContentToDisplay)}</pre>`;
@@ -1350,11 +1371,48 @@
                 }
             }
 
+            // Images
+            const imageUrlsToDisplay = [
+                ...(tip.fileUrls || []),
+                ...(tip.imageUrl ? [tip.imageUrl] : [])
+            ];
+            const uniqueImageUrls = [...new Set(imageUrlsToDisplay)];
+
+            if (uniqueImageUrls.length > 0) {
+                contentHtml += `<h4>Images associées :</h4><div class="preview-panel-image-container">`;
+                uniqueImageUrls.forEach((url, index) => {
+                    contentHtml += `
+                        <div class="preview-panel-image-wrapper">
+                            <div class="image-number-badge">${index + 1}</div>
+                            <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+                                <img src="${escapeHtml(url)}" alt="Image du workflow ${index + 1}" class="preview-panel-image" />
+                            </a>
+                        </div>
+                    `;
+                });
+                contentHtml += `</div>`;
+            }
+
+            // Document PDF
+            if (tip.documentUrl && tip.documentUrl.trim() !== '') {
+                contentHtml += `<h4>Document associé :</h4>
+                    <div class="preview-panel-document-square-container">
+                        <a href="${escapeHtml(tip.documentUrl)}" target="_blank" rel="noopener noreferrer" class="preview-panel-pdf-square">
+                            <img src="PDF_file_icon.svg.webp" alt="Icône PDF">
+                            <span class="file-name">${escapeHtml(tip.documentFileName || 'Document PDF')}</span>
+                            <span class="download-button">Télécharger</span>
+                        </a>
+                    </div>
+                `;
+            }
+
+
             previewPanelContent.innerHTML = contentHtml;
             previewPanel.classList.add('open');
             previewOverlay.classList.add('open');
             bodyElement.style.overflow = 'hidden';
 
+            // Attache l'écouteur pour le bouton copier DANS le panneau
             document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
                 copyToClipboard(e.target.dataset.copy, e.target);
             });
@@ -1365,6 +1423,9 @@
             previewOverlay.classList.remove('open');
             bodyElement.style.overflow = '';
         }
+
+        // --- FIN DE LA LOGIQUE DU PANNEAU LATÉRAL ---
+
 
         closePreviewBtn.addEventListener('click', closePreviewPanel);
         previewOverlay.addEventListener('click', closePreviewPanel);
