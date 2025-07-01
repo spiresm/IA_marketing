@@ -158,18 +158,12 @@
                     <div class="form-grid">
                         
                         <div class="form-group">
-                            <label for="searchAuteur">Rechercher un nom</label>
-                            <input type="text" id="searchAuteur" v-model="searchQuery" placeholder="Filtrer les noms..." />
-                        </div>
-
-                        <div class="form-group">
                             <label for="auteur">Votre nom</label>
                             <select id="auteur" v-model="auteur" required>
                                 <option value="" disabled>Sélectionnez un nom</option>
-                                <optgroup v-for="(noms, pole) in filteredCollaborateursParPole" :key="pole" :label="pole">
+                                <optgroup v-for="(noms, pole) in allCollaborateursParPole" :key="pole" :label="pole">
                                     <option v-for="profilNom in noms" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
                                 </optgroup>
-                                <option v-if="searchQuery && filteredProfilsAuteursFlat.length === 0" disabled>Aucun résultat</option>
                             </select>
                         </div>
 
@@ -341,40 +335,16 @@
                         selectedFiles: ref([]), 
                         fileInput: ref(null),
                         isLoading: ref(false), 
-                        // La liste originale des collaborateurs par pôle
+                        // La liste originale des collaborateurs par pôle (maintenue car elle sera utilisée directement)
                         allCollaborateursParPole: ref(collaborateursParPole),
                         toolsList: ref([...toolsData].sort((a, b) => a.name.localeCompare(b.name))),
                         globalError: ref(null),
-                        searchQuery: ref('') // Pour le champ de recherche
+                        // searchQuery est maintenant inutile car il n'y a plus de champ de recherche
+                        // searchQuery: ref('') 
                     };
 
-                    // Propriété calculée pour la liste aplatie et filtrée (pour l'option "Aucun résultat")
-                    const filteredProfilsAuteursFlat = computed(() => {
-                        const query = allRefs.searchQuery.value.toLowerCase();
-                        let allNames = Object.values(allRefs.allCollaborateursParPole.value).flat();
-                        if (!query) {
-                            return allNames; // Retourne tous les noms si pas de recherche
-                        }
-                        return allNames.filter(nom => 
-                            nom.toLowerCase().includes(query)
-                        );
-                    });
-
-                    // Propriété calculée pour la structure par pôle filtrée (pour l'affichage dans <optgroup>)
-                    const filteredCollaborateursParPole = computed(() => {
-                        const query = allRefs.searchQuery.value.toLowerCase();
-                        const filtered = {};
-                        for (const pole in allRefs.allCollaborateursParPole.value) {
-                            const nomsDuPole = allRefs.allCollaborateursParPole.value[pole].filter(nom => 
-                                nom.toLowerCase().includes(query)
-                            );
-                            if (nomsDuPole.length > 0) {
-                                filtered[pole] = nomsDuPole;
-                            }
-                        }
-                        return filtered;
-                    });
-
+                    // Les propriétés calculées filteredProfilsAuteursFlat et filteredCollaborateursParPole deviennent inutiles
+                    // car le filtre de recherche est supprimé. Le select utilisera directement allCollaborateursParPole.
 
                     const addUrlField = () => allRefs.urls.value.push('');
                     const removeUrlField = (i) => allRefs.urls.value.splice(i, 1);
@@ -418,8 +388,7 @@
 
                     return {
                         ...allRefs,
-                        filteredCollaborateursParPole, // La liste des noms filtrée par pôle pour le select
-                        filteredProfilsAuteursFlat, // La liste aplatie filtrée pour la condition "Aucun résultat"
+                        // Plus besoin de filteredCollaborateursParPole et filteredProfilsAuteursFlat
                         addUrlField, removeUrlField, removeFile, submitForm,
                         onDrop: e => addFiles(e.dataTransfer.files),
                         onFileChange: e => addFiles(e.target.files),
