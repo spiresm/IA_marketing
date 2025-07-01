@@ -421,24 +421,28 @@
         body.dark-mode .metadata-value {
             color: var(--dark-mode-text);
         }
-        /* Le texte de prévisualisation sur la carte (post-it) */
-        .preview-post-it {
+        
+        /* MODIFIÉ: Remplacement du post-it par un aperçu d'image */
+        .card-thumbnail-preview {
             position: absolute;
             top: 60px;
             right: 15px;
-            background-color: var(--postit-yellow); !important;
-            color: #333;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            font-size: 1em;
-            font-weight: normal; /* Typo moins grasse */
+            width: 120px;
+            height: 80px;
+            object-fit: cover; /* S'assure que l'image remplit l'espace sans se déformer */
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             z-index: 2;
-            white-space: pre-wrap;
-            word-break: break-word;
-            max-width: 150px;
-            transform: rotate(2deg);
+            background-color: #f0f0f0; /* Couleur de fond pendant le chargement */
+            border: 1px solid #ddd;
         }
+
+        .card-thumbnail-preview.youtube-logo {
+            object-fit: contain; /* Pour que le logo ne soit pas déformé */
+            padding: 5px; /* Un peu d'espace autour du logo */
+            background-color: #fff;
+        }
+        
         /* Boutons d'action sur la carte */
         .card-actions {
             display: flex;
@@ -956,13 +960,14 @@
                 width: 100%;
                 justify-content: center;
             }
-            .preview-post-it {
+            /* MODIFIÉ: Ajustement pour l'aperçu sur mobile */
+            .card-thumbnail-preview {
                 position: static;
                 margin-top: 10px;
-                max-width: unset;
-                text-align: center;
+                width: 100%; /* Prend toute la largeur disponible */
+                height: auto; /* Hauteur automatique pour conserver le ratio */
+                max-height: 200px; /* Limite la hauteur maximale */
                 transform: none;
-                font-size: 1.1em;
             }
 
             .preview-panel-pdf-square {
@@ -1128,13 +1133,12 @@
                 filtered = filtered.filter(tip => tip.auteur === auteur);
             }
 
-            // Filtre par recherche textuelle
+            // Filtre par recherche textuelle (suppression de previewText)
             const searchText = searchInput.value.toLowerCase();
             if (searchText) {
                 filtered = filtered.filter(tip =>
                     (tip.titre && decodeHtml(tip.titre).toLowerCase().includes(searchText)) ||
-                    (tip.description && decodeHtml(tip.description).toLowerCase().includes(searchText)) ||
-                    (tip.previewText && decodeHtml(tip.previewText).toLowerCase().includes(searchText))
+                    (tip.description && decodeHtml(tip.description).toLowerCase().includes(searchText))
                 );
             }
 
@@ -1201,6 +1205,7 @@
                     categorie: tip.categorie && tip.categorie.trim() !== '' ? tip.categorie : "Autre",
                     urls: Array.isArray(tip.urls) ? tip.urls : [],
                     promptText: tip.promptText || tip.prompt || ''
+                    // Le champ 'previewText' n'est plus nécessaire ici
                 }));
 
                 if (workflowCounterDisplay) {
@@ -1243,6 +1248,19 @@
                     copyButtonHtml = `<button class="copier-btn" data-copy="${escapeHtml(contentForCopyButton)}">Copier le prompt</button>`;
                 }
 
+                // --- NOUVELLE LOGIQUE POUR L'APERÇU SUR LA CARTE ---
+                let previewImageHtml = '';
+                const hasYoutubeVideo = tip.urls && tip.urls.some(url => getYouTubeVideoId(url));
+                const firstImage = (tip.fileUrls && tip.fileUrls.length > 0) ? tip.fileUrls[0] : tip.imageUrl;
+
+                if (hasYoutubeVideo) {
+                    previewImageHtml = `<img src="png-logo-youtube.webp" alt="Vidéo YouTube" class="card-thumbnail-preview youtube-logo">`;
+                } else if (firstImage) {
+                    previewImageHtml = `<img src="${escapeHtml(firstImage)}" alt="Aperçu" class="card-thumbnail-preview">`;
+                }
+                // --- FIN DE LA NOUVELLE LOGIQUE ---
+
+
                 const cardHtml = `
                     <div class="carte" style="border-left-color: ${getCategoryColor(tip.categorie)};">
                         <div class="infos-wrapper">
@@ -1257,7 +1275,7 @@
                                 <span class="metadata-value">${formattedDate}</span>
                             </div>
 
-                            ${tip.previewText ? `<div class="preview-post-it">${escapeHtml(tip.previewText)}</div>` : ''}
+                            ${previewImageHtml}
 
                             <div class="card-actions">
                                 <div class="top-buttons-group">
@@ -1336,10 +1354,7 @@
             previewPanelTitle.textContent = decodeHtml(tip.titre || "Détail du Workflow");
             let contentHtml = '';
 
-            // Post-it (previewText)
-            if (tip.previewText) {
-                contentHtml += `<h4>Post-it :</h4><div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>`;
-            }
+            // SUPPRESSION: Le post-it (previewText) n'est plus affiché ici.
 
             // Description
             if (tip.description && tip.description.trim() !== '') {
@@ -1371,7 +1386,7 @@
             // Prompt / Contenu Principal
             let panelMainContentToDisplay = tip.promptText || '';
             if (panelMainContentToDisplay.trim()) {
-                 contentHtml += `<h4>Prompt / Contenu :</h4><pre class="prompt-content-pre">${escapeHtml(panelMainContentToDisplay)}</pre>`;
+                contentHtml += `<h4>Prompt / Contenu :</h4><pre class="prompt-content-pre">${escapeHtml(panelMainContentToDisplay)}</pre>`;
                 if (!tip.urls.some(getYouTubeVideoId)) {
                     contentHtml += `<button class="copy-panel-btn" data-copy="${escapeHtml(panelMainContentToDisplay)}">Copier le Contenu</button>`;
                 }
