@@ -12,6 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
+        /* Styles conservés de votre original, assurez-vous qu'ils sont cohérents avec style.css si externe */
         :root {
             --primary-blue: #0077b6;
             --dark-blue: #005f8a;
@@ -138,6 +139,85 @@
         .loader { display: block; margin: 20px auto; width: 40px; height: 40px; border: 4px solid var(--border-color); border-top: 4px solid var(--primary-blue); border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
+        /* Styles pour la confirmation */
+        .confirmation {
+            margin-top: 30px;
+            padding: 20px;
+            background: var(--success-bg);
+            border: 1px solid var(--success-text);
+            border-radius: 10px;
+            text-align: center;
+            color: var(--success-text);
+        }
+        .confirmation img {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: contain;
+            margin: 5px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+        .confirmation img:hover {
+            transform: scale(1.05);
+        }
+
+        /* Lightbox (pour les images de confirmation si besoin) */
+        .lightbox-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        .lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .lightbox-content img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #fff;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 1001;
+            background-color: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1;
+            text-shadow: 0 0 5px rgba(0,0,0,0.8);
+        }
+        .lightbox-close:hover {
+            color: #f00;
+            background-color: rgba(0,0,0,0.7);
+        }
+
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -165,6 +245,7 @@
                                     <option v-for="profilNom in noms" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
                                 </optgroup>
                             </select>
+                            <p v-if="isLoadingProfils" style="color: var(--primary-blue); font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
                         </div>
 
                         <div class="form-group">
@@ -199,21 +280,21 @@
                             <label>Plateforme(s) / Outil(s)</label>
                             <div class="checkbox-group" role="group">
                                 <div v-for="(tool, index) in toolsList" :key="index" class="checkbox-item">
-                                    <input type="checkbox" :id="'tool-' + index" :value="tool.name" v-model="outils">
+                                    <input type="checkbox" :id="'tool-' + index" name="outils[]" :value="tool.name" v-model="outils">
                                     <label :for="'tool-' + index">{{ tool.name }}</label>
                                 </div>
                                 <div class="checkbox-item">
-                                    <input type="checkbox" id="tool-autre" value="Autre" v-model="outils">
+                                    <input type="checkbox" id="tool-autre" name="outils[]" value="Autre" v-model="outils">
                                     <label for="tool-autre">Autre</label>
                                 </div>
                             </div>
-                            <input type="text" v-if="outils.includes('Autre')" v-model="customOutil" placeholder="Spécifiez l'outil..." style="margin-top: 10px;" />
+                            <input type="text" v-if="outils.includes('Autre')" name="customOutil" v-model="customOutil" placeholder="Spécifiez l'outil..." style="margin-top: 10px;" />
                         </div>
                         
                         <div class="form-group">
                             <label>Lien(s) associé(s) - archive chatGPT/Gemini :</label>
                             <div v-for="(url, index) in urls" :key="index" class="url-input-group">
-                                <input type="url" v-model="urls[index]" :placeholder="`Lien ${index + 1}`" />
+                                <input type="url" :name="`url-${index}`" v-model="urls[index]" :placeholder="`Lien ${index + 1}`" />
                                 <button type="button" @click="removeUrlField(index)" class="remove-url-button">X</button>
                             </div>
                             <div class="url-action-buttons">
@@ -222,15 +303,16 @@
                         </div>
 
                         <div class="form-group full-width">
-                             <label>Images / Documents (optionnel)</label>
-                            <div id="drop-zone" @click="triggerFile" @dragover.prevent @drop.prevent="onDrop">
+                               <label>Images / Documents (optionnel)</label>
+                            <div id="drop-zone" @click="triggerFile" @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
                                 Déposez ou cliquez pour ajouter des fichiers
                             </div>
                             <input type="file" ref="fileInput" @change="onFileChange" multiple style="display:none" accept="image/*,.txt,.pdf" />
+                            <p v-if="fileUploadError" style="color: red; margin-top: 5px;">{{ fileUploadError }}</p>
                             <div class="file-preview-grid">
                                 <div v-for="fileObj in selectedFiles" :key="fileObj.id" class="file-preview-item">
-                                    <img v-if="fileObj.previewUrl" :src="fileObj.previewUrl" :alt="fileObj.name" />
-                                    <span v-else>📄</span>
+                                    <img v-if="fileObj.type && fileObj.type.startsWith('image/')" :src="fileObj.previewUrl" :alt="fileObj.name" />
+                                    <span v-else class="file-icon">{{ getFileIcon(fileObj.type) }}</span>
                                     <span class="file-name-overlay">{{ fileObj.name }}</span>
                                     <button type="button" @click="removeFile(fileObj.id)" class="remove-file-button">&times;</button>
                                 </div>
@@ -238,12 +320,41 @@
                         </div>
 
                         <div class="form-group full-width">
-                             <div v-if="isLoading" class="loader"></div>
+                               <div v-if="isLoading" class="loader"></div>
                             <button v-else type="submit" :disabled="!auteur || !titre || !description || isLoading">Partager</button>
                         </div>
                     </div>
                 </form>
+
+                <div class="confirmation" v-if="confirmationVisible" role="status" aria-live="assertive">
+                    <p>✅ Tip / Prompt partagé avec succès !</p>
+                    <template v-if="confirmationImageUrls && confirmationImageUrls.length > 0">
+                        <img v-for="(url, index) in confirmationImageUrls" :key="'conf-img-' + index" :src="url" @click="openLightbox(url)" style="margin: 5px;" :alt="`Image de confirmation ${index + 1}`"/>
+                    </template>
+                    <template v-if="confirmationUrls && confirmationUrls.length > 0 && confirmationUrls[0].trim() !== ''">
+                        <h4 style="margin-top: 15px; margin-bottom: 5px; color: #333;">Lien(s) enregistré(s):</h4>
+                        <ul>
+                            <li v-for="(url, index) in confirmationUrls" :key="'conf-url-' + index" style="list-style-type: disc; margin-left: 20px;">
+                                <a :href="url" target="_blank" style="color: var(--primary-blue); word-break: break-all;">{{ url }}</a>
+                            </li>
+                        </ul>
+                    </template>
+                    <p v-if="confirmationCommentaireUrl && confirmationCommentaireUrl.trim()" style="white-space: pre-wrap; font-style: italic; font-size: 0.9em; color: var(--grey-text); margin-top: 10px;">{{ confirmationCommentaireUrl }}</p>
+                    <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
+                    <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
+                    <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
+                    <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
+                    <p style="margin-top: 15px; color: var(--primary-blue);">Redirection vers les cas d'usages dans 5 secondes...</p>
+                </div>
             </div>
+
+            <div class="lightbox-overlay" v-if="lightboxVisible" @click.self="closeLightbox" role="dialog" aria-modal="true" :aria-label="`Aperçu de l'image ${lightboxImageUrl.split('/').pop()}`">
+                <span class="lightbox-close" @click="closeLightbox" role="button" tabindex="0" aria-label="Fermer l'aperçu de l'image">&times;</span>
+                <div class="lightbox-content">
+                    <img :src="lightboxImageUrl" :alt="`Image en grand format : ${lightboxImageUrl.split('/').pop()}`" />
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -253,149 +364,407 @@
     <script src="tools-data.js"></script>
     
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const { ref, createApp, computed } = Vue;
+        // Définitions des URL pour les fonctions Netlify
+        const SAVE_TIP_URL = "/.netlify/functions/pushTip";
+        const GET_PROFILS_URL = "/.netlify/functions/getProfils";
 
-            const loadComponent = (url, id) => fetch(url).then(r => r.text()).then(html => document.getElementById(id).innerHTML = html).catch(console.error);
-            loadComponent('header.html', 'header-placeholder');
-            loadComponent('footer.html', 'footer-placeholder');
+        // Fonction utilitaire pour charger des composants HTML (Header et Footer)
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    const errorDetail = await res.text();
+                    throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+                console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Erreur lors du chargement de ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
+            }
+        }
 
-            // Votre objet collaborateursParPole est déplacé ici pour être accessible par Vue
-            const collaborateursParPole = {
-                "Pôle créa.": [
-                    "Anne-Françoise LELEUX", "Baptiste TARTAS", "Béatrice MARLIER",
-                    "Boris TEIRLYNCK", "Charlotte DELWARTE", "Céline DELENTREE", "Delphine BENROUBI",
-                    "Faiza BOUMEDIAN", "Geneviève DE BEAUFFORT", "Giovanni CASCONE",
-                    "Gregory KEPPENS", "Isabelle MARCHAL", "Isabelle VERTUONGEN",
-                    "Jimmy DEGRÈVE", "Joel VAN HOEF", "Jonathan LACROIX",
-                    "Jose ROJO", "Jose-Luis PENAFUERTE", "Mehdi HUSAIN",
-                    "Michael EVRARD", "Patricia DAVIA", "Pierre LERMIER",
-                    "Pierre-Jean GILOUX", "Steeve PIRES MADEIRA",
-                    "Susana GONCALVES VALERIO",
-                    "Tyan HOOGSTOEL", "Vinciane LE MEN",
-                    "Sabrina LECLERCQ",
-                    "Nathalie AUBRY",
-                    "Jeremy DEHERTOGH",
-                    "Dominique LEFEVRE",
-                    "Virginie LONGE"
-                ].sort(),
+        const { ref, createApp, onMounted, onUnmounted } = Vue;
 
-                "CRM": [
-                    "Frédéric CARTON", "Inès BERNOUX", "Noémie ROSSEY",
-                    "Yasmine AIT MASKOUR"
-                ].sort(),
+        const TipForm = {
+            setup() {
+                const auteur = ref('');
+                const titre = ref('');
+                const description = ref('');
+                const previewText = ref('');
+                const promptText = ref('');
+                // Note: La catégorie n'était pas dans le formulaire 1, je l'ai omise ici pour rester proche de l'original
+                // Si votre pushTip l'attend, vous devrez l'ajouter
+                // const categorie = ref('Marketing Digital'); // Si nécessaire, ajoutez-le et le champ <select>
 
-                "Communication": [
-                    "Aurore CRABBE", "Elvis TCHANA", "Fabienne CULLUS",
-                    "Marie NAUWELAERTS", "Régine CARPENTIER"
-                ].sort(),
+                const outils = ref([]); // Maintenant un tableau pour les checkboxes
+                const customOutil = ref('');
+                const urls = ref(['']); // Toujours un tableau pour les URLs dynamiques
+                const commentaireUrl = ref('');
+                const selectedFiles = ref([]);
+                let fileIdCounter = 0;
+                const fileInput = ref(null);
+                const fileUploadError = ref('');
 
-                "Partenariats": [
-                    "Alinoe VANHAUDENHUYSE", "Catherine CARA", "Dominique CAFFIERS",
-                    "Fiona KOPEINIG", "Isabelle DELENS",
-                    "Laura DONATELLO", "Marie-Rose ANGE", "Naïm EL BOHALI",
-                    "Nathalie DE RIJCKE"
-                ].sort(),
+                const isLoading = ref(false); // Loader du formulaire
+                const profilsAuteurs = ref([]); // Liste brute des profils (plat)
+                const allCollaborateursParPole = ref({}); // Structure par pôle
+                const isLoadingProfils = ref(true); // Loader pour les profils
 
-                "Marketing digital": [
-                    "Elise FONCK", "Gaëlle DEGEYE",
-                    "Mathilde ARMILLAC", "Morgane CARLY", "Yasmine GHAZOUANE",
-                    "Sara GARCIA"
-                ].sort(),
+                // Confirmation UI
+                const confirmationVisible = ref(false);
+                const confirmationImageUrls = ref([]);
+                const confirmationUrls = ref([]);
+                const confirmationCommentaireUrl = ref('');
+                const confirmationTitre = ref('');
+                const confirmationDescription = ref('');
+                const confirmationPreviewText = ref('');
+                const confirmationPromptText = ref('');
 
-                "Positionnement": [
-                    "Amelie DE LANGE", "Philippe BLANJEAN",
-                    "Samuel LALOUX"
-                ].sort(),
+                // Lightbox
+                const lightboxVisible = ref(false);
+                const lightboxImageUrl = ref('');
 
-                "Staff": [
-                    "Meltem SIVLIN", "Nadia CURTO", "Vincent CRABBE",
-                    "Olivier LEIDGENS", "Pierre DUBOIS", "Vitold GRAND'HENRY",
-                    "Romain DELECOUR", "Noemie GORISSEN"
-                ].sort()
-            };
+                // Utilisation de la variable globale toolsData (assurez-vous que tools-data.js est chargé)
+                const toolsList = toolsData.sort((a, b) => a.name.localeCompare(b.name));
 
-            if (typeof toolsData === 'undefined') {
-                createApp({ setup: () => ({ globalError: ref("Erreur: Le fichier 'tools-data.js' est manquant.") }) }).mount('#app');
-                return;
+                // Fetch des profils, adapté pour la structure allCollaborateursParPole
+                async function fetchProfils() {
+                    console.log("Début du chargement des profils...");
+                    isLoadingProfils.value = true;
+                    try {
+                        const response = await fetch(GET_PROFILS_URL);
+                        console.log("Réponse de la fonction Netlify pour les profils:", response);
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
+                        }
+                        const data = await response.json();
+                        console.log("Données brutes des profils reçues:", data);
+
+                        // Supposons que data est directement l'objet { "Pôle": ["Nom1", "Nom2"], ... }
+                        // Ou si data est un tableau de profils comme dans le deuxième code, il faudra adapter
+                        if (data && typeof data === 'object') {
+                            allCollaborateursParPole.value = data;
+                            // Pour le premier select, nous avons besoin d'une liste plate si le select original n'avait pas d'optgroup
+                            // Si le select utilise des optgroups, allCollaborateursParPole est parfait.
+                            // Le template HTML que vous avez fourni utilise déjà allCollaborateursParPole, c'est bon.
+                            profilsAuteurs.value = Object.values(data).flat().sort(); // Pour compatibilité si besoin d'une liste simple
+                        } else {
+                            console.warn("Format inattendu pour les profils d'auteurs. Attendu: objet par pôle.");
+                            profilsAuteurs.value = []; // Ou gérez l'erreur différemment
+                        }
+
+                        if (profilsAuteurs.value.length === 1) {
+                            auteur.value = profilsAuteurs.value[0];
+                            console.log("Un seul profil trouvé, auteur auto-sélectionné:", auteur.value);
+                        } else if (profilsAuteurs.value.length > 1) {
+                            auteur.value = '';
+                            console.log("Plusieurs profils trouvés, veuillez sélectionner un auteur.");
+                        } else {
+                            auteur.value = '';
+                            console.log("Aucun profil d'auteur trouvé.");
+                        }
+                    } catch (error) {
+                        console.error("Erreur lors du chargement des profils:", error);
+                        console.error(`Impossible de charger la liste des profils. Veuillez vérifier que la fonction Netlify "${GET_PROFILS_URL.split('/').pop()}" existe et est correctement déployée. Détails: ${error.message}`);
+                    } finally {
+                        isLoadingProfils.value = false;
+                        console.log("Fin du chargement des profils.");
+                    }
+                }
+
+
+                function addUrlField() {
+                    urls.value.push('');
+                    console.log("Champ URL ajouté. URLs:", urls.value);
+                }
+
+                function removeUrlField(index) {
+                    urls.value.splice(index, 1);
+                    if (urls.value.length === 0) {
+                        urls.value.push(''); // Assure qu'il y a toujours au moins un champ vide
+                    }
+                    console.log(`Champ URL à l'index ${index} supprimé. URLs:`, urls.value);
+                }
+
+                function openLightbox(imageUrl) {
+                    lightboxImageUrl.value = imageUrl;
+                    lightboxVisible.value = true;
+                    console.log("Lightbox ouverte pour:", imageUrl);
+                }
+
+                function closeLightbox() {
+                    lightboxVisible.value = false;
+                    lightboxImageUrl.value = '';
+                    console.log("Lightbox fermée.");
+                }
+
+                function handleKeydown(event) {
+                    if (event.key === 'Escape' && lightboxVisible.value) {
+                        closeLightbox();
+                    }
+                }
+
+                onMounted(() => {
+                    console.log("Composant TipForm monté.");
+                    fetchProfils();
+                    window.addEventListener('keydown', handleKeydown);
+                });
+
+                onUnmounted(() => {
+                    window.removeEventListener('keydown', handleKeydown);
+                });
+
+                function triggerFile() {
+                    console.log("Clic sur la drop-zone, déclenchement de l'input fichier.");
+                    fileInput.value?.click();
+                }
+
+                function onDragOver(e) {
+                    e.currentTarget.classList.add('dragover');
+                    console.log("Événement dragover détecté.");
+                }
+
+                function onDragLeave(e) {
+                    e.currentTarget.classList.remove('dragover');
+                    console.log("Événement dragleave détecté.");
+                }
+
+                function onDrop(e) {
+                    e.currentTarget.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length) {
+                        console.log("Fichiers déposés:", files);
+                        addFiles(files);
+                    } else {
+                        console.log("Aucun fichier déposé.");
+                    }
+                }
+
+                function onFileChange(e) {
+                    const files = e.target.files;
+                    if (files) {
+                        console.log("Fichiers sélectionnés via l'input:", files);
+                        addFiles(files);
+                        e.target.value = null; // Réinitialise l'input file pour permettre la sélection des mêmes fichiers
+                    } else {
+                        console.log("Aucun fichier sélectionné via l'input.");
+                    }
+                }
+
+                function addFiles(files) {
+                    fileUploadError.value = '';
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        if (file.type.startsWith('image/') || file.type === 'text/plain' || file.type === 'application/pdf') {
+                            const newFileObj = {
+                                id: fileIdCounter++,
+                                file: file,
+                                previewUrl: null,
+                                name: file.name,
+                                type: file.type
+                            };
+
+                            if (file.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                    if (e.target.result && typeof e.target.result === 'string' && e.target.result.startsWith('data:image')) {
+                                        newFileObj.previewUrl = e.target.result;
+                                        selectedFiles.value.push(newFileObj);
+                                    } else {
+                                        console.warn(`Résultat de lecture d'image non valide pour ${file.name}. Ignoré.`);
+                                        fileUploadError.value = `Impossible de prévisualiser l'image ${file.name}.`;
+                                    }
+                                };
+                                reader.onerror = (error) => {
+                                    console.error(`Erreur lecture fichier ${file.name}:`, error);
+                                    fileUploadError.value = `Erreur lors de la lecture de l'image ${file.name}.`;
+                                };
+                                reader.readAsDataURL(file);
+                            } else {
+                                selectedFiles.value.push(newFileObj);
+                            }
+                        } else {
+                            fileUploadError.value = `Le fichier "${file.name}" de type "${file.type}" n'est pas pris en charge. Seules les images, les fichiers .txt et .pdf sont autorisés.`;
+                            console.warn(fileUploadError.value);
+                        }
+                    }
+                    console.log("selectedFiles après ajout:", selectedFiles.value);
+                }
+
+                function removeFile(fileIdToRemove) {
+                    selectedFiles.value = selectedFiles.value.filter(fileObj => {
+                        if (fileObj.id === fileIdToRemove && fileObj.previewUrl) {
+                            URL.revokeObjectURL(fileObj.previewUrl); // Libère l'URL de prévisualisation
+                        }
+                        return fileObj.id !== fileIdToRemove;
+                    });
+                    console.log(`Fichier avec ID ${fileIdToRemove} supprimé. selectedFiles:`, selectedFiles.value);
+                    fileUploadError.value = '';
+                }
+
+                function getFileIcon(fileType) {
+                    if (fileType === 'text/plain') return 'TXT';
+                    if (fileType === 'application/pdf') return 'PDF';
+                    return '📄'; // Icône par défaut pour les autres types de fichiers
+                }
+
+
+                async function submitForm() {
+                    console.log("Soumission du formulaire...");
+                    // Validation des champs obligatoires
+                    if (!auteur.value || !titre.value.trim() || !description.value.trim()) {
+                        alert("Veuillez remplir tous les champs obligatoires (Votre nom, Titre, Description).");
+                        return;
+                    }
+                    if (outils.value.includes('Autre') && !customOutil.value.trim()) {
+                        alert("Veuillez spécifier le nom de l'outil personnalisé.");
+                        return;
+                    }
+
+                    confirmationVisible.value = false;
+                    isLoading.value = true; // Active le loader du formulaire
+                    console.log("Formulaire en cours de traitement (isLoading = true).");
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('auteur', auteur.value);
+                        formData.append('titre', titre.value);
+                        formData.append('description', description.value);
+                        formData.append('previewText', previewText.value);
+                        formData.append('promptText', promptText.value);
+                        
+                        // Gérer les outils: si "Autre" est coché, utiliser customOutil, sinon joindre les autres
+                        const finalOutils = outils.value.filter(o => o !== 'Autre');
+                        if (outils.value.includes('Autre') && customOoutil.value.trim()) {
+                            finalOutils.push(customOutil.value.trim());
+                        }
+                        formData.append('outil', finalOutils.join(', '));
+
+                        formData.append('dateCreation', new Date().toISOString());
+                        formData.append('pageDePartage', 'Tip / Workflow'); // Définissez la source du formulaire
+
+                        const filteredUrls = urls.value.filter(url => url.trim() !== '');
+                        if (filteredUrls.length > 0) {
+                            formData.append('urls', JSON.stringify(filteredUrls));
+                        } else {
+                            formData.append('urls', '[]');
+                        }
+                        formData.append('commentaireUrl', commentaireUrl.value.trim());
+
+                        selectedFiles.value.forEach((fileObj) => {
+                            formData.append(`files`, fileObj.file, fileObj.name);
+                        });
+
+                        console.log("Envoi des données au backend Netlify Function...");
+                        const tipResp = await fetch(SAVE_TIP_URL, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!tipResp.ok) {
+                            const errorText = await tipResp.text();
+                            throw new Error(`Échec de l'enregistrement du tip: ${tipResp.status} - ${errorText}`);
+                        }
+
+                        const result = await tipResp.json();
+                        console.log("Réponse de la fonction Netlify (pushTip):", result);
+
+                        // Afficher la confirmation
+                        confirmationImageUrls.value = Array.isArray(result.imageUrls) ? result.imageUrls : [];
+                        if (confirmationImageUrls.value.length === 0 && selectedFiles.value.some(f => f.type && f.type.startsWith('image/'))) {
+                            confirmationImageUrls.value = selectedFiles.value
+                                .filter(f => f.type && f.type.startsWith('image/') && f.previewUrl)
+                                .map(f => f.previewUrl);
+                            console.log("Utilisation des URL d'aperçu local pour la confirmation (backend n'a pas renvoyé d'URLs publiques).");
+                        }
+
+                        confirmationUrls.value = Array.isArray(result.urls) ? result.urls : [];
+                        confirmationCommentaireUrl.value = result.commentaireUrl || commentaireUrl.value;
+                        confirmationTitre.value = titre.value;
+                        confirmationDescription.value = description.value;
+                        confirmationPreviewText.value = previewText.value;
+                        confirmationPromptText.value = promptText.value;
+                        
+                        confirmationVisible.value = true;
+                        console.log("Confirmation affichée. Redirection dans 5 secondes...");
+
+                        setTimeout(() => {
+                            window.location.href = "cas-usages.html?success=1";
+                        }, 5000);
+
+                    } catch (error) {
+                        console.error("Erreur lors de la soumission du formulaire:", error);
+                        alert(`Une erreur est survenue lors de l'envoi du tip. Veuillez réessayer. Détails : ${error.message}`);
+                    } finally {
+                        isLoading.value = false;
+                        console.log("Fin du traitement du formulaire (isLoading = false).");
+                    }
+                }
+
+                return {
+                    auteur, titre, description, previewText, promptText, outils, customOutil, fileInput,
+                    urls, addUrlField, removeUrlField, commentaireUrl,
+                    selectedFiles, fileUploadError,
+                    confirmationVisible,
+                    confirmationImageUrls, confirmationUrls, confirmationCommentaireUrl,
+                    confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
+                    isLoading, profilsAuteurs, allCollaborateursParPole, isLoadingProfils, toolsList, 
+                    lightboxVisible, lightboxImageUrl,
+                    openLightbox, closeLightbox,
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
+                    removeFile, getFileIcon, submitForm
+                };
+            }
+        };
+
+        // --- Initialisation au chargement du DOM ---
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("Creer-Tip: DOMContentLoaded, début de l'initialisation...");
+
+            const bodyElement = document.body;
+            const mainElement = document.querySelector("main");
+            const globalLoader = document.getElementById("global-loader"); // Si vous avez un loader global dans votre HTML
+
+            // Masquer la barre de défilement du body au début pour une meilleure expérience
+            bodyElement.style.overflow = 'hidden';
+
+            // 1. Charger les composants principaux (Header et Footer)
+            await loadComponent("header.html", "header-placeholder");
+            await loadComponent("footer.html", "footer-placeholder");
+
+            // 2. Mettre à jour l'état actif du menu après le chargement du header
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "creer-tip.html" || linkFileName === "cas-usages.html") {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            // 3. Monter l'application Vue.js
+            createApp(TipForm).mount('#app');
+            console.log("Application Vue.js montée sur #app.");
+
+            // 4. Cacher le loader global et révéler le contenu principal
+            if (globalLoader) {
+                globalLoader.classList.add("hidden");
+                globalLoader.addEventListener('transitionend', () => {
+                    if (globalLoader.classList.contains('hidden')) {
+                        globalLoader.style.display = 'none';
+                    }
+                }, { once: true });
             }
 
-            createApp({
-                setup() {
-                    const allRefs = {
-                        auteur: ref(''), 
-                        titre: ref(''), 
-                        description: ref(''),
-                        previewText: ref(''), 
-                        promptText: ref(''), 
-                        outils: ref([]), 
-                        customOutil: ref(''), 
-                        urls: ref(['']), 
-                        commentaireUrl: ref(''),
-                        selectedFiles: ref([]), 
-                        fileInput: ref(null),
-                        isLoading: ref(false), 
-                        // La liste originale des collaborateurs par pôle (maintenue car elle sera utilisée directement)
-                        allCollaborateursParPole: ref(collaborateursParPole),
-                        toolsList: ref([...toolsData].sort((a, b) => a.name.localeCompare(b.name))),
-                        globalError: ref(null),
-                        // searchQuery est maintenant inutile car il n'y a plus de champ de recherche
-                        // searchQuery: ref('') 
-                    };
+            bodyElement.classList.add("show"); // Révèle le body avec sa transition
+            if (mainElement) mainElement.classList.add("show"); // Révèle main avec sa transition
+            bodyElement.style.overflow = ''; // Restaurer le défilement du body
 
-                    // Les propriétés calculées filteredProfilsAuteursFlat et filteredCollaborateursParPole deviennent inutiles
-                    // car le filtre de recherche est supprimé. Le select utilisera directement allCollaborateursParPole.
-
-                    const addUrlField = () => allRefs.urls.value.push('');
-                    const removeUrlField = (i) => allRefs.urls.value.splice(i, 1);
-                    
-                    let fileIdCounter = 0;
-                    const addFiles = (files) => {
-                        for (const file of files) {
-                            allRefs.selectedFiles.value.push({
-                                id: fileIdCounter++,
-                                file,
-                                name: file.name,
-                                previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
-                            });
-                        }
-                    };
-                    const removeFile = (id) => {
-                        const file = allRefs.selectedFiles.value.find(f => f.id === id);
-                        if (file?.previewUrl) URL.revokeObjectURL(file.previewUrl);
-                        allRefs.selectedFiles.value = allRefs.selectedFiles.value.filter(f => f.id !== id);
-                    };
-
-                    const submitForm = async () => {
-                        allRefs.isLoading.value = true;
-                        const formData = new FormData();
-                        const finalOutils = allRefs.outils.value.filter(o => o !== 'Autre').concat(allRefs.outils.value.includes('Autre') ? [allRefs.customOutil.value] : []);
-
-                        formData.append('auteur', allRefs.auteur.value);
-                        formData.append('titre', allRefs.titre.value);
-                        formData.append('outil', finalOutils.join(', '));
-                        allRefs.selectedFiles.value.forEach(f => formData.append('files', f.file));
-                        
-                        console.log("Soumission...");
-                        await new Promise(r => setTimeout(r, 1500)); // Simule un délai de soumission
-                        alert("Formulaire envoyé !");
-                        allRefs.isLoading.value = false;
-                        // Optionnel: Réinitialiser le formulaire ici après soumission réussie
-                        // allRefs.auteur.value = '';
-                        // allRefs.titre.value = '';
-                        // ...
-                    };
-
-                    return {
-                        ...allRefs,
-                        // Plus besoin de filteredCollaborateursParPole et filteredProfilsAuteursFlat
-                        addUrlField, removeUrlField, removeFile, submitForm,
-                        onDrop: e => addFiles(e.dataTransfer.files),
-                        onFileChange: e => addFiles(e.target.files),
-                        triggerFile: () => allRefs.fileInput.value.click()
-                    };
-                }
-            }).mount('#app');
+            console.log("Creer-Tip: Initialisation terminée.");
         });
     </script>
 </body>
