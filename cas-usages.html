@@ -18,6 +18,10 @@
             --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
             --grey-text: #555;
             --error-text: #dc3545;
+            --dark-mode-bg: #222831;
+            --dark-mode-text: #EEEEEE;
+            --dark-mode-card-bg: #393E46;
+            --dark-mode-border: #00ADB5;
         }
         body {
             font-family: 'Segoe UI', 'Inter', sans-serif;
@@ -55,6 +59,7 @@
             text-decoration: none; color: white; font-weight: bold;
             font-size: 1.1em; padding: 10px 18px; border-radius: 8px;
             transition: background 0.3s ease; margin: 0 5px;
+            white-space: nowrap;
         }
         nav a:hover { background: rgba(255, 255, 255, 0.2); }
         nav a.active { background-color: white; color: #0077b6; }
@@ -71,20 +76,17 @@
             text-decoration: none;
             font-size: 1.5rem;
         }
-        .create-workflow-button-container {
-             max-width: 1300px; margin: 25px auto; padding: 0 20px;
-             text-align: center; /* CORRIGÉ : Pour centrer le bouton */
-        }
-        .create-workflow-button {
-            display: inline-flex; align-items: center; gap: 8px; background-color: var(--primary-blue);
-            color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none;
-            font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        .tool-logos-section, .filters-area-container, .galerie-container {
+        .create-workflow-button-container, .tool-logos-section, .filters-area-container, .galerie-container {
             max-width: 1300px;
             margin: 25px auto;
             padding: 0 20px;
             box-sizing: border-box;
+        }
+        .create-workflow-button-container { text-align: center; }
+        .create-workflow-button {
+            display: inline-flex; align-items: center; gap: 8px; background-color: var(--primary-blue);
+            color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none;
+            font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         .tool-logos-section {
              padding: 20px; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow);
@@ -157,9 +159,11 @@
             display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;
             color: var(--grey-text); padding-top: 15px; border-top: 1px solid #f0f0f0; margin-top: 15px;
         }
-        .metadata-section .auteur-value a { color: var(--primary-blue); text-decoration: none; font-weight: bold; }
+        .auteur-value a { color: var(--primary-blue); text-decoration: none; font-weight: bold; }
         .supprimer-btn { background: none; border: none; color: #aaa; font-size: 1.2em; cursor: pointer; }
-        
+        .card-preview-icons-inline { display: flex; gap: 8px; margin-left: auto; align-items: center; }
+        .icon-vignette { color: #888; font-size: 1.1em; }
+
         .preview-panel {
             position: fixed; top: 0; right: -760px; width: 740px; max-width: 90%; height: 100%;
             background-color: #fff; box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
@@ -210,14 +214,19 @@
         <div class="menu-container">
             <nav>
                 <a href="index.html">Accueil</a>
-                <a href="cas-usages.html" class="active">Workflows</a>
+                <a href="equipe.html">Équipe</a>
                 <a href="outils.html">Outils</a>
-                <a href="prompts.html">Prompts</a>
+                <a href="galerie.html">Prompts</a>
+                <a href="cas-usages.html" class="active">Workflows</a>
+                <a href="charte.html">Chartes</a>
+                <a href="faq.html">FAQ</a>
+                <a href="demandes_ia.html">Demandes</a>
+                <a href="gestion-license.html">Licenses</a>
             </nav>
         </div>
         <div class="header-top-right">
-            <a href="#" class="header-icon-btn" title="Messages"><i class="fas fa-envelope"></i></a>
-            <a href="#" class="header-icon-btn" title="Développement"><i class="fas fa-code"></i></a>
+            <a href="admin-news.html" class="header-icon-btn" title="Messages"><i class="fas fa-envelope"></i></a>
+            <a href="about.html" class="header-icon-btn" title="Développement"><i class="fas fa-code"></i></a>
         </div>
     </div>
 
@@ -272,6 +281,7 @@
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = [];
 
+        // Sélecteurs DOM
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
         const filtreOutilSelect = document.getElementById('filtre-outil');
@@ -293,13 +303,11 @@
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
             return String(text).replace(/[&<>"']/g, m => map[m]);
         }
-
         function getToolColor(toolName) {
             if (!toolName) return '#cccccc'; let hash = 0;
             for (let i = 0; i < toolName.length; i++) { hash = toolName.charCodeAt(i) + ((hash << 5) - hash); hash &= hash; }
             return `hsl(${Math.abs(hash % 360)}, 70%, 55%)`;
         }
-
         function getYouTubeVideoId(url) {
             if (!url) return null;
             const youtubeRegex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -316,14 +324,27 @@
             tipsToDisplay.forEach(tip => {
                 const dateObj = new Date(tip.dateCreation);
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+                const hasYoutubeVideo = tip.urls && tip.urls.some(url => getYouTubeVideoId(url));
+                const firstImage = tip.imageUrl || (tip.fileUrls && tip.fileUrls[0]);
+                let previewImageHtml = '';
+                if (hasYoutubeVideo) {
+                    previewImageHtml = `<img src="https://i.ytimg.com/vi/VIDEO_ID/hqdefault.jpg" class="card-thumbnail-preview" alt="Vidéo YouTube">`; // Placeholder
+                } else if (firstImage) {
+                    previewImageHtml = `<img src="${escapeHtml(firstImage)}" class="card-thumbnail-preview" alt="Aperçu" loading="lazy">`;
+                }
+
                 const cardHtml = `
                     <div class="carte" style="border-left-color: ${getToolColor(tip.outil)};">
                         <div class="card-header">
                             <h3 class="tip-title">${escapeHtml(tip.titre)}</h3>
+                            <div class="card-preview-icons-inline">
+                                ${firstImage ? '<i class="fas fa-image icon-vignette"></i>' : ''}
+                                ${hasYoutubeVideo ? '<i class="fab fa-youtube icon-vignette" style="color:red;"></i>' : ''}
+                            </div>
                             <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer"><i class="fas fa-trash-alt"></i></button>
                         </div>
                         <span class="outil-badge">${escapeHtml(tip.outil)}</span>
-                        ${tip.imageUrl ? `<div class="card-image-container"><img src="${escapeHtml(tip.imageUrl)}" class="card-thumbnail-preview" alt="Aperçu" loading="lazy"></div>` : ''}
+                        ${previewImageHtml ? `<div class="card-image-container">${previewImageHtml.replace('VIDEO_ID', hasYoutubeVideo ? getYouTubeVideoId(tip.urls.find(getYouTubeVideoId)) : '')}</div>` : ''}
                         <div class="card-actions">
                             <button class="toggle-content-btn" data-id="${tip.id}">Voir le Workflow</button>
                             ${tip.promptText ? `<button class="copier-btn" data-copy="${escapeHtml(tip.promptText)}">Copier le Prompt</button>` : ''}
@@ -340,11 +361,9 @@
 
         function renderToolLogos() {
             if (!toolLogosGrid || typeof toolsData === 'undefined') {
-                document.querySelector('.tool-logos-section')?.style.setProperty('display', 'none');
-                return;
+                document.querySelector('.tool-logos-section')?.style.setProperty('display', 'none'); return;
             };
             toolLogosGrid.innerHTML = '';
-            // CORRIGÉ : Ajout de la carte "Tous les outils"
             const allToolsCard = document.createElement('div');
             allToolsCard.className = 'tool-card';
             allToolsCard.innerHTML = `<i class="fas fa-tools" style="font-size: 40px; margin-bottom: 10px; color: var(--primary-blue);"></i><span class="tool-name">Tous</span>`;
@@ -353,7 +372,6 @@
                 applyFiltersAndSort();
             });
             toolLogosGrid.appendChild(allToolsCard);
-
             toolsData.forEach(tool => {
                 const toolCard = document.createElement('div');
                 toolCard.className = 'tool-card';
@@ -385,8 +403,7 @@
             }
             const sortOrder = filtreTriDateSelect.value;
             filtered.sort((a, b) => {
-                const dateA = new Date(a.dateCreation);
-                const dateB = new Date(b.dateCreation);
+                const dateA = new Date(a.dateCreation); const dateB = new Date(b.dateCreation);
                 return sortOrder === 'recent' ? dateB - dateA : dateA - dateB;
             });
             displayTips(filtered);
@@ -405,8 +422,7 @@
             galerieDiv.querySelectorAll('.copier-btn').forEach(b => b.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target));
             galerieDiv.querySelectorAll('.supprimer-btn').forEach(b => b.onclick = () => confirmAndDeleteTip(b.dataset.id));
         }
-        
-        // CORRIGÉ : Version complète de la fonction pour le panneau latéral
+
         function openPreviewPanel(tipId) {
             const tip = allTips.find(t => t.id == tipId);
             if (!tip) return;
@@ -414,33 +430,23 @@
             let contentHtml = '';
             if (tip.description) contentHtml += `<h4>Description</h4><p>${escapeHtml(tip.description)}</p>`;
             if (tip.promptText) contentHtml += `<h4>Prompt</h4><pre>${escapeHtml(tip.promptText)}</pre>`;
-            
-            // Gestion des URLs (liens et vidéos Youtube)
             if (tip.urls && tip.urls.length > 0) {
-                let linksHtml = '';
-                let videosHtml = '';
+                let linksHtml = ''; let videosHtml = '';
                 tip.urls.forEach(url => {
                     const videoId = getYouTubeVideoId(url);
                     if (videoId) {
-                        videosHtml += `<div class="video-responsive"><iframe src="https://www.youtube-nocookie.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+                        videosHtml += `<div class="video-responsive"><iframe src="https://www.youtube-nocookie.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe></div>`;
                     } else {
-                        linksHtml += `<p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></p>`;
+                        linksHtml += `<p><a href="${escapeHtml(url)}" target="_blank">${escapeHtml(url)}</a></p>`;
                     }
                 });
                 if (videosHtml) contentHtml += `<h4>Vidéo(s)</h4>${videosHtml}`;
                 if (linksHtml) contentHtml += `<h4>Lien(s)</h4>${linksHtml}`;
             }
-
-            // Gestion des images
             const imageUrls = [tip.imageUrl, ...(tip.fileUrls || [])].filter(Boolean);
             if(imageUrls.length > 0) {
-                contentHtml += `<h4>Image(s)</h4><div class="preview-panel-image-container">`;
-                imageUrls.forEach(url => {
-                    contentHtml += `<img src="${escapeHtml(url)}" alt="Image du workflow">`;
-                });
-                contentHtml += `</div>`;
+                contentHtml += `<h4>Image(s)</h4><div class="preview-panel-image-container">${imageUrls.map(url => `<img src="${escapeHtml(url)}" alt="Image du workflow">`).join('')}</div>`;
             }
-
             previewPanelContent.innerHTML = contentHtml;
             previewPanel.classList.add('open');
             previewOverlay.classList.add('open');
@@ -449,14 +455,9 @@
         function closePreviewPanel() {
             previewPanel.classList.remove('open');
             previewOverlay.classList.remove('open');
-            // Arrête la lecture des vidéos YouTube lors de la fermeture
             const iframes = previewPanelContent.querySelectorAll('iframe');
-            iframes.forEach(iframe => {
-                const src = iframe.src;
-                iframe.src = src;
-            });
+            iframes.forEach(iframe => { iframe.src = iframe.src; });
         }
-
         async function copyToClipboard(text, buttonElement) {
             try {
                 await navigator.clipboard.writeText(text);
@@ -465,10 +466,8 @@
                 setTimeout(() => { buttonElement.textContent = originalText; }, 1500);
             } catch (err) { alert('Échec de la copie.'); }
         }
-
         async function confirmAndDeleteTip(tipId) {
             if (confirm("Êtes-vous sûr de vouloir supprimer ce workflow ?")) {
-                console.log("Tentative de suppression du tip ID:", tipId);
                 try {
                     const response = await fetch(`${apiBase}delete-tip`, {
                         method: 'DELETE',
