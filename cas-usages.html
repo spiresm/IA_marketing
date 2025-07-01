@@ -29,7 +29,7 @@
             min-height: 100vh;
         }
         main {
-            padding: 40px 20px;
+            padding: 40px 0;
             flex-grow: 1;
         }
         .nav-wrapper {
@@ -73,11 +73,10 @@
             font-size: 1.5rem;
         }
 
-        /* CORRIGÉ : Alignement strict de toutes les sections */
         .content-section {
-            max-width: 960px;
+            max-width: 1200px;
             margin: 25px auto;
-            padding: 0 20px;
+            padding: 0 30px;
             box-sizing: border-box;
         }
         .create-workflow-button-container { text-align: center; }
@@ -87,7 +86,7 @@
             font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         .tool-logos-section {
-             padding: 20px; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow);
+             padding: 20px 30px; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow);
         }
         .tool-logos-header {
             display: flex; justify-content: center; align-items: center;
@@ -119,7 +118,7 @@
             justify-content: center; text-align: center; min-height: 100px;
         }
         .tool-card:hover { transform: translateY(-3px); box-shadow: 0 5px 10px rgba(0,0,0,0.1); }
-        .tool-card img { max-width: 50px; height: auto; margin-bottom: 8px; border-radius: 6px; }
+        .tool-card img { max-width: 50px; height: auto; margin-bottom: 8px; }
         .tool-card .tool-name { font-weight: bold; color: var(--dark-blue); font-size: 0.8em; }
 
         #filters { display: flex; gap: 15px; width: 100%; flex-wrap: wrap; }
@@ -161,7 +160,7 @@
         .card-preview-icons-inline { display: flex; gap: 8px; align-items: center; }
         .icon-vignette { color: #888; font-size: 1.1em; }
 
-        /* NOUVEAU : Design du panneau latéral */
+        /* NOUVEAU : Design amélioré du panneau latéral */
         .preview-panel {
             position: fixed; top: 0; right: -100%; width: 740px; max-width: 90%; height: 100%;
             background-color: #f9f9f9; box-shadow: -4px 0 15px rgba(0,0,0,0.1);
@@ -179,7 +178,7 @@
             display: flex; justify-content: space-between; align-items: center;
             padding: 15px 25px; border-bottom: 1px solid #e0e0e0; background-color: #fff;
         }
-        .preview-panel-header h3 { margin: 0; font-size: 1.3em; }
+        .preview-panel-header h3 { margin: 0; font-size: 1.3em; color: var(--dark-blue); }
         .close-preview-btn { background: none; border: none; font-size: 1.8em; cursor: pointer; color: #888; }
         .preview-panel-content { padding: 25px; overflow-y: auto; flex-grow: 1; }
         .preview-panel-content h4 {
@@ -216,7 +215,6 @@
     </style>
 </head>
 <body>
-
     <div class="nav-wrapper">
         <div class="menu-container">
             <nav>
@@ -241,7 +239,6 @@
         <div class="content-section create-workflow-button-container">
             <a href="creer-tip.html" class="create-workflow-button">Créer un Workflow</a>
         </div>
-        
         <div class="content-section tool-logos-section">
             <div class="tool-logos-header">
                 <h2>Outils IA Populaires</h2>
@@ -253,7 +250,6 @@
                 <button class="scroll-button right" id="scrollRightBtn"><i class="fas fa-chevron-right"></i></button>
             </div>
         </div>
-
         <div class="content-section filters-area-container">
             <div id="filters">
                 <input type="text" id="search-input" placeholder="Rechercher un mot clé..." />
@@ -265,7 +261,6 @@
                 </select>
             </div>
         </div>
-
         <div class="content-section galerie-container">
             <div id="error-display" style="display: none; color: red; text-align: center; padding: 20px; background: #f8d7da; border-radius: 8px;"></div>
             <div id="galerie"><p style="text-align: center;">Chargement des workflows...</p></div>
@@ -288,6 +283,7 @@
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = [];
 
+        // ... (le reste du script est identique au précédent, mais avec les corrections dans openPreviewPanel)
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
         const filtreOutilSelect = document.getElementById('filtre-outil');
@@ -333,14 +329,12 @@
                 const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(url => getYouTubeVideoId(url));
                 const firstImage = tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0]);
                 let previewImageHtml = '';
-
                 if (hasYoutubeVideo) {
                     const videoId = getYouTubeVideoId(tip.urls.find(getYouTubeVideoId));
                     previewImageHtml = `<img src="https://i.ytimg.com/vi/${videoId}/hqdefault.jpg" class="card-thumbnail-preview" alt="Vidéo YouTube">`;
                 } else if (firstImage) {
                     previewImageHtml = `<img src="${escapeHtml(firstImage)}" class="card-thumbnail-preview" alt="Aperçu" loading="lazy">`;
                 }
-
                 const cardHtml = `
                     <div class="carte" style="border-left-color: ${getToolColor(tip.outil)};">
                         <div class="card-header">
@@ -355,7 +349,7 @@
                         ${previewImageHtml ? `<div class="card-image-container">${previewImageHtml}</div>` : ''}
                         <div class="card-actions">
                             <button class="toggle-content-btn" data-id="${tip.id}">Voir le Workflow</button>
-                            ${tip.promptText ? `<button class="copier-btn" data-copy="${escapeHtml(tip.promptText)}">Copier le Prompt</button>` : ''}
+                            ${tip.promptText && !hasYoutubeVideo ? `<button class="copier-btn" data-copy="${escapeHtml(tip.promptText)}">Copier le Prompt</button>` : ''}
                         </div>
                         <div class="metadata-section">
                             <span class="auteur-value"><a href="#">Par ${escapeHtml(tip.auteur)}</a></span>
@@ -436,10 +430,15 @@
             if (!tip) return;
             previewPanelTitle.textContent = tip.titre;
             let contentHtml = '';
+            const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(getYouTubeVideoId);
+
             if (tip.description) contentHtml += `<h4>Description</h4><p>${escapeHtml(tip.description)}</p>`;
-            // CORRIGÉ : Affichage du champ "Commentaire / Workflow"
             if (tip.commentaireUrl) contentHtml += `<h4>Commentaire / Workflow</h4><div class="content-card-blue">${escapeHtml(tip.commentaireUrl)}</div>`;
-            if (tip.promptText) contentHtml += `<h4>Prompt</h4><pre>${escapeHtml(tip.promptText)}</pre>`;
+            
+            // CORRIGÉ : Ne pas afficher le prompt si c'est une vidéo
+            if (tip.promptText && !hasYoutubeVideo) {
+                contentHtml += `<h4>Prompt</h4><pre>${escapeHtml(tip.promptText)}</pre>`;
+            }
             
             if (Array.isArray(tip.urls) && tip.urls.length > 0) {
                 let linksHtml = ''; let videosHtml = '';
@@ -455,10 +454,10 @@
                 if (videosHtml) contentHtml += `<h4>Vidéo(s)</h4>${videosHtml}`;
                 if (linksHtml) contentHtml += `<h4>Lien(s)</h4>${linksHtml}`;
             }
-            // CORRIGÉ : Images cliquables
-            const imageUrls = [tip.imageUrl, ...(tip.fileUrls || [])].filter(Boolean);
+            // CORRIGÉ : N'afficher que les images additionnelles (fileUrls), pas l'image de la carte (imageUrl)
+            const imageUrls = (Array.isArray(tip.fileUrls) ? tip.fileUrls : []).filter(Boolean);
             if(imageUrls.length > 0) {
-                contentHtml += `<h4>Image(s)</h4><div class="preview-panel-image-container">${imageUrls.map(url => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(url)}" alt="Image du workflow"></a>`).join('')}</div>`;
+                contentHtml += `<h4>Images additionnelles</h4><div class="preview-panel-image-container">${imageUrls.map(url => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(url)}" alt="Image du workflow"></a>`).join('')}</div>`;
             }
             previewPanelContent.innerHTML = contentHtml;
             previewPanel.classList.add('open');
@@ -517,7 +516,8 @@
                     imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0 ? tip.fileUrls[0] : null),
                     description: tip.description,
                     commentaireUrl: tip.commentaireUrl,
-                    urls: tip.urls || []
+                    urls: tip.urls || [],
+                    fileUrls: tip.fileUrls || []
                 }));
                 
                 const uniqueOutils = [...new Set(allTips.map(t => t.outil).filter(t => t))].sort();
