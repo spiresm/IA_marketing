@@ -27,7 +27,6 @@
             flex-direction: column;
             min-height: 100vh;
             overflow-x: hidden;
-            background-image: none !important;
         }
         main {
             padding: 40px 20px;
@@ -74,18 +73,17 @@
             font-size: 1.5rem;
         }
 
-        /* CORRIGÉ : Alignement des sections sur le menu */
-        .create-workflow-button-container, .tool-logos-section, .filters-area-container, .galerie-container {
+        /* CORRIGÉ : Alignement strict des sections sur le menu */
+        .content-section {
             max-width: 1200px;
             margin-left: auto;
             margin-right: auto;
             margin-top: 25px;
             margin-bottom: 25px;
-            padding-left: 30px;
-            padding-right: 30px;
+            padding: 0 30px;
             box-sizing: border-box;
         }
-        .create-workflow-button-container { text-align: center; padding-top: 0; padding-bottom: 0;}
+        .create-workflow-button-container { text-align: center; }
         .create-workflow-button {
             display: inline-flex; align-items: center; gap: 8px; background-color: var(--primary-blue);
             color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none;
@@ -234,11 +232,11 @@
     </div>
 
     <main>
-        <div class="create-workflow-button-container">
+        <div class="content-section create-workflow-button-container">
             <a href="creer-tip.html" class="create-workflow-button">Créer un Workflow</a>
         </div>
         
-        <div class="tool-logos-section">
+        <div class="content-section tool-logos-section">
             <div class="tool-logos-header">
                 <h2>Outils IA Populaires</h2>
                 <div id="workflow-counter">0</div>
@@ -250,7 +248,7 @@
             </div>
         </div>
 
-        <div class="filters-area-container">
+        <div class="content-section filters-area-container">
             <div id="filters">
                 <input type="text" id="search-input" placeholder="Rechercher un mot clé..." />
                 <select id="filtre-outil"><option value="">Tous les outils</option></select>
@@ -262,7 +260,7 @@
             </div>
         </div>
 
-        <div class="galerie-container">
+        <div class="content-section galerie-container">
             <div id="error-display" style="display: none; color: red; text-align: center; padding: 20px; background: #f8d7da; border-radius: 8px;"></div>
             <div id="galerie"><p style="text-align: center;">Chargement des workflows...</p></div>
         </div>
@@ -284,6 +282,7 @@
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = [];
 
+        // Sélecteurs DOM
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
         const filtreOutilSelect = document.getElementById('filtre-outil');
@@ -326,7 +325,6 @@
             tipsToDisplay.forEach(tip => {
                 const dateObj = new Date(tip.dateCreation);
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
-                // CORRIGÉ: S'assurer que tip.urls est un tableau avant d'appeler .some()
                 const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(url => getYouTubeVideoId(url));
                 const firstImage = tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0]);
                 let previewImageHtml = '';
@@ -369,7 +367,6 @@
                 document.querySelector('.tool-logos-section')?.style.setProperty('display', 'none'); return;
             };
             toolLogosGrid.innerHTML = '';
-            // CORRIGÉ : Ajout de la carte "Tous les outils"
             const allToolsCard = document.createElement('div');
             allToolsCard.className = 'tool-card';
             allToolsCard.innerHTML = `<i class="fas fa-tools" style="font-size: 40px; margin-bottom: 10px; color: var(--primary-blue);"></i><span class="tool-name">Tous</span>`;
@@ -378,7 +375,6 @@
                 applyFiltersAndSort();
             });
             toolLogosGrid.appendChild(allToolsCard);
-
             toolsData.forEach(tool => {
                 const toolCard = document.createElement('div');
                 toolCard.className = 'tool-card';
@@ -437,21 +433,20 @@
             let contentHtml = '';
             if (tip.description) contentHtml += `<h4>Description</h4><p>${escapeHtml(tip.description)}</p>`;
             if (tip.promptText) contentHtml += `<h4>Prompt</h4><pre>${escapeHtml(tip.promptText)}</pre>`;
-            // CORRIGÉ : S'assurer que tip.urls est un tableau avant de l'utiliser
             if (Array.isArray(tip.urls) && tip.urls.length > 0) {
                 let linksHtml = ''; let videosHtml = '';
                 tip.urls.forEach(url => {
                     const videoId = getYouTubeVideoId(url);
                     if (videoId) {
                         videosHtml += `<div class="video-responsive"><iframe src="https://www.youtube-nocookie.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe></div>`;
-                    } else if (url) { // S'assurer que l'url n'est pas une chaîne vide
+                    } else if (url) {
                         linksHtml += `<p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></p>`;
                     }
                 });
                 if (videosHtml) contentHtml += `<h4>Vidéo(s)</h4>${videosHtml}`;
                 if (linksHtml) contentHtml += `<h4>Lien(s)</h4>${linksHtml}`;
             }
-            const imageUrls = [tip.imageUrl, ...(tip.fileUrls || [])].filter(Boolean);
+            const imageUrls = (Array.isArray(tip.fileUrls) ? tip.fileUrls : []).filter(Boolean);
             if(imageUrls.length > 0) {
                 contentHtml += `<h4>Image(s)</h4><div class="preview-panel-image-container">${imageUrls.map(url => `<img src="${escapeHtml(url)}" alt="Image du workflow">`).join('')}</div>`;
             }
@@ -511,7 +506,7 @@
                     promptText: tip.prompt || tip.promptText,
                     imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0 ? tip.fileUrls[0] : null),
                     description: tip.description,
-                    urls: tip.urls || [] // S'assurer que tip.urls est toujours un tableau
+                    urls: tip.urls || []
                 }));
                 
                 const uniqueOutils = [...new Set(allTips.map(t => t.outil).filter(t => t))].sort();
