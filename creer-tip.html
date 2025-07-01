@@ -257,14 +257,14 @@
                         
                         <div class="form-group">
                             <label for="poleSelect">Pôle</label>
-                            <select id="poleSelect" v-model="poleSelectionne" @change="onPoleChange" required>
+                            <select id="poleSelect" v-model="poleSelectionne" required :disabled="isLoadingProfils">
                                 <option value="" disabled>Sélectionnez un pôle</option>
                                 <option v-for="(noms, pole) in allCollaborateursParPole" :key="pole" :value="pole">{{ pole }}</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="auteur">Votre nom (Collaborateur)</label>
-                            <select id="auteur" v-model="auteur" :disabled="!poleSelectionne || isLoadingProfils" required>
+                            <label for="auteur">Votre nom</label>
+                            <select id="auteur" v-model="auteur" :disabled="!poleSelectionne || isLoadingProfils || filteredCollaborateurs.length === 0" required>
                                 <option value="" disabled>Sélectionnez un nom</option>
                                 <option v-for="collaborateur in filteredCollaborateurs" :key="collaborateur" :value="collaborateur">{{ collaborateur }}</option>
                             </select>
@@ -409,16 +409,13 @@
 
         const TipForm = {
             setup() {
-                const auteur = ref(''); // Collaborateur sélectionné
-                const poleSelectionne = ref(''); // Pôle sélectionné
+                const auteur = ref(''); // Nom du collaborateur sélectionné
+                const poleSelectionne = ref(''); // Nom du pôle sélectionné
                 const titre = ref('');
                 const description = ref('');
                 const previewText = ref('');
                 const promptText = ref('');
-                // Note: la catégorie n'était pas présente dans votre premier code, elle est donc omise ici.
-                // Si votre fonction pushTip l'attend, assurez-vous de l'ajouter ici et dans le formulaire HTML.
-                // const categorie = ref('Marketing Digital'); 
-
+                
                 const outils = ref([]); 
                 const customOutil = ref('');
                 const urls = ref(['']); 
@@ -429,7 +426,7 @@
                 const fileUploadError = ref('');
 
                 const isLoading = ref(false); 
-                const allCollaborateursParPole = ref({}); 
+                const allCollaborateursParPole = ref({}); // Stocke les profils regroupés par pôle
                 const isLoadingProfils = ref(true); 
 
                 // État de la confirmation post-soumission
@@ -449,7 +446,7 @@
                 // `toolsData` est supposé être globalement disponible via tools-data.js
                 const toolsList = toolsData.sort((a, b) => a.name.localeCompare(b.name));
 
-                // Propriété calculée pour filtrer les collaborateurs par pôle
+                // Propriété calculée pour filtrer les collaborateurs par pôle sélectionné
                 const filteredCollaborateurs = computed(() => {
                     if (poleSelectionne.value && allCollaborateursParPole.value[poleSelectionne.value]) {
                         return allCollaborateursParPole.value[poleSelectionne.value].sort();
@@ -457,12 +454,18 @@
                     return [];
                 });
 
-                // Watcher pour réinitialiser l'auteur quand le pôle change
+                // Watcher pour réinitialiser l'auteur quand le pôle change ou quand la liste filtrée devient vide
                 watch(poleSelectionne, (newPole, oldPole) => {
                     if (newPole !== oldPole) {
                         auteur.value = ''; // Réinitialiser le collaborateur quand le pôle change
                     }
                 });
+                watch(filteredCollaborateurs, (newVal) => {
+                    if (newVal.length === 0 && auteur.value !== '') {
+                        auteur.value = ''; // Réinitialiser l'auteur si le pôle sélectionné n'a plus de collaborateurs
+                    }
+                });
+
 
                 // Fonction pour charger les profils d'auteurs
                 async function fetchProfils() {
@@ -473,13 +476,14 @@
                             const errorText = await response.text();
                             throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
                         }
+                        // La fonction getProfils doit retourner un objet JSON { "Pôle": ["Nom1", "Nom2"], ... }
                         const data = await response.json(); 
 
                         if (data && typeof data === 'object') {
                             allCollaborateursParPole.value = data; 
                         } else {
                             console.warn("Format inattendu pour les profils d'auteurs. Attendu: objet par pôle.");
-                            allCollaborateursParPole.value = {};
+                            allCollaborateursParPole.value = {}; 
                         }
 
                         // Si un seul pôle est disponible, le présélectionner
@@ -718,10 +722,7 @@
                     openLightbox, closeLightbox,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
                     removeFile, getFileIcon, submitForm,
-                    onPoleChange: fetchProfils, // Cette ligne est un artefact de ma pensée, elle n'est pas nécessaire ici.
-                                                // La mise à jour du `filteredCollaborateurs` est gérée par le `computed`
-                                                // et le `watch(poleSelectionne)` pour réinitialiser `auteur`.
-                    filteredCollaborateurs // Exposer la propriété calculée
+                    filteredCollaborateurs 
                 };
             }
         };
@@ -753,23 +754,9 @@
             // 3. Monter l'application Vue.js sur l'élément #app
             createApp(TipForm).mount('#app');
 
-            // Il n'y a pas de global-loader dans le HTML fourni, donc je le laisse commenté.
-            // Si vous en ajoutez un, décommentez et ajustez.
-            /*
-            const globalLoader = document.getElementById("global-loader"); 
-            if (globalLoader) {
-                globalLoader.classList.add("hidden");
-                globalLoader.addEventListener('transitionend', () => {
-                    if (globalLoader.classList.contains('hidden')) {
-                        globalLoader.style.display = 'none';
-                    }
-                }, { once: true });
-            }
-            */
-
-            bodyElement.classList.add("show"); // Révèle le body avec sa transition
-            if (mainElement) mainElement.classList.add("show"); // Révèle main avec sa transition
-            bodyElement.style.overflow = ''; // Restaurer le défilement du body
+            bodyElement.classList.add("show"); 
+            if (mainElement) mainElement.classList.add("show"); 
+            bodyElement.style.overflow = ''; 
         });
     </script>
 </body>
