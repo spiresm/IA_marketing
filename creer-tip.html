@@ -163,6 +163,16 @@
             box-sizing: border-box;
             color: #333;
         }
+        
+        select[multiple] {
+            height: 150px; /* Hauteur par défaut pour une meilleure visibilité */
+            background-color: #fff;
+        }
+        
+        select[multiple] option {
+             padding: 5px;
+        }
+
 
         input:focus, select:focus, textarea:focus {
             border-color: var(--primary-blue);
@@ -537,16 +547,16 @@
                         <option>Autre</option>
                     </select>
 
-                    <label for="outil">Plateforme / Outil</label>
-                    <select id="outil" v-model="outil">
-                        <option value="" disabled>Sélectionnez un outil</option>
+                    <label for="outils">Plateforme(s) / Outil(s) (maintenir Ctrl/Cmd pour sélectionner plusieurs)</label>
+                    <select id="outils" v-model="outils" multiple>
                         <option v-for="tool in toolsList" :key="tool.name" :value="tool.name">{{ tool.name }}</option>
-                        <option>Autre</option> </select>
-                    <input type="text" v-if="outil === 'Autre'" v-model="customOutil" placeholder="Spécifiez l'outil..." style="margin-top: 10px;" />
+                        <option>Autre</option>
+                    </select>
+                    <input type="text" v-if="outils.includes('Autre')" v-model="customOutil" placeholder="Spécifiez l'outil..." style="margin-top: 10px;" />
 
                     <input type="hidden" name="pageDePartage" value="Cas d'usages">
 
-                    <label>Lien(s) associé(s) (optionnel)</label>
+                    <label>Lien(s) associé(s) - archive chatGPT/Gemini :</label>
                     <div v-for="(url, index) in urls" :key="index" class="url-input-group">
                         <input type="url" v-model="urls[index]" :placeholder="`Lien ${index + 1}`" />
                         <button type="button" @click="removeUrlField(index)" class="remove-url-button">X</button>
@@ -559,15 +569,15 @@
 
                     <label>Images / Documents (optionnel)</label>
                     <div id="drop-zone"
-                                @click="triggerFile"
-                                @dragover.prevent="onDragOver"
-                                @dragleave="onDragLeave"
-                                @drop.prevent="onDrop"
-                                aria-live="polite"
-                                aria-atomic="true"
-                                tabindex="0"
-                                role="button"
-                                title="Cliquez ou déposez des fichiers ici">
+                         @click="triggerFile"
+                         @dragover.prevent="onDragOver"
+                         @dragleave="onDragLeave"
+                         @drop.prevent="onDrop"
+                         aria-live="polite"
+                         aria-atomic="true"
+                         tabindex="0"
+                         role="button"
+                         title="Cliquez ou déposez des fichiers ici">
                         Déposez ou cliquez pour ajouter des images ou documents (.txt, .pdf)
                     </div>
                     <input type="file" ref="fileInput" accept="image/*, .txt, .pdf" style="display:none" @change="onFileChange" multiple />
@@ -622,7 +632,8 @@
     <div id="footer-placeholder"></div>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="tools-data.js"></script> <script>
+    <script src="tools-data.js"></script>
+    <script>
         // Définitions des URL pour les fonctions Netlify
         const SAVE_TIP_URL = "/.netlify/functions/pushTip";
         const GET_PROFILS_URL = "/.netlify/functions/getProfils";
@@ -660,7 +671,7 @@
                 const previewText = ref('');
                 const promptText = ref('');
                 const categorie = ref('Marketing Digital');
-                const outil = ref('');
+                const outils = ref([]); // MODIFICATION: ref est maintenant un tableau pour les sélections multiples
                 const customOutil = ref('');
                 const fileInput = ref(null);
                 const urls = ref(['']);
@@ -862,7 +873,8 @@
                         // Vous pouvez ajouter une alerte visuelle ici pour l'utilisateur
                         return;
                     }
-                    if (outil.value === 'Autre' && !customOutil.value.trim()) {
+                    // MODIFICATION : Vérification de l'outil personnalisé
+                    if (outils.value.includes('Autre') && !customOutil.value.trim()) {
                         console.error("Veuillez spécifier le nom de l'outil personnalisé.");
                         // Alerte visuelle pour l'utilisateur
                         return;
@@ -880,7 +892,15 @@
                         formData.append('previewText', previewText.value);
                         formData.append('promptText', promptText.value);
                         formData.append('categorie', categorie.value);
-                        formData.append('outil', outil.value === 'Autre' ? customOutil.value : outil.value);
+
+                        // MODIFICATION : Gestion de la liste d'outils
+                        const finalOutils = outils.value
+                            .filter(o => o !== 'Autre') // Retirer 'Autre' de la liste
+                            .concat(outils.value.includes('Autre') ? [customOutil.value.trim()] : []) // Ajouter l'outil personnalisé
+                            .filter(Boolean); // Filtrer les valeurs vides
+
+                        formData.append('outil', finalOutils.join(', ')); // Envoyer comme une chaîne de caractères séparée par des virgules
+                        
                         formData.append('dateCreation', new Date().toISOString());
 
                         // AJOUT IMPORTANT : Ajout du champ 'pageDePartage'
@@ -976,7 +996,7 @@
                 }
 
                 return {
-                    auteur, titre, description, previewText, promptText, categorie, outil, customOutil, fileInput,
+                    auteur, titre, description, previewText, promptText, categorie, outils, customOutil, fileInput,
                     urls, addUrlField, removeUrlField, commentaireUrl,
                     selectedFiles, fileUploadError,
                     confirmationVisible,
