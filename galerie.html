@@ -3,987 +3,370 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Galerie - Espace IA</title>
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Galerie de Prompts - Espace IA</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-
     <style>
-        /* Styles spécifiques à galerie.html */
-
+        :root {
+            --primary-blue: #0077b6;
+            --dark-blue: #005f8a;
+            --background-grey: #f0f2f5;
+            --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            --grey-text: #555;
+            --border-color: #ccc;
+        }
         body {
-            /* Ces propriétés peuvent être définies globalement dans style.css. */
-            /* Si elles sont différentes ici, elles surchargeront les globales. */
+            font-family: 'Segoe UI', 'Inter', sans-serif;
             margin: 0;
-            font-family: Arial, sans-serif; /* Conserve la police spécifique ici si désiré */
-            background-color: #f0f2f5; /* Conserve le fond spécifique de galerie.html */
-            /* opacity et transition du body devraient être dans style.css */
+            background-color: var(--background-grey);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
         main {
-            padding: 40px 20px; /* Conserve le padding du main */
-            min-height: calc(100vh - 100px); /* Ajustez si votre header/footer prend plus de place */
-            box-sizing: border-box; /* Important pour que le padding soit inclus dans la hauteur */
-            display: block; /* Rendre main visible par défaut */
-            /* opacity et transition du main devraient être dans style.css */
+            padding: 40px 20px;
+            flex-grow: 1;
         }
-
-        /* Suppression des styles du loader de cette balise <style> */
-        /* #loader, #loader.hidden, .loader-content, .spinner, @keyframes spin ne sont plus nécessaires */
-
-        /* Conteneur des contrôles en haut (filtres et boutons) */
-        .header-controls-container {
-            max-width: 960px;
-            margin: 20px auto 25px auto;
-            padding: 0 20px;
+        .nav-wrapper {
+            background-color: var(--primary-blue);
+            width: 100%;
+            position: relative;
+            flex-shrink: 0;
+            padding: 5px 0;
+        }
+        .menu-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 30px;
             box-sizing: border-box;
         }
-
-        /* Conteneur principal de la galerie (la "box" blanche) */
-        .galerie-container {
-            max-width: 960px;
-            margin: 0px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-            position: relative;
-            display: flex;
-            min-height: 500px;
-        }
-
-        /* Conteneur pour les cartes de la galerie */
-        #galerie-cards-wrapper {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            padding-right: 20px;
-        }
-
-        /* Conteneur des filtres et boutons d'action */
-        .filters-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        #filters {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            flex-grow: 1;
-            min-width: 0;
-        }
-
-        #filters input[type="text"],
-        #filters select {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 0.9em;
-            flex: 1;
-            min-width: 120px;
-        }
-        #search-keyword {
-            min-width: 180px;
-            max-width: 250px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .action-buttons a {
-            background: #0077b6;
-            color: white;
-            text-decoration: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: background 0.3s ease;
-            font-size: 1em;
-            white-space: nowrap;
-        }
-
-        .action-buttons a:hover {
-            background: #005f8a;
-        }
-
-        /* Galerie en colonne */
-        #galerie {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ************************************************* */
-        /* STYLES POUR CHAQUE PLAQUE (CARTE) */
-        /* ************************************************* */
-        .carte {
-            background: #fff;
-            border-left: 5px solid transparent; /* Couleur définie par JS */
-            border-radius: 12px;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: flex-start;
-            padding: 0;
-            position: relative;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
-            box-sizing: border-box;
-            width: 100%;
-            z-index: 1;
-        }
-
-        .carte:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            z-index: 100;
-        }
-
-        /* Conteneur pour l'image (panneau gauche de la carte) */
-        .left-panel {
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            margin-right: 0;
-            width: 200px;
-            overflow: hidden;
-            border-top-left-radius: 12px;
-            border-bottom-left-radius: 12px;
-        }
-
-        .carte-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            border-radius: 0;
-            box-shadow: none;
-            transition: transform 0.3s ease;
-        }
-
-        .carte:hover .carte-image {
-            transform: scale(1.05);
-        }
-
-        /* Conteneur pour toutes les informations textuelles (à droite de l'image) */
-        .infos-wrapper {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            min-width: 0;
-            padding: 15px;
-        }
-
-        /* Badge pour l'outil (dans infos-wrapper) */
-        .outil-badge {
-            background-color: #e0f2f7;
-            color: #0077b6;
-            font-size: 0.85em;
-            font-weight: bold;
-            padding: 4px 8px;
-            border-radius: 4px;
-            margin-bottom: 4px;
-            white-space: nowrap;
-            text-transform: uppercase;
-            align-self: flex-start;
-        }
-
-        /* Section des métadonnées (Auteur, Chaîne) */
-        .metadata-section {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 2px 10px;
-            font-size: 0.9em;
-            color: #555;
-            margin-bottom: 4px;
-            padding-bottom: 2px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .metadata-label {
-            font-weight: bold;
-            color: #333;
-            white-space: nowrap;
-        }
-
-        .metadata-value {
-            color: #666;
-            word-break: break-word;
-        }
-        /* Styles pour le nom de l'auteur cliquable */
-        .metadata-value.auteur-value a {
-            color: #0077b6;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .metadata-value.auteur-value a:hover {
-            text-decoration: underline;
-        }
-        .metadata-value.chaine-value {
-            font-weight: bold;
-        }
-
-        /* Texte du prompt */
-        .prompt-text-display {
-            font-size: 0.9em;
-            color: #444;
-            line-height: 1.4;
-            max-height: 70px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-            background-color: #f9f9f9;
-            border: 1px solid #eee;
-            border-radius: 5px;
-            padding: 6px;
-            margin-bottom: 4px;
-        }
-
-        /* Boutons d'action sur la carte */
-        .card-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: auto;
-            justify-content: flex-start;
-            padding-top: 5px;
-            flex-wrap: wrap;
-        }
-
-        .copier-btn, .details-btn {
-            background-color: #0077b6;
-            color: white;
-            border: none;
-            padding: 7px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85em;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
-
-        .copier-btn:hover, .details-btn:hover {
-            background-color: #005f8a;
-            transform: translateY(-1px);
-        }
-
-        .details-btn {
-            background-color: #6c757d;
-        }
-
-        .details-btn:hover {
-            background-color: #5a6268;
-        }
-
-        .supprimer-btn {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 1.3em;
-            cursor: pointer;
-            transition: color 0.2s, transform 0.1s;
-            padding: 0 5px;
-        }
-
-        .supprimer-btn:hover {
-            color: #555;
-            transform: translateY(-1px);
-        }
-
-        #success-message {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-            padding: 10px 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 20px;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-        }
-
-        /* --- Styles de la bulle d'information au centre de la page (Modale bienvenue) --- */
-        .info-bubble-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+        nav {
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 2000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            flex-wrap: wrap;
         }
-
-        .info-bubble-overlay.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .info-bubble-content {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
-            max-width: 500px;
-            text-align: center;
+        nav a {
+            text-decoration: none; color: white; font-weight: bold;
+            font-size: 1.1em; padding: 10px 18px; border-radius: 8px;
+            transition: background 0.3s ease; margin: 0 5px;
+            white-space: nowrap;
             position: relative;
-            transform: translateY(20px);
-            transition: transform 0.3s ease;
         }
-
-        .info-bubble-overlay.visible .info-bubble-content {
-            transform: translateY(0);
+        nav a:hover { background: rgba(255, 255, 255, 0.2); }
+        nav a.active { background-color: white; color: var(--primary-blue); }
+        .header-top-right {
+            position: absolute; top: 50%; right: 25px;
+            transform: translateY(-50%); display: flex; gap: 20px;
         }
+        .header-icon-btn { color: white; text-decoration: none; font-size: 1.5rem; }
 
-        .info-bubble-content h3 {
-            color: #003366;
-            margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-            font-weight: 700;
-            font-family: Arial, sans-serif;
-        }
-
-        .info-bubble-content p {
-            color: #444;
-            line-height: 1.6;
-            margin-bottom: 25px;
-            display: block;
-            font-family: Arial, sans-serif;
-            text-align: center;
-        }
-
-        .info-bubble-content button {
-            background-color: #0077b6;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 25px;
-            font-size: 1.1em;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            font-weight: bold;
-        }
-
-        .info-bubble-content button:hover {
-            background-color: #005f8a;
-        }
-
-        /* --- Styles du panneau latéral de détails --- */
-        .side-panel-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: flex-end; /* Aligne le panneau à droite */
-            z-index: 1500;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-
-        .side-panel-overlay.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .side-panel {
-            background-color: #ffffff;
-            width: 500px; /* Largeur du panneau élargie */
-            max-width: 90%; /* Pour les petits écrans */
-            height: 100%;
-            padding: 25px;
-            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
-            transform: translateX(100%); /* Commence hors de l'écran */
-            transition: transform 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto; /* Pour les contenus longs */
+        .content-section {
+            max-width: 960px;
+            margin: 25px auto;
+            padding: 0 20px;
             box-sizing: border-box;
-            position: relative; /* Pour positionner le bouton de fermeture */
+        }
+        .action-buttons-container { text-align: center; }
+        .action-button {
+            display: inline-flex; align-items: center; gap: 8px; background-color: var(--primary-blue);
+            color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none;
+            font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        #filters { display: flex; gap: 15px; width: 100%; flex-wrap: wrap; }
+        #filters input, #filters select {
+            flex: 1; min-width: 200px; background-color: #f9fafb;
+            border: 1px solid #ccc; border-radius: 10px;
+            padding: 12px 15px; font-size: 1em;
         }
 
-        .side-panel-overlay.visible .side-panel {
-            transform: translateX(0); /* Glisse en place */
+        #galerie { display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; }
+        .carte {
+            background: #fff; border-left: 6px solid transparent; border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08); display: flex; flex-direction: column;
+            padding: 20px; position: relative; transition: box-shadow 0.2s ease;
         }
-
-        .side-panel .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.8em;
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            cursor: pointer;
-            color: #666;
-            transition: color 0.2s;
-            z-index: 10;
+        .carte:hover { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12); }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; }
+        .tip-title { font-size: 1.2em; font-weight: bold; margin: 0; color: var(--dark-blue); }
+        .outil-badge {
+            background-color: #e0f2f7; color: var(--primary-blue); font-size: 0.8em; font-weight: bold;
+            padding: 5px 10px; border-radius: 20px; margin-top: 10px; align-self: flex-start;
         }
-
-        .side-panel .close-btn:hover {
-            color: #333;
+        .card-image-container { margin: 15px 0; }
+        .card-thumbnail-preview { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; }
+        .card-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 15px; }
+        .copier-btn, .details-btn {
+            background-color: var(--primary-blue); color: white; border: none; padding: 8px 15px;
+            border-radius: 8px; cursor: pointer; font-size: 0.9em; font-weight: 600;
+            transition: background-color 0.2s; flex-grow: 1; text-align: center;
         }
-
-        .side-panel h3 {
-            color: #0077b6;
-            margin-top: 0;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-            text-align: center;
+        .copier-btn { background-color: var(--light-blue); }
+        .metadata-section {
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;
+            color: var(--grey-text); padding-top: 15px; border-top: 1px solid #f0f0f0; margin-top: 15px;
         }
-
-        .side-panel img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        .auteur-value a { color: var(--primary-blue); text-decoration: none; font-weight: bold; }
+        .supprimer-btn { background: none; border: none; color: #aaa; font-size: 1.2em; cursor: pointer; }
+        
+        /* Design du panneau latéral */
+        .preview-panel {
+            position: fixed; top: 0; right: -100%; width: 740px; max-width: 90%; height: 100%;
+            background-color: #f9f9f9; box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+            transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 1000; display: flex; flex-direction: column;
         }
-
-        .side-panel p {
-            margin-bottom: 10px;
-            line-height: 1.5;
-            color: #333;
-            font-size: 0.95em;
-            white-space: pre-wrap;
-            word-break: break-word;
+        .preview-panel.open { right: 0; }
+        .preview-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5); z-index: 999;
+            opacity: 0; visibility: hidden; transition: opacity 0.4s;
         }
-
-        .side-panel p strong {
-            color: #005f8a;
-            display: block;
-            margin-bottom: 5px;
+        .preview-overlay.open { opacity: 1; visibility: visible; }
+        .preview-panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 25px; border-bottom: 1px solid #e0e0e0; background-color: #fff;
         }
-
-        .side-panel #panel-commentaire {
-            background-color: #f0f8ff;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #e0f2ff;
-            display: block;
+        .preview-panel-header h3 { margin: 0; font-size: 1.3em; color: var(--dark-blue); }
+        .close-preview-btn { background: none; border: none; font-size: 1.8em; cursor: pointer; color: #888; }
+        .preview-panel-content { padding: 25px; overflow-y: auto; flex-grow: 1; }
+        .preview-panel-content h4 {
+             margin-top: 25px; margin-bottom: 10px; color: #333; font-size: 1.1em;
+             border-bottom: 2px solid var(--primary-blue); padding-bottom: 8px;
         }
-
-        .panel-copy-btn {
-            background-color: #0077b6;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 600;
-            transition: background-color 0.2s;
-            margin-top: 20px;
-            width: 100%;
+        .preview-panel-content h4:first-child { margin-top: 0; }
+        .preview-panel-content pre {
+            background-color: #e9e9e9; border: 1px solid #ddd; border-radius: 8px; padding: 15px;
+            white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; font-size: 0.9em;
         }
-
-        .panel-copy-btn:hover {
-            background-color: #005f8a;
+        .preview-panel-image-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .preview-panel-image-container a:hover { transform: scale(1.05); }
+        .preview-panel-image-container img { max-width: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; }
+        
+        footer {
+            background-color: #333; color: white; text-align: center;
+            padding: 20px; margin-top: auto; width: 100%;
         }
-
-        /* Styles spécifiques pour les petites écrans */
+        @media (max-width: 992px) { #galerie { grid-template-columns: 1fr; } }
         @media (max-width: 768px) {
-            .info-bubble-content {
-                margin: 20px;
-                padding: 20px;
-            }
-            .info-bubble-content h3 {
-                font-size: 1.3em;
-            }
-            .info-bubble-content p {
-                font-size: 0.9em;
-            }
-            .info-bubble-content button {
-                font-size: 1em;
-                padding: 10px 20px;
-            }
-            .galerie-container {
-                flex-direction: column;
-            }
-            #galerie-cards-wrapper {
-                padding-right: 0;
-            }
-            .side-panel-overlay {
-                justify-content: center;
-            }
-            .side-panel {
-                width: 100%;
-                max-width: 95%;
-                height: 80%;
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                top: auto;
-                transform: translateY(100%);
-                box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.2);
-                border-top-left-radius: 15px;
-                border-top-right-radius: 15px;
-            }
-            .side-panel-overlay.visible .side-panel {
-                transform: translateY(0);
-            }
-            .side-panel .close-btn {
-                top: 10px;
-                right: 15px;
-            }
+            nav { justify-content: flex-start; overflow-x: auto; }
+            .header-top-right { display: none; }
+            #filters { flex-direction: column; }
         }
     </style>
 </head>
 <body>
-    <div id="info-bubble-overlay" class="info-bubble-overlay">
-        <div class="info-bubble-content">
-            <h3>Bienvenue sur la Galerie des Prompts !</h3>
-            <p>
-                Découvrez ici une collection de prompts créés par l'équipe. Utilisez les filtres pour affiner votre recherche par outil, par chaîne, ou par mots-clés. Cliquez sur les boutons pour copier le prompt ou supprimer une carte si vous êtes l'auteur.
-            </p>
-            <button id="info-bubble-close-btn">Compris !</button>
+
+    <div class="nav-wrapper">
+        <div class="menu-container">
+            <nav>
+                <a href="index.html">Accueil</a>
+                <a href="equipe.html">Équipe</a>
+                <a href="outils.html">Outils</a>
+                <a href="galerie.html" class="active">Prompts</a>
+                <a href="cas-usages.html">Workflows</a>
+                <a href="charte.html">Chartes</a>
+                <a href="faq.html">FAQ</a>
+                <a href="demandes_ia.html">Demandes<span class="notif-bubble" id="notif-count">0</span></a>
+                <a href="gestion-license.html">Licenses</a>
+            </nav>
         </div>
     </div>
-
-    <div id="side-panel-overlay" class="side-panel-overlay">
-        <div class="side-panel">
-            <button class="close-btn" id="side-panel-close-btn">&times;</button>
-            <h3 id="panel-auteur"></h3>
-            <img id="panel-image" src="" alt="Image du prompt" />
-            <p><strong>Outil :</strong> <span id="panel-outil"></span></p>
-            <p><strong>Chaîne :</strong> <span id="panel-chaine"></span></p>
-            <p><strong>Prompt :</strong> <span id="panel-prompt-text"></span></p>
-            <p><strong>Commentaire :</strong> <span id="panel-commentaire"></span></p>
-            <button class="panel-copy-btn" id="panel-copy-button"><i class="fas fa-copy"></i> Copier le prompt</button>
-        </div>
-    </div>
-
-    <div id="header-placeholder"></div>
 
     <main>
-        <div class="header-controls-container">
-            <div class="filters-header">
-                <div id="filters">
-                    <input type="text" id="search-keyword" placeholder="Rechercher par auteur ou prompt..." />
-                    <select id="filtre-outil">
-                        <option value="">Tous les outils</option>
-                        <option>Midjourney</option>
-                        <option>DALL·E</option>
-                        <option>Stable Diffusion</option>
-                        <option>Adobe Firefly</option>
-                        <option>Runway</option>
-                        <option>ChatGPT</option>
-                        <option>Autre</option>
-                    </select>
-                    <select id="filtre-chaine">
-                        <option value="">Toutes les chaînes</option>
-                        <option>La Une</option>
-                        <option>Tipik</option>
-                        <option>La Trois</option>
-                        <option>La première</option>
-                        <option>Classic 21</option>
-                        <option>vivacité</option>
-                        <option>Musiq3</option>
-                        <option>Auvio</option>
-                        <option>Auvio Kids</option>
-                    </select>
-                    <select id="filtre-tri">
-                        <option value="recent">Plus récent</option>
-                        <option value="ancien">Plus ancien</option>
-                    </select>
-                </div>
-                <div class="action-buttons">
-                    <a href="prompts.html">➕ Archiver un prompt</a>
-                    <a href="compresseur.html">✂️ Compresser une image</a>
-                </div>
+        <div class="content-section action-buttons-container">
+            <a href="prompts.html" class="action-button">Partager un Prompt</a>
+        </div>
+        <div class="content-section filters-area-container">
+            <div id="filters">
+                <input type="text" id="search-keyword" placeholder="Rechercher un mot clé..." />
+                <select id="filtre-outil"><option value="">Tous les outils</option></select>
+                <select id="filtre-chaine"><option value="">Toutes les chaînes</option></select>
+                <select id="filtre-tri">
+                    <option value="recent">Plus récent</option>
+                    <option value="ancien">Plus ancien</option>
+                </select>
             </div>
         </div>
-
-        <div class="galerie-container">
-            <div id="success-message"></div>
-
-            <div id="galerie-cards-wrapper">
-                <div id="galerie">
-                    <p>Chargement des prompts...</p>
-                </div>
-            </div>
+        <div class="content-section galerie-container">
+            <div id="error-display" style="display: none; color: red; text-align: center;"></div>
+            <div id="galerie"><p style="text-align: center;">Chargement des prompts...</p></div>
         </div>
     </main>
 
-    <footer class="footer">
-        Auteur : Steeve Pires Madeira / Marketing - R&D format
-    </footer>
+    <footer id="footer-placeholder"><p>&copy; 2025 Espace IA. Tous droits réservés.</p></footer>
 
-<script>
-    const apiBase = window.location.origin + '/.netlify/functions/';
-    let tousLesPrompts = [];
+    <div id="previewOverlay" class="preview-overlay"></div>
+    <div id="previewPanel" class="preview-panel">
+        <div class="preview-panel-header">
+            <h3 id="previewPanelTitle">Aperçu</h3>
+            <button class="close-preview-btn" id="closePreviewBtn">&times;</button>
+        </div>
+        <div id="previewPanelContent" class="preview-panel-content"></div>
+    </div>
+    
+    <script>
+        const apiBase = window.location.origin + '/.netlify/functions/';
+        let allPrompts = [];
 
-    // Références aux éléments DOM (certains sont déjà définis si tools-full.js les gère)
-    const bodyElement = document.body;
-    const mainContent = document.querySelector('main');
-    const headerPlaceholder = document.getElementById('header-placeholder');
-    const infoBubbleOverlay = document.getElementById("info-bubble-overlay");
-    const infoBubbleCloseBtn = document.getElementById("info-bubble-close-btn");
-    const sidePanelOverlay = document.getElementById('side-panel-overlay');
-    const sidePanelCloseBtn = document.getElementById('side-panel-close-btn');
-    const panelCopyButton = document.getElementById('panel-copy-button');
-    const panelAuteur = document.getElementById('panel-auteur');
-    const panelImage = document.getElementById('panel-image');
-    const panelOutil = document.getElementById('panel-outil');
-    const panelChaine = document.getElementById('panel-chaine');
-    const panelPromptText = document.getElementById('panel-prompt-text');
-    const panelCommentaire = document.getElementById('panel-commentaire'); // ID corrigé
+        const galerieDiv = document.getElementById('galerie');
+        const errorDisplay = document.getElementById('error-display');
+        const filtreOutilSelect = document.getElementById('filtre-outil');
+        const filtreChaineSelect = document.getElementById('filtre-chaine');
+        const filtreTriSelect = document.getElementById('filtre-tri');
+        const searchInput = document.getElementById('search-keyword');
+        const previewPanel = document.getElementById('previewPanel');
+        const previewPanelTitle = document.getElementById('previewPanelTitle');
+        const previewPanelContent = document.getElementById('previewPanelContent');
+        const closePreviewBtn = document.getElementById('closePreviewBtn');
+        const previewOverlay = document.getElementById('previewOverlay');
 
-    // Références pour les filtres et la galerie
-    const searchKeywordInput = document.getElementById('search-keyword');
-    const filtreOutilSelect = document.getElementById('filtre-outil');
-    const filtreChaineSelect = document.getElementById('filtre-chaine');
-    const filtreTriSelect = document.getElementById('filtre-tri');
-    const galerieDiv = document.getElementById('galerie'); // Conteneur des cartes
-
-    /**
-     * Fonction utilitaire pour charger des composants HTML via fetch.
-     * @param {string} url - L'URL du composant HTML.
-     * @param {string} placeholderId - L'ID de l'élément où insérer le HTML.
-     * @returns {Promise<void>} Une promesse qui se résout quand le composant est chargé.
-     */
-    async function loadComponent(url, placeholderId) {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            document.getElementById(placeholderId).innerHTML = await response.text();
-            console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
-        } catch (error) {
-            console.error(`Erreur lors du chargement de ${url}:`, error);
-            document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}</p>`;
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
         }
-    }
-
-    /**
-     * Met à jour la bulle de notification des demandes IA.
-     * Cette fonction est désactivée sur cette page.
-     */
-    async function mettreAJourBulleDemandes() {
-        // Cette fonction est désactivée sur galerie.html car la bulle n'est pas voulue ici.
-        // Si d'autres pages l'appellent, assurez-vous qu'elle est définie ailleurs ou dans header.html
-        // si header.html est responsable de cette fonctionnalité globale.
-        console.log("Galerie: mettreAJourBulleDemandes est désactivée sur cette page.");
-    }
-
-    // Fonctions liées aux prompts (copiées de tools-full.js si c'est la source)
-    function getChaineColor(chaine) {
-        switch (chaine) {
-            case 'Classic 21': return 'purple';
-            case 'La Une': return 'red';
-            case 'Tipik': return 'green';
-            case 'La Trois': return 'mediumorchid';
-            case 'La première': return 'blue';
-            case 'Auvio': return 'black';
-            case 'vivacité': return 'orange';
-            case 'Musiq3': return 'hotpink';
-            case 'Auvio Kids': return 'hotpink';
-            default: return '#6c757d'; // Couleur par défaut
-        }
-    }
-
-    function afficherDetailsPrompt(prompt) {
-        panelAuteur.textContent = prompt.auteur || 'N/A';
-        panelImage.src = prompt.imageUrl || `https://placehold.co/300x200?text=Image`; // Use placehold.co
-        panelImage.alt = prompt.titre || 'Prompt Image';
-        panelOutil.textContent = prompt.outil || 'N/A';
-        panelChaine.textContent = prompt.chaine || 'N/A';
-        panelChaine.style.color = getChaineColor(prompt.chaine);
-        panelPromptText.textContent = prompt.texte || 'Aucun prompt fourni.';
-        panelCommentaire.textContent = prompt.description || 'Aucun commentaire fourni.'; // Use panelCommentaire
-
-        panelCopyButton.onclick = () => {
-            navigator.clipboard.writeText(prompt.texte || '').then(() => {
-                alert('Prompt copié !');
-            }).catch(err => {
-                console.error('Erreur de copie:', err);
-            });
-        };
-
-        sidePanelOverlay.classList.add('visible');
-    }
-
-    function afficherPrompts(prompts) {
-        galerieDiv.innerHTML = '';
-
-        if (prompts.length === 0) {
-            galerieDiv.innerHTML = '<p>Aucun prompt ne correspond aux filtres.</p>';
-            return;
+        
+        function getChaineColor(chaine) {
+            const colors = ['#a7c7e7', '#f2d7d9', '#d4e2d4', '#fde4cf', '#e8dff5', '#fdcbf1', '#f5d9d5', '#d9ead3', '#fff2cc', '#d0e0e3'];
+            if (!chaine) return '#cccccc';
+            let hash = 0;
+            for (let i = 0; i < chaine.length; i++) { hash = chaine.charCodeAt(i) + ((hash << 5) - hash); }
+            return colors[Math.abs(hash % colors.length)];
         }
 
-        prompts.forEach(prompt => {
-            const carte = document.createElement('div');
-            carte.className = 'carte';
-            const promptId = prompt.id || `temp-id-${Math.random().toString(36).substring(2, 9)}`;
-            carte.dataset.promptId = promptId;
-            carte.dataset.promptData = JSON.stringify(prompt);
-
-            const chaineColor = getChaineColor(prompt.chaine);
-            carte.style.borderLeftColor = chaineColor;
-
-            const leftPanel = document.createElement('div');
-            leftPanel.className = 'left-panel';
-
-            const img = document.createElement('img');
-            img.className = 'carte-image';
-            img.src = prompt.imageUrl || `https://placehold.co/200x150?text=Image`; // Use placehold.co
-            img.alt = prompt.titre || 'Prompt Image';
-            img.onerror = function() {
-                this.onerror = null;
-                this.src = `https://placehold.co/200x150?text=Image`; // Use placehold.co
-            };
-            leftPanel.appendChild(img);
-            carte.appendChild(leftPanel);
-
-            const infosWrapper = document.createElement('div');
-            infosWrapper.className = 'infos-wrapper';
-
-            const outilBadge = document.createElement('div');
-            outilBadge.className = 'outil-badge';
-            outilBadge.textContent = prompt.outil || 'Outil N/A';
-            infosWrapper.appendChild(outilBadge);
-
-            const metadataSection = document.createElement('div');
-            metadataSection.className = 'metadata-section';
-            const auteurHtml = prompt.auteur ? `<a href="equipe.html?auteur=${encodeURIComponent(prompt.auteur)}">${prompt.auteur}</a>` : 'Inconnu';
-
-            metadataSection.innerHTML = `
-                <span class="metadata-label">Auteur :</span>
-                <span class="metadata-value auteur-value">${auteurHtml}</span>
-                <span class="metadata-label">Chaîne :</span>
-                <span class="metadata-value chaine-value" style="color: ${chaineColor};">${prompt.chaine || 'Chaîne N/A'}</span>
-            `;
-            infosWrapper.appendChild(metadataSection);
-
-            const promptTextDisplay = document.createElement('p');
-            promptTextDisplay.className = 'prompt-text-display';
-            promptTextDisplay.textContent = prompt.texte || 'Aucun texte de prompt fourni.';
-            infosWrapper.appendChild(promptTextDisplay);
-
-            const cardActions = document.createElement('div');
-            cardActions.className = 'card-actions';
-
-            const detailsBtn = document.createElement('button');
-            detailsBtn.className = 'details-btn';
-            detailsBtn.innerHTML = '<i class="fas fa-info-circle"></i> + d\'infos';
-            detailsBtn.onclick = (e) => {
-                e.stopPropagation();
-                afficherDetailsPrompt(prompt);
-            };
-            cardActions.appendChild(detailsBtn);
-
-            const copierBtn = document.createElement('button');
-            copierBtn.className = 'copier-btn';
-            copierBtn.innerHTML = '<i class="fas fa-copy"></i> Copier le prompt';
-            copierBtn.onclick = (e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(prompt.texte || '').then(() => {
-                    alert('Prompt copié !');
-                }).catch(err => {
-                    console.error('Erreur de copie:', err);
-                });
-            };
-            cardActions.appendChild(copierBtn);
-
-            const supprimerBtn = document.createElement('button');
-            supprimerBtn.className = 'supprimer-btn';
-            supprimerBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-            supprimerBtn.title = "Supprimer ce prompt";
-            supprimerBtn.onclick = async (e) => {
-                e.stopPropagation();
-                if (confirm('Êtes-vous sûr de vouloir supprimer ce prompt ? Cette action est irréversible.')) {
-                    try {
-                        if (!promptId || promptId.startsWith('temp-id-')) {
-                            alert("Impossible de supprimer : ID de prompt temporaire/invalide. Veuillez recharger la page ou contacter l'administrateur.");
-                            return;
-                        }
-
-                        const deleteResponse = await fetch(`${apiBase}deletePrompt?id=${promptId}`, {
-                            method: 'DELETE'
-                        });
-                        if (deleteResponse.ok) {
-                            alert('Prompt supprimé avec succès !');
-                            carte.remove();
-                            tousLesPrompts = tousLesPrompts.filter(p => p.id !== promptId);
-                            if (tousLesPrompts.length === 0) {
-                                galerieDiv.innerHTML = '<p>Aucun prompt trouvé pour le moment.</p>';
-                            }
-                        } else {
-                            const errorData = await deleteResponse.json();
-                            alert(`Échec de la suppression: ${errorData.message || 'Une erreur inconnue est survenue.'}`);
-                        }
-                    } catch (delError) {
-                        console.error("Erreur lors de la suppression:", delError);
-                        alert("Erreur réseau ou interne lors de la tentative de suppression.");
-                    }
-                }
-            };
-            cardActions.appendChild(supprimerBtn);
-            infosWrapper.appendChild(cardActions);
-
-            carte.appendChild(infosWrapper);
-            galerieDiv.appendChild(carte);
-
-            setTimeout(() => {
-                const infoWrapperHeight = infosWrapper.offsetHeight;
-                leftPanel.style.height = `${infoWrapperHeight}px`;
-            }, 0);
-        });
-    }
-
-    function filtrerEtTrierPrompts() {
-        const searchKeyword = document.getElementById('search-keyword').value.toLowerCase();
-        const filtreOutil = document.getElementById('filtre-outil').value;
-        const filtreChaine = document.getElementById('filtre-chaine').value;
-        const filtreTri = document.getElementById('filtre-tri').value;
-
-        let promptsFiltres = [...tousLesPrompts];
-
-        if (searchKeyword) {
-            promptsFiltres = promptsFiltres.filter(prompt => {
-                const auteur = (prompt.auteur || '').toLowerCase();
-                const texte = (prompt.texte || '').toLowerCase();
-                const description = (prompt.description || '').toLowerCase();
-                return auteur.includes(searchKeyword) || texte.includes(searchKeyword) || description.includes(searchKeyword);
-            });
-        }
-
-        if (filtreOutil) {
-            promptsFiltres = promptsFiltres.filter(prompt => prompt.outil === filtreOutil);
-        }
-        if (filtreChaine) {
-            promptsFiltres = promptsFiltres.filter(prompt => prompt.chaine === filtreChaine);
-        }
-
-        promptsFiltres.sort((a, b) => {
-            const dateA = a.date ? new Date(a.date) : new Date(0);
-            const dateB = b.date ? new Date(b.date) : new Date(0);
-
-            if (filtreTri === 'recent') {
-                return dateB - dateA;
-            } else {
-                return dateA - dateB;
-            }
-        });
-
-        afficherPrompts(promptsFiltres);
-    }
-
-    function setupFiltres() {
-        searchKeywordInput.addEventListener('input', filtrerEtTrierPrompts);
-        filtreOutilSelect.addEventListener('change', filtrerEtTrierPrompts);
-        filtreChaineSelect.addEventListener('change', filtrerEtTrierPrompts);
-        filtreTriSelect.addEventListener('change', filtrerEtTrierPrompts);
-    }
-
-    async function chargerEtAfficherPrompts() {
-        galerieDiv.innerHTML = '<p>Chargement des prompts...</p>';
-
-        try {
-            const response = await fetch(`${apiBase}getGalleryPrompts`);
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
-            }
-            const prompts = await response.json();
-            tousLesPrompts = prompts;
-            console.log("Prompts récupérés :", prompts);
-
+        function displayPrompts(prompts) {
+            galerieDiv.innerHTML = '';
             if (prompts.length === 0) {
-                galerieDiv.innerHTML = '<p>Aucun prompt trouvé pour le moment.</p>';
-            } else {
-                afficherPrompts(prompts);
-                setupFiltres();
+                galerieDiv.innerHTML = '<p style="text-align: center; padding: 40px;">Aucun prompt ne correspond à vos filtres.</p>';
+                return;
             }
-        } catch (error) {
-            console.error("Erreur lors du chargement des prompts de la galerie:", error);
-            galerieDiv.innerHTML = `<p style="color:red;">Erreur lors du chargement des prompts : ${error.message}</p>`;
-        }
-    }
-
-    // Gestionnaires d'événements pour le panneau latéral
-    sidePanelCloseBtn.addEventListener('click', () => {
-        sidePanelOverlay.classList.remove('visible');
-    });
-
-    sidePanelOverlay.addEventListener('click', (event) => {
-        if (event.target === sidePanelOverlay) {
-            sidePanelOverlay.classList.remove('visible');
-        }
-    });
-
-    document.addEventListener("DOMContentLoaded", async () => {
-        console.log("Galerie: DOMContentLoaded, début de l'initialisation...");
-
-        // 1. Charger le header en premier (rapide)
-        await loadComponent("header.html", "header-placeholder");
-
-        // 2. Mettre à jour l'état actif du menu après le chargement du header
-        const currentPath = window.location.pathname.split('/').pop();
-        document.querySelectorAll('nav a').forEach(link => {
-            const linkHref = link.getAttribute('href');
-            const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-            if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
-                link.classList.add("active");
-            } else {
-                link.classList.remove("active");
-            }
-        });
-
-        // 3. La bulle de notification est désactivée sur cette page, pas d'appel.
-        // La fonction mettreAJourBulleDemandes n'est pas appelée ici.
-
-        // 4. Charger et afficher les prompts de la galerie
-        await chargerEtAfficherPrompts();
-
-        // 5. Rendre le body et main visibles.
-        // Puisqu'il n'y a plus de loader, le body et main sont visibles instantanément via CSS.
-        bodyElement.classList.add('show'); /* Active body.show pour rendre le body visible si opacity:0 est par défaut */
-        mainContent.style.display = 'block'; /* S'assurer que le main est visible */
-
-        console.log("Galerie: Initialisation terminée.");
-
-        // 6. Logique de la bulle d'information (Modale de bienvenue)
-        const hasSeenInfoBubble = localStorage.getItem('hasSeenGalerieInfoBubble') === 'true'; /* ID localStorage unique */
-
-        if (!hasSeenInfoBubble) {
-            infoBubbleOverlay.classList.add('visible');
+            prompts.forEach(prompt => {
+                const cardHtml = `
+                    <div class="carte" style="border-left-color: ${getChaineColor(prompt.chaine)};">
+                        <div class="card-image-container">
+                            <img src="${escapeHtml(prompt.imageUrl) || 'https://placehold.co/400x300?text=Image'}" class="card-thumbnail-preview" alt="Aperçu" loading="lazy">
+                        </div>
+                        <div class="card-content-wrapper">
+                            <span class="outil-badge">${escapeHtml(prompt.outil)}</span>
+                            <h3 class="tip-title">${escapeHtml(prompt.titre)}</h3>
+                            <div class="metadata-section">
+                                <span>Par <a href="#">${escapeHtml(prompt.auteur)}</a></span>
+                                <span style="color:${getChaineColor(prompt.chaine)}; font-weight:bold;">${escapeHtml(prompt.chaine)}</span>
+                            </div>
+                            <div class="card-actions">
+                                <button class="toggle-content-btn" data-id="${prompt.id}">Détails</button>
+                                <button class="copier-btn" data-copy="${escapeHtml(prompt.texte)}">Copier</button>
+                                <button class="supprimer-btn" data-id="${prompt.id}" title="Supprimer"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
+                galerieDiv.insertAdjacentHTML('beforeend', cardHtml);
+            });
+            attachCardEventListeners();
         }
 
-        infoBubbleCloseBtn.addEventListener('click', () => {
-            infoBubbleOverlay.classList.remove('visible');
-            localStorage.setItem('hasSeenGalerieInfoBubble', 'true'); /* ID localStorage unique */
-        });
-
-        infoBubbleOverlay.addEventListener('click', (event) => {
-            if (event.target === infoBubbleOverlay) {
-                infoBubbleOverlay.classList.remove('visible');
-                localStorage.setItem('hasSeenGalerieInfoBubble', 'true'); /* ID localStorage unique */
+        function applyFiltersAndSort() {
+            let filtered = [...allPrompts];
+            const outil = filtreOutilSelect.value;
+            if (outil) filtered = filtered.filter(p => p.outil === outil);
+            const chaine = filtreChaineSelect.value;
+            if (chaine) filtered = filtered.filter(p => p.chaine === chaine);
+            const keyword = searchInput.value.toLowerCase();
+            if (keyword) {
+                filtered = filtered.filter(p => 
+                    (p.titre && p.titre.toLowerCase().includes(keyword)) ||
+                    (p.auteur && p.auteur.toLowerCase().includes(keyword)) ||
+                    (p.texte && p.texte.toLowerCase().includes(keyword))
+                );
             }
-        });
-    });
-</script>
+            const sortOrder = filtreTriSelect.value;
+            filtered.sort((a, b) => {
+                const dateA = new Date(a.date); const dateB = new Date(b.date);
+                return sortOrder === 'recent' ? dateB - dateA : dateA - dateB;
+            });
+            displayPrompts(filtered);
+        }
+
+        function attachEventListeners() {
+            [searchInput, filtreOutilSelect, filtreChaineSelect, filtreTriSelect].forEach(filter => {
+                if(filter) filter.addEventListener('input', applyFiltersAndSort);
+            });
+            if(closePreviewBtn) closePreviewBtn.addEventListener('click', closePreviewPanel);
+            if(previewOverlay) previewOverlay.addEventListener('click', closePreviewPanel);
+        }
+
+        function attachCardEventListeners() {
+            galerieDiv.querySelectorAll('.toggle-content-btn').forEach(b => b.onclick = () => openPreviewPanel(b.dataset.id));
+            galerieDiv.querySelectorAll('.copier-btn').forEach(b => b.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target));
+            galerieDiv.querySelectorAll('.supprimer-btn').forEach(b => b.onclick = () => confirmAndDelete(b.dataset.id));
+        }
+
+        function openPreviewPanel(promptId) {
+            const prompt = allPrompts.find(p => p.id == promptId);
+            if (!prompt) return;
+            previewPanelTitle.textContent = prompt.titre || "Détails du Prompt";
+            let contentHtml = `
+                ${prompt.imageUrl ? `<h4>Image</h4><a href="${escapeHtml(prompt.imageUrl)}" target="_blank"><img src="${escapeHtml(prompt.imageUrl)}" style="max-width:100%; border-radius:8px; cursor:pointer;"></a>` : ''}
+                <h4>Prompt</h4><pre>${escapeHtml(prompt.texte)}</pre>
+                ${prompt.description ? `<h4>Commentaire</h4><p>${escapeHtml(prompt.description)}</p>` : ''}
+            `;
+            previewPanelContent.innerHTML = contentHtml;
+            previewPanel.classList.add('open');
+            previewOverlay.classList.add('open');
+        }
+
+        function closePreviewPanel() {
+            previewPanel.classList.remove('open');
+            previewOverlay.classList.remove('open');
+        }
+
+        async function copyToClipboard(text, buttonElement) {
+            try {
+                await navigator.clipboard.writeText(text);
+                buttonElement.textContent = 'Copié !';
+                setTimeout(() => { buttonElement.textContent = 'Copier'; }, 2000);
+            } catch (err) { alert('Échec de la copie.'); }
+        }
+
+        async function confirmAndDelete(promptId) {
+            if (confirm("Êtes-vous sûr de vouloir supprimer ce prompt ?")) {
+                try {
+                    const response = await fetch(`${apiBase}deletePrompt?id=${promptId}`, { method: 'DELETE' });
+                    if (!response.ok) throw new Error('La suppression a échoué.');
+                    await initApp();
+                } catch(err) { alert('Erreur: ' + err.message); }
+            }
+        }
+        
+        async function initApp() {
+            attachEventListeners();
+            galerieDiv.innerHTML = '<p style="text-align: center;">Chargement...</p>';
+            try {
+                const response = await fetch(`${apiBase}getGalleryPrompts`);
+                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                
+                allPrompts = await response.json();
+                
+                const outils = [...new Set(allPrompts.map(p => p.outil).filter(Boolean))].sort();
+                filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>' + outils.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+
+                const chaines = [...new Set(allPrompts.map(p => p.chaine).filter(Boolean))].sort();
+                filtreChaineSelect.innerHTML = '<option value="">Toutes les chaînes</option>' + chaines.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
+                applyFiltersAndSort();
+            } catch (error) {
+                errorDisplay.style.display = 'block';
+                errorDisplay.textContent = `Erreur de chargement des données: ${error.message}`;
+                galerieDiv.innerHTML = '';
+            }
+        }
+        
+        document.addEventListener("DOMContentLoaded", initApp);
+    </script>
 </body>
 </html>
