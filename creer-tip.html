@@ -158,10 +158,18 @@
                     <div class="form-grid">
                         
                         <div class="form-group">
+                            <label for="searchAuteur">Rechercher un nom</label>
+                            <input type="text" id="searchAuteur" v-model="searchQuery" placeholder="Filtrer les noms..." />
+                        </div>
+
+                        <div class="form-group">
                             <label for="auteur">Votre nom</label>
                             <select id="auteur" v-model="auteur" required>
                                 <option value="" disabled>Sélectionnez un nom</option>
-                                <option v-for="profilNom in profilsAuteurs" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
+                                <optgroup v-for="(noms, pole) in filteredCollaborateursParPole" :key="pole" :label="pole">
+                                    <option v-for="profilNom in noms" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
+                                </optgroup>
+                                <option v-if="searchQuery && filteredProfilsAuteursFlat.length === 0" disabled>Aucun résultat</option>
                             </select>
                         </div>
 
@@ -252,11 +260,66 @@
     
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            const { ref, createApp } = Vue;
+            const { ref, createApp, computed } = Vue;
 
             const loadComponent = (url, id) => fetch(url).then(r => r.text()).then(html => document.getElementById(id).innerHTML = html).catch(console.error);
             loadComponent('header.html', 'header-placeholder');
             loadComponent('footer.html', 'footer-placeholder');
+
+            // Votre objet collaborateursParPole est déplacé ici pour être accessible par Vue
+            const collaborateursParPole = {
+                "Pôle créa.": [
+                    "Anne-Françoise LELEUX", "Baptiste TARTAS", "Béatrice MARLIER",
+                    "Boris TEIRLYNCK", "Charlotte DELWARTE", "Céline DELENTREE", "Delphine BENROUBI",
+                    "Faiza BOUMEDIAN", "Geneviève DE BEAUFFORT", "Giovanni CASCONE",
+                    "Gregory KEPPENS", "Isabelle MARCHAL", "Isabelle VERTUONGEN",
+                    "Jimmy DEGRÈVE", "Joel VAN HOEF", "Jonathan LACROIX",
+                    "Jose ROJO", "Jose-Luis PENAFUERTE", "Mehdi HUSAIN",
+                    "Michael EVRARD", "Patricia DAVIA", "Pierre LERMIER",
+                    "Pierre-Jean GILOUX", "Steeve PIRES MADEIRA",
+                    "Susana GONCALVES VALERIO",
+                    "Tyan HOOGSTOEL", "Vinciane LE MEN",
+                    "Sabrina LECLERCQ",
+                    "Nathalie AUBRY",
+                    "Jeremy DEHERTOGH",
+                    "Dominique LEFEVRE",
+                    "Virginie LONGE"
+                ].sort(),
+
+                "CRM": [
+                    "Frédéric CARTON", "Inès BERNOUX", "Noémie ROSSEY",
+                    "Yasmine AIT MASKOUR"
+                ].sort(),
+
+                "Communication": [
+                    "Aurore CRABBE", "Elvis TCHANA", "Fabienne CULLUS",
+                    "Marie NAUWELAERTS", "Régine CARPENTIER"
+                ].sort(),
+
+                "Partenariats": [
+                    "Alinoe VANHAUDENHUYSE", "Catherine CARA", "Dominique CAFFIERS",
+                    "Fiona KOPEINIG", "Isabelle DELENS",
+                    "Laura DONATELLO", "Marie-Rose ANGE", "Naïm EL BOHALI",
+                    "Nathalie DE RIJCKE"
+                ].sort(),
+
+                "Marketing digital": [
+                    "Elise FONCK", "Gaëlle DEGEYE",
+                    "Mathilde ARMILLAC", "Morgane CARLY", "Yasmine GHAZOUANE",
+                    "Sara GARCIA"
+                ].sort(),
+
+                "Positionnement": [
+                    "Amelie DE LANGE", "Philippe BLANJEAN",
+                    "Samuel LALOUX"
+                ].sort(),
+
+                "Staff": [
+                    "Meltem SIVLIN", "Nadia CURTO", "Vincent CRABBE",
+                    "Olivier LEIDGENS", "Pierre DUBOIS", "Vitold GRAND'HENRY",
+                    "Romain DELECOUR", "Noemie GORISSEN"
+                ].sort()
+            };
 
             if (typeof toolsData === 'undefined') {
                 createApp({ setup: () => ({ globalError: ref("Erreur: Le fichier 'tools-data.js' est manquant.") }) }).mount('#app');
@@ -278,25 +341,40 @@
                         selectedFiles: ref([]), 
                         fileInput: ref(null),
                         isLoading: ref(false), 
-                        profilsAuteurs: ref([
-                            "Adrien STORY", "Adrien HEINEN", "Alessandro VIGNERI", "Alison HENRARD", "Andréa LALLEMAND", "Anthony HANNECART", 
-                            "Antoine VANDERMOTEN", "Axel BEVING", "Caroline CHarlier", "Charlotte DE LATRE", "Charlotte DEFAYS", "Chiara FONTE", 
-                            "Coralie de SCHOUTHEETE", "Cynthia APOLO", "Dylan DETHIER", "Elise FONCK", "Emilie LORIAUX", "Eray KOC", "Estelle LOLIVIER", 
-                            "Fanny GENDARME", "Florence STEVENS", "François-Xavier DEBEHOGNE", "Frédéric MISPLON", "Guillaume DELCOURT", "Hélène DUBOIS", 
-                            "Jennifer LALLEMAND", "Jessica VIATOUR", "Jonathan GOFFIN", "Julie BAUDOUX", "Justine DEBROUX", "Justine DOCQUIER", 
-                            "Kevin VANMEERBEECK", "Laura LIEGEOIS", "Laurence VANDEUREN", "Laurent DELESPESSE", "Laurie PIROTTE", "Loïc MASSON", 
-                            "Marc-Alexandre LEGAY", "Marie BAR", "Marie-Eve DE DECKER", "Marion BRASSEUR", "Marjorie BURTON", "Martin LAWALREE", 
-                            "Mathias Collin", "Maxime LAMBERT", "Mélanie OLIVIER", "Naïm EL BOHALI", "Natacha PROSMAN", "Nicolas DECOCK", 
-                            "Noémie DETILLEUX", "Noémie HOSDAIN", "Olivier SCHOUBBEN", "Philippe BLANJEAN", "Pierre DAMAS", "Robin COLLIGNON", 
-                            "Sabrina LECLERCQ", "Sacha DANHIER", "Samira OUCHANI", "Sandrine BERTRAND", "Sarah LEROY", "Sébastien VERLAINE", 
-                            "Serge Van der VRECKEN", "Simon GERARD", "Simon VANDEKERKHOVE", "Sofiane HAMMOUTI", "Stéphanie LAURENT", 
-                            "Steeve PIRES MADEIRA", "Sybille LECHANTEUR", "Sylvie DE COCK", "Tatiana MONSEUR", "Thibault CORNET", "Thomas ANTOINE", 
-                            "Thomas DECHAMPS", "Thomas LEROY", "Timothée PETIT", "Valentine HARDY", "Valentin GREGOIRE", "Valentin LORIAUX", 
-                            "Valérie DEFRERE", "Yasmine AIT MASKOUR"
-                        ].sort()),
+                        // La liste originale des collaborateurs par pôle
+                        allCollaborateursParPole: ref(collaborateursParPole),
                         toolsList: ref([...toolsData].sort((a, b) => a.name.localeCompare(b.name))),
-                        globalError: ref(null)
+                        globalError: ref(null),
+                        searchQuery: ref('') // Pour le champ de recherche
                     };
+
+                    // Propriété calculée pour la liste aplatie et filtrée (pour l'option "Aucun résultat")
+                    const filteredProfilsAuteursFlat = computed(() => {
+                        const query = allRefs.searchQuery.value.toLowerCase();
+                        let allNames = Object.values(allRefs.allCollaborateursParPole.value).flat();
+                        if (!query) {
+                            return allNames; // Retourne tous les noms si pas de recherche
+                        }
+                        return allNames.filter(nom => 
+                            nom.toLowerCase().includes(query)
+                        );
+                    });
+
+                    // Propriété calculée pour la structure par pôle filtrée (pour l'affichage dans <optgroup>)
+                    const filteredCollaborateursParPole = computed(() => {
+                        const query = allRefs.searchQuery.value.toLowerCase();
+                        const filtered = {};
+                        for (const pole in allRefs.allCollaborateursParPole.value) {
+                            const nomsDuPole = allRefs.allCollaborateursParPole.value[pole].filter(nom => 
+                                nom.toLowerCase().includes(query)
+                            );
+                            if (nomsDuPole.length > 0) {
+                                filtered[pole] = nomsDuPole;
+                            }
+                        }
+                        return filtered;
+                    });
+
 
                     const addUrlField = () => allRefs.urls.value.push('');
                     const removeUrlField = (i) => allRefs.urls.value.splice(i, 1);
@@ -329,13 +407,19 @@
                         allRefs.selectedFiles.value.forEach(f => formData.append('files', f.file));
                         
                         console.log("Soumission...");
-                        await new Promise(r => setTimeout(r, 1500));
+                        await new Promise(r => setTimeout(r, 1500)); // Simule un délai de soumission
                         alert("Formulaire envoyé !");
                         allRefs.isLoading.value = false;
+                        // Optionnel: Réinitialiser le formulaire ici après soumission réussie
+                        // allRefs.auteur.value = '';
+                        // allRefs.titre.value = '';
+                        // ...
                     };
 
                     return {
                         ...allRefs,
+                        filteredCollaborateursParPole, // La liste des noms filtrée par pôle pour le select
+                        filteredProfilsAuteursFlat, // La liste aplatie filtrée pour la condition "Aucun résultat"
                         addUrlField, removeUrlField, removeFile, submitForm,
                         onDrop: e => addFiles(e.dataTransfer.files),
                         onFileChange: e => addFiles(e.target.files),
