@@ -73,24 +73,26 @@
             text-decoration: none;
             font-size: 1.5rem;
         }
-        /* CORRIGÉ : Alignement des sections */
+
+        /* CORRIGÉ : Alignement des sections sur le menu */
         .create-workflow-button-container, .tool-logos-section, .filters-area-container, .galerie-container {
             max-width: 1200px;
             margin-left: auto;
             margin-right: auto;
             margin-top: 25px;
             margin-bottom: 25px;
-            padding: 0 20px;
+            padding-left: 30px;
+            padding-right: 30px;
             box-sizing: border-box;
         }
-        .create-workflow-button-container { text-align: center; }
+        .create-workflow-button-container { text-align: center; padding-top: 0; padding-bottom: 0;}
         .create-workflow-button {
             display: inline-flex; align-items: center; gap: 8px; background-color: var(--primary-blue);
             color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none;
             font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         .tool-logos-section {
-             padding: 20px; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow);
+             padding: 20px 30px; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow);
         }
         .tool-logos-header {
             display: flex; justify-content: center; align-items: center;
@@ -162,7 +164,7 @@
         }
         .auteur-value a { color: var(--primary-blue); text-decoration: none; font-weight: bold; }
         .supprimer-btn { background: none; border: none; color: #aaa; font-size: 1.2em; cursor: pointer; }
-        .card-preview-icons-inline { display: flex; gap: 8px; margin-left: auto; align-items: center; }
+        .card-preview-icons-inline { display: flex; gap: 8px; align-items: center; }
         .icon-vignette { color: #888; font-size: 1.1em; }
 
         .preview-panel {
@@ -204,7 +206,7 @@
         @media (max-width: 992px) { #galerie { grid-template-columns: 1fr; } }
         @media (max-width: 768px) {
             nav { justify-content: flex-start; overflow-x: auto; }
-            .header-icon-btn { display: none; }
+            .header-top-right { display: none; }
             #filters { flex-direction: column; }
         }
     </style>
@@ -282,7 +284,6 @@
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = [];
 
-        // Sélecteurs DOM
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
         const filtreOutilSelect = document.getElementById('filtre-outil');
@@ -327,8 +328,9 @@
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
                 // CORRIGÉ: S'assurer que tip.urls est un tableau avant d'appeler .some()
                 const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(url => getYouTubeVideoId(url));
-                const firstImage = tip.imageUrl || (tip.fileUrls && tip.fileUrls[0]);
+                const firstImage = tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0]);
                 let previewImageHtml = '';
+
                 if (hasYoutubeVideo) {
                     const videoId = getYouTubeVideoId(tip.urls.find(getYouTubeVideoId));
                     previewImageHtml = `<img src="https://i.ytimg.com/vi/${videoId}/hqdefault.jpg" class="card-thumbnail-preview" alt="Vidéo YouTube">`;
@@ -367,6 +369,7 @@
                 document.querySelector('.tool-logos-section')?.style.setProperty('display', 'none'); return;
             };
             toolLogosGrid.innerHTML = '';
+            // CORRIGÉ : Ajout de la carte "Tous les outils"
             const allToolsCard = document.createElement('div');
             allToolsCard.className = 'tool-card';
             allToolsCard.innerHTML = `<i class="fas fa-tools" style="font-size: 40px; margin-bottom: 10px; color: var(--primary-blue);"></i><span class="tool-name">Tous</span>`;
@@ -375,6 +378,7 @@
                 applyFiltersAndSort();
             });
             toolLogosGrid.appendChild(allToolsCard);
+
             toolsData.forEach(tool => {
                 const toolCard = document.createElement('div');
                 toolCard.className = 'tool-card';
@@ -440,8 +444,8 @@
                     const videoId = getYouTubeVideoId(url);
                     if (videoId) {
                         videosHtml += `<div class="video-responsive"><iframe src="https://www.youtube-nocookie.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe></div>`;
-                    } else {
-                        linksHtml += `<p><a href="${escapeHtml(url)}" target="_blank">${escapeHtml(url)}</a></p>`;
+                    } else if (url) { // S'assurer que l'url n'est pas une chaîne vide
+                        linksHtml += `<p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></p>`;
                     }
                 });
                 if (videosHtml) contentHtml += `<h4>Vidéo(s)</h4>${videosHtml}`;
@@ -505,9 +509,9 @@
                     auteur: tip.auteur || "Auteur inconnu",
                     outil: tip.outil || "Non spécifié",
                     promptText: tip.prompt || tip.promptText,
-                    imageUrl: tip.imageUrl || (tip.fileUrls && tip.fileUrls.length > 0 ? tip.fileUrls[0] : null),
+                    imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0 ? tip.fileUrls[0] : null),
                     description: tip.description,
-                    urls: tip.urls || []
+                    urls: tip.urls || [] // S'assurer que tip.urls est toujours un tableau
                 }));
                 
                 const uniqueOutils = [...new Set(allTips.map(t => t.outil).filter(t => t))].sort();
