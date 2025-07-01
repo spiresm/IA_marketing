@@ -314,13 +314,15 @@
             position: relative;
             z-index: 1;
         }
-        /* Styles pour chaque carte de tip */
+        
+        /* MODIFIÉ: Styles pour chaque carte de tip */
         .carte {
             background: #fff;
             border-left: 5px solid transparent;
             border-radius: 12px;
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-            display: flex;
+            display: flex; /* Utilise Flexbox pour aligner les enfants */
+            justify-content: space-between; /* Espace entre les infos et la média */
             align-items: flex-start;
             padding: 0;
             position: relative;
@@ -343,6 +345,7 @@
         body.dark-mode .carte:hover {
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
         }
+        
         /* Conteneur pour toutes les informations textuelles sur la carte */
         .infos-wrapper {
             display: flex;
@@ -350,9 +353,19 @@
             flex-grow: 1;
             min-width: 0;
             padding: 15px;
-            width: 100%;
             position: relative;
         }
+        
+        /* NOUVEAU: Conteneur pour la partie média (poubelle et image) */
+        .card-media-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end; /* Aligne la poubelle à droite */
+            padding: 15px;
+            gap: 10px; /* Espace entre la poubelle et l'image */
+            flex-shrink: 0; /* Empêche le conteneur de rétrécir */
+        }
+        
         .tip-title {
             font-size: 1.3em;
             color: var(--dark-blue);
@@ -422,24 +435,20 @@
             color: var(--dark-mode-text);
         }
         
-        /* MODIFIÉ: Remplacement du post-it par un aperçu d'image */
+        /* MODIFIÉ: Style de l'aperçu de l'image sur la carte */
         .card-thumbnail-preview {
-            position: absolute;
-            top: 60px;
-            right: 15px;
-            width: 120px;
-            height: 80px;
-            object-fit: cover; /* S'assure que l'image remplit l'espace sans se déformer */
+            width: 240px; /* Taille doublée */
+            height: 160px;
+            object-fit: cover;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            z-index: 2;
-            background-color: #f0f0f0; /* Couleur de fond pendant le chargement */
+            background-color: #f0f0f0;
             border: 1px solid #ddd;
         }
 
         .card-thumbnail-preview.youtube-logo {
-            object-fit: contain; /* Pour que le logo ne soit pas déformé */
-            padding: 5px; /* Un peu d'espace autour du logo */
+            object-fit: contain;
+            padding: 10px;
             background-color: #fff;
         }
         
@@ -530,7 +539,7 @@
             background-color: #008D96; /* Slightly darker teal */
         }
 
-        /* Styles pour le bouton supprimer (corbeille) */
+        /* MODIFIÉ: Styles pour le bouton supprimer (corbeille) */
         .supprimer-btn {
             background: none;
             border: none;
@@ -538,9 +547,8 @@
             font-size: 1.3em;
             cursor: pointer;
             transition: color 0.2s, transform 0.1s;
-            padding: 0 5px;
-            align-self: flex-start;
-            margin-left: auto; /* Pousser la poubelle à droite */
+            padding: 0;
+            align-self: flex-end; /* S'assure qu'il reste à droite dans son conteneur flex */
         }
         .supprimer-btn:hover {
             color: var(--error-text);
@@ -920,10 +928,31 @@
                 width: 100%;
                 text-align: center;
             }
-            .infos-wrapper {
-                padding: 15px;
-                width: auto;
+            
+            /* MODIFIÉ: Ajustement de la carte pour mobile */
+            .carte {
+                flex-direction: column; /* Les éléments s'empilent verticalement */
             }
+            .infos-wrapper {
+                width: 100%; /* Prend toute la largeur */
+                box-sizing: border-box; /* Inclut le padding dans la largeur */
+            }
+            .card-media-wrapper {
+                width: 100%;
+                box-sizing: border-box;
+                align-items: center; /* Centre les éléments */
+                padding-top: 0;
+            }
+            .supprimer-btn {
+                align-self: flex-end; /* Garde la poubelle à droite */
+                padding-right: 0;
+            }
+            .card-thumbnail-preview {
+                width: 100%; /* L'image prend toute la largeur */
+                height: auto; /* Hauteur automatique */
+                max-height: 250px; /* Limite la hauteur */
+            }
+            
             .metadata-section {
                 grid-template-columns: 1fr;
                 gap: 5px;
@@ -946,11 +975,6 @@
                 width: 100%;
                 text-align: center;
             }
-            .supprimer-btn {
-                width: auto;
-                align-self: center;
-                margin-left: 0;
-            }
             .create-workflow-button-container {
                 margin-top: 15px;
                 margin-bottom: 20px;
@@ -959,15 +983,6 @@
             .create-workflow-button {
                 width: 100%;
                 justify-content: center;
-            }
-            /* MODIFIÉ: Ajustement pour l'aperçu sur mobile */
-            .card-thumbnail-preview {
-                position: static;
-                margin-top: 10px;
-                width: 100%; /* Prend toute la largeur disponible */
-                height: auto; /* Hauteur automatique pour conserver le ratio */
-                max-height: 200px; /* Limite la hauteur maximale */
-                transform: none;
             }
 
             .preview-panel-pdf-square {
@@ -1079,9 +1094,8 @@
         const mainElement = document.querySelector('main');
         const previewOverlay = document.getElementById('previewOverlay');
 
-        // MODIFICATION: Références pour les nouveaux éléments
         const workflowCounterDisplay = document.getElementById('workflow-counter');
-        const filtreAuteurSelect = document.getElementById('filtre-auteur'); // Nouveau filtre
+        const filtreAuteurSelect = document.getElementById('filtre-auteur'); 
 
         const toolLogosGrid = document.getElementById('tool-logos-grid');
         const scrollLeftBtn = document.getElementById('scrollLeftBtn');
@@ -1121,19 +1135,16 @@
         function applyFiltersAndSort() {
             let filtered = [...allTips];
 
-            // Filtre par Outil
             const outil = filtreOutilSelect.value;
             if (outil) {
                 filtered = filtered.filter(tip => tip.outil === outil);
             }
 
-            // MODIFICATION: Filtre par Auteur
             const auteur = filtreAuteurSelect.value;
             if (auteur) {
                 filtered = filtered.filter(tip => tip.auteur === auteur);
             }
 
-            // Filtre par recherche textuelle (suppression de previewText)
             const searchText = searchInput.value.toLowerCase();
             if (searchText) {
                 filtered = filtered.filter(tip =>
@@ -1142,7 +1153,6 @@
                 );
             }
 
-            // Tri par date
             const sortOrderDate = filtreTriDateSelect.value;
             filtered.sort((a, b) => {
                 const dateA = new Date(a.dateCreation || a.date);
@@ -1157,10 +1167,9 @@
             searchInput.addEventListener('input', applyFiltersAndSort);
             filtreTriDateSelect.addEventListener('change', applyFiltersAndSort);
             filtreOutilSelect.addEventListener('change', applyFiltersAndSort);
-            filtreAuteurSelect.addEventListener('change', applyFiltersAndSort); // Ajout de l'écouteur pour l'auteur
+            filtreAuteurSelect.addEventListener('change', applyFiltersAndSort);
 
             populateOutilFilter();
-            // La population du filtre auteur se fera après le chargement des données
         }
 
         function populateOutilFilter() {
@@ -1174,7 +1183,6 @@
             });
         }
 
-        // MODIFICATION: Nouvelle fonction pour peupler le filtre des auteurs
         function populateAuteurFilter() {
             filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>';
             const uniqueAuteurs = [...new Set(allTips.map(tip => tip.auteur))].sort((a, b) => a.localeCompare(b));
@@ -1196,7 +1204,7 @@
 
                 allTips = fetchedTips.map(tip => ({
                     ...tip,
-                    id: String(tip.id), // S'assurer que l'ID est une chaîne
+                    id: String(tip.id),
                     dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
                     titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
                     auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
@@ -1205,14 +1213,13 @@
                     categorie: tip.categorie && tip.categorie.trim() !== '' ? tip.categorie : "Autre",
                     urls: Array.isArray(tip.urls) ? tip.urls : [],
                     promptText: tip.promptText || tip.prompt || ''
-                    // Le champ 'previewText' n'est plus nécessaire ici
                 }));
 
                 if (workflowCounterDisplay) {
                     workflowCounterDisplay.textContent = allTips.length;
                 }
 
-                populateAuteurFilter(); // Peuple le filtre auteur une fois les données chargées
+                populateAuteurFilter();
                 applyFiltersAndSort();
 
             } catch (error) {
@@ -1248,19 +1255,18 @@
                     copyButtonHtml = `<button class="copier-btn" data-copy="${escapeHtml(contentForCopyButton)}">Copier le prompt</button>`;
                 }
 
-                // --- NOUVELLE LOGIQUE POUR L'APERÇU SUR LA CARTE ---
                 let previewImageHtml = '';
                 const hasYoutubeVideo = tip.urls && tip.urls.some(url => getYouTubeVideoId(url));
                 const firstImage = (tip.fileUrls && tip.fileUrls.length > 0) ? tip.fileUrls[0] : tip.imageUrl;
 
                 if (hasYoutubeVideo) {
+                    // Assurez-vous que le fichier png-logo-youtube.webp est à la racine de votre site
                     previewImageHtml = `<img src="png-logo-youtube.webp" alt="Vidéo YouTube" class="card-thumbnail-preview youtube-logo">`;
                 } else if (firstImage) {
                     previewImageHtml = `<img src="${escapeHtml(firstImage)}" alt="Aperçu" class="card-thumbnail-preview">`;
                 }
-                // --- FIN DE LA NOUVELLE LOGIQUE ---
-
-
+                
+                // MODIFIÉ: Nouvelle structure de la carte
                 const cardHtml = `
                     <div class="carte" style="border-left-color: ${getCategoryColor(tip.categorie)};">
                         <div class="infos-wrapper">
@@ -1274,21 +1280,22 @@
                                 <span class="metadata-label">Date:</span>
                                 <span class="metadata-value">${formattedDate}</span>
                             </div>
-
-                            ${previewImageHtml}
-
                             <div class="card-actions">
                                 <div class="top-buttons-group">
                                     <button class="toggle-content-btn" data-id="${tip.id}">Voir le Workflow</button>
-                                    ${copyButtonHtml} <div class="card-preview-icons-inline">
+                                    ${copyButtonHtml}
+                                    <div class="card-preview-icons-inline">
                                         ${((tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl) ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
                                         ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
-                                        ${(tip.urls && tip.urls.some(url => getYouTubeVideoId(url))) ? `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>` : ''}
+                                        ${hasYoutubeVideo ? `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>` : ''}
                                         ${(tip.urls && tip.urls.some(url => !getYouTubeVideoId(url) && url.trim() !== '')) ? `<i class="fas fa-link icon-vignette" title="Contient un lien externe"></i>` : ''}
                                     </div>
                                 </div>
-                                <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le workflow"><i class="fas fa-trash-alt"></i></button>
                             </div>
+                        </div>
+                        <div class="card-media-wrapper">
+                            <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le workflow"><i class="fas fa-trash-alt"></i></button>
+                            ${previewImageHtml}
                         </div>
                     </div>
                 `;
@@ -1341,9 +1348,6 @@
             });
         }
 
-        // --- DÉBUT DE LA LOGIQUE DU PANNEAU LATÉRAL (Preview Panel) ---
-        // Cette section contient tout le code qui construit et contrôle le panneau latéral.
-
         function openPreviewPanel(tipId) {
             const tip = allTips.find(t => t.id === tipId);
             if (!tip) {
@@ -1354,20 +1358,14 @@
             previewPanelTitle.textContent = decodeHtml(tip.titre || "Détail du Workflow");
             let contentHtml = '';
 
-            // SUPPRESSION: Le post-it (previewText) n'est plus affiché ici.
-
-            // Description
             if (tip.description && tip.description.trim() !== '') {
                 contentHtml += `<h4>Description :</h4><div class="content-card-blue">${escapeHtml(tip.description)}</div>`;
-                
             }
             
-            // Commentaire / Workflow
             if (tip.commentaireUrl && tip.commentaireUrl.trim() !== '') {
                 contentHtml += `<h4>Commentaire / Workflow :</h4><div class="content-card-blue">${escapeHtml(tip.commentaireUrl)}</div>`;
             }
 
-            // URLs (Vidéos et Liens)
             if (tip.urls && tip.urls.length > 0) {
                 let linksAndVideosHtml = tip.urls.map(url => {
                     if (!url || !url.trim()) return '';
@@ -1383,7 +1381,6 @@
                 }
             }
 
-            // Prompt / Contenu Principal
             let panelMainContentToDisplay = tip.promptText || '';
             if (panelMainContentToDisplay.trim()) {
                 contentHtml += `<h4>Prompt / Contenu :</h4><pre class="prompt-content-pre">${escapeHtml(panelMainContentToDisplay)}</pre>`;
@@ -1392,7 +1389,6 @@
                 }
             }
 
-            // Images
             const imageUrlsToDisplay = [
                 ...(tip.fileUrls || []),
                 ...(tip.imageUrl ? [tip.imageUrl] : [])
@@ -1414,7 +1410,6 @@
                 contentHtml += `</div>`;
             }
 
-            // Document PDF
             if (tip.documentUrl && tip.documentUrl.trim() !== '') {
                 contentHtml += `<h4>Document associé :</h4>
                     <div class="preview-panel-document-square-container">
@@ -1433,7 +1428,6 @@
             previewOverlay.classList.add('open');
             bodyElement.style.overflow = 'hidden';
 
-            // Attache l'écouteur pour le bouton copier DANS le panneau
             document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
                 copyToClipboard(e.target.dataset.copy, e.target);
             });
@@ -1444,8 +1438,6 @@
             previewOverlay.classList.remove('open');
             bodyElement.style.overflow = '';
         }
-
-        // --- FIN DE LA LOGIQUE DU PANNEAU LATÉRAL ---
 
 
         closePreviewBtn.addEventListener('click', closePreviewPanel);
