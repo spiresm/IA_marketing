@@ -256,19 +256,15 @@
                     <div class="form-grid">
                         
                         <div class="form-group">
-                            <label for="poleSelect">Pôle</label>
-                            <select id="poleSelect" v-model="poleSelectionne" required :disabled="isLoadingProfils">
-                                <option value="" disabled>Sélectionnez un pôle</option>
-                                <option v-for="(noms, pole) in allCollaborateursParPole" :key="pole" :value="pole">{{ pole }}</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
                             <label for="auteur">Votre nom</label>
-                            <select id="auteur" v-model="auteur" :disabled="!poleSelectionne || isLoadingProfils || filteredCollaborateurs.length === 0" required>
+                            <select id="auteur" v-model="auteur" required>
                                 <option value="" disabled>Sélectionnez un nom</option>
-                                <option v-for="collaborateur in filteredCollaborateurs" :key="collaborateur" :value="collaborateur">{{ collaborateur }}</option>
+                                <option v-for="profilNom in profilsAuteurs" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
                             </select>
-                            <p v-if="isLoadingProfils" style="color: var(--primary-blue); font-size: 0.9em; margin-top: 5px;">Chargement des profils...</p>
+                            <p v-if="profilsAuteurs.length === 0 && !isLoadingProfils" style="color: var(--grey-text); font-size: 0.9em; margin-top: 5px;">
+                                Aucun profil trouvé. Assurez-vous d'avoir créé des profils dans la section "Équipe" et que la fonction proxy est configurée.
+                            </p>
+                            <p v-if="isLoadingProfils" style="color: var(--primary-blue); font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
                         </div>
                         <div class="form-group">
                             <label for="titre">Titre du Tip / Workflow</label>
@@ -343,7 +339,7 @@
 
                         <div class="form-group full-width">
                                <div v-if="isLoading" class="loader"></div>
-                            <button v-else type="submit" :disabled="!poleSelectionne || !auteur || !titre || !description || isLoading">Partager</button>
+                            <button v-else type="submit" :disabled="!auteur || !titre || !description || isLoading">Partager</button>
                         </div>
                     </div>
                 </form>
@@ -388,7 +384,11 @@
     <script>
         // Définitions des URL pour les fonctions Netlify
         const SAVE_TIP_URL = "/.netlify/functions/pushTip";
-        const GET_PROFILS_URL = "/.netlify/functions/getProfils";
+        // La fonction getProfils pour la liste simple de noms
+        // Assurez-vous que cette URL est correcte et pointe vers une fonction qui retourne
+        // un tableau d'objets avec une propriété 'name' ou directement un tableau de chaînes.
+        const GET_PROFILS_URL = "/.netlify/functions/getProfils"; 
+        const PROXY_URL = "/.netlify/functions/proxy"; // L'URL de votre fonction Proxy si utilisée
 
         // Fonction utilitaire pour charger des composants HTML (Header et Footer)
         async function loadComponent(url, placeholderId) {
@@ -405,12 +405,12 @@
             }
         }
 
-        const { ref, createApp, onMounted, onUnmounted, computed, watch } = Vue;
+        const { ref, createApp, onMounted, onUnmounted } = Vue;
 
         const TipForm = {
             setup() {
                 const auteur = ref(''); // Nom du collaborateur sélectionné
-                const poleSelectionne = ref(''); // Nom du pôle sélectionné
+                // La variable poleSelectionne n'est plus nécessaire ici pour la sélection de l'auteur
                 const titre = ref('');
                 const description = ref('');
                 const previewText = ref('');
@@ -426,7 +426,8 @@
                 const fileUploadError = ref('');
 
                 const isLoading = ref(false); 
-                const allCollaborateursParPole = ref({}); // Stocke les profils regroupés par pôle
+                // allCollaborateursParPole n'est plus nécessaire pour le sélecteur d'auteur simple
+                const profilsAuteurs = ref([]); // La liste plate des noms
                 const isLoadingProfils = ref(true); 
 
                 // État de la confirmation post-soumission
@@ -446,55 +447,33 @@
                 // `toolsData` est supposé être globalement disponible via tools-data.js
                 const toolsList = toolsData.sort((a, b) => a.name.localeCompare(b.name));
 
-                // Propriété calculée pour filtrer les collaborateurs par pôle sélectionné
-                const filteredCollaborateurs = computed(() => {
-                    if (poleSelectionne.value && allCollaborateursParPole.value[poleSelectionne.value]) {
-                        return allCollaborateursParPole.value[poleSelectionne.value].sort();
-                    }
-                    return [];
-                });
-
-                // Watcher pour réinitialiser l'auteur quand le pôle change ou quand la liste filtrée devient vide
-                watch(poleSelectionne, (newPole, oldPole) => {
-                    if (newPole !== oldPole) {
-                        auteur.value = ''; // Réinitialiser le collaborateur quand le pôle change
-                    }
-                });
-                watch(filteredCollaborateurs, (newVal) => {
-                    if (newVal.length === 0 && auteur.value !== '') {
-                        auteur.value = ''; // Réinitialiser l'auteur si le pôle sélectionné n'a plus de collaborateurs
-                    }
-                });
-
-
-                // Fonction pour charger les profils d'auteurs
+                // Fonction pour charger les profils d'auteurs (version simple, liste plate)
                 async function fetchProfils() {
                     isLoadingProfils.value = true;
                     try {
-                        const response = await fetch(GET_PROFILS_URL);
+                        // Utilise GET_PROFILS_URL qui doit retourner un tableau de chaînes (noms)
+                        // ou un tableau d'objets avec une propriété 'name'
+                        const response = await fetch(`${GET_PROFILS_URL}`); // Si vous utilisez un proxy spécifique pour getProfils: `${PROXY_URL}?action=getProfils`
                         if (!response.ok) {
                             const errorText = await response.text();
                             throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
                         }
-                        // La fonction getProfils doit retourner un objet JSON { "Pôle": ["Nom1", "Nom2"], ... }
                         const data = await response.json(); 
 
-                        if (data && typeof data === 'object') {
-                            allCollaborateursParPole.value = data; 
-                        } else {
-                            console.warn("Format inattendu pour les profils d'auteurs. Attendu: objet par pôle.");
-                            allCollaborateursParPole.value = {}; 
-                        }
+                        // Assurez-vous que data.profils est un tableau d'objets avec une propriété 'name'
+                        // ou que data est directement un tableau de chaînes.
+                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
+                        const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
+                        profilsAuteurs.value = names; // Peupler la liste plate
 
-                        // Si un seul pôle est disponible, le présélectionner
-                        const availablePoles = Object.keys(allCollaborateursParPole.value);
-                        if (availablePoles.length === 1) {
-                            poleSelectionne.value = availablePoles[0];
-                        } else if (availablePoles.length === 0) {
-                            console.warn("Aucun pôle d'auteur trouvé. Vérifiez la fonction Netlify 'getProfils'.");
+                        if (names.length === 1) {
+                            auteur.value = names[0]; // Auto-sélection si un seul nom
+                        } else {
+                            auteur.value = '';
                         }
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
+                        alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
                     } finally {
                         isLoadingProfils.value = false;
                     }
@@ -624,8 +603,8 @@
                 // Fonction principale de soumission du formulaire
                 async function submitForm() {
                     // Validation simple
-                    if (!poleSelectionne.value || !auteur.value || !titre.value.trim() || !description.value.trim()) {
-                        alert("Veuillez remplir tous les champs obligatoires (Pôle, Votre nom, Titre, Description).");
+                    if (!auteur.value || !titre.value.trim() || !description.value.trim()) {
+                        alert("Veuillez remplir tous les champs obligatoires (Votre nom, Titre, Description).");
                         return;
                     }
                     if (outils.value.includes('Autre') && !customOutil.value.trim()) {
@@ -639,7 +618,7 @@
                     try {
                         const formData = new FormData();
                         formData.append('auteur', auteur.value);
-                        formData.append('pole', poleSelectionne.value); // Ajout du champ pôle
+                        // Pas de champ 'pole' envoyé avec cette configuration
                         formData.append('titre', titre.value);
                         formData.append('description', description.value);
                         formData.append('previewText', previewText.value);
@@ -711,18 +690,17 @@
                 }
 
                 return {
-                    auteur, poleSelectionne, titre, description, previewText, promptText, outils, customOutil, fileInput,
+                    auteur, titre, description, previewText, promptText, outils, customOutil, fileInput,
                     urls, addUrlField, removeUrlField, commentaireUrl,
                     selectedFiles, fileUploadError,
                     confirmationVisible,
                     confirmationImageUrls, confirmationUrls, confirmationCommentaireUrl,
                     confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
-                    isLoading, allCollaborateursParPole, isLoadingProfils, toolsList, 
+                    isLoading, profilsAuteurs, isLoadingProfils, toolsList, 
                     lightboxVisible, lightboxImageUrl,
                     openLightbox, closeLightbox,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
-                    removeFile, getFileIcon, submitForm,
-                    filteredCollaborateurs 
+                    removeFile, getFileIcon, submitForm
                 };
             }
         };
@@ -737,7 +715,8 @@
 
             // 1. Charger les composants principaux (Header et Footer)
             await loadComponent("header.html", "header-placeholder");
-            await loadComponent("footer.html", "footer-placeholder");
+            // Le footer n'était pas dans votre code de "Partager un Prompt", donc je le retire ici.
+            // Si vous en avez un, assurez-vous qu'il est lié ici: await loadComponent("footer.html", "footer-placeholder");
 
             // 2. Mettre à jour l'état actif du menu après le chargement du header
             const currentPath = window.location.pathname.split('/').pop();
