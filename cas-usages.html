@@ -100,8 +100,10 @@
             margin-bottom: 20px;
             display: flex; /* Permet d'aligner le titre et le compteur */
             align-items: center;
-            justify-content: center; /* Centre le titre et le compteur */
+            justify-content: space-between; /* **Changement ici : justifier à droite** */
             gap: 10px; /* Espacement entre le titre et le compteur */
+            padding-right: 10px; /* Petit padding pour éviter que le compteur soit collé au bord */
+            padding-left: 10px;
         }
         /* NOUVEAU: Conteneur pour le défilement horizontal des logos */
         .tools-scroll-container {
@@ -281,6 +283,7 @@
             justify-content: center;
             vertical-align: middle; /* Alignement vertical */
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-left: auto; /* **Pousse le compteur à droite** */
         }
         body.dark-mode .tool-tip-count {
             background-color: var(--dark-mode-border);
@@ -1099,7 +1102,7 @@
         const filtreOutilSelect = document.getElementById('filtre-outil');
         const filtreTriDateSelect = document.getElementById('filtre-tri-date');
         const previewTextInput = document.getElementById('preview-text');
-        const tipCountDisplay = document.getElementById('tipCount'); // Référence au compteur
+        const tipCountDisplay = document.getElementById('tipCount');
         const previewPanel = document.getElementById('previewPanel');
         const previewPanelTitle = document.getElementById('previewPanelTitle');
         const previewPanelContent = document.getElementById('previewPanelContent');
@@ -1108,12 +1111,10 @@
         const mainElement = document.querySelector('main');
         const previewOverlay = document.getElementById('previewOverlay');
 
-        // Nouvelles références pour le défilement des logos
         const toolLogosGrid = document.getElementById('tool-logos-grid');
         const scrollLeftBtn = document.getElementById('scrollLeftBtn');
         const scrollRightBtn = document.getElementById('scrollRightBtn');
 
-        // Fonction de décodage des entités HTML, utile pour le textContent
         function decodeHtml(html) {
             const textarea = document.createElement('textarea');
             textarea.innerHTML = html;
@@ -1130,7 +1131,7 @@
                 '<': '&lt;',
                 '>': '&gt;',
                 '"': '&quot;',
-                "'": '&#039;' // L'apostrophe est échappée ici pour insertion HTML
+                "'": '&#039;'
             };
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
@@ -1170,7 +1171,6 @@
 
             const searchText = previewTextInput.value.toLowerCase();
             if (searchText) {
-                // Utiliser decodeHtml pour la recherche si le texte est stocké encodé
                 filtered = filtered.filter(tip => tip.previewText && decodeHtml(String(tip.previewText)).toLowerCase().includes(searchText));
             }
 
@@ -1189,7 +1189,6 @@
             });
             displayTips(filtered);
 
-            // Défilement "léger" vers le premier tip
             const firstTip = galerieDiv.querySelector('.carte');
             if (firstTip) {
                 firstTip.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1203,15 +1202,12 @@
                 applyFiltersAndSort();
             });
 
-            populateOutilFilter(); // Appelle la fonction pour peupler le filtre outil
+            populateOutilFilter();
         }
-        // Fonction pour peupler le sélecteur de filtre outil
+
         function populateOutilFilter() {
             filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>';
-
-            // Utilisez toolsData global qui est maintenant dans tools-data.js
             const uniqueTools = [...new Set(toolsData.map(tool => tool.name))].sort();
-
             uniqueTools.forEach(toolName => {
                 const option = document.createElement('option');
                 option.value = toolName;
@@ -1247,10 +1243,8 @@
                         tipUrls = [tip.url];
                     }
 
-                    // Déduction du contentType : pas de promptText si vidéo YouTube
                     const hasYouTubeVideo = tipUrls.some(url => getYouTubeVideoId(url));
-                    let actualPromptText = tip.promptText || tip.prompt; // On garde l'original au début
-                    // Si vidéo YT, on vide le promptText selon la règle
+                    let actualPromptText = tip.promptText || tip.prompt;
                     if (hasYouTubeVideo) {
                         actualPromptText = '';
                     }
@@ -1264,13 +1258,12 @@
                         outil: tip.outil && tip.outil.trim() !== '' ? tip.outil : "Non spécifié",
                         categorie: tip.categorie && tip.categorie.trim() !== '' ? tip.categorie : "Autre",
                         urls: tipUrls,
-                        // Utilise actualPromptText qui a été modifié si vidéo YT
                         promptText: actualPromptText
                     };
                 });
-                // Mise à jour du compteur avec le nombre total de tips chargés
+                // **Modification ici : affichage du texte complet pour le compteur**
                 if (tipCountDisplay) {
-                    tipCountDisplay.textContent = `${allTips.length}`; // Affiche juste le nombre
+                    tipCountDisplay.textContent = `${allTips.length} Tips/Workflows disponibles`;
                 }
                 applyFiltersAndSort();
 
@@ -1280,7 +1273,7 @@
                 errorDisplay.textContent = `Erreur de chargement des tips: ${error.message}`;
                 galerieDiv.innerHTML = '';
                 if (tipCountDisplay) {
-                    tipCountDisplay.textContent = '0'; // Affiche 0 si erreur
+                    tipCountDisplay.textContent = '0 Tips/Workflows disponibles';
                 }
             }
         }
@@ -1297,16 +1290,12 @@
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
-                // actualPromptContent est le promptText (qui est vide si vidéo YT selon la règle)
                 const actualPromptContent = tip.promptText;
-                // Pour le bouton Copier, si promptText est vide, on utilise la description
                 const contentForCopyButton = actualPromptContent || tip.description;
 
                 const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
 
                 let copyButtonHtml = '';
-                // Le bouton copier s'affiche si contentForCopyButton a du texte ET si il n'y a PAS de vidéo YT (car si vidéo YT, actualPromptContent sera vide)
-                // C'est la ligne clé pour la règle "pas de bouton si vidéo YT"
                 if (contentForCopyButton && contentForCopyButton.trim() !== '' && !(tip.urls && tip.urls.some(url => getYouTubeVideoId(url)))) {
                     copyButtonHtml = `<button class="copier-btn" data-copy="${escapeHtml(contentForCopyButton)}">Copier le prompt</button>`;
                 }
@@ -1346,19 +1335,18 @@
             attachEventListenersToCards();
         }
 
-        // MODIFIÉ : Nouvelle fonction pour obtenir la couleur en fonction de l'outil
         function getToolColor(tool) {
             const toolName = String(tool || '').toLowerCase();
-            if (toolName.includes('chatgpt')) return '#10A37F'; // Vert de OpenAI
-            if (toolName.includes('photoshop') || toolName.includes('premiere') || toolName.includes('firefly') || toolName.includes('illustrator') || toolName.includes('after effects')) return '#FF0000'; // Rouge Adobe
-            if (toolName.includes('n8n')) return '#1A8273'; // Vert n8n
-            if (toolName.includes('midjourney')) return '#8A2BE2'; // Violet
-            if (toolName.includes('runway')) return '#FF69B4'; // Rose
-            if (toolName.includes('stable diffusion')) return '#FFA500'; // Orange
-            if (toolName.includes('dall-e')) return '#4B0082'; // Indigo
-            if (toolName.includes('claude')) return '#D2691E'; // Marron
-            if (toolName.includes('canva')) return '#00C4CC'; // Turquoise Canva
-            return '#6c757d'; // Couleur par défaut
+            if (toolName.includes('chatgpt')) return '#10A37F';
+            if (toolName.includes('photoshop') || toolName.includes('premiere') || toolName.includes('firefly') || toolName.includes('illustrator') || toolName.includes('after effects')) return '#FF0000';
+            if (toolName.includes('n8n')) return '#1A8273';
+            if (toolName.includes('midjourney')) return '#8A2BE2';
+            if (toolName.includes('runway')) return '#FF69B4';
+            if (toolName.includes('stable diffusion')) return '#FFA500';
+            if (toolName.includes('dall-e')) return '#4B0082';
+            if (toolName.includes('claude')) return '#D2691E';
+            if (toolName.includes('canva')) return '#00C4CC';
+            return '#6c757d';
         }
 
         function attachEventListenersToCards() {
@@ -1369,7 +1357,7 @@
             document.querySelectorAll('.copier-btn').forEach(button => {
                 button.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target);
             });
-            
+
             document.querySelectorAll('.supprimer-btn').forEach(button => {
                 button.onclick = (e) => confirmAndDeleteTip(e.target.dataset.id || e.target.closest('button').dataset.id);
             });
@@ -1381,11 +1369,9 @@
 
             if (tip) {
                 console.log("Données du tip pour le panneau d'aperçu:", tip);
-                // Correction de l'affichage de l'apostrophe dans le titre du panneau
                 previewPanelTitle.textContent = decodeHtml(tip.titre || "Détail du Tip");
                 let contentHtml = '';
 
-                // Post-it (previewText) - Maintenant en dessous du titre
                 if (tip.previewText) {
                     contentHtml += `
                         <h4>Post-it :</h4>
@@ -1393,14 +1379,13 @@
                     `;
                 }
 
-                // Section Description (si présente)
                 if (tip.description && tip.description.trim() !== '') {
                     contentHtml += `
                         <h4>Description :</h4>
                         <div class="content-card-blue">${escapeHtml(tip.description)}</div>
                     `;
                 }
-                // URLs (avec gestion spécifique YouTube)
+
                 if (tip.urls && tip.urls.length > 0) {
                     let hasContentToDisplayInUrls = false;
                     let linksAndVideosHtml = '';
@@ -1439,13 +1424,11 @@
                         contentHtml += `<h4>Liens / Vidéos associées :</h4>${linksAndVideosHtml}`;
                     }
                 }
-                // Section du contenu principal (Prompt ou Description si pas de prompt)
                 let panelMainContentToDisplay = '';
                 let sectionTitle = '';
                 let copyButtonPanelHtml = '';
-                const buttonText = "Copier le prompt"; 
+                const buttonText = "Copier le prompt";
 
-                // Priorité: promptText, sinon description
                 if (tip.promptText && tip.promptText.trim() !== '') {
                     panelMainContentToDisplay = tip.promptText;
                     sectionTitle = "Prompt :";
@@ -1453,22 +1436,18 @@
                     panelMainContentToDisplay = tip.description;
                     sectionTitle = "Description du tip :";
                 }
-                // Afficher le contenu principal et le bouton Copier si du texte est disponible
-                // Le bouton copier ne doit PAS apparaître s'il y a une vidéo YouTube
                 const hasYouTubeVideoInTip = tip.urls && tip.urls.some(url => getYouTubeVideoId(url));
                 if (panelMainContentToDisplay && panelMainContentToDisplay.trim() !== '') {
                     contentHtml += `
                         <h4>${sectionTitle}</h4>
                         <pre class="prompt-content-pre">${escapeHtml(panelMainContentToDisplay)}</pre>
                     `;
-                    // Ajout du bouton copier APRÈS le bloc <pre>
-                    if (!hasYouTubeVideoInTip) { // Seulement si PAS de vidéo YouTube
+                    if (!hasYouTubeVideoInTip) {
                         copyButtonPanelHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelMainContentToDisplay)}">${buttonText}</button>`;
                         contentHtml += copyButtonPanelHtml;
                     }
                 }
 
-                // Images
                 if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
                     contentHtml += `<h4>Images associées :</h4><div class="preview-panel-image-container">`;
                     let imageCounter = 1;
@@ -1493,7 +1472,6 @@
                     contentHtml += `</div>`;
                 }
 
-                // Documents
                 if (tip.documentUrl && tip.documentUrl.trim() !== '') {
                     contentHtml += `<h4>Document associé :</h4>
                         <div class="preview-panel-document-square-container">
@@ -1527,7 +1505,6 @@
                 previewOverlay.classList.add('open');
                 bodyElement.style.overflow = 'hidden';
 
-                // Attache l'écouteur après que le contenu soit dans le DOM
                 document.querySelector('#previewPanelContent .copy-panel-btn')?.addEventListener('click', (e) => {
                     copyToClipboard(e.target.dataset.copy, e.target);
                 });
@@ -1622,7 +1599,6 @@
             }
 
             toolLogosGrid.innerHTML = '';
-            // Ajouter le logo "Tous les outils" en premier (qui efface le filtre)
             const allToolsCard = document.createElement('div');
             allToolsCard.className = 'tool-card';
             allToolsCard.innerHTML = `
@@ -1630,15 +1606,13 @@
                 <span class="tool-name">Tous les outils</span>
             `;
             allToolsCard.addEventListener('click', () => {
-                filtreOutilSelect.value = ""; // Sélectionne l'option "Tous les outils"
-                applyFiltersAndSort(); // Applique le filtre
-                // Désélectionner toutes les autres cartes visuellement si nécessaire
+                filtreOutilSelect.value = "";
+                applyFiltersAndSort();
                 document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('selected'));
                 allToolsCard.classList.add('selected');
             });
             toolLogosGrid.appendChild(allToolsCard);
 
-            // Utilisation de la variable globale toolsData
             toolsData.forEach(tool => {
                 const toolCard = document.createElement('div');
                 toolCard.className = 'tool-card';
@@ -1647,43 +1621,39 @@
                     <span class="tool-name">${tool.name}</span>
                 `;
                 toolCard.addEventListener('click', () => {
-                    filtreOutilSelect.value = tool.name; // Met à jour le sélecteur d'outil avec le nom exact
-                    applyFiltersAndSort(); // Applique le filtre
-                    // Mettre à jour la sélection visuelle
+                    filtreOutilSelect.value = tool.name;
+                    applyFiltersAndSort();
                     document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('selected'));
                     toolCard.classList.add('selected');
                 });
                 toolLogosGrid.appendChild(toolCard);
             });
         }
-        
+
         function setupScrollButtons() {
             if (scrollLeftBtn && scrollRightBtn && toolLogosGrid) {
                 scrollRightBtn.addEventListener('click', () => {
                     toolLogosGrid.scrollBy({
-                        left: 200, // Défile de 200px vers la droite
+                        left: 200,
                         behavior: 'smooth'
                     });
                 });
 
                 scrollLeftBtn.addEventListener('click', () => {
                     toolLogosGrid.scrollBy({
-                        left: -200, // Défile de 200px vers la gauche
+                        left: -200,
                         behavior: 'smooth'
                     });
                 });
             }
         }
 
-        // --- Initialisation au chargement du DOM ---
         document.addEventListener("DOMContentLoaded", async () => {
             console.log("cas-usages: DOMContentLoaded, début de l'initialisation...");
 
-            // 1. Charger le header et le footer de manière séquentielle
             await loadComponent("header.html", "header-placeholder");
             await loadComponent("footer.html", "footer-placeholder");
 
-            // 2. Mettre à jour l'état actif du menu après le chargement du header
             const currentPath = window.location.pathname.split('/').pop();
             document.querySelectorAll('nav a').forEach(link => {
                 const linkHref = link.getAttribute('href');
@@ -1695,7 +1665,6 @@
                 }
             });
 
-            // 3. Traiter les messages de succès/erreur de l'URL
             if (window.location.search.includes('success=1')) {
                 const msg = document.getElementById('success-message');
                 msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
@@ -1711,17 +1680,11 @@
                 setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
             }
 
-            // 4. Mettre en place les filtres
             setupFilters();
-
-            // 5. Charger et afficher les logos des outils
             renderToolLogos();
-            setupScrollButtons(); // Configurer les boutons de défilement après le rendu des logos
-
-            // 6. Charger et afficher les tips
+            setupScrollButtons();
             loadAndDisplayTips();
 
-            // 7. Rendre le body et main visibles
             document.body.style.opacity = '1';
             mainElement.classList.add("show");
 
