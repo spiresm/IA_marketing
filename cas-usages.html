@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* Variables CSS pour faciliter la gestion des couleurs */
+        /* Variables CSS */
         :root {
             --primary-blue: #0077b6;
             --dark-blue: #005f8a;
@@ -49,8 +49,11 @@
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
+            opacity: 0; /* Pour l'animation d'apparition */
+            transition: opacity 0.5s ease;
         }
         body.show {
+            opacity: 1;
         }
         /* Dark mode toggle */
         body.dark-mode {
@@ -64,8 +67,11 @@
             padding: 40px 20px;
             flex-grow: 1;
             box-sizing: border-box; /* S'assurer que le padding est inclus dans la largeur */
+            opacity: 0; /* Pour l'animation d'apparition */
+            transition: opacity 0.5s ease;
         }
         main.show {
+            opacity: 1;
         }
         /* --- Styles du Loader (si toujours utilisé) --- */
         .loader {
@@ -82,8 +88,6 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        /* Conteneur des contrôles en haut (sera splité et réorganisé) */
-        /* N'est plus utilisé comme un wrapper direct, mais ses styles sont réappliqués à de nouveaux wrappers */
 
         /* NOUVEAU: Section pour les logos des outils (Maintenant au-dessus des filtres) */
         .tool-logos-section {
@@ -298,8 +302,6 @@
             background: white;
             border-radius: 12px;
             box-shadow: var(--card-shadow);
-            /* Le display:flex et flex-direction:column ont été retirés d'ici
-                car le compteur est maintenant à l'extérieur de #galerie */
         }
         /* Dark mode adjustments for galerie container */
         body.dark-mode .galerie-container {
@@ -656,7 +658,6 @@
             line-height: 1.6;
             color: #444;
             font-weight: normal;
-            /* Ajout pour gérer l'espacement des titres */
             padding-bottom: 20px;
         }
         body.dark-mode .preview-panel-content {
@@ -675,21 +676,21 @@
             border-bottom-color: rgba(255,255,255,0.1);
         }
         /* Styles pour les images dans le panneau d'aperçu (vignette) */
-        .preview-panel-image-container { /* Ancien conteneur pour toutes les images */
+        .preview-panel-image-container { 
             display: flex;
             flex-wrap: wrap;
             gap: 15px; /* Espacement entre les images */
             margin-bottom: 20px;
         }
-        .preview-panel-image-wrapper { /* Nouveau conteneur pour chaque image avec le numéro */
+        .preview-panel-image-wrapper { 
             position: relative;
             display: inline-block;
-            vertical-align: top; /* Alignement pour éviter les sauts de ligne inattendus */
+            vertical-align: top; 
         }
         .preview-panel-image {
             max-width: 200px;
             height: auto;
-            display: block; /* Pour que le numéro puisse se positionner par rapport à l'image */
+            display: block; 
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
@@ -896,7 +897,7 @@
             border-color: #777;
             color: var(--dark-mode-text);
         }
-        /* Style pour le bouton Copier dans le panneau latéral */
+        /* Style du bouton Copier dans le panneau latéral */
         .copy-panel-btn {
             background-color: var(--light-blue);
             color: white;
@@ -907,7 +908,6 @@
             font-size: 0.9em;
             font-weight: 600;
             transition: background-color 0.2s, transform 0.1s;
-            /* margin-top: -10px; */ /* Retiré pour le positionnement en dessous du pre */
             margin-bottom: 15px;
             align-self: flex-start;
         }
@@ -1154,7 +1154,6 @@
                     throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
                 }
                 document.getElementById(placeholderId).innerHTML = await res.text();
-                console.log(`${url} loaded successfully into #${placeholderId}.`);
             } catch (error) {
                 console.error(`Erreur lors du chargement de ${url}:`, error);
                 document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
@@ -1166,23 +1165,39 @@
 
             const outil = filtreOutilSelect.value;
             if (outil) {
-                filtered = filtered.filter(tip => tip.outil === outil);
+                // Si 'outil' contient plusieurs valeurs séparées par des virgules (ex: "outil1,outil2"), on filtre si le tip.outil inclut au moins l'une d'elles
+                // Sinon, c'est une correspondance exacte.
+                const searchTools = outil.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+                if (searchTools.length > 0) {
+                    filtered = filtered.filter(tip => 
+                        tip.outil && searchTools.some(st => String(tip.outil).toLowerCase().includes(st))
+                    );
+                }
             }
 
             const searchText = previewTextInput.value.toLowerCase();
             if (searchText) {
-                filtered = filtered.filter(tip => tip.previewText && decodeHtml(String(tip.previewText)).toLowerCase().includes(searchText));
+                filtered = filtered.filter(tip => 
+                    (tip.previewText && decodeHtml(String(tip.previewText)).toLowerCase().includes(searchText)) ||
+                    (tip.description && decodeHtml(String(tip.description)).toLowerCase().includes(searchText)) ||
+                    (tip.promptText && decodeHtml(String(tip.promptText)).toLowerCase().includes(searchText)) ||
+                    (tip.titre && decodeHtml(String(tip.titre)).toLowerCase().includes(searchText))
+                );
             }
 
             const sortOrder = filtreTriDateSelect.value;
             filtered.sort((a, b) => {
+                const dateA = new Date(a.dateCreation || a.date || '1970-01-01'); // Fallback date
+                const dateB = new Date(b.dateCreation || b.date || '1970-01-01'); // Fallback date
+                
+                if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+                    console.warn(`Dates invalides rencontrées lors du tri: A=${a.dateCreation || a.date}, B=${b.dateCreation || b.date}`);
+                    return 0; // Ou gérez l'erreur différemment
+                }
+
                 if (sortOrder === 'recent') {
-                    const dateA = new Date(a.dateCreation || a.date);
-                    const dateB = new Date(b.dateCreation || b.date);
                     return dateB.getTime() - dateA.getTime();
                 } else if (sortOrder === 'ancien') {
-                    const dateA = new Date(a.dateCreation || a.date);
-                    const dateB = new Date(b.dateCreation || b.date);
                     return dateA.getTime() - dateB.getTime();
                 }
                 return 0;
@@ -1207,6 +1222,7 @@
 
         function populateOutilFilter() {
             filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>';
+            // toolsData vient de tools-data.js et est un tableau d'objets { name: "...", img: "..." }
             const uniqueTools = [...new Set(toolsData.map(tool => tool.name))].sort();
             uniqueTools.forEach(toolName => {
                 const option = document.createElement('option');
@@ -1219,13 +1235,16 @@
         async function loadAndDisplayTips() {
             galerieDiv.innerHTML = '<div class="loader"></div><p style="text-align: center;">Chargement des tips...</p>';
             try {
-                const response = await fetch(`${apiBase}get-tips`);
+                const response = await fetch(`${apiBase}get-tips`); // Appelle votre fonction Netlify get-tips
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 let fetchedTips = await response.json();
+                
+                // Normaliser les données des tips pour garantir la présence des champs
                 allTips = fetchedTips.map(tip => {
                     let tipUrls = [];
+                    // Gérer 'urls' qui peut être une chaîne JSON ou un tableau
                     if (Array.isArray(tip.urls)) {
                         tipUrls = tip.urls;
                     } else if (typeof tip.urls === 'string' && tip.urls.startsWith('[')) {
@@ -1239,29 +1258,42 @@
                         } catch (e) {
                             console.error("Erreur de parsing de la chaîne URLs:", e, tip.urls);
                         }
-                    } else if (tip.url) {
+                    } else if (tip.url) { // Cas d'une seule URL non tableau
                         tipUrls = [tip.url];
                     }
 
+                    // Gérer fileUrls et documentUrl
+                    let tipFileUrls = Array.isArray(tip.fileUrls) ? tip.fileUrls : (tip.imageUrl ? [tip.imageUrl] : []);
+                    let tipDocumentUrl = tip.documentUrl || null;
+                    let tipDocumentFileName = tip.documentFileName || (tipDocumentUrl ? tipDocumentUrl.split('/').pop() : '');
+
+                    // Gérer le promptText : si c'est une vidéo YouTube, il n'y a pas de prompttext pour le card display
                     const hasYouTubeVideo = tipUrls.some(url => getYouTubeVideoId(url));
-                    let actualPromptText = tip.promptText || tip.prompt;
+                    let actualPromptText = tip.promptText || tip.prompt; // promptText ou l'ancien 'prompt'
                     if (hasYouTubeVideo) {
-                        actualPromptText = '';
+                        actualPromptText = ''; // Ne pas afficher le promptText sur la carte si c'est une vidéo
                     }
 
                     return {
-                        ...tip,
+                        ...tip, // Garder toutes les autres propriétés du tip
+                        id: tip.id || Math.random().toString(36).substr(2, 9), // Assurer un ID unique
                         dateCreation: tip.date_creation || tip.dateCreation || tip.date_ajout || tip.date || new Date().toISOString(),
                         titre: tip.titre && tip.titre.trim() !== '' ? tip.titre : "Titre non spécifié",
                         auteur: tip.auteur && tip.auteur.trim() !== '' ? tip.auteur : "Auteur inconnu",
+                        pole: tip.pole && tip.pole.trim() !== '' ? tip.pole : "Pôle inconnu", // Assurez-vous que 'pole' est présent
                         description: tip.description || '',
+                        previewText: tip.previewText || '',
+                        promptText: actualPromptText,
                         outil: tip.outil && tip.outil.trim() !== '' ? tip.outil : "Non spécifié",
                         categorie: tip.categorie && tip.categorie.trim() !== '' ? tip.categorie : "Autre",
                         urls: tipUrls,
-                        promptText: actualPromptText
+                        commentaireUrl: tip.commentaireUrl || '',
+                        fileUrls: tipFileUrls, // Les URLs des images/fichiers téléchargés
+                        documentUrl: tipDocumentUrl,
+                        documentFileName: tipDocumentFileName
                     };
                 });
-                // **Modification ici : affichage du texte complet pour le compteur**
+                
                 if (tipCountDisplay) {
                     tipCountDisplay.textContent = `${allTips.length} Tips/Workflows disponibles`;
                 }
@@ -1277,6 +1309,7 @@
                 }
             }
         }
+
         function displayTips(tipsToDisplay) {
             galerieDiv.innerHTML = '';
 
@@ -1291,13 +1324,34 @@
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
                 const actualPromptContent = tip.promptText;
-                const contentForCopyButton = actualPromptContent || tip.description;
+                const contentForCopyButton = actualPromptContent || tip.description; // Prioriser le prompt pour la copie si disponible
 
                 const auteurLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
+                
+                // Afficher le pôle si disponible
+                const poleDisplay = tip.pole && tip.pole.trim() !== '' ? `
+                    <span class="metadata-label">Pôle:</span>
+                    <span class="metadata-value">${escapeHtml(tip.pole)}</span>` : '';
 
                 let copyButtonHtml = '';
+                // Ne pas afficher le bouton copier sur la carte si c'est une vidéo YouTube ou si le contenu est vide
                 if (contentForCopyButton && contentForCopyButton.trim() !== '' && !(tip.urls && tip.urls.some(url => getYouTubeVideoId(url)))) {
                     copyButtonHtml = `<button class="copier-btn" data-copy="${escapeHtml(contentForCopyButton)}">Copier le prompt</button>`;
+                }
+                
+                // Icônes de prévisualisation (images, vidéos, liens, documents)
+                let previewIconsHtml = '';
+                if ((tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl) {
+                    previewIconsHtml += `<i class="fas fa-image icon-vignette" title="Contient des images"></i>`;
+                }
+                if (tip.documentUrl && tip.documentUrl.trim() !== '') {
+                    previewIconsHtml += `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">`;
+                }
+                if (tip.urls && tip.urls.some(url => getYouTubeVideoId(url))) {
+                    previewIconsHtml += `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>`;
+                }
+                if (tip.urls && tip.urls.some(url => !getYouTubeVideoId(url) && url.trim() !== '')) {
+                    previewIconsHtml += `<i class="fas fa-link icon-vignette" title="Contient des liens externes"></i>`;
                 }
 
                 const cardHtml = `
@@ -1308,20 +1362,18 @@
                             <div class="metadata-section">
                                 <span class="metadata-label">Auteur:</span>
                                 <span class="metadata-value auteur-value">${auteurLink}</span>
-                                <span class="metadata-label">Date:</span>
+                                ${poleDisplay} <span class="metadata-label">Date:</span>
                                 <span class="metadata-value">${formattedDate}</span>
                             </div>
 
-                            ${tip.previewText ? `<div class="preview-post-it">${escapeHtml(tip.previewText)}</div>` : ''}
+                            ${tip.previewText && tip.previewText.trim() !== '' ? `<div class="preview-post-it">${escapeHtml(tip.previewText)}</div>` : ''}
 
                             <div class="card-actions">
                                 <div class="top-buttons-group">
                                     <button class="toggle-content-btn" data-id="${tip.id}">Voir le Tip</button>
-                                    ${copyButtonHtml} <div class="card-preview-icons-inline">
-                                        ${((tip.fileUrls && tip.fileUrls.length > 0) || tip.imageUrl) ? `<i class="fas fa-image icon-vignette" title="Contient une image"></i>` : ''}
-                                        ${tip.documentUrl && tip.documentUrl.trim() !== '' ? `<img src="PDF_file_icon.svg.webp" alt="Document PDF" class="icon-vignette pdf-thumbnail" title="Contient un document PDF">` : ''}
-                                        ${(tip.urls && tip.urls.some(url => getYouTubeVideoId(url))) ? `<i class="fab fa-youtube icon-vignette" title="Contient une vidéo YouTube"></i>` : ''}
-                                        ${(tip.urls && tip.urls.some(url => !getYouTubeVideoId(url) && url.trim() !== '')) ? `<i class="fas fa-link icon-vignette" title="Contient un lien externe"></i>` : ''}
+                                    ${copyButtonHtml} 
+                                    <div class="card-preview-icons-inline">
+                                        ${previewIconsHtml}
                                     </div>
                                 </div>
                                 <button class="supprimer-btn" data-id="${tip.id}" title="Supprimer le tip"><i class="fas fa-trash-alt"></i></button>
@@ -1346,7 +1398,10 @@
             if (toolName.includes('dall-e')) return '#4B0082';
             if (toolName.includes('claude')) return '#D2691E';
             if (toolName.includes('canva')) return '#00C4CC';
-            return '#6c757d';
+            if (toolName.includes('gemini')) return '#4285F4'; /* Couleur Google Blue */
+            if (toolName.includes('kling ai')) return '#FFD700'; /* Or pour un look distinct */
+            if (toolName.includes('elevenlabs')) return '#6A5ACD'; /* SlateBlue */
+            return '#6c757d'; // Couleur par défaut (gris)
         }
 
         function attachEventListenersToCards() {
@@ -1364,15 +1419,13 @@
         }
 
         async function openPreviewPanel(tipId) {
-            console.log(`Tentative d'ouverture du panneau d'aperçu pour le tip ID: ${tipId}`);
             const tip = allTips.find(t => t.id === tipId);
 
             if (tip) {
-                console.log("Données du tip pour le panneau d'aperçu:", tip);
                 previewPanelTitle.textContent = decodeHtml(tip.titre || "Détail du Tip");
                 let contentHtml = '';
 
-                if (tip.previewText) {
+                if (tip.previewText && tip.previewText.trim() !== '') {
                     contentHtml += `
                         <h4>Post-it :</h4>
                         <div class="preview-text-card-yellow">${escapeHtml(tip.previewText)}</div>
@@ -1386,11 +1439,12 @@
                     `;
                 }
 
+                // Section pour les Liens / Vidéos associées
                 if (tip.urls && tip.urls.length > 0) {
                     let hasContentToDisplayInUrls = false;
                     let linksAndVideosHtml = '';
 
-                    const urlsToProcess = Array.isArray(tip.urls) ? tip.urls : (typeof tip.urls === 'string' && tip.urls.startsWith('[') ? JSON.parse(tip.urls) : [tip.urls]);
+                    const urlsToProcess = Array.isArray(tip.urls) ? tip.urls : (typeof tip.urls === 'string' && tip.urls.startsWith('[') ? JSON.parse(tip.urls) : (tip.urls ? [tip.urls] : []));
 
                     urlsToProcess.forEach((url, index) => {
                         if (url && typeof url === 'string') {
@@ -1398,7 +1452,6 @@
                             if (youtubeId) {
                                 hasContentToDisplayInUrls = true;
                                 const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0`;
-                                console.log(`Détection d'une vidéo YouTube. ID: ${youtubeId}, URL d'intégration: ${embedUrl}`);
                                 linksAndVideosHtml += `
                                     <div class="video-responsive">
                                         <iframe
@@ -1423,7 +1476,18 @@
                     if (hasContentToDisplayInUrls) {
                         contentHtml += `<h4>Liens / Vidéos associées :</h4>${linksAndVideosHtml}`;
                     }
+
+                    // Affichage du commentaire sur les URLs
+                    if (tip.commentaireUrl && tip.commentaireUrl.trim() !== '') {
+                        contentHtml += `
+                            <div class="content-card-blue" style="margin-top: 10px;">
+                                **Commentaire sur les liens :** ${escapeHtml(tip.commentaireUrl)}
+                            </div>
+                        `;
+                    }
                 }
+                
+                // La logique pour afficher le promptText ou la description principale
                 let panelMainContentToDisplay = '';
                 let sectionTitle = '';
                 let copyButtonPanelHtml = '';
@@ -1432,26 +1496,30 @@
                 if (tip.promptText && tip.promptText.trim() !== '') {
                     panelMainContentToDisplay = tip.promptText;
                     sectionTitle = "Prompt :";
-                } else if (tip.description && tip.description.trim() !== '') {
+                } else if (tip.description && tip.description.trim() !== '') { 
                     panelMainContentToDisplay = tip.description;
                     sectionTitle = "Description du tip :";
                 }
+                
                 const hasYouTubeVideoInTip = tip.urls && tip.urls.some(url => getYouTubeVideoId(url));
                 if (panelMainContentToDisplay && panelMainContentToDisplay.trim() !== '') {
                     contentHtml += `
                         <h4>${sectionTitle}</h4>
                         <pre class="prompt-content-pre">${escapeHtml(panelMainContentToDisplay)}</pre>
                     `;
+                    // Le bouton copier n'est pas affiché s'il y a une vidéo YouTube ou si le contenu est vide
                     if (!hasYouTubeVideoInTip) {
-                        copyButtonPanelHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelMainContentToDisplay)}">${buttonText}</button>`;
+                        copyButtonPanelHtml = `<button class="copy-panel-btn" data-copy="${escapeHtml(panelMainContentToDisplay)}">Copier le prompt</button>`;
                         contentHtml += copyButtonPanelHtml;
                     }
                 }
 
+                // Section pour les Images associées (gère fileUrls et imageUrl)
                 if ((tip.fileUrls && Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) || tip.imageUrl) {
                     contentHtml += `<h4>Images associées :</h4><div class="preview-panel-image-container">`;
                     let imageCounter = 1;
                     const imageUrlsToDisplay = [];
+                    
                     if (tip.fileUrls && Array.isArray(tip.fileUrls)) {
                         imageUrlsToDisplay.push(...tip.fileUrls);
                     }
@@ -1460,18 +1528,21 @@
                     }
 
                     imageUrlsToDisplay.forEach(url => {
-                        contentHtml += `
-                            <div class="preview-panel-image-wrapper">
-                                <div class="image-number-badge">${imageCounter++}</div>
-                                <a href="${escapeHtml(url)}" target="_blank">
-                                    <img src="${escapeHtml(url)}" alt="Image du tip" class="preview-panel-image" />
-                                </a>
-                            </div>
-                        `;
+                        if (typeof url === 'string' && url.trim() !== '') {
+                            contentHtml += `
+                                <div class="preview-panel-image-wrapper">
+                                    <div class="image-number-badge">${imageCounter++}</div>
+                                    <a href="${escapeHtml(url)}" target="_blank">
+                                        <img src="${escapeHtml(url)}" alt="Image du tip" class="preview-panel-image" />
+                                    </a>
+                                </div>
+                            `;
+                        }
                     });
                     contentHtml += `</div>`;
                 }
 
+                // Section pour les Documents associés (si documentUrl existe)
                 if (tip.documentUrl && tip.documentUrl.trim() !== '') {
                     contentHtml += `<h4>Document associé :</h4>
                         <div class="preview-panel-document-square-container">
@@ -1483,16 +1554,23 @@
                         </div>
                     `;
                 }
+
+                // Section des métadonnées finales (Auteur, Pôle, Outil, Date)
                 const dateObj = new Date(tip.dateCreation);
                 const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', options);
 
                 const auteurPanelLink = `<a href="equipe.html?auteur=${encodeURIComponent(tip.auteur)}" class="metadata-value auteur-value">${escapeHtml(tip.auteur)}</a>`;
 
+                const polePanelHtml = tip.pole && tip.pole.trim() !== '' ? `
+                    <span class="metadata-label">Pôle:</span>
+                    <span class="metadata-value">${escapeHtml(tip.pole)}</span>` : '';
+
                 contentHtml += `
                     <div class="metadata-section" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
                         <span class="metadata-label">Auteur:</span>
                         <span class="metadata-value auteur-value">${auteurPanelLink}</span>
+                        ${polePanelHtml} 
                         <span class="metadata-label">Outil:</span>
                         <span class="metadata-value">${escapeHtml(tip.outil || 'Non spécifié')}</span>
                         <span class="metadata-label">Date de création:</span>
@@ -1557,7 +1635,6 @@
 
         async function confirmAndDeleteTip(tipId) {
             const userConfirmed = confirm("Êtes-vous sûr de vouloir supprimer ce tip ?");
-            console.log("Confirmation de suppression (simulée):", userConfirmed);
 
             if (userConfirmed) {
                 try {
@@ -1574,13 +1651,12 @@
                         throw new Error(errorData.message || `Erreur HTTP! statut: ${response.status}`);
                     }
 
-                    console.log("Tip supprimé avec succès !");
                     const msg = document.getElementById('success-message');
                     msg.textContent = '✅ Tip supprimé avec succès !';
                     msg.style.opacity = '1';
                     setTimeout(() => msg.style.opacity = '0', 2000);
 
-                    loadAndDisplayTips();
+                    loadAndDisplayTips(); // Recharger les tips après suppression
                 }
                 catch (error) {
                     console.error("Erreur lors de la suppression du tip:", error);
@@ -1613,21 +1689,27 @@
             });
             toolLogosGrid.appendChild(allToolsCard);
 
-            toolsData.forEach(tool => {
-                const toolCard = document.createElement('div');
-                toolCard.className = 'tool-card';
-                toolCard.innerHTML = `
-                    <img src="${tool.img}" alt="Logo de ${tool.name}" loading="lazy">
-                    <span class="tool-name">${tool.name}</span>
-                `;
-                toolCard.addEventListener('click', () => {
-                    filtreOutilSelect.value = tool.name;
-                    applyFiltersAndSort();
-                    document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('selected'));
-                    toolCard.classList.add('selected');
+            // toolsData est un tableau d'objets { name: "...", img: "..." }
+            // Assurez-vous que tools-data.js est bien chargé et définit cette variable globale.
+            if (typeof toolsData !== 'undefined' && Array.isArray(toolsData)) {
+                toolsData.forEach(tool => {
+                    const toolCard = document.createElement('div');
+                    toolCard.className = 'tool-card';
+                    toolCard.innerHTML = `
+                        <img src="${tool.img}" alt="Logo de ${tool.name}" loading="lazy">
+                        <span class="tool-name">${tool.name}</span>
+                    `;
+                    toolCard.addEventListener('click', () => {
+                        filtreOutilSelect.value = tool.name;
+                        applyFiltersAndSort();
+                        document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('selected'));
+                        toolCard.classList.add('selected');
+                    });
+                    toolLogosGrid.appendChild(toolCard);
                 });
-                toolLogosGrid.appendChild(toolCard);
-            });
+            } else {
+                console.error("toolsData n'est pas défini ou n'est pas un tableau. Assurez-vous que tools-data.js est correctement chargé.");
+            }
         }
 
         function setupScrollButtons() {
@@ -1649,7 +1731,9 @@
         }
 
         document.addEventListener("DOMContentLoaded", async () => {
-            console.log("cas-usages: DOMContentLoaded, début de l'initialisation...");
+            // Afficher un loader global ou masquer le body/main jusqu'à ce que tout soit chargé
+            document.body.style.opacity = '0'; // Masquer le corps au démarrage
+            mainElement.style.opacity = '0'; // Masquer le main aussi
 
             await loadComponent("header.html", "header-placeholder");
             await loadComponent("footer.html", "footer-placeholder");
@@ -1665,14 +1749,15 @@
                 }
             });
 
-            if (window.location.search.includes('success=1')) {
+            // Gérer les messages de succès/erreur de la barre d'adresse
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('success') && params.get('success') === '1') {
                 const msg = document.getElementById('success-message');
                 msg.textContent = '✅ Tip/Prompt partagé avec succès vers la galerie !';
                 msg.style.opacity = '1';
                 setTimeout(() => msg.style.opacity = '0', 2000);
-                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500);
-            }
-            if (window.location.search.includes('editSuccess=1')) {
+                setTimeout(() => window.history.replaceState(null, '', window.location.pathname), 2500); // Nettoie l'URL
+            } else if (params.has('editSuccess') && params.get('editSuccess') === '1') {
                 const msg = document.getElementById('success-message');
                 msg.textContent = '✅ Tip/Prompt modifié avec succès !';
                 msg.style.opacity = '1';
@@ -1681,14 +1766,14 @@
             }
 
             setupFilters();
-            renderToolLogos();
+            renderToolLogos(); // Doit être appelé après tools-data.js est chargé
             setupScrollButtons();
-            loadAndDisplayTips();
+            await loadAndDisplayTips(); // Attendre le chargement des tips avant d'afficher la page
 
-            document.body.style.opacity = '1';
+            // Révéler la page une fois tout chargé
+            document.body.classList.add("show");
             mainElement.classList.add("show");
-
-            console.log("cas-usages: Initialisation terminée.");
+            document.body.style.overflow = ''; // Restaurer le défilement
         });
     </script>
 </body>
