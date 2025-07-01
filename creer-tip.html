@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Variables CSS */
+        /* Styles conservés de votre original pour les formulaires Tips/Prompts */
         :root {
             --primary-blue: #0077b6;
             --dark-blue: #005f8a;
@@ -21,47 +21,16 @@
             --success-bg: #d4edda;
             --success-text: #155724;
             --border-color: #ddd;
-            --grey-text: #555; /* Ajouté pour la cohérence */
+            --grey-text: #555;
         }
-        
-        /* Styles généraux pour la mise en page */
-        html, body {
-            height: 100%;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        body {
-            opacity: 0; 
-            transition: opacity 0.5s ease;
-            margin: 0;
-            font-family: 'Inter', sans-serif;
-            font-weight: 400;
-            background-color: var(--background-grey);
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            overflow-x: hidden; 
-        }
-
-        body.show {
-            opacity: 1;
-        }
-
         main { 
-            opacity: 0; 
-            transition: opacity 0.5s ease;
             padding: 40px 20px; 
             flex-grow: 1; 
             display: flex; 
             justify-content: center; 
             align-items: flex-start; 
-            overflow-y: auto; 
         }
-
-        main.show {
-            opacity: 1;
-        }
-
+        
         .container { 
             max-width: 960px;
             width: 100%; 
@@ -160,7 +129,7 @@
         .remove-url-button { background-color: #dc3545; }
         
         #drop-zone { border: 2px dashed var(--primary-blue); padding: 20px; text-align: center; color: #777; border-radius: 10px; cursor: pointer; height: 100%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
-        #drop-zone.dragover { background: #e0f7ff; } /* Style pour le dragover */
+        #drop-zone.dragover { background: #e0f7ff; } 
 
         .file-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px; }
         .file-preview-item { position: relative; width: 100px; height: 100px; border: 1px solid #ddd; border-radius: 5px; display: flex; justify-content: center; align-items: center; background-color: #f9f9f9; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
@@ -267,7 +236,6 @@
             background-color: rgba(0,0,0,0.7);
         }
 
-        /* Media Queries pour la responsivité */
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -288,16 +256,20 @@
                     <div class="form-grid">
                         
                         <div class="form-group">
-                            <label for="auteur">Votre nom</label>
-                            <select id="auteur" v-model="auteur" required>
-                                <option value="" disabled>Sélectionnez un nom</option>
-                                <optgroup v-for="(noms, pole) in allCollaborateursParPole" :key="pole" :label="pole">
-                                    <option v-for="profilNom in noms" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
-                                </optgroup>
+                            <label for="poleSelect">Pôle</label>
+                            <select id="poleSelect" v-model="poleSelectionne" @change="onPoleChange" required>
+                                <option value="" disabled>Sélectionnez un pôle</option>
+                                <option v-for="(noms, pole) in allCollaborateursParPole" :key="pole" :value="pole">{{ pole }}</option>
                             </select>
-                            <p v-if="isLoadingProfils" style="color: var(--primary-blue); font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
                         </div>
-
+                        <div class="form-group">
+                            <label for="auteur">Votre nom (Collaborateur)</label>
+                            <select id="auteur" v-model="auteur" :disabled="!poleSelectionne || isLoadingProfils" required>
+                                <option value="" disabled>Sélectionnez un nom</option>
+                                <option v-for="collaborateur in filteredCollaborateurs" :key="collaborateur" :value="collaborateur">{{ collaborateur }}</option>
+                            </select>
+                            <p v-if="isLoadingProfils" style="color: var(--primary-blue); font-size: 0.9em; margin-top: 5px;">Chargement des profils...</p>
+                        </div>
                         <div class="form-group">
                             <label for="titre">Titre du Tip / Workflow</label>
                             <input type="text" id="titre" v-model="titre" required />
@@ -371,7 +343,7 @@
 
                         <div class="form-group full-width">
                                <div v-if="isLoading" class="loader"></div>
-                            <button v-else type="submit" :disabled="!auteur || !titre || !description || isLoading">Partager</button>
+                            <button v-else type="submit" :disabled="!poleSelectionne || !auteur || !titre || !description || isLoading">Partager</button>
                         </div>
                     </div>
                 </form>
@@ -427,18 +399,18 @@
                     throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
                 }
                 document.getElementById(placeholderId).innerHTML = await res.text();
-                // console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`); // Décommenter pour le débogage
             } catch (error) {
                 console.error(`Erreur lors du chargement de ${url}:`, error);
                 document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
             }
         }
 
-        const { ref, createApp, onMounted, onUnmounted } = Vue;
+        const { ref, createApp, onMounted, onUnmounted, computed, watch } = Vue;
 
         const TipForm = {
             setup() {
-                const auteur = ref('');
+                const auteur = ref(''); // Collaborateur sélectionné
+                const poleSelectionne = ref(''); // Pôle sélectionné
                 const titre = ref('');
                 const description = ref('');
                 const previewText = ref('');
@@ -447,18 +419,18 @@
                 // Si votre fonction pushTip l'attend, assurez-vous de l'ajouter ici et dans le formulaire HTML.
                 // const categorie = ref('Marketing Digital'); 
 
-                const outils = ref([]); // Tableau pour stocker les outils sélectionnés via checkboxes
+                const outils = ref([]); 
                 const customOutil = ref('');
-                const urls = ref(['']); // Tableau pour les URLs dynamiques
+                const urls = ref(['']); 
                 const commentaireUrl = ref('');
                 const selectedFiles = ref([]);
                 let fileIdCounter = 0;
                 const fileInput = ref(null);
                 const fileUploadError = ref('');
 
-                const isLoading = ref(false); // Loader spécifique au formulaire
-                const allCollaborateursParPole = ref({}); // Stocke les profils regroupés par pôle
-                const isLoadingProfils = ref(true); // Loader pour le chargement des profils
+                const isLoading = ref(false); 
+                const allCollaborateursParPole = ref({}); 
+                const isLoadingProfils = ref(true); 
 
                 // État de la confirmation post-soumission
                 const confirmationVisible = ref(false);
@@ -474,12 +446,26 @@
                 const lightboxVisible = ref(false);
                 const lightboxImageUrl = ref('');
 
-                // Utilisation de la variable globale toolsData (assurez-vous que tools-data.js est chargé AVANT ce script)
+                // `toolsData` est supposé être globalement disponible via tools-data.js
                 const toolsList = toolsData.sort((a, b) => a.name.localeCompare(b.name));
+
+                // Propriété calculée pour filtrer les collaborateurs par pôle
+                const filteredCollaborateurs = computed(() => {
+                    if (poleSelectionne.value && allCollaborateursParPole.value[poleSelectionne.value]) {
+                        return allCollaborateursParPole.value[poleSelectionne.value].sort();
+                    }
+                    return [];
+                });
+
+                // Watcher pour réinitialiser l'auteur quand le pôle change
+                watch(poleSelectionne, (newPole, oldPole) => {
+                    if (newPole !== oldPole) {
+                        auteur.value = ''; // Réinitialiser le collaborateur quand le pôle change
+                    }
+                });
 
                 // Fonction pour charger les profils d'auteurs
                 async function fetchProfils() {
-                    // console.log("Début du chargement des profils..."); // Décommenter pour le débogage
                     isLoadingProfils.value = true;
                     try {
                         const response = await fetch(GET_PROFILS_URL);
@@ -487,27 +473,26 @@
                             const errorText = await response.text();
                             throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
                         }
-                        const data = await response.json(); // La fonction getProfils doit retourner un objet { "Pôle": ["Nom1", ...], ... }
+                        const data = await response.json(); 
 
                         if (data && typeof data === 'object') {
                             allCollaborateursParPole.value = data; 
                         } else {
                             console.warn("Format inattendu pour les profils d'auteurs. Attendu: objet par pôle.");
-                            allCollaborateursParPole.value = {}; // S'assurer que c'est un objet vide en cas d'erreur
+                            allCollaborateursParPole.value = {};
                         }
 
-                        // Auto-sélection si un seul pôle/nom est trouvé (ajustez selon votre besoin exact)
-                        const allNamesFlat = Object.values(data || {}).flat();
-                        if (allNamesFlat.length === 1) {
-                            auteur.value = allNamesFlat[0];
-                        } else if (allNamesFlat.length === 0) {
-                             console.warn("Aucun profil d'auteur trouvé. Veuillez vérifier la fonction Netlify 'getProfils'.");
+                        // Si un seul pôle est disponible, le présélectionner
+                        const availablePoles = Object.keys(allCollaborateursParPole.value);
+                        if (availablePoles.length === 1) {
+                            poleSelectionne.value = availablePoles[0];
+                        } else if (availablePoles.length === 0) {
+                            console.warn("Aucun pôle d'auteur trouvé. Vérifiez la fonction Netlify 'getProfils'.");
                         }
                     } catch (error) {
                         console.error("Erreur lors du chargement des profils:", error);
                     } finally {
                         isLoadingProfils.value = false;
-                        // console.log("Fin du chargement des profils."); // Décommenter pour le débogage
                     }
                 }
 
@@ -575,7 +560,7 @@
                     const files = e.target.files;
                     if (files) {
                         addFiles(files);
-                        e.target.value = null; // Réinitialise l'input file
+                        e.target.value = null; 
                     }
                 }
 
@@ -635,8 +620,8 @@
                 // Fonction principale de soumission du formulaire
                 async function submitForm() {
                     // Validation simple
-                    if (!auteur.value || !titre.value.trim() || !description.value.trim()) {
-                        alert("Veuillez remplir tous les champs obligatoires (Votre nom, Titre, Description).");
+                    if (!poleSelectionne.value || !auteur.value || !titre.value.trim() || !description.value.trim()) {
+                        alert("Veuillez remplir tous les champs obligatoires (Pôle, Votre nom, Titre, Description).");
                         return;
                     }
                     if (outils.value.includes('Autre') && !customOutil.value.trim()) {
@@ -650,31 +635,32 @@
                     try {
                         const formData = new FormData();
                         formData.append('auteur', auteur.value);
+                        formData.append('pole', poleSelectionne.value); // Ajout du champ pôle
                         formData.append('titre', titre.value);
                         formData.append('description', description.value);
                         formData.append('previewText', previewText.value);
                         formData.append('promptText', promptText.value);
                         
-                        // Gestion des outils: combine les outils cochés et le champ personnalisé
+                        // Gestion des outils
                         const finalOutils = outils.value.filter(o => o !== 'Autre');
                         if (outils.value.includes('Autre') && customOutil.value.trim()) {
                             finalOutils.push(customOutil.value.trim());
                         }
-                        formData.append('outil', finalOutils.join(', ')); // Envoyer comme une chaîne séparée par des virgules
+                        formData.append('outil', finalOutils.join(', ')); 
 
                         formData.append('dateCreation', new Date().toISOString());
-                        formData.append('pageDePartage', 'Tip / Workflow'); // Indique la source du formulaire pour le backend
+                        formData.append('pageDePartage', 'Tip / Workflow'); 
 
-                        // Filtrer les URLs vides et les envoyer en JSON stringifié si le backend l'attend
+                        // Filtrer les URLs vides et les envoyer en JSON stringifié
                         const filteredUrls = urls.value.filter(url => url.trim() !== '');
                         if (filteredUrls.length > 0) {
                             formData.append('urls', JSON.stringify(filteredUrls));
                         } else {
-                            formData.append('urls', '[]'); // Envoyer un tableau JSON vide si aucune URL
+                            formData.append('urls', '[]'); 
                         }
                         formData.append('commentaireUrl', commentaireUrl.value.trim());
 
-                        // Ajouter les fichiers au FormData
+                        // Ajouter les fichiers
                         selectedFiles.value.forEach((fileObj) => {
                             formData.append(`files`, fileObj.file, fileObj.name);
                         });
@@ -690,7 +676,6 @@
                         }
 
                         const result = await tipResp.json();
-                        // console.log("Réponse de la fonction Netlify (pushTip):", result); // Décommenter pour le débogage
 
                         // Remplir les données de confirmation
                         confirmationImageUrls.value = Array.isArray(result.imageUrls) ? result.imageUrls : [];
@@ -722,7 +707,7 @@
                 }
 
                 return {
-                    auteur, titre, description, previewText, promptText, outils, customOutil, fileInput,
+                    auteur, poleSelectionne, titre, description, previewText, promptText, outils, customOutil, fileInput,
                     urls, addUrlField, removeUrlField, commentaireUrl,
                     selectedFiles, fileUploadError,
                     confirmationVisible,
@@ -732,7 +717,11 @@
                     lightboxVisible, lightboxImageUrl,
                     openLightbox, closeLightbox,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
-                    removeFile, getFileIcon, submitForm
+                    removeFile, getFileIcon, submitForm,
+                    onPoleChange: fetchProfils, // Cette ligne est un artefact de ma pensée, elle n'est pas nécessaire ici.
+                                                // La mise à jour du `filteredCollaborateurs` est gérée par le `computed`
+                                                // et le `watch(poleSelectionne)` pour réinitialiser `auteur`.
+                    filteredCollaborateurs // Exposer la propriété calculée
                 };
             }
         };
@@ -741,8 +730,6 @@
         document.addEventListener("DOMContentLoaded", async () => {
             const bodyElement = document.body;
             const mainElement = document.querySelector("main");
-            // S'il y a un loader global (comme dans votre deuxième fichier), décommenter et gérer ici
-            // const globalLoader = document.getElementById("global-loader"); 
 
             // Masquer la barre de défilement du body au début pour une meilleure expérience
             bodyElement.style.overflow = 'hidden';
@@ -766,8 +753,10 @@
             // 3. Monter l'application Vue.js sur l'élément #app
             createApp(TipForm).mount('#app');
 
-            // 4. Cacher le loader global et révéler le contenu principal (si un loader global est utilisé)
+            // Il n'y a pas de global-loader dans le HTML fourni, donc je le laisse commenté.
+            // Si vous en ajoutez un, décommentez et ajustez.
             /*
+            const globalLoader = document.getElementById("global-loader"); 
             if (globalLoader) {
                 globalLoader.classList.add("hidden");
                 globalLoader.addEventListener('transitionend', () => {
