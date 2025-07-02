@@ -4,8 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Équipe - Espace IA</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -16,7 +14,6 @@
             --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
             --grey-text: #555;
             --border-color: #ccc;
-            --light-blue-card: #E0F2F7;
         }
         body {
             font-family: 'Segoe UI', 'Inter', sans-serif;
@@ -54,9 +51,15 @@
             font-size: 1.1em; padding: 10px 18px; border-radius: 8px;
             transition: background 0.3s ease; margin: 0 5px;
             white-space: nowrap;
+            position: relative;
         }
         nav a:hover { background: rgba(255, 255, 255, 0.2); }
         nav a.active { background-color: white; color: var(--primary-blue); }
+        .notif-bubble {
+            position: absolute; top: 0px; right: 0px; background: red; color: white;
+            border-radius: 50%; padding: 2px 6px; font-size: 12px; font-weight: bold;
+            display: none; 
+        }
 
         .content-section {
             max-width: 960px;
@@ -116,23 +119,29 @@
             font-size: 1em;
             color: var(--grey-text);
             font-weight: 500;
+            margin-bottom: 15px;
         }
-        .profil-card .card-actions {
-            margin-top: 20px;
+        .card-actions {
             display: flex;
-            gap: 10px;
+            justify-content: center;
+            gap: 8px;
+            margin-top: auto;
+            padding-top: 10px;
+            border-top: 1px solid #f0f0f0;
+            width: 100%;
         }
-        .profil-card .btn-action {
+        .btn-action {
             background: #e9ecef;
             border: none;
             border-radius: 8px;
             padding: 8px 12px;
-            font-size: 1em;
+            font-size: 1.1em;
             color: var(--dark-blue);
             cursor: pointer;
+            transition: background-color 0.2s;
         }
-
-        /* Panneau Latéral */
+        .btn-action:hover { background-color: #d0d9e2; }
+        
         .side-panel-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.5); z-index: 999;
@@ -159,7 +168,7 @@
         }
         .side-panel-content h3:first-child { margin-top: 0; }
         .side-panel-content ul { padding-left: 20px; }
-        .side-panel-content .note-content {
+        .note-content {
              background: #fffbe6; padding: 15px; border-left: 4px solid #ffcb05; 
              border-radius: 8px; white-space: pre-wrap;
         }
@@ -169,20 +178,21 @@
         }
         .tip-card h4 { margin: 0 0 5px 0; color: var(--dark-blue); }
         .tip-card p { margin: 0; font-size: 0.9em; }
+        .gallery-images-container { display: flex; flex-wrap: wrap; gap: 10px; }
+        .gallery-images-container img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; }
 
         footer {
             background-color: #333; color: white; text-align: center;
             padding: 20px; margin-top: auto; width: 100%;
         }
-
         @media (max-width: 768px) {
             #profil-list { grid-template-columns: 1fr; }
             nav { justify-content: flex-start; overflow-x: auto; }
-            #filters { flex-direction: column; }
         }
     </style>
 </head>
 <body>
+
     <div class="nav-wrapper">
         <div class="menu-container">
             <nav>
@@ -192,6 +202,9 @@
                 <a href="galerie.html">Prompts</a>
                 <a href="cas-usages.html">Workflows</a>
                 <a href="charte.html">Chartes</a>
+                <a href="faq.html">FAQ</a>
+                <a href="demandes_ia.html">Demandes<span class="notif-bubble" id="notif-count">0</span></a>
+                <a href="gestion-license.html">Licenses</a>
             </nav>
         </div>
     </div>
@@ -200,21 +213,18 @@
         <div class="content-section action-button-container">
             <a href="profil.html" class="action-button">Créer un profil</a>
         </div>
-        <div class="content-section">
+        <div class="content-section filters-area-container">
             <div id="filters">
                 <select id="filterPole">
                     <option value="">Tous les pôles</option>
                     <option value="Pôle créa.">Pôle créa.</option>
                     <option value="CRM">CRM</option>
-                    <option value="Communication">Communication</option>
                 </select>
                 <input type="text" id="searchInput" placeholder="Rechercher un nom ou un outil...">
             </div>
         </div>
         <div class="content-section" id="profil-container">
-            <div id="profil-list">
-                <p style="text-align: center;">Chargement de l'équipe...</p>
-            </div>
+            <div id="profil-list"><p style="text-align: center;">Chargement de l'équipe...</p></div>
         </div>
     </main>
 
@@ -231,8 +241,9 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        const PROXY_URL = "/.netlify/functions/proxy";
+        const apiBase = window.location.origin + '/.netlify/functions/';
         let profils = [];
+        let galleryPrompts = [];
         let sharedTips = [];
 
         const listContainer = document.getElementById("profil-list");
@@ -246,15 +257,15 @@
 
         async function fetchData(action) {
             try {
-                const response = await fetch(`${PROXY_URL}?action=${action}`);
+                const response = await fetch(`${apiBase}${action}`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return await response.json();
             } catch (error) {
                 console.error(`Erreur chargement ${action}:`, error);
-                return [];
+                return []; // Retourne un tableau vide en cas d'erreur pour ne pas bloquer Promise.all
             }
         }
-
+        
         function renderProfils(filteredProfils) {
             listContainer.innerHTML = "";
             if (filteredProfils.length === 0) {
@@ -269,17 +280,29 @@
                     <h3>${p.name || 'N/A'}</h3>
                     <p class="pole">${p.pole || 'N/A'}</p>
                     <div class="card-actions">
-                        <button class="btn-action btn-edit" data-id="${p.id}">Éditer</button>
+                        <button class="btn-action btn-note" data-id="${p.id}" title="Note"><i class="fas fa-sticky-note"></i></button>
+                        <button class="btn-action btn-edit" data-id="${p.id}" title="Éditer"><i class="fas fa-edit"></i></button>
+                        <button class="btn-action btn-delete" data-id="${p.id}" title="Supprimer"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 `;
                 card.addEventListener('click', (e) => {
-                    if (!e.target.classList.contains('btn-edit')) {
+                    if (!e.target.closest('.btn-action')) {
                         openSidePanel(p);
                     }
                 });
                 card.querySelector('.btn-edit').addEventListener('click', (e) => {
                     e.stopPropagation();
                     window.location.href = `profil.html?edit=${p.id}`;
+                });
+                card.querySelector('.btn-delete').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Ajouter la logique de suppression ici
+                    alert('Logique de suppression à implémenter pour ' + p.name);
+                });
+                card.querySelector('.btn-note').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Ajouter la logique des notes ici
+                    alert('Logique des notes à implémenter pour ' + p.name);
                 });
                 listContainer.appendChild(card);
             });
@@ -291,8 +314,8 @@
             const filtered = profils.filter(p => {
                 const matchPole = !selectedPole || p.pole === selectedPole;
                 const matchSearch = !searchQuery || 
-                                    p.name.toLowerCase().includes(searchQuery) ||
-                                    (p.tools && p.tools.some(tool => tool.toLowerCase().includes(searchQuery)));
+                                    (p.name && p.name.toLowerCase().includes(searchQuery)) ||
+                                    (Array.isArray(p.tools) && p.tools.some(tool => tool.toLowerCase().includes(searchQuery)));
                 return matchPole && matchSearch;
             });
             renderProfils(filtered);
@@ -305,6 +328,16 @@
                 : '<p>Aucun outil spécifié.</p>';
             
             const noteContent = profil.note ? `<div class="note-content">${profil.note}</div>` : '';
+
+            const promptsByAuthor = galleryPrompts.filter(prompt => prompt.auteur === profil.name);
+            let promptsHtml = '<h3>Derniers Prompts Partagés</h3>';
+            if (promptsByAuthor.length > 0) {
+                promptsHtml += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt => 
+                    `<a href="galerie.html" title="${prompt.titre}"><img src="${prompt.imageUrl || 'https://placehold.co/100'}" alt="${prompt.titre}"></a>`
+                ).join('')}</div>`;
+            } else {
+                promptsHtml += '<p>Aucun prompt partagé récemment.</p>';
+            }
 
             const tipsByAuthor = sharedTips.filter(tip => tip.auteur === profil.name);
             let tipsHtml = '<h3>Derniers Workflows Partagés</h3>';
@@ -323,6 +356,7 @@
                 <h3>Pôle</h3><p>${profil.pole || 'N/A'}</p>
                 <h3>Outils Favoris</h3>${toolsList}
                 ${profil.note ? `<h3>Note</h3>${noteContent}` : ''}
+                ${promptsHtml}
                 ${tipsHtml}
             `;
             sidePanel.classList.add("open");
@@ -335,12 +369,15 @@
         }
 
         async function init() {
-            const [profilsData, tipsData] = await Promise.all([
+            listContainer.innerHTML = '<p>Chargement de l\'équipe...</p>';
+            const [profilsData, promptsData, tipsData] = await Promise.all([
                 fetchData('getProfils'),
+                fetchData('getGalleryPrompts'),
                 fetchData('getTips')
             ]);
             
             profils = profilsData || [];
+            galleryPrompts = promptsData || [];
             sharedTips = tipsData || [];
 
             applyFilters();
@@ -356,5 +393,6 @@
         init();
     });
 </script>
+
 </body>
 </html>
