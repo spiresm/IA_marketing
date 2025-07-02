@@ -252,7 +252,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            color: var(--grey-text); /* Couleur de texte par défaut pour la ligne */
+            color: var(--grey-text); /* Couleur de texte par default pour la ligne */
         }
         .metadata-line strong {
             font-weight: bold;
@@ -483,7 +483,7 @@
     <script src="tools-data.js"></script> 
     <script>
         // Définitions des URL pour les fonctions Netlify
-        const apiBase = window.location.origin + '/.netlify/functions/'; // Rendre apiBase local
+        const apiBase = window.location.origin + '/.netlify/functions/'; 
         const GET_TIPS_URL = `${apiBase}get-tips`;
         const PUSH_TIP_URL = `${apiBase}pushTip`; 
         const UPDATE_TIP_URL = `${apiBase}update-tip`; 
@@ -574,23 +574,24 @@
                 
                 const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(url => getYouTubeVideoId(url));
                 const isCloudinaryVideo = isCloudinaryVideoUrl(tip.imageUrl); // Vérifie si l'imageUrl est une vidéo Cloudinary
-                const finalImageUrlForCard = tip.imageUrl; // L'URL de la vidéo Cloudinary ou de l'image principale
-                const finalThumbnailUrlForCard = isCloudinaryVideo ? tip.videoThumbnailUrl : null; // La miniature vidéo Cloudinary
                 const isStillImage = !isCloudinaryVideo && !hasYoutubeVideo && isImageUrl(tip.imageUrl); // Est-ce une image "normale"
+
+                // Détermine l'URL de la vignette à afficher sur la carte
+                let thumbnailUrlForCard = '';
+                if (isCloudinaryVideo && tip.videoThumbnailUrl) {
+                    thumbnailUrlForCard = tip.videoThumbnailUrl;
+                } else if (hasYoutubeVideo) {
+                    const videoId = getYouTubeVideoId(tip.urls.find(getYouTubeVideoId));
+                    thumbnailUrlForCard = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+                } else if (isStillImage) {
+                    thumbnailUrlForCard = tip.imageUrl;
+                }
 
                 const workflowShaToPass = allTipsFileSha || ''; 
 
                 let previewImageHtml = '';
-                if (isCloudinaryVideo && finalThumbnailUrlForCard) {
-                    // Si c'est une vidéo Cloudinary et nous avons une miniature
-                    previewImageHtml = `<img src="${escapeHtml(finalThumbnailUrlForCard)}" class="card-thumbnail-preview" alt="Vignette vidéo">`;
-                } else if (hasYoutubeVideo) {
-                    // Si c'est une vidéo YouTube
-                    const videoId = getYouTubeVideoId(tip.urls.find(getYouTubeVideoId));
-                    previewImageHtml = `<img src="https://i.ytimg.com/vi/${videoId}/hqdefault.jpg" class="card-thumbnail-preview" alt="Vignette YouTube">`;
-                } else if (isStillImage) {
-                    // Si c'est une image normale
-                    previewImageHtml = `<img src="${escapeHtml(finalImageUrlForCard)}" class="card-thumbnail-preview" alt="Aperçu">`;
+                if (thumbnailUrlForCard) {
+                    previewImageHtml = `<img src="${escapeHtml(thumbnailUrlForCard)}" class="card-thumbnail-preview" alt="Vignette média">`;
                 } else {
                     // Fallback générique si aucune image/vidéo spécifique
                     previewImageHtml = `<div class="card-thumbnail-preview" style="display:flex; justify-content:center; align-items:center;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
@@ -836,16 +837,22 @@
         async function initApp() {
             // Fonction utilitaire pour charger des composants HTML (Header et Footer)
             async function loadComponent(url, placeholderId) {
+                const placeholderElement = document.getElementById(placeholderId);
+                if (!placeholderElement) {
+                    console.error(`❌ loadComponent: Le placeholder avec l'ID '${placeholderId}' n'a pas été trouvé dans le DOM. Le chargement du composant ${url} a échoué.`);
+                    throw new Error(`Placeholder element '${placeholderId}' not found for URL: ${url}.`);
+                }
+
                 try {
                     const res = await fetch(url);
                     if (!res.ok) {
                         const errorDetail = await res.text();
                         throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
                     }
-                    document.getElementById(placeholderId).innerHTML = await res.text();
+                    placeholderElement.innerHTML = await res.text();
                 } catch (error) {
-                    console.error(`Erreur lors du chargement de ${url}:`, error);
-                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
+                    console.error(`❌ Erreur lors du chargement de ${url} dans #${placeholderId}:`, error);
+                    placeholderElement.innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
                 }
             }
             
