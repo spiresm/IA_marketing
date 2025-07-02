@@ -110,13 +110,16 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: column;
-            padding: 20px;
+            /* padding: 20px; */ /* Retiré pour gérer padding à l'intérieur de content-wrapper */
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             border-left: 5px solid var(--primary-blue);
         }
         
-        .addition-card.galerie {
-             border-left-color: #ffcb05;
+        .addition-card.galerie { /* Style pour la carte de prompt */
+            border-left-color: #ffcb05; /* Jaune pour les prompts */
+        }
+        .addition-card.cas-usage { /* Style pour la carte de workflow */
+             border-left-color: var(--primary-blue); /* Bleu pour les workflows (ou une autre couleur si souhaité) */
         }
 
         .addition-card:hover {
@@ -124,31 +127,90 @@
             box-shadow: 0 8px 25px rgba(0,0,0,0.12);
         }
 
-        .addition-card h4 {
-            font-size: 1.3em;
-            margin: 0 0 10px 0;
-            color: var(--dark-blue);
+        /* NOUVEAU: Container pour le contenu textuel de la carte */
+        .card-content-wrapper {
+            padding: 20px; /* Pour donner le padding */
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
         }
 
+        /* Ajustements pour la top meta (chaîne, auteur, outil) */
+        .card-top-meta {
+            display: flex;
+            justify-content: space-between; /* Pour pousser les éléments aux extrémités */
+            align-items: center; /* Pour aligner verticalement */
+            width: 100%; /* Important pour que justify-content fonctionne */
+            margin-bottom: 10px; /* Espace sous cette ligne */
+            flex-wrap: wrap; /* Permet aux badges de passer à la ligne si pas assez d'espace */
+            gap: 5px; /* Espace entre les badges si wrap */
+        }
+        .card-top-meta .left-badges {
+            display: flex;
+            gap: 8px; /* Espace entre les badges de gauche (chaine, auteur) */
+            flex-wrap: wrap;
+        }
+
+
+        .addition-card h4 {
+            font-size: 1.3em;
+            margin: 0; /* Réinitialiser la marge pour mieux contrôler */
+            color: var(--dark-blue);
+        }
+        /* Style spécifique pour les sous-titres (titre réel de l'élément) */
+        .addition-card .card-subtitle {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+            margin-top: 5px; /* Petit espace sous le titre principal */
+            margin-bottom: 10px;
+        }
+
+        .addition-card .card-image-container {
+            width: 100%;
+            height: 180px; /* Hauteur fixe pour l'image/placeholder */
+            overflow: hidden; /* Assure que les coins arrondis sont respectés */
+            border-radius: 8px;
+            margin: 10px 0; /* Espace autour du conteneur d'image */
+            flex-shrink: 0; /* Empêche le rétrécissement du conteneur d'image */
+        }
         .addition-card .card-image-container img {
             width: 100%;
-            height: 180px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin: 10px 0;
+            height: 100%;
+            object-fit: cover; /* Recouvre le conteneur sans déformer l'image */
+            display: block;
         }
 
         .addition-card p {
             color: var(--grey-text);
-            flex-grow: 1; 
+            flex-grow: 1; /* Permet à la description de prendre l'espace restant */
+            margin-top: 0; /* Ajuster la marge */
         }
         
+        /* Styles pour les badges (outil, auteur) */
+        .outil-badge, .auteur-badge {
+            background-color: #e9ecef;  /* Couleur de fond commune aux badges */
+            color: #495057;  
+            font-size: 0.8em;
+            font-weight: 500;  
+            padding: 5px 12px;  
+            border-radius: 15px;
+            white-space: nowrap; 
+        }
+        
+        /* Styles pour les noms de chaîne en texte coloré simple (reste comme avant) */
+        .chaine-text-color { 
+            font-size: 0.9em; 
+            font-weight: bold; 
+            white-space: nowrap; 
+        }
+
         .addition-card .card-meta {
             border-top: 1px solid #e0e0e0;
             padding-top: 10px;
             margin-top: 15px;
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* Force les éléments à s'empiler */
             gap: 8px;
             font-size: 0.85em;
             color: var(--grey-text);
@@ -332,35 +394,92 @@
             const card = document.createElement("div");
             card.className = `addition-card ${type}`;
 
+            // Define the main title for the card
+            let mainCardTitle = '';
+            if (type === 'galerie') {
+                mainCardTitle = 'Dernier prompt partagé';
+            } else if (type === 'cas-usage') {
+                mainCardTitle = 'Dernier workflow partagé';
+            } else {
+                mainCardTitle = 'Dernier ajout'; // Fallback if type is not recognized
+            }
+
             let mediaHtml = '';
-            // Condition pour vérifier si l'URL de l'image est valide et si l'image doit être affichée
             if (item.imageUrl && isImageUrl(item.imageUrl) && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') { 
                 mediaHtml = `
                     <div class="card-image-container">
                         <img src="${item.imageUrl}" alt="Vignette pour ${item.titre}">
                     </div>`;
             } else {
-                // Si pas d'image ou placeholder, afficher une icône ou un espace vide
                 mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
             }
 
-            const metaHtml = `
-                <div class="card-meta">
-                    ${item.auteur && item.auteur !== 'Auteur inconnu' ? `<span><i class="fas fa-user"></i> ${item.auteur}</span>` : ''}
-                    ${item.outil && item.outil !== 'Non spécifié' ? `<span><i class="fas fa-wrench"></i> ${item.outil}</span>` : ''}
-                </div>
-            `;
+            // Generate badges for author and tool
+            const authorBadge = item.auteur && item.auteur !== 'Auteur inconnu' ? `<span class="auteur-badge">${item.auteur}</span>` : '';
+            const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${item.outil}</span>` : '';
 
             card.innerHTML = `
-                <h4>${item.titre}</h4>
-                ${mediaHtml}
-                <p>${item.description}</p>
-                ${metaHtml}
-                <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="view-button">
-                    Voir plus
-                </a>`;
+                <div class="card-content-wrapper">
+                    <div class="card-top-meta">
+                        <div class="left-badges">
+                            <span class="chaine-text-color" style="color: ${getChainColor(item.chaine)};">${item.chaine}</span>
+                            ${authorBadge}
+                        </div>
+                        ${toolBadge}
+                    </div>
+                    <h4>${mainCardTitle}</h4>
+                    <div class="card-subtitle">${item.titre}</div> 
+                    ${mediaHtml}
+                    <p>${item.description}</p>
+                    <div class="card-meta">
+                        <span>Créé le: <strong>${formatteDate(item.date)}</strong></span>
+                    </div>
+                    <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="view-button">
+                        Voir plus
+                    </a>
+                </div>`;
             return card;
         };
+
+        // Objet pour mapper les noms de chaînes à des couleurs (copié de galerie.html)
+        const chainColors = {
+            "Auvio Kids": "hotpink", // rose
+            "Auvio": "gold", // jaune
+            "La Une": "red", // rouge
+            "Tipik": "limegreen", // vert
+            "La Première": "blue", // bleu
+            "Vivacité": "orange", // orange
+            "La Trois": "purple", // mauve
+            "Classic 21": "#8A2BE2", 
+            "Musiq3": "#FF1493", 
+            "Autre": "#778899",
+            "Non spécifié": "#CCCCCC"
+        };
+
+        function getChainColor(chaineNom) {
+            return chainColors[chaineNom] || chainColors["Non spécifié"];
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        function formatteDate(dateString) {
+            if (!dateString) return 'Date inconnue';
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) {
+                    return 'Date invalide';
+                }
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                return date.toLocaleDateString('fr-FR', options);
+            } catch (e) {
+                console.error("Erreur de formatage de la date:", e);
+                return 'Date invalide';
+            }
+        }
 
         async function displayLatestAdditions() {
             const container = document.getElementById("latest-additions-grid");
@@ -385,10 +504,10 @@
                     titre: item.titre || "Titre non spécifié",
                     auteur: item.auteur || "Auteur inconnu",
                     outil: item.outil || "Non spécifié",
+                    chaine: item.chaine || "Non spécifié", // Ajout de la chaîne pour la normalisation
                     description: item.description || item.promptText || 'Pas de description.',
                     date: item.date_creation || item.dateCreation,
-                    // Utiliser l'URL directe pour les prompts si fournie, sinon le premier élément de fileUrls
-                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER') // Placeholder si pas d'image
+                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER')
                 });
 
                 tips = tips.map(normalizeItem);
@@ -398,34 +517,26 @@
                 tips = tips.filter(item => item.titre !== "Titre non spécifié" || item.description !== "Pas de description.");
                 prompts = prompts.filter(item => item.titre !== "Titre non spécifié" || item.description !== "Pas de description.");
 
-
                 tips.sort((a, b) => new Date(b.date) - new Date(a.date));
                 prompts.sort((a, b) => new Date(b.date) - new Date(a.date));
 
                 container.innerHTML = ''; 
 
-                let itemsAdded = [];
+                let itemsToDisplay = [];
 
-                // Ajouter la dernière Tips
-                if (tips.length > 0) {
-                    itemsAdded.push({ item: tips[0], type: 'cas-usage' });
+                if (prompts.length > 0) { // On met le prompt en premier (gauche)
+                    itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
                 }
-                // Ajouter la dernière Prompts
-                if (prompts.length > 0) {
-                    itemsAdded.push({ item: prompts[0], type: 'galerie' });
+                if (tips.length > 0) { // Puis le workflow (droite)
+                    itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
                 }
 
-                // Trier les éléments à afficher par date, pour s'assurer que les deux plus récents sont affichés
-                itemsAdded.sort((a, b) => new Date(b.item.date) - new Date(a.item.date));
-
-                // Ajouter les 2 derniers éléments (ou moins si pas assez disponibles)
-                for (let i = 0; i < Math.min(itemsAdded.length, 2); i++) { // Limit to 2 cards
-                    const { item, type } = itemsAdded[i];
+                // Ajouter les éléments dans l'ordre (prompt d'abord, puis workflow)
+                itemsToDisplay.forEach(({ item, type }) => {
                     container.appendChild(createCard(item, type));
-                }
-
-
-                if (itemsAdded.length === 0) {
+                });
+                
+                if (itemsToDisplay.length === 0) {
                     container.innerHTML = '<p>Aucun ajout récent à afficher.</p>';
                 }
 
@@ -446,7 +557,7 @@
                 const newsItems = await response.json();
                 if (newsItems.length > 0) {
                     newsTickerContent.innerHTML = newsItems.map(item => 
-                        `<span class="news-item">${item.title}</span>`
+                        `<span class="news-item">${escapeHtml(item.title)}</span>` // Escape HTML pour les titres d'actualités
                     ).join('');
                     
                     // Duplique le contenu pour permettre un défilement continu
