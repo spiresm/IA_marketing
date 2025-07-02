@@ -179,16 +179,17 @@
             align-self: flex-start;
         }
 
-        /* Styles pour les badges de chaîne dynamiques */
-        .chaine-badge {
-            font-size: 0.8em;
-            font-weight: 500;
-            padding: 5px 12px;
-            border-radius: 15px;
-            align-self: flex-start;
+        /* La classe chaine-badge n'aura plus de fond ni de bordure, juste la couleur du texte */
+        /* Elle est toujours utilisée pour que le JS puisse lui appliquer la couleur */
+        .chaine-text-color { /* Nouvelle classe plus descriptive */
+            font-size: 0.9em; /* Légèrement plus grand pour la lisibilité */
+            font-weight: bold; /* Pour qu'elle ressorte comme un élément important */
+            align-self: flex-start; /* Aligner à gauche */
             margin-top: 5px; /* Pour séparer du badge outil */
-            /* La couleur de fond et le texte seront définis via JS */
         }
+        /* Supprimez les styles de la classe .chaine-badge si elle n'est plus utilisée pour la forme */
+        /* .chaine-badge { ... } */
+
 
         .metadata-section {
             font-size: 0.85em;
@@ -205,37 +206,55 @@
             margin-top: 15px;
             padding-top: 15px;
             border-top: 1px solid #eee;
+            flex-wrap: wrap; /* Pour s'assurer que les boutons restent sur plusieurs lignes si l'écran est petit */
         }
 
-        .copier-btn, .details-btn {
-            background-color: var(--primary-blue); color: white; border: none; padding: 10px 15px;
-            border-radius: 8px; cursor: pointer; font-size: 0.9em; font-weight: 600;
-            transition: background-color 0.2s; flex-grow: 1; text-align: center;
-        }
-        
-        .copier-btn { background-color: var(--light-blue); }
-        .supprimer-btn { background: none; border: none; color: #aaa; cursor: pointer; padding: 0 5px; }
-
-        /* Styles pour le bouton Éditer, similaire aux autres boutons */
-        .edit-btn {
-            background-color: #009688; /* Couleur verte/turquoise, à ajuster si vous avez une palette pour ça */
-            color: white;
-            border: none;
+        /* Styles homogènes pour tous les boutons d'action de la carte */
+        .card-action-btn {
+            background-color: var(--primary-blue); 
+            color: white; 
+            border: none; 
             padding: 10px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9em;
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 0.9em; 
             font-weight: 600;
-            transition: background-color 0.2s;
-            flex-grow: 1;
+            transition: background-color 0.2s; 
+            flex-grow: 1; 
             text-align: center;
             text-decoration: none; /* Pour les liens */
-            display: flex; /* Pour centrer le texte si c'est un lien */
+            display: flex; /* Pour centrer le texte si c'est un lien/bouton */
             align-items: center;
             justify-content: center;
+            min-width: 80px; /* Assure une taille minimale pour chaque bouton */
         }
-        .edit-btn:hover {
-            background-color: #00796b; /* Légèrement plus foncé au survol */
+        .card-action-btn:hover {
+            background-color: var(--dark-blue);
+        }
+
+        /* Styles spécifiques pour les couleurs des boutons si nécessaire */
+        .details-btn { /* Utilise la couleur par défaut de card-action-btn */ }
+        .edit-btn { background-color: #009688; } /* Vert/turquoise */
+        .edit-btn:hover { background-color: #00796b; }
+        .copier-btn { background-color: var(--light-blue); } /* Bleu clair */
+        .copier-btn:hover { background-color: var(--primary-blue); }
+
+        /* Le bouton supprimer a un style différent (icône seule) */
+        .supprimer-btn { 
+            background: none; 
+            border: none; 
+            color: #aaa; 
+            cursor: pointer; 
+            padding: 0 5px; 
+            font-size: 1.2em; /* Rend l'icône plus visible */
+            transition: color 0.2s;
+            display: flex; /* Pour centrer l'icône */
+            align-items: center;
+            justify-content: center;
+            /* Pas de flex-grow pour qu'il reste petit */
+        }
+        .supprimer-btn:hover {
+            color: #dc3545; /* Rouge au survol */
         }
 
 
@@ -274,6 +293,13 @@
             #galerie { grid-template-columns: 1fr; }
             nav { justify-content: flex-start; overflow-x: auto; }
             #filters { flex-direction: column; }
+            .card-actions { /* Ajustement pour les petits écrans */
+                flex-direction: column; /* Empile les boutons verticalement */
+            }
+            .card-action-btn {
+                width: 100%; /* Les boutons prennent toute la largeur */
+                min-width: unset; /* Supprime le min-width */
+            }
         }
     </style>
 </head>
@@ -386,18 +412,6 @@
             }
         }
 
-        // Fonction utilitaire pour obtenir une couleur de texte contrastante (blanc ou noir)
-        function getContrastColor(hexcolor){
-            if (!hexcolor || hexcolor.length < 6) return '#000000'; // Default to black
-            if (hexcolor.startsWith('#')) hexcolor = hexcolor.slice(1); // Remove #
-            
-            var r = parseInt(hexcolor.substring(0,2),16);
-            var g = parseInt(hexcolor.substring(2,4),16);
-            var b = parseInt(hexcolor.substring(4,6),16);
-            var yiq = ((r*299)+(g*587)+(b*114))/1000;
-            return (yiq >= 128) ? 'black' : 'white';
-        }
-
         function displayPrompts(prompts) {
             galerieDiv.innerHTML = '';
             if (prompts.length === 0) {
@@ -407,10 +421,8 @@
             prompts.forEach(prompt => {
                 const formattedDate = formatteDate(prompt.date);
                 const chaineNom = escapeHtml(prompt.chaine);
-                const chaineCouleur = chainColors[chaineNom] || chainColors["Non spécifié"]; // Récupère la couleur ou la couleur par défaut
+                const chaineCouleur = chainColors[chaineNom] || chainColors["Non spécifié"]; 
                 
-                // Assurez-vous que prompt.sha est disponible ici. Il doit être renvoyé par getGalleryPrompts.
-                // Sinon, le bouton éditer ne fonctionnera pas correctement pour la mise à jour GitHub.
                 const promptSha = prompt.sha || ''; 
 
                 const cardHtml = `
@@ -420,16 +432,16 @@
                         </div>
                         <div class="card-content-wrapper">
                             <span class="outil-badge">${escapeHtml(prompt.outil)}</span>
-                            <span class="chaine-badge" style="background-color: ${chaineCouleur}; color: ${getContrastColor(chaineCouleur)};">${chaineNom}</span>
+                            <span class="chaine-text-color" style="color: ${chaineCouleur};">${chaineNom}</span>
                             <h3 class="tip-title">${escapeHtml(prompt.titre)}</h3>
                             <div class="metadata-section">
                                 <span>Par: <strong>${escapeHtml(prompt.auteur)}</strong></span>
                                 <span>Créé le: <strong>${formattedDate}</strong></span>
                             </div>
                             <div class="card-actions">
-                                <button class="details-btn" data-id="${prompt.id}">Détails</button>
-                                <a href="prompts.html?mode=edit&id=${prompt.id}&sha=${promptSha}" class="edit-btn">Éditer</a>
-                                <button class="copier-btn" data-copy="${escapeHtml(prompt.texte)}">Copier</button>
+                                <button class="card-action-btn details-btn" data-id="${prompt.id}">Détails</button>
+                                <a href="prompts.html?mode=edit&id=${prompt.id}&sha=${promptSha}" class="card-action-btn edit-btn">Éditer</a>
+                                <button class="card-action-btn copier-btn" data-copy="${escapeHtml(prompt.texte)}">Copier</button>
                                 <button class="supprimer-btn" data-id="${prompt.id}" title="Supprimer"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </div>
