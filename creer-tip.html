@@ -99,18 +99,6 @@
         #description { min-height: 120px; }
         #promptText { min-height: 150px; } /* Correction ID pour promptText */
 
-        /* Le style .post-it-highlight n'est plus nécessaire car l'élément est supprimé */
-        /* .post-it-highlight {
-            background-color: #FFFF00;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 5px;
-            border: 1px solid #E6E600;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            font-style: italic;
-            color: #333;
-        } */
-
         .checkbox-group {
             height: 120px;
             overflow-y: auto;
@@ -135,8 +123,11 @@
 
         .file-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px; }
         .file-preview-item { position: relative; width: 100px; height: 100px; border: 1px solid #ddd; border-radius: 5px; display: flex; justify-content: center; align-items: center; background-color: #f9f9f9; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .file-preview-item img.image-preview { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+        /* Style pour les vignettes vidéo génériques */
+        .file-preview-item.video-preview { background-color: #333; }
+        .file-preview-item .image-preview, .file-preview-item .video-placeholder { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
         .file-preview-item .file-icon { font-size: 40px; color: var(--primary-blue); }
+        .file-preview-item .video-placeholder { font-size: 40px; color: white; } /* Icône vidéo dans preview */
 
         .file-name-overlay { position: absolute; bottom: 0; left: 0; right: 0; background-color: rgba(0,0,0,0.6); color: white; font-size: 0.7em; padding: 3px 5px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .remove-file-button { position: absolute; top: 5px; right: 5px; background-color: rgba(255,0,0,0.7); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 14px; display: flex; justify-content: center; align-items: center; cursor: pointer; padding: 0; line-height: 1; transition: background-color 0.2s ease; }
@@ -315,17 +306,25 @@
                         </div>
 
                         <div class="form-group full-width">
-                               <label>Image principale du Workflow</label>
+                               <label>Image ou Vidéo principale du Workflow</label>
                                <div id="drop-zone"
                                         @click="triggerFile"
                                         @dragover.prevent="onDragOver"
                                         @dragleave="onDragLeave"
                                         @drop.prevent="onDrop">
-                                       Déposez ou cliquez pour {{ isEditMode && imagePreviewUrl ? 'changer' : 'ajouter' }} l'image
+                                       Déposez ou cliquez pour {{ isEditMode && mediaPreviewUrl ? 'changer' : 'ajouter' }} le média
                                </div>
-                               <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
-                               <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
-                               <button v-if="imagePreviewUrl" @click.prevent="removeImage" style="background-color: #dc3545; margin-top: 10px;">Supprimer l'image</button>
+                               <input type="file" ref="fileInput" accept="image/*,video/*" style="display:none" @change="onFileChange" />
+                               <template v-if="mediaPreviewUrl">
+                                   <img v-if="isImagePreview" :src="mediaPreviewUrl" id="media-preview-image" style="max-width: 100%; height: auto; margin-top: 15px;" />
+                                   <div v-else class="file-preview-item video-preview" style="width: 150px; height: 100px; margin-top: 15px; display: flex; align-items: center; justify-content: center;">
+                                       <i class="fas fa-video video-placeholder"></i>
+                                       <span class="file-name-overlay">{{ mediaFile ? mediaFile.name : 'Vidéo' }}</span>
+                                   </div>
+                               </template>
+                               
+                               <button v-if="mediaPreviewUrl" @click.prevent="removeMedia" style="background-color: #dc3545; margin-top: 10px;">Supprimer le média</button>
+                               <p v-if="fileUploadError" style="color: red; margin-top: 5px;">{{ fileUploadError }}</p>
                         </div>
 
                         <div class="form-group full-width">
@@ -335,8 +334,11 @@
                 </form>
                 <div v-else-if="isLoading" class="loader"></div> <div class="confirmation" v-if="confirmationVisible" role="status" aria-live="assertive">
                     <p>{{ confirmationMessage }}</p>
-                    <template v-if="confirmationImageUrls && confirmationImageUrls.length > 0">
-                        <img v-for="(url, index) in confirmationImageUrls" :key="'conf-img-' + index" :src="url" @click="openLightbox(url)" style="margin: 5px;" :alt="`Image de confirmation ${index + 1}`"/>
+                    <template v-if="confirmationMediaUrl">
+                         <img v-if="isImageConfirmation" :src="confirmationMediaUrl" style="max-width: 100px; max-height: 100px; object-fit: contain; margin-top: 15px; border-radius: 10px; border: 1px solid var(--border-color); cursor: pointer;" @click="openLightbox(confirmationMediaUrl)" />
+                         <div v-else style="background-color: #333; color: white; padding: 10px; border-radius: 10px; margin-top: 15px; display: inline-block;">
+                             <i class="fas fa-video" style="margin-right: 5px;"></i> Vidéo uploadée
+                         </div>
                     </template>
                     <template v-if="confirmationUrls && confirmationUrls.length > 0 && confirmationUrls[0].trim() !== ''">
                         <h4 style="margin-top: 15px; margin-bottom: 5px; color: #333;">Lien(s) enregistré(s):</h4>
@@ -372,10 +374,10 @@
     <script>
         // Définitions des URL pour les fonctions Netlify
         const GET_TIPS_URL = "/.netlify/functions/get-tips";
-        const PUSH_TIP_URL = "/.netlify/functions/pushTip"; // Correspond à pushTip.mjs
-        const UPDATE_TIP_URL = "/.netlify/functions/update-tip"; // Correspond à update-tip.js
+        const PUSH_TIP_URL = "/.netlify/functions/pushTip"; 
+        const UPDATE_TIP_URL = "/.netlify/functions/update-tip"; 
         const GET_PROFILS_URL = "/.netlify/functions/getProfils";
-        const UPLOAD_IMAGE_URL = "/.netlify/functions/uploadImage";
+        const UPLOAD_MEDIA_URL = "/.netlify/functions/uploadMedia"; // URL pour l'upload de médias via Cloudinary
 
         // Fonction utilitaire pour charger des composants HTML (Header et Footer)
         async function loadComponent(url, placeholderId) {
@@ -400,40 +402,41 @@
                 const auteur = ref('');
                 const titre = ref('');
                 const description = ref('');
-                // Suppression de la déclaration de 'previewText'
-                // const previewText = ref(''); 
                 const promptText = ref('');
 
                 const outils = ref([]);
                 const customOutil = ref('');
-                const urls = ref(['']); // Correctement initialisé pour la boucle v-for
+                const urls = ref(['']); 
 
                 const commentaireUrl = ref('');
-                const fileInput = ref(null); // Pour l'input type="file" de l'image principale
-                const fileUploadError = ref(''); // Erreur spécifique à l'upload de l'image principale
+                const fileInput = ref(null); 
+                const fileUploadError = ref('');
 
-                // Déclaration de imageFile comme une ref
-                const imageFile = ref(null); // Initialisation à null
+                // Renommé imageFile en mediaFile
+                const mediaFile = ref(null); 
+                // Nouveau: pour gérer le type de prévisualisation (image ou vidéo)
+                const isImagePreview = ref(true); 
 
-                const isLoading = ref(false); // Loader général de la page (pour le chargement initial des données en mode édition)
-                const isLoadingFormSubmission = ref(false); // Nouveau loader pour la soumission du formulaire
+                const isLoading = ref(false); 
+                const isLoadingFormSubmission = ref(false); 
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
                 // État de la confirmation post-soumission
                 const confirmationVisible = ref(false);
-                const confirmationImageUrls = ref([]);
+                // Renommé confirmationImageUrls en confirmationMediaUrl et isImageConfirmation
+                const confirmationMediaUrl = ref(''); // L'URL unique du média uploadé
+                const isImageConfirmation = ref(true); // Pour l'icône dans la confirmation
                 const confirmationUrls = ref([]);
                 const confirmationCommentaireUrl = ref('');
                 const confirmationTitre = ref('');
                 const confirmationDescription = ref('');
-                // Suppression de la déclaration de 'confirmationPreviewText'
-                // const confirmationPreviewText = ref(''); 
                 const confirmationPromptText = ref('');
 
                 // État de la lightbox
                 const lightboxVisible = ref(false);
-                const lightboxImageUrl = ref('');
+                // La lightbox affichera toujours une image. Si c'est une vidéo, on ne l'ouvrira pas via la lightbox classique.
+                const lightboxImageUrl = ref(''); 
 
                 const toolsList = typeof toolsData !== 'undefined' ? toolsData.sort((a, b) => a.name.localeCompare(b.name)) : [];
 
@@ -447,9 +450,10 @@
                 const submitButtonText = computed(() => isLoadingFormSubmission.value ? 'Envoi en cours...' : (isEditMode.value ? 'Mettre à jour le Workflow' : 'Partager le Workflow'));
                 const confirmationMessage = computed(() => isEditMode.value ? '✅ Workflow mis à jour avec succès !' : '✅ Workflow partagé avec succès !');
 
-                // Fonctions de gestion de l'image principale (pour le champ unique du formulaire)
-                const imagePreviewUrl = ref('');
-                const originalImageUrl = ref('');
+                // Renommé imagePreviewUrl en mediaPreviewUrl
+                const mediaPreviewUrl = ref('');
+                // Renommé originalImageUrl en originalMediaUrl
+                const originalMediaUrl = ref('');
 
                 function triggerFile() { fileInput.value?.click(); }
                 function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
@@ -458,31 +462,55 @@
                     e.currentTarget.classList.remove('dragover');
                     const files = e.dataTransfer.files;
                     if (files.length) {
-                        handleImageFile(files[0]);
+                        handleMediaFile(files[0]); // Appel à la nouvelle fonction
                     }
                 }
                 function onFileChange(e) {
                     const file = e.target.files[0];
-                    if (file) handleImageFile(file);
+                    if (file) handleMediaFile(file); // Appel à la nouvelle fonction
                 }
-                function handleImageFile(file) {
-                    if (!file.type.startsWith('image/')) {
-                        fileUploadError.value = "Seules les images sont acceptées pour l'image principale.";
+
+                // Fonction unique pour gérer les images et les vidéos
+                function handleMediaFile(file) {
+                    fileUploadError.value = ''; // Réinitialiser l'erreur
+
+                    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+                        fileUploadError.value = "Seules les images et vidéos sont acceptées.";
+                        mediaFile.value = null;
+                        mediaPreviewUrl.value = '';
+                        isImagePreview.value = true; // Réinitialiser à image par défaut
                         return;
                     }
-                    imageFile.value = file;
+
+                    mediaFile.value = file;
+                    isImagePreview.value = file.type.startsWith('image/'); // Définir le type de prévisualisation
+
                     const reader = new FileReader();
-                    reader.onload = () => { imagePreviewUrl.value = reader.result; };
+                    reader.onload = () => { 
+                        // Si c'est une image, on peut prévisualiser directement
+                        if (isImagePreview.value) {
+                            mediaPreviewUrl.value = reader.result; 
+                        } else {
+                            // Pour les vidéos, on ne peut pas afficher une vraie vignette facilement.
+                            // On peut afficher une URL générique ou un placeholder.
+                            // L'URL réelle viendra de Cloudinary après l'upload.
+                            // Utiliser 'file.name' pour une meilleure indication de la vidéo
+                            mediaPreviewUrl.value = 'video_placeholder_for_preview'; // Un marqueur pour le template
+                        }
+                    };
                     reader.readAsDataURL(file);
-                    fileUploadError.value = '';
                 }
-                function removeImage() {
-                    imageFile.value = null;
-                    imagePreviewUrl.value = '';
-                    originalImageUrl.value = '';
+
+                // Renommé removeImage en removeMedia
+                function removeMedia() {
+                    mediaFile.value = null;
+                    mediaPreviewUrl.value = '';
+                    originalMediaUrl.value = '';
+                    isImagePreview.value = true; // Réinitialiser à image par défaut
                     if (fileInput.value) {
                         fileInput.value.value = null;
                     }
+                    fileUploadError.value = '';
                 }
 
                 // Fonctions de gestion des URLs dynamiques
@@ -497,9 +525,17 @@
                 }
 
                 // Fonctions de gestion de la lightbox
-                function openLightbox(imageUrl) {
-                    lightboxImageUrl.value = imageUrl;
-                    lightboxVisible.value = true;
+                function openLightbox(mediaUrl) { // Peut maintenant ouvrir image ou vidéo placeholder
+                    // La lightbox n'est vraiment pertinente que pour les images.
+                    // Si c'est une vidéo, on ne l'ouvrira pas via la lightbox classique.
+                    if (mediaUrl && mediaUrl.startsWith('data:image/') || mediaUrl.match(/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i)) {
+                         lightboxImageUrl.value = mediaUrl;
+                         lightboxVisible.value = true;
+                    } else {
+                         // Pour les vidéos, on ne fait rien ou on propose de l'ouvrir dans un nouvel onglet par exemple
+                         console.log("Les vidéos ne sont pas affichées dans la lightbox. URL:", mediaUrl);
+                         // window.open(mediaUrl, '_blank'); // Optionnel: ouvrir la vidéo dans un nouvel onglet
+                    }
                 }
 
                 function closeLightbox() {
@@ -536,16 +572,15 @@
                         titre.value = '';
                         auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
                         description.value = '';
-                        // Suppression de l'initialisation de 'previewText'
-                        // previewText.value = ''; 
                         promptText.value = '';
                         commentaireUrl.value = '';
                         urls.value = [''];
                         outils.value = [];
                         customOutil.value = '';
-                        imagePreviewUrl.value = '';
-                        originalImageUrl.value = '';
-                        imageFile.value = null;
+                        mediaPreviewUrl.value = ''; 
+                        originalMediaUrl.value = ''; 
+                        mediaFile.value = null; 
+                        isImagePreview.value = true; 
                         if (fileInput.value) fileInput.value.value = null;
                         isLoading.value = false;
                     }
@@ -599,8 +634,6 @@
                             titre.value = workflowToEdit.titre || '';
                             auteur.value = workflowToEdit.auteur || '';
                             description.value = workflowToEdit.description || '';
-                            // Suppression de l'affectation de 'previewText'
-                            // previewText.value = workflowToEdit.previewText || '';
                             promptText.value = workflowToEdit.promptText || '';
                             commentaireUrl.value = workflowToEdit.commentaireUrl || '';
 
@@ -623,10 +656,25 @@
                                 ? workflowToEdit.urls.filter(Boolean)
                                 : [''];
 
-                            // Image principale
-                            imagePreviewUrl.value = workflowToEdit.imageUrl || (Array.isArray(workflowToEdit.fileUrls) && workflowToEdit.fileUrls[0] ? workflowToEdit.fileUrls[0] : '');
-                            originalImageUrl.value = imagePreviewUrl.value;
-                            console.log("Image preview URL:", imagePreviewUrl.value);
+                            // Média principal (image ou vidéo) - Renommé
+                            if (workflowToEdit.imageUrl) {
+                                mediaPreviewUrl.value = workflowToEdit.imageUrl;
+                                originalMediaUrl.value = workflowToEdit.imageUrl;
+                                // Détecter si l'URL est une image ou une vidéo pour la prévisualisation
+                                const fileExtension = workflowToEdit.imageUrl.split('.').pop().toLowerCase();
+                                isImagePreview.value = !['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm', 'gif', 'webp'].includes(fileExtension); 
+
+                                // Si c'est une vidéo déjà uploadée, on peut afficher un placeholder vidéo avec son URL réelle si souhaité
+                                if (!isImagePreview.value) {
+                                    // Pour Cloudinary, l'URL elle-même peut servir de preview ou un placeholder
+                                    mediaPreviewUrl.value = workflowToEdit.imageUrl; // Conserve l'URL réelle pour le placeholder
+                                }
+                            } else {
+                                mediaPreviewUrl.value = '';
+                                originalMediaUrl.value = '';
+                                isImagePreview.value = true;
+                            }
+                            console.log("Media preview URL:", mediaPreviewUrl.value);
                         } else {
                             console.error("Workflow non trouvé avec l'ID:", id);
                             alert("Workflow non trouvé pour édition. Redirection vers la liste des workflows.");
@@ -665,129 +713,149 @@
                     isLoadingFormSubmission.value = true;
                     confirmationVisible.value = false;
 
-                    const formData = new FormData();
+                    let finalMediaUrl = originalMediaUrl.value; // Renommé
 
-                    // 1. Ajouter tous vos champs de texte au FormData
-                    formData.append('titre', titre.value);
-                    formData.append('auteur', auteur.value);
-                    formData.append('description', description.value);
-                    // Suppression de l'ajout de 'previewText'
-                    // formData.append('previewText', previewText.value); 
-                    formData.append('promptText', promptText.value);
-                    formData.append('commentaireUrl', commentaireUrl.value);
-
-                    // 2. Gérer les outils
-                    const finalOutils = outils.value.filter(o => o !== 'Autre');
-                    if (outils.value.includes('Autre') && customOutil.value.trim()) {
-                        finalOutils.push(customOutil.value.trim());
-                    }
-                    formData.append('outil', finalOutils.join(', '));
-
-                    // 3. Gérer les URLs (liens associés) - Envoyé comme JSON stringifié
-                    const additionalUrls = urls.value.filter(url => url.trim() !== '');
-                    formData.append('urls', JSON.stringify(additionalUrls));
-
-                    // 4. Gérer l'image principale
-                    if (imageFile.value) {
-                        formData.append('files', imageFile.value, imageFile.value.name);
-                    } else if (originalImageUrl.value) {
-                        formData.append('imageUrl', originalImageUrl.value);
-                    } else {
-                        formData.append('imageUrl', '');
-                    }
-
-                    let apiResponse;
-                    try { 
-                        if (isEditMode.value) {
-                            formData.append('id', workflowId.value);
-                            if (workflowSha.value) {
-                                formData.append('sha', workflowSha.value);
-                            }
-
-                            console.log("Envoi de la requête PUT pour mise à jour (FormData)...");
-                            apiResponse = await fetch(UPDATE_TIP_URL, {
-                                method: 'PUT',
-                                body: formData 
-                            });
-                        } else {
-                            console.log("Envoi de la requête POST pour création (FormData)...");
-                            apiResponse = await fetch(PUSH_TIP_URL, {
+                    try {
+                        // 1. Upload du média principal (si nouveau ou changé) vers Cloudinary
+                        if (mediaFile.value) { // Utilise mediaFile.value
+                            const base64 = await getBase64(mediaFile.value);
+                            const uploadPayload = { fileContent: base64, fileName: mediaFile.value.name };
+                            const uploadResp = await fetch(UPLOAD_MEDIA_URL, { // Utilise la nouvelle URL
                                 method: 'POST',
-                                body: formData 
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(uploadPayload)
                             });
-                        }
-
-                        if (!apiResponse.ok) {
-                            const errorText = await apiResponse.text();
-                            let errorMessage = errorText;
-                            try {
-                                const errorJson = JSON.parse(errorText);
-                                errorMessage = errorJson.message || errorText;
-                            } catch (e) {
-                                // Ignorer si ce n'est pas du JSON
+                            if (!uploadResp.ok) {
+                                const errorText = await uploadResp.text();
+                                throw new Error(`Échec de l'upload du média: ${uploadResp.status} - ${errorText}`);
                             }
-                            throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorMessage}`);
+                            const uploadData = await uploadResp.json();
+                            finalMediaUrl = uploadData.url; // L'URL de Cloudinary
+                            console.log("Média principal uploadé avec succès:", finalMediaUrl);
+                        } else if (originalMediaUrl.value && !mediaFile.value) {
+                             // Si aucun nouveau média n'est sélectionné et il y avait un média original, on conserve l'URL existante
+                            finalMediaUrl = originalMediaUrl.value;
+                        } else {
+                            // Si aucun média du tout n'est présent (ni original, ni nouveau)
+                            finalMediaUrl = '';
                         }
 
-                        const result = await apiResponse.json();
-                        console.log("Réponse de l'API:", result);
 
-                        // Mise à jour des variables de confirmation avec les données reçues du backend
-                        const confirmedTip = result.tip || {};
-                        confirmationImageUrls.value = confirmedTip.imageUrl ? [confirmedTip.imageUrl] : [];
-                        confirmationUrls.value = confirmedTip.urls || [];
-                        confirmationCommentaireUrl.value = confirmedTip.commentaireUrl || '';
-                        confirmationTitre.value = confirmedTip.titre || '';
-                        confirmationDescription.value = confirmedTip.description || '';
-                        // Suppression de l'affectation de 'confirmationPreviewText'
-                        // confirmationPreviewText.value = confirmedTip.previewText || ''; 
-                        confirmationPromptText.value = confirmedTip.promptText || '';
+                        // 2. Préparation des URLs additionnelles
+                        const additionalUrls = urls.value.filter(url => url.trim() !== '');
 
-                        confirmationVisible.value = true;
-
-                        setTimeout(() => {
-                            window.location.href = "/cas-usages.html";
-                        }, 5000);
-
-                        // Réinitialisation des champs après succès (uniquement en mode création)
-                        if (!isEditMode.value) {
-                            titre.value = '';
-                            auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
-                            description.value = '';
-                            // Suppression de la réinitialisation de 'previewText'
-                            // previewText.value = ''; 
-                            promptText.value = '';
-                            commentaireUrl.value = '';
-                            urls.value = [''];
-                            outils.value = [];
-                            customOutil.value = '';
-                            imagePreviewUrl.value = '';
-                            imageFile.value = null;
-                            originalImageUrl.value = '';
-                            if (fileInput.value) fileInput.value.value = null;
+                        // 3. Préparation des outils
+                        const finalOutils = outils.value.filter(o => o !== 'Autre');
+                        if (outils.value.includes('Autre') && customOutil.value.trim()) {
+                            finalOutils.push(customOutil.value.trim());
                         }
 
-                    } catch (err) { 
-                        console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
-                        alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
-                    } finally { 
-                        isLoadingFormSubmission.value = false;
+                        // 4. Construction du payload du workflow
+                        const workflowPayload = {
+                            titre: titre.value,
+                            auteur: auteur.value,
+                            description: description.value,
+                            promptText: promptText.value,
+                            commentaireUrl: commentaireUrl.value,
+                            outil: finalOutils.join(', '),
+                            urls: additionalUrls,
+                            imageUrl: finalMediaUrl, // C'est maintenant l'URL de Cloudinary
+                            fileUrls: finalMediaUrl ? [finalMediaUrl] : [] // Assurez la compatibilité si d'autres parties du code attendent fileUrls
+                        };
+
+                        let apiResponse;
+                        try { 
+                            if (isEditMode.value) {
+                                const updatePayload = {
+                                    id: workflowId.value,
+                                    sha: workflowSha.value, 
+                                    ...workflowPayload
+                                };
+                                console.log("Envoi de la requête PUT pour mise à jour (FormData)...");
+                                apiResponse = await fetch(UPDATE_TIP_URL, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' }, 
+                                    body: JSON.stringify(updatePayload) 
+                                });
+                            } else {
+                                console.log("Envoi de la requête POST pour création (FormData)...");
+                                apiResponse = await fetch(PUSH_TIP_URL, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' }, 
+                                    body: JSON.stringify(workflowPayload) 
+                                });
+                            }
+
+                            if (!apiResponse.ok) {
+                                const errorText = await apiResponse.text();
+                                let errorMessage = errorText;
+                                try {
+                                    const errorJson = JSON.parse(errorText);
+                                    errorMessage = errorJson.message || errorText;
+                                } catch (e) {
+                                    // Ignorer si ce n'est pas du JSON
+                                }
+                                throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorMessage}`);
+                            }
+
+                            const result = await apiResponse.json();
+                            console.log("Réponse de l'API:", result);
+
+                            // Mise à jour des variables de confirmation
+                            const confirmedTip = result.tip || {};
+                            confirmationMediaUrl.value = confirmedTip.imageUrl || ''; // L'URL de Cloudinary
+                            // Détecter le type pour l'icône dans la confirmation
+                            isImageConfirmation.value = confirmedTip.imageUrl ? !confirmedTip.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|webm)$/i) : true; 
+                            confirmationUrls.value = confirmedTip.urls || [];
+                            confirmationCommentaireUrl.value = confirmedTip.commentaireUrl || '';
+                            confirmationTitre.value = confirmedTip.titre || '';
+                            confirmationDescription.value = confirmedTip.description || '';
+                            confirmationPromptText.value = confirmedTip.promptText || '';
+
+                            confirmationVisible.value = true;
+
+                            setTimeout(() => {
+                                window.location.href = "/cas-usages.html";
+                            }, 5000);
+
+                            // Réinitialisation des champs après succès (uniquement en mode création)
+                            if (!isEditMode.value) {
+                                titre.value = '';
+                                auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
+                                description.value = '';
+                                promptText.value = '';
+                                commentaireUrl.value = '';
+                                urls.value = [''];
+                                outils.value = [];
+                                customOutil.value = '';
+                                mediaPreviewUrl.value = '';
+                                originalMediaUrl.value = '';
+                                mediaFile.value = null;
+                                isImagePreview.value = true; 
+                                if (fileInput.value) fileInput.value.value = null;
+                            }
+
+                        } catch (err) { 
+                            console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
+                            alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
+                        } finally { 
+                            isLoadingFormSubmission.value = false;
+                        }
                     }
                 }
 
                 return {
-                    // Exposed properties and methods for the template
-                    auteur, titre, description, promptText, outils, customOutil, // 'previewText' supprimé ici
-                    urls, addUrlField, removeUrlField, commentaireUrl,
-                    fileInput, imagePreviewUrl, fileUploadError,
+                    auteur, titre, description, promptText, outils, customOutil, 
+                    urls, addUrlField, addUrlField, removeUrlField, commentaireUrl,
+                    fileInput, mediaPreviewUrl, fileUploadError, isImagePreview, 
                     isLoading, isLoadingFormSubmission, profilsAuteurs, isLoadingProfils, toolsList,
-                    confirmationVisible, confirmationImageUrls, confirmationUrls,
+                    confirmationVisible, confirmationMediaUrl, isImageConfirmation, confirmationUrls,
                     confirmationCommentaireUrl, confirmationTitre, confirmationDescription,
-                    confirmationPromptText, // 'confirmationPreviewText' supprimé ici
+                    confirmationPromptText, 
                     lightboxVisible, lightboxImageUrl,
                     isEditMode, formTitle, submitButtonText, confirmationMessage,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
-                    removeImage, submitForm, openLightbox, closeLightbox
+                    removeMedia, submitForm, openLightbox, closeLightbox 
                 };
             }
         };
