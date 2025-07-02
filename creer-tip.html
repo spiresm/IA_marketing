@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -325,11 +324,11 @@
                         <div class="form-group full-width">
                                <label>Image principale du Workflow</label>
                                <div id="drop-zone"
-                                     @click="triggerFile"
-                                     @dragover.prevent="onDragOver"
-                                     @dragleave="onDragLeave"
-                                     @drop.prevent="onDrop">
-                                   Déposez ou cliquez pour {{ isEditMode && imagePreviewUrl ? 'changer' : 'ajouter' }} l'image
+                                        @click="triggerFile"
+                                        @dragover.prevent="onDragOver"
+                                        @dragleave="onDragLeave"
+                                        @drop.prevent="onDrop">
+                                       Déposez ou cliquez pour {{ isEditMode && imagePreviewUrl ? 'changer' : 'ajouter' }} l'image
                                </div>
                                <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
                                <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
@@ -417,10 +416,11 @@
                 const urls = ref(['']); // Correctement initialisé pour la boucle v-for
                 
                 const commentaireUrl = ref('');
-                const selectedFiles = ref([]); // N'est plus utilisé pour l'image principale du formulaire
-                let fileIdCounter = 0; // N'est plus utilisé pour l'image principale du formulaire
                 const fileInput = ref(null); // Pour l'input type="file" de l'image principale
                 const fileUploadError = ref(''); // Erreur spécifique à l'upload de l'image principale
+
+                // Déclaration de imageFile comme une ref
+                const imageFile = ref(null); // <--- C'EST LA LIGNE CORRIGÉE/AJOUTÉE
 
                 const isLoading = ref(false); // Loader général de la page (pour le chargement initial des données en mode édition)
                 const isLoadingFormSubmission = ref(false); // Nouveau loader pour la soumission du formulaire
@@ -450,7 +450,7 @@
 
                 // Propriétés calculées pour le template
                 const formTitle = computed(() => isEditMode.value ? 'Éditer un Workflow' : 'Partager un Workflow');
-                const submitButtonText = computed(() => isEditMode.value ? 'Mettre à jour le Workflow' : 'Partager le Workflow');
+                const submitButtonText = computed(() => isLoadingFormSubmission.value ? 'Envoi en cours...' : (isEditMode.value ? 'Mettre à jour le Workflow' : 'Partager le Workflow'));
                 const confirmationMessage = computed(() => isEditMode.value ? '✅ Workflow mis à jour avec succès !' : '✅ Workflow partagé avec succès !');
 
                 // Fonctions de gestion de l'image principale (pour le champ unique du formulaire)
@@ -476,7 +476,7 @@
                         fileUploadError.value = "Seules les images sont acceptées pour l'image principale.";
                         return;
                     }
-                    imageFile.value = file;
+                    imageFile.value = file; // C'est ici que l'erreur se produisait
                     const reader = new FileReader();
                     reader.onload = () => { imagePreviewUrl.value = reader.result; };
                     reader.readAsDataURL(file);
@@ -674,7 +674,7 @@
 
                     try {
                         // 1. Upload de l'image principale (si nouvelle ou changée)
-                        if (imageFile.value) {
+                        if (imageFile.value) { // Utilise imageFile.value car c'est une ref
                             const base64 = await getBase64(imageFile.value);
                             const uploadPayload = { fileContent: base64, fileName: imageFile.value.name };
                             const uploadResp = await fetch(UPLOAD_IMAGE_URL, {
@@ -788,7 +788,7 @@
                 return {
                     // Exposed properties and methods for the template
                     auteur, titre, description, previewText, promptText, outils, customOutil,
-                    urls, addUrlField, removeUrlField, commentaireUrl, // urls est maintenant le tableau
+                    urls, addUrlField, removeUrlField, commentaireUrl,
                     fileInput, imagePreviewUrl, fileUploadError,
                     isLoading, isLoadingFormSubmission, profilsAuteurs, isLoadingProfils, toolsList,
                     confirmationVisible, confirmationImageUrls, confirmationUrls,
