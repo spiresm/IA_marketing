@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Partager un Tip / Prompt - iMarketing</title>
+    <title>Partager un Workflow - iMarketing</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -253,7 +253,7 @@
                 <a href="/cas-usages.html" class="retour-lien">← Retour</a>
                 <h2 style="text-align:center; color:var(--primary-blue);">{{ formTitle }}</h2>
 
-                <form @submit.prevent="submitForm" v-if="!isLoading">
+                <form @submit.prevent="submitForm" v-if="!isLoading && !confirmationVisible">
                     <div class="form-grid">
                         
                         <div class="form-group">
@@ -336,12 +336,11 @@
                         </div>
 
                         <div class="form-group full-width">
-                               <div v-if="isLoading" class="loader"></div>
-                            <button v-else type="submit" :disabled="!titre || !auteur || !description || isLoading">{{ submitButtonText }}</button>
+                               <div v-if="isLoadingFormSubmission" class="loader"></div> <button v-else type="submit" :disabled="!titre || !auteur || !description || isLoadingFormSubmission">{{ submitButtonText }}</button>
                         </div>
                     </div>
                 </form>
-                <div v-else class="loader"></div> <div class="confirmation" v-if="confirmationVisible" role="status" aria-live="assertive">
+                <div v-else-if="isLoading" class="loader"></div> <div class="confirmation" v-if="confirmationVisible" role="status" aria-live="assertive">
                     <p>{{ confirmationMessage }}</p>
                     <template v-if="confirmationImageUrls && confirmationImageUrls.length > 0">
                         <img v-for="(url, index) in confirmationImageUrls" :key="'conf-img-' + index" :src="url" @click="openLightbox(url)" style="margin: 5px;" :alt="`Image de confirmation ${index + 1}`"/>
@@ -414,22 +413,22 @@
                 
                 const outils = ref([]); 
                 const customOutil = ref('');
-                const urls = ref(['']); // Utilisation d'un tableau pour les champs de liens dynamiques
-                const urlsInput = ref(''); // Nouveau ref pour le textarea unique pour les URLs
+                const urls = ref(['']); // Correctement initialisé pour la boucle v-for
                 
                 const commentaireUrl = ref('');
-                const selectedFiles = ref([]);
-                let fileIdCounter = 0;
-                const fileInput = ref(null);
-                const fileUploadError = ref('');
+                const selectedFiles = ref([]); // N'est plus utilisé pour l'image principale du formulaire
+                let fileIdCounter = 0; // N'est plus utilisé pour l'image principale du formulaire
+                const fileInput = ref(null); // Pour l'input type="file" de l'image principale
+                const fileUploadError = ref(''); // Erreur spécifique à l'upload de l'image principale
 
-                const isLoading = ref(false); 
+                const isLoading = ref(false); // Loader général de la page (pour le chargement initial des données en mode édition)
+                const isLoadingFormSubmission = ref(false); // Nouveau loader pour la soumission du formulaire
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true); 
 
                 // État de la confirmation post-soumission
                 const confirmationVisible = ref(false);
-                const confirmationImageUrls = ref([]); // Supporte plusieurs URLs d'images
+                const confirmationImageUrls = ref([]); 
                 const confirmationUrls = ref([]);
                 const confirmationCommentaireUrl = ref('');
                 const confirmationTitre = ref('');
@@ -446,7 +445,7 @@
                 // Variables pour l'édition
                 const isEditMode = ref(false);
                 const workflowId = ref(null);
-                const workflowSha = ref(null); // Nécessaire pour la mise à jour GitHub
+                const workflowSha = ref(null); 
 
                 // Propriétés calculées pour le template
                 const formTitle = computed(() => isEditMode.value ? 'Éditer un Workflow' : 'Partager un Workflow');
@@ -455,7 +454,7 @@
 
                 // Fonctions de gestion de l'image principale (pour le champ unique du formulaire)
                 const imagePreviewUrl = ref('');
-                const originalImageUrl = ref(''); // Pour conserver l'URL existante en mode édition
+                const originalImageUrl = ref(''); 
 
                 function triggerFile() { fileInput.value?.click(); }
                 function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
@@ -464,7 +463,7 @@
                     e.currentTarget.classList.remove('dragover');
                     const files = e.dataTransfer.files;
                     if (files.length) {
-                        handleImageFile(files[0]); // Ne gère qu'un seul fichier pour l'image principale
+                        handleImageFile(files[0]); 
                     }
                 }
                 function onFileChange(e) {
@@ -472,7 +471,6 @@
                     if (file) handleImageFile(file);
                 }
                 function handleImageFile(file) {
-                    // Pour le champ image principale, on ne gère qu'un seul fichier
                     if (!file.type.startsWith('image/')) {
                         fileUploadError.value = "Seules les images sont acceptées pour l'image principale.";
                         return;
@@ -481,24 +479,26 @@
                     const reader = new FileReader();
                     reader.onload = () => { imagePreviewUrl.value = reader.result; };
                     reader.readAsDataURL(file);
-                    fileUploadError.value = ''; // Effacer toute erreur précédente
+                    fileUploadError.value = ''; 
                 }
                 function removeImage() {
                     imageFile.value = null;
                     imagePreviewUrl.value = '';
-                    originalImageUrl.value = ''; // Indique qu'il n'y a plus d'image existante à conserver
+                    originalImageUrl.value = ''; 
                     if (fileInput.value) {
-                        fileInput.value.value = null; // Réinitialise le champ input file
+                        fileInput.value.value = null; 
                     }
                 }
 
-                // Fonctions de gestion des URLs dynamiques (maintenant dans un textarea)
-                // Le v-model "urlsInput" gérera la saisie de l'utilisateur
+                // Fonctions de gestion des URLs dynamiques
                 function addUrlField() {
-                    // Pas nécessaire avec un textarea unique, l'utilisateur gère les retours à la ligne
+                    urls.value.push('');
                 }
                 function removeUrlField(index) {
-                    // Pas nécessaire avec un textarea unique
+                    urls.value.splice(index, 1);
+                    if (urls.value.length === 0) {
+                        urls.value.push(''); 
+                    }
                 }
                 
                 // Fonctions de gestion de la lightbox
@@ -518,21 +518,24 @@
                     }
                 }
 
-                onMounted(() => {
-                    fetchProfils();
-                    window.addEventListener('keydown', handleKeydown);
+                onMounted(async () => { // Ajout de 'async' ici
+                    await fetchProfils(); // Assurez-vous que les profils sont chargés en premier
 
                     const urlParams = new URLSearchParams(window.location.search);
                     const mode = urlParams.get('mode');
                     const id = urlParams.get('id');
                     const sha = urlParams.get('sha');
 
+                    console.log("URL Params au montage:", { mode, id, sha }); // Log pour vérifier les params URL
+
                     if (mode === 'edit' && id && sha) {
                         isEditMode.value = true;
                         workflowId.value = id;
                         workflowSha.value = sha;
                         isLoading.value = true; // Active le loader pendant le chargement des données
-                        fetchWorkflowForEdit(id);
+                        console.log("Mode édition détecté. Chargement du workflow:", id);
+                        await fetchWorkflowForEdit(id); // Appel asynchrone
+                        isLoading.value = false; // Désactive le loader après le chargement des données
                     } else {
                         // Mode création par défaut: initialise les champs
                         titre.value = '';
@@ -541,13 +544,16 @@
                         previewText.value = '';
                         promptText.value = '';
                         commentaireUrl.value = '';
-                        urlsInput.value = ''; // Réinitialise le textarea des URLs
+                        urls.value = ['']; // Assure un champ vide pour les URLs
+                        outils.value = [];
+                        customOutil.value = '';
                         imagePreviewUrl.value = '';
                         originalImageUrl.value = '';
                         imageFile.value = null;
-                        outils.value = [];
-                        customOutil.value = '';
+                        if (fileInput.value) fileInput.value.value = null;
+                        isLoading.value = false; // S'assure que le loader est désactivé en mode création
                     }
+                    window.addEventListener('keydown', handleKeydown);
                 });
 
                 onUnmounted(() => {
@@ -568,7 +574,7 @@
                         const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
 
-                        if (names.length === 1 && !isEditMode.value) { // Auto-sélectionne seulement en mode création si un seul profil
+                        if (names.length === 1 && !isEditMode.value) { 
                             auteur.value = names[0];
                         }
                     } catch (error) {
@@ -581,14 +587,19 @@
 
                 // Fonction pour récupérer un workflow spécifique pour l'édition
                 async function fetchWorkflowForEdit(id) {
+                    console.log("Tentative de récupération du workflow pour l'édition avec ID:", id);
                     try {
                         const response = await fetch(GET_TIPS_URL);
-                        if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`Erreur HTTP lors de la récupération de tous les workflows: ${response.status} - ${errorText}`);
+                        }
                         const allWorkflows = await response.json();
+                        console.log("Workflows reçus du backend:", allWorkflows); // Vérifiez le contenu ici
                         const workflowToEdit = allWorkflows.find(w => w.id === id);
 
                         if (workflowToEdit) {
-                            // Pré-remplir les champs du formulaire
+                            console.log("Workflow trouvé pour édition:", workflowToEdit); // Vérifiez l'objet du workflow
                             titre.value = workflowToEdit.titre || '';
                             auteur.value = workflowToEdit.auteur || '';
                             description.value = workflowToEdit.description || '';
@@ -597,37 +608,40 @@
                             commentaireUrl.value = workflowToEdit.commentaireUrl || '';
                             
                             // Gérer les outils (checkboxes et champ custom)
-                            outils.value = workflowToEdit.outil && typeof workflowToEdit.outil === 'string' 
-                                ? workflowToEdit.outil.split(', ').map(s => s.trim())
-                                : [];
-                            if (outils.value.some(o => !toolsList.some(tl => tl.name === o) && o !== 'Autre')) {
-                                // Si un outil n'est pas dans la liste pré-définie, c'est probablement un custom
-                                // ATTENTION: cette logique est simpliste et peut nécessiter d'être affinée
-                                const customToolFound = outils.value.find(o => !toolsList.some(tl => tl.name === o));
+                            if (workflowToEdit.outil) {
+                                const toolsArray = workflowToEdit.outil.split(',').map(s => s.trim()).filter(Boolean);
+                                outils.value = toolsArray.filter(o => toolsList.some(tl => tl.name === o));
+                                const customToolFound = toolsArray.find(o => !toolsList.some(tl => tl.name === o));
                                 if (customToolFound) {
                                     outils.value.push('Autre'); // Coche "Autre"
                                     customOutil.value = customToolFound; // Met le nom dans le champ custom
-                                    // Retire l'outil custom de la liste des outils cochés pour éviter la duplication
-                                    outils.value = outils.value.filter(o => o !== customToolFound); 
                                 }
+                            } else {
+                                outils.value = [];
+                                customOutil.value = '';
                             }
                             
-                            urlsInput.value = (Array.isArray(workflowToEdit.urls) ? workflowToEdit.urls.filter(Boolean).join('\n') : '');
-                            
+                            // Gérer les URLs (liens additionnels) - CORRECTION ICI
+                            // On peuple le tableau 'urls' directement avec les URLs du workflow.
+                            urls.value = (Array.isArray(workflowToEdit.urls) && workflowToEdit.urls.length > 0) 
+                                ? workflowToEdit.urls.filter(Boolean) 
+                                : ['']; // Assure qu'il y a au moins un champ vide si pas d'URLs
+
                             // Image principale
                             imagePreviewUrl.value = workflowToEdit.imageUrl || (Array.isArray(workflowToEdit.fileUrls) && workflowToEdit.fileUrls[0] ? workflowToEdit.fileUrls[0] : '');
                             originalImageUrl.value = imagePreviewUrl.value; 
-
+                            console.log("Image preview URL:", imagePreviewUrl.value); // Vérifiez l'URL de l'image
                         } else {
-                            alert("Workflow non trouvé pour édition.");
-                            window.location.href = "/cas-usages.html"; // Redirige si non trouvé
+                            console.error("Workflow non trouvé avec l'ID:", id);
+                            alert("Workflow non trouvé pour édition. Redirection vers la liste des workflows.");
+                            window.location.href = "/cas-usages.html"; 
                         }
                     } catch (error) {
                         console.error("Erreur lors du chargement du workflow pour édition:", error);
                         alert(`Impossible de charger le workflow pour édition: ${error.message}.`);
                         window.location.href = "/cas-usages.html";
                     } finally {
-                        isLoading.value = false; // Désactive le loader après le chargement
+                        // isLoading.value est géré dans onMounted pour le chargement initial
                     }
                 }
                 
@@ -652,11 +666,10 @@
                         return;
                     }
 
-                    isLoading.value = true;
+                    isLoadingFormSubmission.value = true; // Active le loader pour la soumission
                     confirmationVisible.value = false;
 
-                    let finalImageUrl = originalImageUrl.value; // Par défaut, conserve l'image existante
-                    let uploadedFileUrls = []; // Pour les URLs des fichiers uploadés (images ou documents)
+                    let finalImageUrl = originalImageUrl.value; 
 
                     try {
                         // 1. Upload de l'image principale (si nouvelle ou changée)
@@ -675,13 +688,12 @@
                             const uploadData = await uploadResp.json();
                             finalImageUrl = uploadData.url;
                             console.log("Image principale uploadée avec succès:", finalImageUrl);
-                        } else if (!imagePreviewUrl.value) { // Si l'image a été explicitement supprimée
-                            finalImageUrl = '';
+                        } else if (!imagePreviewUrl.value) { 
+                            finalImageUrl = ''; 
                         }
-                        // else: imageFile est null, imagePreviewUrl est non null, donc on garde originalImageUrl.value
 
-                        // 2. Préparation des URLs additionnelles
-                        const additionalUrls = urlsInput.value.split('\n').map(url => url.trim()).filter(url => url.length > 0);
+                        // 2. Préparation des URLs additionnelles - UTILISE urls.value DIRECTEMENT
+                        const additionalUrls = urls.value.filter(url => url.trim() !== '');
 
                         // 3. Préparation des outils
                         const finalOutils = outils.value.filter(o => o !== 'Autre');
@@ -697,27 +709,27 @@
                             previewText: previewText.value,
                             promptText: promptText.value,
                             commentaireUrl: commentaireUrl.value,
-                            outil: finalOutils.join(', '), // Stocke les outils comme une chaîne séparée par des virgules
-                            urls: additionalUrls, // URLs de vidéos/articles
-                            imageUrl: finalImageUrl, // Image principale pour la carte
-                            fileUrls: finalImageUrl ? [finalImageUrl] : [] // Pour la compatibilité si backend utilise fileUrls comme tableau
+                            outil: finalOutils.join(', '), 
+                            urls: additionalUrls, 
+                            imageUrl: finalImageUrl, 
+                            fileUrls: finalImageUrl ? [finalImageUrl] : [] 
                         };
 
                         let apiResponse;
                         if (isEditMode.value) {
-                            // Mode édition: ajout de l'id et du sha pour la mise à jour
                             const updatePayload = {
                                 id: workflowId.value,
                                 sha: workflowSha.value,
                                 ...workflowPayload
                             };
+                            console.log("Envoi de la requête PUT pour mise à jour:", updatePayload);
                             apiResponse = await fetch(UPDATE_TIP_URL, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(updatePayload)
                             });
                         } else {
-                            // Mode création
+                            console.log("Envoi de la requête POST pour création:", workflowPayload);
                             apiResponse = await fetch(PUSH_TIP_URL, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -731,10 +743,11 @@
                         }
 
                         const result = await apiResponse.json();
+                        console.log("Réponse de l'API:", result);
 
                         // Mise à jour des variables de confirmation
-                        confirmationImageUrls.value = finalImageUrl ? [finalImageUrl] : []; // Affiche l'image principale
-                        confirmationUrls.value = result.urls || [];
+                        confirmationImageUrls.value = finalImageUrl ? [finalImageUrl] : []; 
+                        confirmationUrls.value = result.urls || additionalUrls; 
                         confirmationCommentaireUrl.value = result.commentaireUrl || commentaireUrl.value;
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
@@ -743,18 +756,18 @@
                         confirmationVisible.value = true;
 
                         setTimeout(() => {
-                            window.location.href = "/cas-usages.html"; // Redirige vers la galerie de workflows
+                            window.location.href = "/cas-usages.html"; 
                         }, 5000);
 
                         // Réinitialisation des champs après succès (uniquement en mode création)
                         if (!isEditMode.value) {
                             titre.value = '';
-                            auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : ''; // Reset auto-selection
+                            auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
                             description.value = '';
                             previewText.value = '';
                             promptText.value = '';
                             commentaireUrl.value = '';
-                            urlsInput.value = '';
+                            urls.value = ['']; // Réinitialise le tableau 'urls'
                             outils.value = [];
                             customOutil.value = '';
                             imagePreviewUrl.value = '';
@@ -767,15 +780,16 @@
                         console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
                         alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
                     } finally {
-                        isLoading.value = false;
+                        isLoadingFormSubmission.value = false; 
                     }
                 }
 
                 return {
                     // Exposed properties and methods for the template
                     auteur, titre, description, previewText, promptText, outils, customOutil,
-                    urlsInput, commentaireUrl, fileInput, imagePreviewUrl, fileUploadError,
-                    isLoading, profilsAuteurs, isLoadingProfils, toolsList,
+                    urls, addUrlField, removeUrlField, commentaireUrl, // urls est maintenant le tableau
+                    fileInput, imagePreviewUrl, fileUploadError,
+                    isLoading, isLoadingFormSubmission, profilsAuteurs, isLoadingProfils, toolsList,
                     confirmationVisible, confirmationImageUrls, confirmationUrls,
                     confirmationCommentaireUrl, confirmationTitre, confirmationDescription,
                     confirmationPreviewText, confirmationPromptText,
@@ -795,7 +809,9 @@
             bodyElement.style.overflow = 'hidden';
 
             await loadComponent("header.html", "header-placeholder");
-            await loadComponent("footer.html", "footer-placeholder"); // Assurez-vous d'avoir un footer.html ou retirez cette ligne
+            // Le footer n'est pas dans le template HTML que vous avez fourni, je le retire ici.
+            // Si vous avez un footer, décommentez la ligne et assurez-vous de son existence:
+            // await loadComponent("footer.html", "footer-placeholder"); 
 
             // Mettre à jour l'état actif du menu après le chargement du header
             const currentPath = window.location.pathname.split('/').pop();
