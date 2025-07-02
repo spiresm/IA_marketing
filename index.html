@@ -182,28 +182,28 @@
         .news-ticker-section {
             max-width: 960px;
             margin: 25px auto;
-            padding: 15px 20px; /* Ajusté padding pour faire de la place pour le bouton */
+            padding: 15px 20px;
             background: #fff;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             overflow: hidden;
-            display: flex; /* Utilise flexbox pour aligner les éléments */
-            align-items: center; /* Centre les éléments verticalement */
+            display: flex;
+            align-items: center;
             box-sizing: border-box;
-            position: relative; /* Pour positionner le bouton à droite si besoin */
+            position: relative;
         }
         
         .news-ticker-section .icon {
             font-size: 1.5em;
             color: var(--primary-blue);
             margin-right: 15px;
-            flex-shrink: 0; /* Empêche l'icône de rétrécir */
+            flex-shrink: 0;
         }
 
         .news-ticker-container {
-            flex-grow: 1; /* Permet au conteneur du texte de prendre l'espace restant */
+            flex-grow: 1;
             overflow: hidden;
-            margin-right: 15px; /* Espace entre le texte déroulant et le bouton */
+            margin-right: 15px;
         }
         
         .news-ticker-content {
@@ -227,17 +227,17 @@
 
         /* Nouveau style pour le bouton "Laisser un message" */
         .message-button {
-            background-color: var(--primary-blue); /* Ou une autre couleur si vous voulez le distinguer */
+            background-color: var(--primary-blue);
             color: white;
             padding: 8px 15px;
             border: none;
             border-radius: 8px;
             font-size: 0.9em;
             font-weight: bold;
-            text-decoration: none; /* Pour qu'il ressemble à un bouton même s'il est un lien */
-            white-space: nowrap; /* Empêche le texte de se couper */
+            text-decoration: none;
+            white-space: nowrap;
             transition: background-color 0.2s ease;
-            flex-shrink: 0; /* Empêche le bouton de rétrécir */
+            flex-shrink: 0;
         }
 
         .message-button:hover {
@@ -259,21 +259,21 @@
             
             /* Ajustements pour la section RSS sur mobile */
             .news-ticker-section {
-                flex-direction: column; /* Empile les éléments sur mobile */
-                align-items: flex-start; /* Aligner les éléments à gauche */
-                padding: 15px; /* Ajuster le padding */
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 15px;
             }
             .news-ticker-section .icon {
-                margin-bottom: 10px; /* Espace sous l'icône */
+                margin-bottom: 10px;
                 margin-right: 0;
             }
             .news-ticker-container {
-                width: 100%; /* Prend toute la largeur disponible */
-                margin-right: 0; /* Supprime la marge droite */
-                margin-bottom: 10px; /* Espace au-dessus du bouton */
+                width: 100%;
+                margin-right: 0;
+                margin-bottom: 10px;
             }
             .message-button {
-                width: 100%; /* Le bouton prend toute la largeur */
+                width: 100%;
                 text-align: center;
             }
         }
@@ -333,11 +333,15 @@
             card.className = `addition-card ${type}`;
 
             let mediaHtml = '';
-            if (item.imageUrl && isImageUrl(item.imageUrl)) {
+            // Condition pour vérifier si l'URL de l'image est valide et si l'image doit être affichée
+            if (item.imageUrl && isImageUrl(item.imageUrl) && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') { 
                 mediaHtml = `
                     <div class="card-image-container">
                         <img src="${item.imageUrl}" alt="Vignette pour ${item.titre}">
                     </div>`;
+            } else {
+                // Si pas d'image ou placeholder, afficher une icône ou un espace vide
+                mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
             }
 
             const metaHtml = `
@@ -383,28 +387,45 @@
                     outil: item.outil || "Non spécifié",
                     description: item.description || item.promptText || 'Pas de description.',
                     date: item.date_creation || item.dateCreation,
-                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls[0]) || null
+                    // Utiliser l'URL directe pour les prompts si fournie, sinon le premier élément de fileUrls
+                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER') // Placeholder si pas d'image
                 });
 
                 tips = tips.map(normalizeItem);
                 prompts = prompts.map(normalizeItem);
+
+                // Filtrer les éléments qui n'ont pas de titre ou de description significative
+                tips = tips.filter(item => item.titre !== "Titre non spécifié" || item.description !== "Pas de description.");
+                prompts = prompts.filter(item => item.titre !== "Titre non spécifié" || item.description !== "Pas de description.");
+
 
                 tips.sort((a, b) => new Date(b.date) - new Date(a.date));
                 prompts.sort((a, b) => new Date(b.date) - new Date(a.date));
 
                 container.innerHTML = ''; 
 
-                let itemsDisplayed = 0;
+                let itemsAdded = [];
+
+                // Ajouter la dernière Tips
                 if (tips.length > 0) {
-                    container.appendChild(createCard(tips[0], 'cas-usage'));
-                    itemsDisplayed++;
+                    itemsAdded.push({ item: tips[0], type: 'cas-usage' });
                 }
+                // Ajouter la dernière Prompts
                 if (prompts.length > 0) {
-                    container.appendChild(createCard(prompts[0], 'galerie'));
-                    itemsDisplayed++;
+                    itemsAdded.push({ item: prompts[0], type: 'galerie' });
                 }
 
-                if (itemsDisplayed === 0) {
+                // Trier les éléments à afficher par date, pour s'assurer que les deux plus récents sont affichés
+                itemsAdded.sort((a, b) => new Date(b.item.date) - new Date(a.item.date));
+
+                // Ajouter les 2 derniers éléments (ou moins si pas assez disponibles)
+                for (let i = 0; i < Math.min(itemsAdded.length, 2); i++) { // Limit to 2 cards
+                    const { item, type } = itemsAdded[i];
+                    container.appendChild(createCard(item, type));
+                }
+
+
+                if (itemsAdded.length === 0) {
                     container.innerHTML = '<p>Aucun ajout récent à afficher.</p>';
                 }
 
