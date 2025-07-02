@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -509,8 +508,8 @@
             document.querySelectorAll('nav a').forEach(link => {
                 const linkHref = link.getAttribute('href');
                 const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-                // Spécifie explicitement 'partager.html' pour cette page
-                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "partager.html") {
+                // Spécifie explicitement 'prompts.html' pour cette page
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "prompts.html") {
                     link.classList.add("active");
                 } else {
                     link.classList.remove("active");
@@ -545,17 +544,23 @@
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script>
-        const { ref, createApp, onMounted } = Vue;
+        const { ref, createApp, onMounted, computed } = Vue; // Ajout de 'computed'
 
         const PROXY_URL = "/.netlify/functions/proxy"; // L'URL de votre fonction Netlify
+        const GET_GALLERY_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts"; // URL pour récupérer les prompts
+        const PUSH_PROMPT_URL = "/.netlify/functions/pushPrompt"; // URL pour créer un prompt
+        const UPDATE_PROMPT_URL = "/.netlify/functions/updatePrompt"; // URL pour mettre à jour un prompt
 
         const PromptForm = {
             template: `
                 <div class="container">
                     <a href="galerie.html" class="retour-lien">← Retour</a>
-                    <h2 style="text-align:center; color:var(--primary-blue);">Partager un prompt</h2>
+                    <h2 style="text-align:center; color:var(--primary-blue);">{{ formTitle }}</h2>
 
                     <form @submit.prevent="submitForm">
+                        <label for="titre">Titre du prompt</label>
+                        <input type="text" id="titre" v-model="titre" required placeholder="Un titre court et clair pour votre prompt" />
+
                         <label for="auteur">Votre nom</label>
                         <select id="auteur" v-model="auteur" required>
                             <option value="" disabled>Sélectionnez un nom</option>
@@ -603,17 +608,19 @@
                              @dragover.prevent="onDragOver"
                              @dragleave="onDragLeave"
                              @drop.prevent="onDrop">
-                            Déposez ou cliquez
+                            Déposez ou cliquez pour {{ isEditMode ? 'changer' : 'ajouter' }} l'image
                         </div>
                         <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
                         <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
+                        <button v-if="imagePreviewUrl && isEditMode" @click.prevent="removeImage" style="background-color: #dc3545; margin-top: 10px;">Supprimer l'image</button>
+
 
                         <div v-if="isLoading" class="loader"></div>
-                        <button v-else type="submit" :disabled="!auteur || isLoading">Partager</button>
+                        <button v-else type="submit" :disabled="!auteur || !titre || isLoading">{{ submitButtonText }}</button>
                     </form>
 
                     <div class="confirmation" v-if="confirmationVisible">
-                        <p>✅ Prompt partagé avec succès vers la **galerie** !</p>
+                        <p>{{ confirmationMessage }}</p>
                         <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
                         <p style="white-space: pre-wrap;">{{ confirmationTexte }}</p>
                         <p style="white-space: pre-wrap; font-style: italic;">{{ confirmationDescription }}</p>
@@ -622,6 +629,8 @@
                 </div>
             `,
             setup() {
+                // Propriétés du formulaire
+                const titre = ref(''); // Ajout du champ titre
                 const auteur = ref('');
                 const outil = ref('Midjourney');
                 const chaine = ref('La Une');
@@ -630,6 +639,9 @@
                 const fileInput = ref(null);
                 const imagePreviewUrl = ref('');
                 const imageFile = ref(null);
+                const originalImageUrl = ref(''); // Pour conserver l'URL de l'image existante en mode édition
+
+                // États de l'UI
                 const confirmationVisible = ref(false);
                 const confirmationImageUrl = ref('');
                 const confirmationTexte = ref('');
@@ -638,54 +650,21 @@
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
 
-                // Ces filtres ne sont pas utilisés dans le formulaire de soumission,
-                // mais sont gardés si vous les utilisez pour la prévisualisation ou autre.
-                const selectedFilterAuteur = ref(''); 
-                const selectedFilterOutil = ref('');
-                const selectedFilterChaine = ref('');
+                // Variables spécifiques au mode édition
+                const isEditMode = ref(false);
+                const promptId = ref(null);
+                const promptSha = ref(null); // SHA est crucial pour la mise à jour GitHub
+
+                // Propriétés calculées pour le template
+                const formTitle = computed(() => isEditMode.value ? 'Éditer un prompt' : 'Partager un prompt');
+                const submitButtonText = computed(() => isEditMode.value ? 'Mettre à jour' : 'Partager');
+                const confirmationMessage = computed(() => isEditMode.value ? '✅ Prompt mis à jour avec succès !' : '✅ Prompt partagé avec succès vers la **galerie** !');
 
 
-                async function fetchProfils() {
-                    isLoadingProfils.value = true;
-                    try {
-                        const response = await fetch(`${PROXY_URL}?action=getProfils`);
-                        if (!response.ok) {
-                            throw new Error(`HTTP error: ${response.status}`);
-                        }
-                        const data = await response.json();
-                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
-                        const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
-                        profilsAuteurs.value = names;
-
-                        if (names.length === 1) {
-                            auteur.value = names[0];
-                        } else {
-                            auteur.value = '';
-                        }
-                        console.log("Noms de profils chargés:", profilsAuteurs.value);
-
-                    } catch (error) {
-                        console.error("Erreur lors du chargement des profils:", error);
-                        alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
-                    } finally {
-                        isLoadingProfils.value = false;
-                    }
-                }
-
-                onMounted(fetchProfils);
-
-                function triggerFile() {
-                    fileInput.value?.click();
-                }
-
-                function onDragOver(e) {
-                    e.currentTarget.classList.add('dragover');
-                }
-
-                function onDragLeave(e) {
-                    e.currentTarget.classList.remove('dragover');
-                }
-
+                // --- Fonctions de gestion de l'image ---
+                function triggerFile() { fileInput.value?.click(); }
+                function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
+                function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
                 function onDrop(e) {
                     e.currentTarget.classList.remove('dragover');
                     const files = e.dataTransfer.files;
@@ -694,19 +673,84 @@
                         handleFile(files[0]);
                     }
                 }
-
                 function onFileChange(e) {
                     const file = e.target.files[0];
                     if (file) handleFile(file);
                 }
-
                 function handleFile(file) {
                     imageFile.value = file;
                     const reader = new FileReader();
                     reader.onload = () => { imagePreviewUrl.value = reader.result; };
                     reader.readAsDataURL(file);
                 }
+                function removeImage() {
+                    imageFile.value = null;
+                    imagePreviewUrl.value = '';
+                    originalImageUrl.value = ''; // Réinitialise également l'image originale
+                    if (fileInput.value) {
+                        fileInput.value.value = null; // Efface le fichier sélectionné du champ input
+                    }
+                }
+                // --- Fin des fonctions de gestion de l'image ---
 
+
+                // --- Fonctions de récupération de données ---
+                async function fetchProfils() {
+                    isLoadingProfils.value = true;
+                    try {
+                        const response = await fetch(`${PROXY_URL}?action=getProfils`);
+                        if (!response.ok) { throw new Error(`HTTP error: ${response.status}`); }
+                        const data = await response.json();
+                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
+                        const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
+                        profilsAuteurs.value = names;
+                        if (names.length === 1 && !auteur.value) { // Pré-sélectionne si un seul profil et pas déjà sélectionné (édition)
+                            auteur.value = names[0];
+                        }
+                    } catch (error) {
+                        console.error("Erreur lors du chargement des profils:", error);
+                        alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
+                    } finally {
+                        isLoadingProfils.value = false;
+                    }
+                }
+
+                // Nouvelle fonction pour récupérer un prompt spécifique en mode édition
+                async function fetchPromptForEdit(id) {
+                    isLoading.value = true;
+                    try {
+                        // Utilise getGalleryPrompts pour récupérer tous les prompts, puis filtre
+                        const response = await fetch(GET_GALLERY_PROMPTS_URL);
+                        if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                        const allPrompts = await response.json();
+                        const promptToEdit = allPrompts.find(p => p.id === id);
+
+                        if (promptToEdit) {
+                            titre.value = promptToEdit.titre || '';
+                            auteur.value = promptToEdit.auteur || '';
+                            outil.value = promptToEdit.outil || 'Midjourney';
+                            chaine.value = promptToEdit.chaine || 'La Une';
+                            texte.value = promptToEdit.texte || '';
+                            description.value = promptToEdit.description || '';
+                            imagePreviewUrl.value = promptToEdit.imageUrl || '';
+                            originalImageUrl.value = promptToEdit.imageUrl || ''; // Stocke l'URL originale
+                            // promptId.value et promptSha.value sont déjà définis par les params URL
+                        } else {
+                            alert("Prompt non trouvé.");
+                            window.location.href = "/galerie.html"; // Redirige si non trouvé
+                        }
+                    } catch (error) {
+                        console.error("Erreur lors du chargement du prompt pour édition:", error);
+                        alert(`Impossible de charger le prompt: ${error.message}.`);
+                        window.location.href = "/galerie.html";
+                    } finally {
+                        isLoading.value = false;
+                    }
+                }
+                // --- Fin des fonctions de récupération de données ---
+
+
+                // --- Soumission du formulaire ---
                 function getBase64(file) {
                     return new Promise((resolve, reject) => {
                         const reader = new FileReader();
@@ -717,25 +761,21 @@
                 }
 
                 async function submitForm() {
-                    if (!auteur.value) {
-                        alert("Veuillez sélectionner un auteur.");
-                        return;
-                    }
-                    if (!texte.value.trim()) {
-                        alert("Veuillez entrer le texte du prompt.");
+                    if (!auteur.value || !titre.value || !texte.value.trim()) {
+                        alert("Veuillez remplir tous les champs obligatoires (Titre, Auteur, Prompt).");
                         return;
                     }
 
                     confirmationVisible.value = false;
                     isLoading.value = true;
 
-                    let imageUrl = '';
-                    const file = imageFile.value;
+                    let finalImageUrl = originalImageUrl.value; // Par défaut, conserve l'image existante
 
                     try {
-                        if (file) {
-                            const base64 = await getBase64(file);
-                            const payload = { fileContent: base64, fileName: file.name };
+                        // S'il y a un nouveau fichier image sélectionné
+                        if (imageFile.value) {
+                            const base64 = await getBase64(imageFile.value);
+                            const payload = { fileContent: base64, fileName: imageFile.value.name };
                             const resp = await fetch('/.netlify/functions/uploadImage', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -746,29 +786,53 @@
                                 throw new Error(`Upload failed: ${resp.status} - ${errorText}`);
                             }
                             const data = await resp.json();
-                            imageUrl = data.url;
-                            console.log("Image uploadée avec succès:", imageUrl);
+                            finalImageUrl = data.url;
+                            console.log("Image uploadée/mise à jour avec succès:", finalImageUrl);
+                        } else if (!imagePreviewUrl.value) {
+                            // Si imagePreviewUrl est vide, cela signifie que l'image a été supprimée ou n'a jamais existé
+                            finalImageUrl = '';
+                        }
+                        // Si imageFile est null MAIS imagePreviewUrl n'est PAS null, on garde originalImageUrl.value
+
+                        const promptData = {
+                            titre: titre.value,
+                            auteur: auteur.value,
+                            outil: outil.value,
+                            chaine: chaine.value,
+                            texte: texte.value,
+                            description: description.value,
+                            imageUrl: finalImageUrl // Utilise l'URL finale de l'image
+                        };
+
+                        let apiResponse;
+                        if (isEditMode.value) {
+                            // Mode édition: appel à la fonction de mise à jour
+                            console.log("Mise à jour du prompt avec ID:", promptId.value, "SHA:", promptSha.value);
+                            apiResponse = await fetch(UPDATE_PROMPT_URL, {
+                                method: 'PUT', // Méthode HTTP PUT pour la mise à jour
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    id: promptId.value,
+                                    sha: promptSha.value, // Le SHA est indispensable pour la mise à jour GitHub
+                                    ...promptData // Toutes les autres données du prompt
+                                })
+                            });
+                        } else {
+                            // Mode création: appel à la fonction de création
+                            console.log("Création d'un nouveau prompt.");
+                            apiResponse = await fetch(PUSH_PROMPT_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(promptData)
+                            });
                         }
 
-                        const promptResp = await fetch('/.netlify/functions/pushPrompt', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                auteur: auteur.value,
-                                outil: outil.value,
-                                chaine: chaine.value,
-                                texte: texte.value,
-                                description: description.value,
-                                imageUrl
-                            })
-                        });
-
-                        if (!promptResp.ok) {
-                            const errorText = await promptResp.text();
-                            throw new Error(`Prompt failed: ${promptResp.status} - ${errorText}`);
+                        if (!apiResponse.ok) {
+                            const errorText = await apiResponse.text();
+                            throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorText}`);
                         }
 
-                        confirmationImageUrl.value = imageUrl;
+                        confirmationImageUrl.value = finalImageUrl;
                         confirmationTexte.value = texte.value;
                         confirmationDescription.value = description.value;
                         confirmationVisible.value = true;
@@ -777,33 +841,64 @@
                             window.location.href = "/galerie.html";
                         }, 5000);
 
-                        // Réinitialisation des champs du formulaire
-                        auteur.value = '';
-                        outil.value = 'Midjourney';
-                        chaine.value = 'La Une';
-                        texte.value = '';
-                        description.value = '';
-                        imagePreviewUrl.value = '';
-                        imageFile.value = null;
-                        if (fileInput.value) {
-                            fileInput.value.value = null;
+                        // Réinitialisation des champs du formulaire après succès (uniquement en mode création)
+                        if (!isEditMode.value) {
+                            titre.value = '';
+                            auteur.value = '';
+                            outil.value = 'Midjourney';
+                            chaine.value = 'La Une';
+                            texte.value = '';
+                            description.value = '';
+                            imagePreviewUrl.value = '';
+                            originalImageUrl.value = '';
+                            imageFile.value = null;
+                            if (fileInput.value) {
+                                fileInput.value.value = null;
+                            }
+                            fetchProfils(); // Recharge les profils au cas où ils auraient changé
                         }
-                        fetchProfils(); // Recharge les profils au cas où ils auraient changé
+
                     } catch (err) {
-                        console.error('Erreur lors de l\'envoi du prompt:', err);
-                        alert(`Échec de l'envoi du prompt: ${err.message || err}. Vérifiez la console.`);
+                        console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du prompt:`, err);
+                        alert(`Échec de l'opération du prompt: ${err.message || err}. Vérifiez la console.`);
                     } finally {
                         isLoading.value = false;
                     }
                 }
+                // --- Fin de la soumission du formulaire ---
+
+
+                // --- Logique d'initialisation du composant ---
+                onMounted(async () => {
+                    await fetchProfils(); // Charger les profils d'auteurs
+
+                    // Vérifier les paramètres d'URL pour le mode édition
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const mode = urlParams.get('mode');
+                    const id = urlParams.get('id');
+                    const sha = urlParams.get('sha'); // Récupérer le SHA
+
+                    if (mode === 'edit' && id && sha) {
+                        isEditMode.value = true;
+                        promptId.value = id;
+                        promptSha.value = sha;
+                        await fetchPromptForEdit(id); // Charger les données du prompt à éditer
+                    } else {
+                        // Mode création par défaut, assurez-vous que les champs sont vides
+                        titre.value = ''; // S'assurer que le titre est vide pour la création
+                        auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
+                    }
+                });
+                // --- Fin de la logique d'initialisation ---
 
                 return {
-                    auteur, outil, chaine, texte, description, fileInput,
+                    titre, auteur, outil, chaine, texte, description, fileInput,
                     imagePreviewUrl, confirmationVisible,
                     confirmationImageUrl, confirmationTexte, confirmationDescription,
                     isLoading, profilsAuteurs, isLoadingProfils,
-                    selectedFilterAuteur, selectedFilterOutil, selectedFilterChaine,
-                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm
+                    isEditMode, formTitle, submitButtonText, confirmationMessage,
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm,
+                    removeImage // Exposer la fonction pour supprimer l'image
                 };
             }
         };
