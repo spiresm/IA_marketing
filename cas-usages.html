@@ -324,14 +324,12 @@
             flex-wrap: wrap;
             gap: 10px;
             margin-top: 10px;
-            /* Si vous voulez que les vidéos s'alignent avec les images, enlevez le video-responsive wrapper du JS
-               et mettez un style pour .preview-panel-media-container video ici */
         }
         .preview-panel-media-container a { display: block; transition: transform 0.2s ease; }
         .preview-panel-media-container a:hover { transform: scale(1.05); }
         .preview-panel-media-container img { max-width: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; }
         .preview-panel-media-container video {
-            max-width: 100%; /* S'assure que la vidéo ne déborde pas */
+            max-width: 100%; 
             height: auto;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -486,7 +484,7 @@
                 
                 // Déterminer la première image/vidéo pour la vignette de la carte
                 let cardThumbnailSrc = '';
-                let isVideoThumbnail = false;
+                let isVideoThumbnail = false; // Pour savoir si la vignette représente une vidéo
 
                 if (hasYoutubeVideo) {
                     const videoId = getYouTubeVideoId(tip.urls.find(getYouTubeVideoId));
@@ -495,14 +493,29 @@
                 } else if (Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) {
                     const firstFileUrl = tip.fileUrls[0];
                     const fileExtension = firstFileUrl.split('.').pop().toLowerCase();
-                    if (['mp4', 'webm', 'ogg'].includes(fileExtension)) {
-                        // Pour les vidéos non YouTube, utiliser une icône ou une image par défaut si pas de vignette spécifique
-                        cardThumbnailSrc = 'https://via.placeholder.com/180x180?text=Vid%C3%A9o'; // Placeholder pour les vidéos directes
-                        isVideoThumbnail = true;
+                    const cloudinaryCloudName = "dh8taukjd"; // <--- REMPLACEZ PAR VOTRE NOM DE CLOUD CLOUDINARY
+                    
+                    if (['mp4', 'webm', 'ogg'].includes(fileExtension) && firstFileUrl.includes(`res.cloudinary.com/${cloudinaryCloudName}/video/upload/`)) {
+                        // Tenter de générer une URL de vignette Cloudinary
+                        const cloudinaryVideoPath = firstFileUrl.split(`video/upload/`)[1];
+                        if (cloudinaryVideoPath) {
+                            // Exemple de transformation pour une vignette: format jpg, recadrage auto, taille 180x180
+                            cardThumbnailSrc = `https://res.cloudinary.com/${cloudinaryCloudName}/video/upload/c_fill,w_180,h_180,f_jpg/${cloudinaryVideoPath}`;
+                            isVideoThumbnail = true;
+                        } else {
+                            // Fallback si l'URL Cloudinary est mal formée
+                            cardThumbnailSrc = 'https://via.placeholder.com/180x180?text=Vid%C3%A9o'; 
+                            isVideoThumbnail = true;
+                        }
                     } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
                         cardThumbnailSrc = firstFileUrl;
+                    } else if (['mp4', 'webm', 'ogg'].includes(fileExtension)) {
+                        // Si c'est une vidéo mais pas Cloudinary ou ne peut pas être transformée, utiliser le placeholder générique
+                        cardThumbnailSrc = 'https://via.placeholder.com/180x180?text=Vid%C3%A9o'; 
+                        isVideoThumbnail = true;
                     }
                 } else if (tip.imageUrl) {
+                    // C'est l'imageUrl "primaire" si elle existe et n'est pas un fichier additionnel
                     cardThumbnailSrc = tip.imageUrl;
                 }
                 
