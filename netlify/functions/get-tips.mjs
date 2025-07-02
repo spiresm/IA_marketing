@@ -2,7 +2,7 @@
 import { Octokit } from "@octokit/core";
 import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Buffer } from 'buffer';
-import fetch from 'node-fetch'; // <--- NOUVEL IMPORT NÉCESSAIRE
+import fetch from 'node-fetch';
 
 const MyOctokit = Octokit.plugin(restEndpointMethods);
 
@@ -33,36 +33,37 @@ export const handler = async (event, context) => {
             ref: 'main',
         });
 
-        const fileMetadata = response.data; // Ceci contient les infos sur le fichier, pas le contenu s'il est trop gros
+        const fileMetadata = response.data; // Ceci contient les infos sur le fichier, y compris son SHA
 
-        console.log('✅ get-tips: Métadonnées du fichier récupérées de GitHub.');
-        console.log('📡 get-tips: Réponse complète de GitHub (métadonnées):', JSON.stringify(fileMetadata, null, 2)); // Gardons ce log pour référence
+        console.log('✅ get-tips: Métadonnées du fichier récupérées de GitHub. SHA du fichier:', fileMetadata.sha);
 
-        // Vérifier si le contenu est directement présent ou si nous devons utiliser download_url
         let content;
         if (fileMetadata.content && fileMetadata.encoding === 'base64') {
             console.log('📡 get-tips: Contenu directement présent (taille < 1MB).');
             content = Buffer.from(fileMetadata.content, 'base64').toString('utf8');
         } else if (fileMetadata.download_url) {
             console.log(`📡 get-tips: Contenu non direct (taille >= 1MB ou encodage "none"). Utilisation de download_url: ${fileMetadata.download_url}`);
-            // Faire une nouvelle requête pour récupérer le contenu brut
             const rawResponse = await fetch(fileMetadata.download_url);
             if (!rawResponse.ok) {
                 throw new Error(`Failed to download raw content: ${rawResponse.statusText}`);
             }
-            content = await rawResponse.text(); // Le contenu est directement le texte du fichier
+            content = await rawResponse.text();
             console.log(`✅ get-tips: Contenu téléchargé via download_url. Longueur: ${content.length}`);
         } else {
-            // Cas inattendu : ni content ni download_url
             console.error('❌ get-tips: Réponse GitHub inattendue, ni content ni download_url disponibles.');
             throw new Error('Impossible de récupérer le contenu du fichier tips: Format de réponse GitHub inattendu.');
         }
 
-        console.log(`📡 get-tips: Longueur du contenu décodé (final): ${content ? content.length : 'N/A'}`);
-        // console.log('📡 get-tips: Contenu décodé (début):', content.substring(0, 500)); // Décommentez pour un aperçu
-
         const tips = JSON.parse(content);
         console.log(`✅ get-tips: JSON parsé avec succès. ${tips.length} tips trouvés.`);
+
+        // AJOUT CLÉ : Ajoutez le SHA du fichier parent (all-tips.json) à chaque tip
+        // Le frontend aura besoin de ce SHA pour la mise à jour complète du fichier.
+        const tipsWithSha = tips.map(tip => ({
+            ...tip,
+            parentFileSha: fileMetadata.sha, // Ajout du SHA du fichier global all-tips.json
+            parentFilePath: TIPS_FILE_PATH // Ajout du chemin du fichier global pour référence
+        }));
 
         return {
             statusCode: 200,
@@ -72,7 +73,7 @@ export const handler = async (event, context) => {
                 "Access-Control-Allow-Methods": "GET, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
-            body: JSON.stringify(tips),
+            body: JSON.stringify(tipsWithSha), // Retourne les tips avec le SHA du fichier parent
         };
     } catch (error) {
         console.error('❌ Erreur lors de la récupération ou du parsing des tips:', error);
