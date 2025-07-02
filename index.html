@@ -137,8 +137,6 @@
             flex-wrap: wrap;
             gap: 5px;
         }
-        /* .card-top-meta .left-badges { Cette classe n'est plus nécessaire } */
-
 
         .addition-card h4 {
             font-size: 1.3em;
@@ -154,20 +152,36 @@
             margin-bottom: 10px;
         }
 
+        /* MODIFICATION CSS POUR LES VIGNETTES VIDEO (RATIO 16:9) pour les cartes d'accueil */
         .addition-card .card-image-container {
             width: 100%;
-            height: 180px; 
-            overflow: hidden; 
+            height: 0; /* Important pour la technique du padding-bottom */
+            padding-bottom: 56.25%; /* Ratio 16:9 (9/16 = 0.5625) */
+            position: relative;
+            overflow: hidden;
             border-radius: 8px;
             margin: 10px 0; /* Espace autour du conteneur d'image */
             flex-shrink: 0; 
+            background-color: #eee; /* Fallback couleur si image absente */
+            display: flex; /* Pour centrer l'icône si pas d'image */
+            justify-content: center;
+            align-items: center;
         }
         .addition-card .card-image-container img {
+            position: absolute; /* Pour que l'image remplisse le conteneur avec padding-bottom */
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover; 
+            object-fit: cover; /* Assure que l'image couvre la zone, coupant si nécessaire */
             display: block;
         }
+        .addition-card .card-image-container .fa-image,
+        .addition-card .card-image-container .fa-video {
+            font-size: 40px; /* Taille de l'icône si pas de vignette */
+            color: #ccc;
+        }
+        /* FIN MODIFICATION CSS */
 
         .addition-card p {
             color: var(--grey-text);
@@ -187,14 +201,6 @@
             text-decoration: none; 
             display: inline-block; 
         }
-        /* Suppression des styles pour .auteur-badge car il ne sera plus une capsule */
-        /* .auteur-badge {
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-        .auteur-badge:hover {
-            background-color: #d0d5d9; 
-        } */
 
         /* Styles pour les noms de chaîne en texte coloré simple */
         .chaine-text-color {  
@@ -205,35 +211,32 @@
 
         /* MODIFIÉ : card-meta maintenant sous l'image */
         .addition-card .card-meta { 
-            /* Supprime border-top et padding-top car il n'est plus en haut de 'card-content' */
-            /* border-top: 1px solid #e0e0e0; */
-            /* padding-top: 10px; */
-            margin-top: 0px; /* Pas de marge supérieure si juste après l'image */
-            margin-bottom: 15px; /* Espace avant la description */
+            margin-top: 0px; 
+            margin-bottom: 15px; 
             display: flex;
-            flex-direction: column; /* Pour empiler les lignes d'information */
-            gap: 5px; /* Réduit l'espace entre les lignes */
+            flex-direction: column; 
+            gap: 5px; 
             font-size: 0.85em;
             color: var(--grey-text);
             text-align: left;
         }
-        .addition-card .card-meta span { /* Chaque ligne d'info */
+        .addition-card .card-meta span { 
             display: flex;
             align-items: center;
-            gap: 8px; /* Espace pour l'icône si présente */
+            gap: 8px; 
         }
 
         /* NOUVEAU STYLE : pour le texte "Créé par: Nom" et la Chaîne */
-        .meta-line { /* Classe générale pour les nouvelles lignes d'info sous l'image */
+        .meta-line { 
             font-size: 0.9em;
             color: var(--grey-text);
         }
         .meta-line strong {
             font-weight: bold;
-            color: #333; /* Ou une couleur plus spécifique si désirée */
+            color: #333; 
         }
         .meta-line a {
-            color: inherit; /* Garde la couleur du texte parent */
+            color: inherit; 
             text-decoration: none;
         }
         .meta-line a:hover {
@@ -442,6 +445,7 @@
             const cloudinaryCloudName = "dh8taukjd"; // <--- REMPLACEZ PAR VOTRE NOM DE CLOUD CLOUDINARY ICI AUSSI
 
             if (youtubeVideoId) {
+                // Pour YouTube, la vignette est toujours une image.
                 mediaHtml = `
                     <div class="card-image-container">
                         <img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette vidéo YouTube pour ${escapeHtml(item.titre)}">
@@ -458,25 +462,26 @@
                     // C'est une vidéo Cloudinary, tenter de générer une vignette
                     const cloudinaryVideoPath = item.imageUrl.split(`video/upload/`)[1];
                     if (cloudinaryVideoPath) {
-                        const thumbnailUrl = `https://res.cloudinary.com/${cloudinaryCloudName}/video/upload/c_fill,w_180,h_180,f_jpg/${cloudinaryVideoPath}`;
+                        // Utilisation de c_fill, ar_16:9 et w_280 pour un ratio vidéo standard
+                        const thumbnailUrl = `https://res.cloudinary.com/${cloudinaryCloudName}/video/upload/c_fill,ar_16:9,w_280,f_jpg/${cloudinaryVideoPath}`;
                         mediaHtml = `
                             <div class="card-image-container">
                                 <img src="${escapeHtml(thumbnailUrl)}" alt="Vignette vidéo Cloudinary pour ${escapeHtml(item.titre)}">
                             </div>`;
                     } else {
                         // Fallback si l'URL Cloudinary est mal formée
-                        mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-video fa-3x" style="color:#ccc;"></i></div>`;
+                        mediaHtml = `<div class="card-image-container"><i class="fas fa-video fa-3x"></i></div>`;
                     }
                 } else if (isVideoUrl(item.imageUrl)) {
                     // C'est une vidéo non-Cloudinary ou non-transformable en vignette
-                    mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-video fa-3x" style="color:#ccc;"></i></div>`;
+                    mediaHtml = `<div class="card-image-container"><i class="fas fa-video fa-3x"></i></div>`;
                 } else {
                     // Dernier recours si imageUrl n'est ni image, ni vidéo identifiable
-                    mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
+                    mediaHtml = `<div class="card-image-container"><i class="fas fa-image fa-3x"></i></div>`;
                 }
             } else {
                 // Aucun imageUrl valide ou un placeholder 'NO_IMAGE_PLACEHOLDER'
-                mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
+                mediaHtml = `<div class="card-image-container"><i class="fas fa-image fa-3x"></i></div>`;
             }
 
 
