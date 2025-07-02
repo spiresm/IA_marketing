@@ -110,17 +110,13 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: column;
-            /* padding: 20px; */ /* Retiré pour gérer padding à l'intérieur de content-wrapper */
             transition: transform 0.2s ease, box-shadow 0.2s ease;
-            border-left: 5px solid var(--primary-blue);
+            /* La bordure gauche est maintenant définie dynamiquement en JS */
         }
         
-        .addition-card.galerie { /* Style pour la carte de prompt */
-            border-left-color: #ffcb05; /* Jaune pour les prompts */
-        }
-        .addition-card.cas-usage { /* Style pour la carte de workflow */
-             border-left-color: var(--primary-blue); /* Bleu pour les workflows (ou une autre couleur si souhaité) */
-        }
+        /* Suppression des styles spécifiques .addition-card.galerie et .addition-card.cas-usage pour la bordure-left-color */
+        /* .addition-card.galerie { border-left-color: #ffcb05; } */
+        /* .addition-card.cas-usage { border-left-color: var(--primary-blue); } */
 
         .addition-card:hover {
             transform: translateY(-5px);
@@ -196,8 +192,18 @@
             padding: 5px 12px;  
             border-radius: 15px;
             white-space: nowrap; 
+            text-decoration: none; /* Pour les rendre comme des liens par défaut */
+            display: inline-block; /* Pour qu'ils se comportent comme des blocs inline */
         }
-        
+        /* Rendre l'auteur badge cliquable et le surligner au survol */
+        .auteur-badge {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .auteur-badge:hover {
+            background-color: #d0d5d9; /* Une nuance légèrement plus foncée au survol */
+        }
+
         /* Styles pour les noms de chaîne en texte coloré simple (reste comme avant) */
         .chaine-text-color { 
             font-size: 0.9em; 
@@ -392,14 +398,19 @@
 
         const createCard = (item, type) => {
             const card = document.createElement("div");
-            card.className = `addition-card ${type}`;
+            
+            // Appliquer la bordure gauche dynamiquement ici
+            const chaineCouleur = getChainColor(item.chaine);
+            card.style.borderLeft = `5px solid ${chaineCouleur}`;
+            
+            card.className = `addition-card ${type}`; // Conserver la classe type pour d'autres styles si nécessaire
 
             // Define the main title for the card
             let mainCardTitle = '';
             if (type === 'galerie') {
-                mainCardTitle = '';
+                mainCardTitle = 'Dernier prompt partagé';
             } else if (type === 'cas-usage') {
-                mainCardTitle = '';
+                mainCardTitle = 'Dernier workflow partagé';
             } else {
                 mainCardTitle = 'Dernier ajout'; // Fallback if type is not recognized
             }
@@ -408,29 +419,32 @@
             if (item.imageUrl && isImageUrl(item.imageUrl) && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') { 
                 mediaHtml = `
                     <div class="card-image-container">
-                        <img src="${item.imageUrl}" alt="Vignette pour ${item.titre}">
+                        <img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre)}">
                     </div>`;
             } else {
                 mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
             }
 
             // Generate badges for author and tool
-            const authorBadge = item.auteur && item.auteur !== 'Auteur inconnu' ? `<span class="auteur-badge">${item.auteur}</span>` : '';
-            const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${item.outil}</span>` : '';
+            // L'auteur est maintenant un lien cliquable avec le style de badge
+            const authorBadge = item.auteur && item.auteur !== 'Auteur inconnu' ? 
+                `<a href="profil.html?name=${encodeURIComponent(item.auteur)}" class="auteur-badge">${escapeHtml(item.auteur)}</a>` : '';
+            
+            const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
 
             card.innerHTML = `
                 <div class="card-content-wrapper">
                     <div class="card-top-meta">
                         <div class="left-badges">
-                            <span class="chaine-text-color" style="color: ${getChainColor(item.chaine)};">${item.chaine}</span>
+                            <span class="chaine-text-color" style="color: ${chaineCouleur};">${escapeHtml(item.chaine)}</span>
                             ${authorBadge}
                         </div>
                         ${toolBadge}
                     </div>
                     <h4>${mainCardTitle}</h4>
-                    <div class="card-subtitle">${item.titre}</div> 
+                    <div class="card-subtitle">${escapeHtml(item.titre)}</div> 
                     ${mediaHtml}
-                    <p>${item.description}</p>
+                    <p>${escapeHtml(item.description)}</p>
                     <div class="card-meta">
                         <span>Créé le: <strong>${formatteDate(item.date)}</strong></span>
                     </div>
@@ -504,7 +518,7 @@
                     titre: item.titre || "Titre non spécifié",
                     auteur: item.auteur || "Auteur inconnu",
                     outil: item.outil || "Non spécifié",
-                    chaine: item.chaine || "Non spécifié", // Ajout de la chaîne pour la normalisation
+                    chaine: item.chaine || "Non spécifié",
                     description: item.description || item.promptText || 'Pas de description.',
                     date: item.date_creation || item.dateCreation,
                     imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER')
@@ -524,14 +538,13 @@
 
                 let itemsToDisplay = [];
 
-                if (prompts.length > 0) { // On met le prompt en premier (gauche)
+                if (prompts.length > 0) { 
                     itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
                 }
-                if (tips.length > 0) { // Puis le workflow (droite)
+                if (tips.length > 0) { 
                     itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
                 }
 
-                // Ajouter les éléments dans l'ordre (prompt d'abord, puis workflow)
                 itemsToDisplay.forEach(({ item, type }) => {
                     container.appendChild(createCard(item, type));
                 });
@@ -557,10 +570,9 @@
                 const newsItems = await response.json();
                 if (newsItems.length > 0) {
                     newsTickerContent.innerHTML = newsItems.map(item => 
-                        `<span class="news-item">${escapeHtml(item.title)}</span>` // Escape HTML pour les titres d'actualités
+                        `<span class="news-item">${escapeHtml(item.title)}</span>`
                     ).join('');
                     
-                    // Duplique le contenu pour permettre un défilement continu
                     newsTickerContent.innerHTML += newsTickerContent.innerHTML;
                 } else {
                     newsTickerContent.innerHTML = '<span>Aucune actualité pour le moment.</span>';
