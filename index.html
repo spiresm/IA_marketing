@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
-        /* CSS unifié basé sur la page equipe.html */
         :root {
             --primary-blue: #0077b6;
             --dark-blue: #005f8a;
@@ -33,7 +32,6 @@
             flex-grow: 1;
         }
 
-        /* --- Barre de Navigation (identique à equipe.html) --- */
         .nav-wrapper {
             background-color: var(--primary-blue);
             width: 100%;
@@ -84,7 +82,6 @@
             display: none; 
         }
 
-        /* --- Contenu Principal --- */
         .content-section {
             max-width: 960px;
             margin: 25px auto;
@@ -101,7 +98,6 @@
             margin-top: 0;
         }
         
-        /* --- Styles pour la grille des derniers ajouts --- */
         .latest-additions-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -144,7 +140,26 @@
 
         .addition-card p {
             color: var(--grey-text);
-            flex-grow: 1;
+            flex-grow: 1; /* Pousse les métadonnées et le bouton vers le bas */
+        }
+        
+        /* --- NOUVEAUX STYLES POUR LES MÉTADONNÉES --- */
+        .addition-card .card-meta {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 10px;
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column; /* Aligne les métadonnées verticalement */
+            gap: 8px; /* Espace entre les lignes de métadonnées */
+            font-size: 0.85em;
+            color: var(--grey-text);
+            text-align: left; /* Aligne le texte à gauche */
+        }
+
+        .addition-card .card-meta span {
+            display: flex;
+            align-items: center;
+            gap: 8px; /* Espace entre l'icône et le texte */
         }
         
         .addition-card .view-button {
@@ -207,13 +222,12 @@
             100% { transform: translateX(-100%); }
         }
 
-        /* --- Pied de Page (identique à equipe.html) --- */
         footer {
             background-color: #333;
             color: white;
             text-align: center;
             padding: 20px;
-            margin-top: auto; /* Important pour le sticky footer */
+            margin-top: auto;
             width: 100%;
         }
 
@@ -269,8 +283,7 @@
         const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
         const NEWS_DATA_PATH = 'news-data.json';
 
-        // --- Fonctions Utilitaires ---
-        const isImageUrl = (url) => (/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i).test(url);
+        const isImageUrl = (url) => url && (/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i).test(url);
 
         const createCard = (item, type) => {
             const card = document.createElement("div");
@@ -284,17 +297,25 @@
                     </div>`;
             }
 
+            // --- MODIFICATION : Ajout des métadonnées ---
+            const metaHtml = `
+                <div class="card-meta">
+                    ${item.auteur && item.auteur !== 'Auteur inconnu' ? `<span><i class="fas fa-user"></i> ${item.auteur}</span>` : ''}
+                    ${item.outil && item.outil !== 'Non spécifié' ? `<span><i class="fas fa-wrench"></i> ${item.outil}</span>` : ''}
+                </div>
+            `;
+
             card.innerHTML = `
-                <h4>${item.titre || "Titre non spécifié"}</h4>
+                <h4>${item.titre}</h4>
                 ${mediaHtml}
-                <p>${item.description || item.promptText || 'Pas de description.'}</p>
+                <p>${item.description}</p>
+                ${metaHtml}
                 <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="view-button">
                     Voir plus
                 </a>`;
             return card;
         };
 
-        // --- Logique d'affichage ---
         async function displayLatestAdditions() {
             const container = document.getElementById("latest-additions-grid");
             if (!container) return;
@@ -307,17 +328,30 @@
                 ]);
 
                 if (!tipsResponse.ok || !promptsResponse.ok) {
-                    throw new Error("Erreur de réseau lors de la récupération des données.");
+                    throw new Error("Erreur réseau lors de la récupération des données.");
                 }
 
                 let tips = await tipsResponse.json();
                 let prompts = await promptsResponse.json();
 
-                // Trier pour obtenir le plus récent
-                tips.sort((a, b) => new Date(b.date_creation || b.dateCreation) - new Date(a.date_creation || a.dateCreation));
-                prompts.sort((a, b) => new Date(b.date_creation || b.dateCreation) - new Date(a.date_creation || a.dateCreation));
+                // --- MODIFICATION : Normalisation des données ---
+                const normalizeItem = (item) => ({
+                    ...item,
+                    titre: item.titre || "Titre non spécifié",
+                    auteur: item.auteur || "Auteur inconnu",
+                    outil: item.outil || "Non spécifié",
+                    description: item.description || item.promptText || 'Pas de description.',
+                    date: item.date_creation || item.dateCreation,
+                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls[0]) || null
+                });
 
-                container.innerHTML = ''; // Vider le conteneur
+                tips = tips.map(normalizeItem);
+                prompts = prompts.map(normalizeItem);
+
+                tips.sort((a, b) => new Date(b.date) - new Date(a.date));
+                prompts.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                container.innerHTML = ''; 
 
                 let itemsDisplayed = 0;
                 if (tips.length > 0) {
@@ -353,7 +387,6 @@
                         `<span class="news-item">${item.title}</span>`
                     ).join('');
                     
-                    // Dupliquer le contenu pour un défilement infini
                     newsTickerContent.innerHTML += newsTickerContent.innerHTML;
                 } else {
                      newsTickerContent.innerHTML = '<span>Aucune actualité pour le moment.</span>';
@@ -364,7 +397,6 @@
             }
         }
 
-        // --- Initialisation ---
         displayLatestAdditions();
         loadNewsTicker();
     });
