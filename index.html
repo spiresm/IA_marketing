@@ -114,10 +114,6 @@
             /* La bordure gauche est maintenant définie dynamiquement en JS */
         }
         
-        /* Suppression des styles spécifiques .addition-card.galerie et .addition-card.cas-usage pour la bordure-left-color */
-        /* .addition-card.galerie { border-left-color: #ffcb05; } */
-        /* .addition-card.cas-usage { border-left-color: var(--primary-blue); } */
-
         .addition-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 25px rgba(0,0,0,0.12);
@@ -191,7 +187,7 @@
             font-weight: 500;  
             padding: 5px 12px;  
             border-radius: 15px;
-            white-space: nowrap; 
+            white-space: nowrap;  
             text-decoration: none; /* Pour les rendre comme des liens par défaut */
             display: inline-block; /* Pour qu'ils se comportent comme des blocs inline */
         }
@@ -205,10 +201,10 @@
         }
 
         /* Styles pour les noms de chaîne en texte coloré simple (reste comme avant) */
-        .chaine-text-color { 
-            font-size: 0.9em; 
-            font-weight: bold; 
-            white-space: nowrap; 
+        .chaine-text-color {  
+            font-size: 0.9em;  
+            font-weight: bold;  
+            white-space: nowrap;  
         }
 
         .addition-card .card-meta {
@@ -391,42 +387,57 @@
     <script>
     document.addEventListener("DOMContentLoaded", () => {
         const GET_TIPS_URL = "/.netlify/functions/get-tips";
-        const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
+        const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts"; // Assuming this URL is correct
         const NEWS_DATA_PATH = 'news-data.json';
+
+        // --- NOUVELLE FONCTION : EXTRAIRE L'ID YOUTUBE ---
+        const getYouTubeVideoId = (url) => {
+            if (!url) return null;
+            const match = url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            return match ? match[1] : null;
+        };
 
         const isImageUrl = (url) => url && (/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i).test(url);
 
         const createCard = (item, type) => {
             const card = document.createElement("div");
             
-            // Appliquer la bordure gauche dynamiquement ici
             const chaineCouleur = getChainColor(item.chaine);
             card.style.borderLeft = `5px solid ${chaineCouleur}`;
             
-            card.className = `addition-card ${type}`; // Conserver la classe type pour d'autres styles si nécessaire
+            card.className = `addition-card ${type}`;
 
-            // Define the main title for the card
             let mainCardTitle = '';
             if (type === 'galerie') {
                 mainCardTitle = 'Dernier prompt partagé';
             } else if (type === 'cas-usage') {
                 mainCardTitle = 'Dernier workflow partagé';
             } else {
-                mainCardTitle = 'Dernier ajout'; // Fallback if type is not recognized
+                mainCardTitle = 'Dernier ajout';
             }
 
+            // --- LOGIQUE MODIFIÉE POUR AFFICHER LA VIGNETTE YOUTUBE ---
             let mediaHtml = '';
-            if (item.imageUrl && isImageUrl(item.imageUrl) && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') { 
+            const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl); // Utilise firstVideoUrl de normalizeItem
+
+            if (youtubeVideoId) {
+                // Utilise la vignette YouTube
+                mediaHtml = `
+                    <div class="card-image-container">
+                        <img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette vidéo YouTube pour ${escapeHtml(item.titre)}">
+                    </div>`;
+            } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER' && isImageUrl(item.imageUrl)) { 
+                // Affiche l'image normale si ce n'est pas une vidéo YouTube et qu'il y a une image valide
                 mediaHtml = `
                     <div class="card-image-container">
                         <img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre)}">
                     </div>`;
             } else {
+                // Placeholder si aucune image ou vidéo
                 mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
             }
+            // --- FIN LOGIQUE MODIFIÉE ---
 
-            // Generate badges for author and tool
-            // L'auteur est maintenant un lien cliquable avec le style de badge
             const authorBadge = item.auteur && item.auteur !== 'Auteur inconnu' ? 
                 `<a href="profil.html?name=${encodeURIComponent(item.auteur)}" class="auteur-badge">${escapeHtml(item.auteur)}</a>` : '';
             
@@ -455,15 +466,14 @@
             return card;
         };
 
-        // Objet pour mapper les noms de chaînes à des couleurs (copié de galerie.html)
         const chainColors = {
-            "Auvio Kids": "hotpink", // rose
-            "Auvio": "gold", // jaune
-            "La Une": "red", // rouge
-            "Tipik": "limegreen", // vert
-            "La Première": "blue", // bleu
-            "Vivacité": "orange", // orange
-            "La Trois": "purple", // mauve
+            "Auvio Kids": "hotpink",
+            "Auvio": "gold",
+            "La Une": "red",
+            "Tipik": "limegreen",
+            "La Première": "blue",
+            "Vivacité": "orange",
+            "La Trois": "purple",
             "Classic 21": "#8A2BE2", 
             "Musiq3": "#FF1493", 
             "Autre": "#778899",
@@ -513,16 +523,22 @@
                 let tips = await tipsResponse.json();
                 let prompts = await promptsResponse.json();
 
-                const normalizeItem = (item) => ({
-                    ...item,
-                    titre: item.titre || "Titre non spécifié",
-                    auteur: item.auteur || "Auteur inconnu",
-                    outil: item.outil || "Non spécifié",
-                    chaine: item.chaine || "Non spécifié",
-                    description: item.description || item.promptText || 'Pas de description.',
-                    date: item.date_creation || item.dateCreation,
-                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER')
-                });
+                const normalizeItem = (item) => {
+                    // Trouver la première URL YouTube s'il y en a une
+                    const firstVideoUrl = (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url));
+                    
+                    return {
+                        ...item,
+                        titre: item.titre || "Titre non spécifié",
+                        auteur: item.auteur || "Auteur inconnu",
+                        outil: item.outil || "Non spécifié",
+                        chaine: item.chaine || "Non spécifié",
+                        description: item.description || item.promptText || 'Pas de description.',
+                        date: item.date_creation || item.dateCreation, // Utilise date_creation pour les workflows
+                        imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'),
+                        firstVideoUrl: firstVideoUrl // Ajoute cette propriété pour faciliter l'accès à l'URL vidéo
+                    };
+                };
 
                 tips = tips.map(normalizeItem);
                 prompts = prompts.map(normalizeItem);
