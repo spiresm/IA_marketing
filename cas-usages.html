@@ -468,8 +468,6 @@
                 const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(url => getYouTubeVideoId(url));
                 const firstImage = tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0]);
                 
-                // On utilise allTipsFileSha ici, car chaque tip partage le SHA du fichier parent
-                // Ce SHA est nécessaire pour les opérations de modification/suppression sur GitHub
                 const workflowShaToPass = allTipsFileSha || ''; 
 
                 let previewImageHtml = '';
@@ -539,7 +537,16 @@
         function applyFiltersAndSort() {
             let filtered = [...allTips];
             const outil = filtreOutilSelect.value;
-            if (outil) filtered = filtered.filter(tip => tip.outil === outil);
+            // --- DÉBUT DE LA CORRECTION POUR LE FILTRE MULTI-OUTILS ---
+            if (outil) {
+                filtered = filtered.filter(tip => {
+                    // Si tip.outil est une chaîne (ex: "Outil1, Outil2"), la diviser en tableau
+                    const tipOutilsArray = tip.outil ? tip.outil.split(',').map(s => s.trim()) : [];
+                    // Vérifie si l'outil sélectionné par le filtre est présent dans les outils du tip
+                    return tipOutilsArray.includes(outil);
+                });
+            }
+            // --- FIN DE LA CORRECTION POUR LE FILTRE MULTI-OUTILS ---
             
             const auteur = filtreAuteurSelect.value;
             if (auteur) filtered = filtered.filter(tip => tip.auteur === auteur);
@@ -656,26 +663,22 @@
         async function confirmAndDeleteTip(tipId) {
             if (confirm("Êtes-vous sûr de vouloir supprimer ce workflow ?")) {
                 try {
-                    // L'URL de la fonction DELETE-TIP doit être sans paramètres de requête
-                    // L'ID est envoyé dans le corps JSON.
                     const response = await fetch(`${apiBase}delete-tip`, {
                         method: 'DELETE',
                         headers: {
-                            'Content-Type': 'application/json' // IMPORTANT: Indique que le corps est JSON
+                            'Content-Type': 'application/json' 
                         },
-                        body: JSON.stringify({ id: tipId }) // L'ID est envoyé dans le corps
+                        body: JSON.stringify({ id: tipId })
                     });
 
                     if (!response.ok) {
-                        const errorData = await response.json(); // Tente de parser l'erreur JSON du backend
-                        // Affiche le message d'erreur du backend s'il y en a un, sinon un message générique
+                        const errorData = await response.json(); 
                         throw new Error(errorData.message || `La suppression a échoué avec le statut : ${response.status}.`);
                     }
                     
-                    const result = await response.json(); // La fonction delete-tip.mjs renvoie un JSON de succès
-                    alert(result.message); // Affiche le message de succès du backend
+                    const result = await response.json(); 
+                    alert(result.message); 
                     
-                    // Recharge les tips après la suppression réussie pour mettre à jour l'affichage
                     await initApp(); 
                 } catch(err) { 
                     console.error('Erreur lors de la suppression du workflow:', err);
@@ -698,11 +701,6 @@
                 
                 const fetchedData = await response.json(); 
                 
-                // Stocker le SHA du fichier parent (all-tips.json)
-                // C'est nécessaire pour l'opération d'édition qui utilise un backend GitHub.
-                // Si votre `get-tips` est une fonction GitHub, elle doit retourner ce SHA.
-                // Si `get-tips` utilise FaunaDB, le concept de SHA n'est pas directement applicable.
-                // Il faut alors revoir la logique d'édition ou le SHA viendrait d'un autre endroit si nécessaire.
                 if (fetchedData.length > 0 && fetchedData[0].parentFileSha) {
                     allTipsFileSha = fetchedData[0].parentFileSha;
                     console.log("SHA du fichier all-tips.json récupéré:", allTipsFileSha);
@@ -712,37 +710,28 @@
                 }
 
                 allTips = fetchedData.map(tip => ({
-                    // Copie toutes les propriétés existantes
                     ...tip,
-                    // Normalise l'ID en chaîne, car il peut être un nombre ou autre de la base de données
                     id: String(tip.id), 
-                    // Assure la présence de dates pour le tri et l'affichage
                     dateCreation: tip.date_creation || tip.dateCreation || new Date().toISOString(),
-                    // Fournit des valeurs par défaut pour les champs importants
                     titre: tip.titre || "Titre non spécifié",
                     auteur: tip.auteur || "Auteur inconnu",
                     outil: tip.outil || "Non spécifié",
-                    promptText: tip.prompt || tip.promptText, // Prend 'prompt' ou 'promptText'
+                    promptText: tip.prompt || tip.promptText, 
                     description: tip.description,
                     commentaireUrl: tip.commentaireUrl,
-                    urls: tip.urls || [], // Assure que c'est un tableau
-                    fileUrls: tip.fileUrls || [], // Assure que c'est un tableau
-                    // Détermine l'imageUrl principale pour l'affichage de la carte
+                    urls: tip.urls || [], 
+                    fileUrls: tip.fileUrls || [], 
                     imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0] ? tip.fileUrls[0] : ''),
                 }));
                 console.log("Tous les tips normalisés pour l'affichage:", allTips);
 
-                // Peuple les filtres Outils et Auteurs
-                const uniqueOutils = [...new Set(allTips.map(t => t.outil).filter(Boolean))].sort();
+                const uniqueOutils = [...new Set(allTips.map(t => t.outil).flatMap(s => s ? s.split(',').map(tool => tool.trim()) : []).filter(Boolean))].sort(); // MODIFIÉ POUR LES OUTILS MULTIPLES
                 filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>' + uniqueOutils.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
 
                 const uniqueAuteurs = [...new Set(allTips.map(t => t.auteur).filter(Boolean))].sort();
                 filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>' + uniqueAuteurs.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
 
-                // Met à jour le compteur de workflows
                 if(workflowCounter) workflowCounter.textContent = `${allTips.length} Workflows`;
-                
-                // Applique les filtres et le tri pour le premier affichage
                 applyFiltersAndSort();
 
             } catch (error) {
@@ -753,7 +742,6 @@
             }
         }
         
-        // Lance l'initialisation de l'application une fois le DOM chargé
         document.addEventListener("DOMContentLoaded", initApp);
     </script>
 </body>
