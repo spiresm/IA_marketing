@@ -170,9 +170,24 @@
         }
 
         .outil-badge {
-            background-color: #e9ecef; color: #495057; font-size: 0.8em;
-            font-weight: 500; padding: 5px 12px; border-radius: 15px;
+            background-color: #e9ecef; 
+            color: #495057; 
+            font-size: 0.8em;
+            font-weight: 500; 
+            padding: 5px 12px; 
+            border-radius: 15px;
             align-self: flex-start;
+        }
+
+        /* Styles pour les badges de chaîne dynamiques */
+        .chaine-badge {
+            font-size: 0.8em;
+            font-weight: 500;
+            padding: 5px 12px;
+            border-radius: 15px;
+            align-self: flex-start;
+            margin-top: 5px; /* Pour séparer du badge outil */
+            /* La couleur de fond et le texte seront définis via JS */
         }
 
         .metadata-section {
@@ -200,6 +215,29 @@
         
         .copier-btn { background-color: var(--light-blue); }
         .supprimer-btn { background: none; border: none; color: #aaa; cursor: pointer; padding: 0 5px; }
+
+        /* Styles pour le bouton Éditer, similaire aux autres boutons */
+        .edit-btn {
+            background-color: #009688; /* Couleur verte/turquoise, à ajuster si vous avez une palette pour ça */
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            flex-grow: 1;
+            text-align: center;
+            text-decoration: none; /* Pour les liens */
+            display: flex; /* Pour centrer le texte si c'est un lien */
+            align-items: center;
+            justify-content: center;
+        }
+        .edit-btn:hover {
+            background-color: #00796b; /* Légèrement plus foncé au survol */
+        }
+
 
         /* --- Panneau latéral --- */
         .preview-panel {
@@ -309,6 +347,22 @@
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const previewOverlay = document.getElementById('previewOverlay');
 
+        // Objet pour mapper les noms de chaînes à des couleurs
+        const chainColors = {
+            "La Une": "#FFD700", // Or
+            "Tipik": "#00BFFF", // Bleu ciel
+            "La Trois": "#32CD32", // Vert lime
+            "La Première": "#FF6347", // Rouge tomate
+            "Classic 21": "#8A2BE2", // Bleu violet
+            "Vivacité": "#4169E1", // Bleu Royal
+            "Musiq3": "#FF1493", // Rose profond
+            "Auvio": "#FF4500", // Orange Rouge
+            "Auvio Kids": "#ADFF2F", // Vert jaune
+            "Autre": "#778899", // Gris ardoise
+            "Non spécifié": "#CCCCCC" // Gris par défaut
+            // Ajoutez d'autres chaînes et leurs couleurs ici
+        };
+
         function escapeHtml(text) {
             if (text === null || text === undefined) return '';
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
@@ -316,14 +370,32 @@
         }
         
         function formatteDate(dateString) {
+            // Vérifie si la date est valide
             if (!dateString) return 'Date inconnue';
             try {
+                const date = new Date(dateString);
+                // Vérifie si la date est une date valide après conversion
+                if (isNaN(date.getTime())) {
+                    return 'Date invalide';
+                }
                 const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                return new Date(dateString).toLocaleDateString('fr-FR', options);
+                return date.toLocaleDateString('fr-FR', options);
             } catch (e) {
                 console.error("Erreur de formatage de la date:", e);
                 return 'Date invalide';
             }
+        }
+
+        // Fonction utilitaire pour obtenir une couleur de texte contrastante (blanc ou noir)
+        function getContrastColor(hexcolor){
+            if (!hexcolor || hexcolor.length < 6) return '#000000'; // Default to black
+            if (hexcolor.startsWith('#')) hexcolor = hexcolor.slice(1); // Remove #
+            
+            var r = parseInt(hexcolor.substring(0,2),16);
+            var g = parseInt(hexcolor.substring(2,4),16);
+            var b = parseInt(hexcolor.substring(4,6),16);
+            var yiq = ((r*299)+(g*587)+(b*114))/1000;
+            return (yiq >= 128) ? 'black' : 'white';
         }
 
         function displayPrompts(prompts) {
@@ -333,7 +405,14 @@
                 return;
             }
             prompts.forEach(prompt => {
-                const formattedDate = formatteDate(prompt.date); // Formater la date ici
+                const formattedDate = formatteDate(prompt.date);
+                const chaineNom = escapeHtml(prompt.chaine);
+                const chaineCouleur = chainColors[chaineNom] || chainColors["Non spécifié"]; // Récupère la couleur ou la couleur par défaut
+                
+                // Assurez-vous que prompt.sha est disponible ici. Il doit être renvoyé par getGalleryPrompts.
+                // Sinon, le bouton éditer ne fonctionnera pas correctement pour la mise à jour GitHub.
+                const promptSha = prompt.sha || ''; 
+
                 const cardHtml = `
                     <div class="carte">
                         <div class="card-image-container">
@@ -341,13 +420,15 @@
                         </div>
                         <div class="card-content-wrapper">
                             <span class="outil-badge">${escapeHtml(prompt.outil)}</span>
+                            <span class="chaine-badge" style="background-color: ${chaineCouleur}; color: ${getContrastColor(chaineCouleur)};">${chaineNom}</span>
                             <h3 class="tip-title">${escapeHtml(prompt.titre)}</h3>
                             <div class="metadata-section">
                                 <span>Par: <strong>${escapeHtml(prompt.auteur)}</strong></span>
-                                <span>(${escapeHtml(prompt.chaine)})</span>
-                                <span>Créé le: <strong>${formattedDate}</strong></span> </div>
+                                <span>Créé le: <strong>${formattedDate}</strong></span>
+                            </div>
                             <div class="card-actions">
                                 <button class="details-btn" data-id="${prompt.id}">Détails</button>
+                                <a href="prompts.html?mode=edit&id=${prompt.id}&sha=${promptSha}" class="edit-btn">Éditer</a>
                                 <button class="copier-btn" data-copy="${escapeHtml(prompt.texte)}">Copier</button>
                                 <button class="supprimer-btn" data-id="${prompt.id}" title="Supprimer"><i class="fas fa-trash-alt"></i></button>
                             </div>
@@ -376,6 +457,11 @@
             filtered.sort((a, b) => {
                 const dateA = new Date(a.date); 
                 const dateB = new Date(b.date);
+                // Gère les dates invalides pour le tri en les poussant à la fin
+                if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+                if (isNaN(dateA.getTime())) return 1; // A invalide, va après B
+                if (isNaN(dateB.getTime())) return -1; // B invalide, va après A
+
                 return sortOrder === 'recent' ? dateB - dateA : dateA - dateB;
             });
             displayPrompts(filtered);
@@ -393,6 +479,7 @@
             galerieDiv.querySelectorAll('.details-btn').forEach(b => b.onclick = () => openPreviewPanel(b.dataset.id));
             galerieDiv.querySelectorAll('.copier-btn').forEach(b => b.onclick = (e) => copyToClipboard(e.target.dataset.copy, e.target));
             galerieDiv.querySelectorAll('.supprimer-btn').forEach(b => b.onclick = () => confirmAndDelete(b.dataset.id));
+            // Le bouton "Éditer" est un lien, donc pas besoin d'un addEventListener ici pour la navigation.
         }
 
         function openPreviewPanel(promptId) {
@@ -425,6 +512,9 @@
         async function confirmAndDelete(promptId) {
             if (confirm("Êtes-vous sûr de vouloir supprimer ce prompt ?")) {
                 try {
+                    // Assurez-vous d'avoir le SHA du prompt pour la suppression si nécessaire
+                    // Votre fonction deletePrompt actuelle semble ne pas utiliser le SHA dans l'URL,
+                    // mais si elle doit l'utiliser pour l'API GitHub, il faudrait le passer.
                     const response = await fetch(`${apiBase}deletePrompt?id=${promptId}`, { method: 'DELETE' });
                     if (!response.ok) throw new Error('La suppression a échoué.');
                     await initApp();
@@ -440,15 +530,17 @@
                 if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
                 
                 const rawPrompts = await response.json();
-                // Normalisation des données
+                // Normalisation des données et assignation de la date_creation et sha
                 allPrompts = rawPrompts.map(p => ({
                     ...p,
-                    titre: p.titre || 'Sans titre',
+                    // S'assurer que le titre est bien le titre généré ou celui du fichier si p.titre n'existe pas
+                    titre: p.titre || p.fileName.replace('.json', '').replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase()),
                     auteur: p.auteur || 'Inconnu',
                     outil: p.outil || 'Non spécifié',
                     chaine: p.chaine || 'Non spécifié',
                     texte: p.texte || p.prompt || '',
-                    date: p.date_creation || p.date // Utilise date_creation si disponible, sinon date
+                    date: p.date_creation || p.date, // date_creation devrait venir du backend maintenant
+                    sha: p.sha // Assurez-vous que le SHA est bien récupéré et stocké
                 }));
                 
                 const outils = [...new Set(allPrompts.map(p => p.outil).filter(Boolean))].sort();
