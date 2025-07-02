@@ -179,6 +179,9 @@
             font-size: 0.85em;
             color: var(--grey-text);
             margin-top: 15px;
+            display: flex;
+            flex-direction: column; /* Pour empiler auteur et date */
+            gap: 5px; /* Espace entre les lignes */
         }
 
         .card-actions { 
@@ -312,6 +315,17 @@
             return String(text).replace(/[&<>"']/g, m => map[m]);
         }
         
+        function formatteDate(dateString) {
+            if (!dateString) return 'Date inconnue';
+            try {
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString('fr-FR', options);
+            } catch (e) {
+                console.error("Erreur de formatage de la date:", e);
+                return 'Date invalide';
+            }
+        }
+
         function displayPrompts(prompts) {
             galerieDiv.innerHTML = '';
             if (prompts.length === 0) {
@@ -319,6 +333,7 @@
                 return;
             }
             prompts.forEach(prompt => {
+                const formattedDate = formatteDate(prompt.date); // Formater la date ici
                 const cardHtml = `
                     <div class="carte">
                         <div class="card-image-container">
@@ -330,7 +345,7 @@
                             <div class="metadata-section">
                                 <span>Par: <strong>${escapeHtml(prompt.auteur)}</strong></span>
                                 <span>(${escapeHtml(prompt.chaine)})</span>
-                            </div>
+                                <span>Créé le: <strong>${formattedDate}</strong></span> </div>
                             <div class="card-actions">
                                 <button class="details-btn" data-id="${prompt.id}">Détails</button>
                                 <button class="copier-btn" data-copy="${escapeHtml(prompt.texte)}">Copier</button>
@@ -359,7 +374,8 @@
             }
             const sortOrder = filtreTriSelect.value;
             filtered.sort((a, b) => {
-                const dateA = new Date(a.date); const dateB = new Date(b.date);
+                const dateA = new Date(a.date); 
+                const dateB = new Date(b.date);
                 return sortOrder === 'recent' ? dateB - dateA : dateA - dateB;
             });
             displayPrompts(filtered);
@@ -432,7 +448,7 @@
                     outil: p.outil || 'Non spécifié',
                     chaine: p.chaine || 'Non spécifié',
                     texte: p.texte || p.prompt || '',
-                    date: p.date_creation || p.date
+                    date: p.date_creation || p.date // Utilise date_creation si disponible, sinon date
                 }));
                 
                 const outils = [...new Set(allPrompts.map(p => p.outil).filter(Boolean))].sort();
