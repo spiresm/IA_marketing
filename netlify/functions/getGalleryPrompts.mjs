@@ -113,12 +113,24 @@ export const handler = async (event) => {
                 // --- Fin de la récupération de la date ---
 
                 const promptId = file.name.replace('.json', ''); // L'ID est le nom du fichier sans l'extension
+                
+                // --- Logique pour le titre : Utilise le titre du contenu si existant, sinon le nom du fichier ---
+                let titreFinal = promptContent.titre || file.name.replace('.json', '').replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+                // La ligne ci-dessus:
+                // 1. Essaye de prendre promptContent.titre
+                // 2. Si non défini, prend le nom du fichier (ex: "mon-super-prompt.json")
+                // 3. Retire l'extension ".json"
+                // 4. Remplace les tirets par des espaces (ex: "mon super prompt")
+                // 5. Met la première lettre de chaque mot en majuscule (ex: "Mon Super Prompt")
+                // --- Fin de la logique du titre ---
+
                 allPrompts.push({
                     id: promptId,
                     fileName: file.name, // Le nom complet du fichier (ex: "mon-prompt.json")
                     sha: file.sha,       // Le SHA du blob du fichier, nécessaire pour la suppression
                     path: file.path,     // Le chemin complet du fichier dans le dépôt (ex: "prompts/mon-prompt.json")
                     date_creation: lastCommitDate, // Ajout de la date du dernier commit ici
+                    titre: titreFinal,   // Utilise le titre généré ou celui du contenu
                     ...promptContent     // Les autres propriétés du prompt (auteur, texte, etc.)
                 });
             } catch (processingError) {
