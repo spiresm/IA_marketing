@@ -702,79 +702,96 @@
                     }
 
                     let apiResponse;
-                    if (isEditMode.value) {
-                        formData.append('id', workflowId.value);
-                        if (workflowSha.value) {
-                            formData.append('sha', workflowSha.value);
+                    try { // <-- LE BLOC TRY POUR LE FETCH ET SON TRAITEMENT
+                        if (isEditMode.value) {
+                            formData.append('id', workflowId.value);
+                            if (workflowSha.value) {
+                                formData.append('sha', workflowSha.value);
+                            }
+
+                            console.log("Envoi de la requête PUT pour mise à jour (FormData)...");
+                            apiResponse = await fetch(UPDATE_TIP_URL, {
+                                method: 'PUT',
+                                body: formData // Le navigateur gère Content-Type: multipart/form-data
+                            });
+                        } else {
+                            console.log("Envoi de la requête POST pour création (FormData)...");
+                            apiResponse = await fetch(PUSH_TIP_URL, {
+                                method: 'POST',
+                                body: formData // Le navigateur gère Content-Type: multipart/form-data
+                            });
                         }
 
-                        console.log("Envoi de la requête PUT pour mise à jour (FormData)...");
-                        apiResponse = await fetch(UPDATE_TIP_URL, {
-                            method: 'PUT',
-                            body: formData // Le navigateur gère Content-Type: multipart/form-data
-                        });
-                    } else {
-                        console.log("Envoi de la requête POST pour création (FormData)...");
-                        apiResponse = await fetch(PUSH_TIP_URL, {
-                            method: 'POST',
-                            body: formData // Le navigateur gère Content-Type: multipart/form-data
-                        });
-                    }
-
-                    if (!apiResponse.ok) {
-                        const errorText = await apiResponse.text();
-                        let errorMessage = errorText;
-                        try {
-                            const errorJson = JSON.parse(errorText);
-                            errorMessage = errorJson.message || errorText;
-                        } catch (e) {
-                            // Ignorer si ce n'est pas du JSON
+                        if (!apiResponse.ok) {
+                            const errorText = await apiResponse.text();
+                            let errorMessage = errorText;
+                            try {
+                                const errorJson = JSON.parse(errorText);
+                                errorMessage = errorJson.message || errorText;
+                            } catch (e) {
+                                // Ignorer si ce n'est pas du JSON
+                            }
+                            throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorMessage}`);
                         }
-                        throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorMessage}`);
+
+                        const result = await apiResponse.json();
+                        console.log("Réponse de l'API:", result);
+
+                        // Mise à jour des variables de confirmation avec les données reçues du backend
+                        const confirmedTip = result.tip || {};
+                        confirmationImageUrls.value = confirmedTip.imageUrl ? [confirmedTip.imageUrl] : [];
+                        confirmationUrls.value = confirmedTip.urls || [];
+                        confirmationCommentaireUrl.value = confirmedTip.commentaireUrl || '';
+                        confirmationTitre.value = confirmedTip.titre || '';
+                        confirmationDescription.value = confirmedTip.description || '';
+                        confirmationPreviewText.value = confirmedTip.previewText || '';
+                        confirmationPromptText.value = confirmedTip.promptText || '';
+
+                        confirmationVisible.value = true;
+
+                        setTimeout(() => {
+                            window.location.href = "/cas-usages.html";
+                        }, 5000);
+
+                        // Réinitialisation des champs après succès (uniquement en mode création)
+                        if (!isEditMode.value) {
+                            titre.value = '';
+                            auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
+                            description.value = '';
+                            previewText.value = '';
+                            promptText.value = '';
+                            commentaireUrl.value = '';
+                            urls.value = [''];
+                            outils.value = [];
+                            customOutil.value = '';
+                            imagePreviewUrl.value = '';
+                            imageFile.value = null;
+                            originalImageUrl.value = '';
+                            if (fileInput.value) fileInput.value.value = null;
+                        }
+
+                    } catch (err) { // <-- LE BLOC CATCH ASSOCIÉ AU TRY
+                        console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
+                        alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
+                    } finally { // <-- LE BLOC FINALLY, QUI S'EXÉCUTE TOUJOURS
+                        isLoadingFormSubmission.value = false;
                     }
-
-                    const result = await apiResponse.json();
-                    console.log("Réponse de l'API:", result);
-
-                    // Mise à jour des variables de confirmation avec les données reçues du backend
-                    const confirmedTip = result.tip || {};
-                    confirmationImageUrls.value = confirmedTip.imageUrl ? [confirmedTip.imageUrl] : [];
-                    confirmationUrls.value = confirmedTip.urls || [];
-                    confirmationCommentaireUrl.value = confirmedTip.commentaireUrl || '';
-                    confirmationTitre.value = confirmedTip.titre || '';
-                    confirmationDescription.value = confirmedTip.description || '';
-                    confirmationPreviewText.value = confirmedTip.previewText || '';
-                    confirmationPromptText.value = confirmedTip.promptText || '';
-
-                    confirmationVisible.value = true;
-
-                    setTimeout(() => {
-                        window.location.href = "/cas-usages.html";
-                    }, 5000);
-
-                    // Réinitialisation des champs après succès (uniquement en mode création)
-                    if (!isEditMode.value) {
-                        titre.value = '';
-                        auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
-                        description.value = '';
-                        previewText.value = '';
-                        promptText.value = '';
-                        commentaireUrl.value = '';
-                        urls.value = [''];
-                        outils.value = [];
-                        customOutil.value = '';
-                        imagePreviewUrl.value = '';
-                        imageFile.value = null;
-                        originalImageUrl.value = '';
-                        if (fileInput.value) fileInput.value.value = null;
-                    }
-
-                } catch (err) {
-                    console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
-                    alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
-                } finally {
-                    isLoadingFormSubmission.value = false;
                 }
+
+                return {
+                    // Exposed properties and methods for the template
+                    auteur, titre, description, previewText, promptText, outils, customOutil,
+                    urls, addUrlField, removeUrlField, commentaireUrl,
+                    fileInput, imagePreviewUrl, fileUploadError,
+                    isLoading, isLoadingFormSubmission, profilsAuteurs, isLoadingProfils, toolsList,
+                    confirmationVisible, confirmationImageUrls, confirmationUrls,
+                    confirmationCommentaireUrl, confirmationTitre, confirmationDescription,
+                    confirmationPreviewText, confirmationPromptText,
+                    lightboxVisible, lightboxImageUrl,
+                    isEditMode, formTitle, submitButtonText, confirmationMessage,
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
+                    removeImage, submitForm, openLightbox, closeLightbox
+                };
             }
         };
 
