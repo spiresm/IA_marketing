@@ -427,7 +427,8 @@
     <script src="tools-data.js"></script> 
     <script>
         const apiBase = window.location.origin + '/.netlify/functions/';
-        let allTips = [];
+        let allTips = []; // Contient tous les workflows récupérés
+        let allTipsFileSha = null; // Nouveau : Pour stocker le SHA du fichier all-tips.json
 
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
@@ -465,7 +466,8 @@
                 const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(url => getYouTubeVideoId(url));
                 const firstImage = tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0]);
                 
-                const workflowSha = tip.sha || ''; 
+                // On utilise allTipsFileSha ici, car chaque tip partage le SHA du fichier parent
+                const workflowShaToPass = allTipsFileSha || ''; 
 
                 let previewImageHtml = '';
                 if (hasYoutubeVideo) {
@@ -492,7 +494,7 @@
                         </div>
                         <div class="card-actions">
                             <button class="card-action-btn-workflow toggle-content-btn" data-id="${tip.id}">Voir le Workflow</button>
-                            <button class="card-action-btn-workflow edit-btn" data-id="${tip.id}" data-sha="${workflowSha}">Éditer</button>
+                            <button class="card-action-btn-workflow edit-btn" data-id="${tip.id}" data-sha="${workflowShaToPass}">Éditer</button>
                             <button class="supprimer-btn-workflow" data-id="${tip.id}" title="Supprimer"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     </div>
@@ -548,7 +550,15 @@
             }
             
             const sortOrder = filtreTriDateSelect.value;
-            filtered.sort((a, b) => new Date(a.dateCreation) - new Date(b.dateCreation) * (sortOrder === 'recent' ? -1 : 1));
+            // Assurez-vous que dateCreation est un objet Date valide pour le tri
+            filtered.sort((a, b) => {
+                const dateA = new Date(a.dateCreation);
+                const dateB = new Date(b.dateCreation);
+                if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+                if (isNaN(dateA.getTime())) return 1;
+                if (isNaN(dateB.getTime())) return -1;
+                return sortOrder === 'recent' ? dateB - dateA : dateA - dateB;
+            });
             displayTips(filtered);
         }
         
@@ -564,15 +574,14 @@
         function attachCardEventListeners(){
             galerieDiv.querySelectorAll('.toggle-content-btn').forEach(b => b.onclick = () => openPreviewPanel(b.dataset.id));
             galerieDiv.querySelectorAll('.supprimer-btn-workflow').forEach(b => b.onclick = () => confirmAndDeleteTip(b.dataset.id));
-            // Ajout de l'écouteur pour le bouton Éditer
+            // Attacher l'écouteur au nouveau bouton Éditer (maintenant un <button>)
             galerieDiv.querySelectorAll('.edit-btn').forEach(b => {
                 b.addEventListener('click', () => {
                     const id = b.dataset.id;
-                    const sha = b.dataset.sha;
+                    const sha = b.dataset.sha; // Le SHA du fichier all-tips.json
                     window.location.href = `creer-tip.html?mode=edit&id=${id}&sha=${sha}`;
                 });
             });
-            // Le bouton "Copier" n'est plus sur la carte, donc son écouteur ici est supprimé.
         }
 
         function openPreviewPanel(tipId) {
@@ -587,10 +596,8 @@
             if (tip.description) contentHtml += `<h4>Description</h4><p>${escapeHtml(tip.description)}</p>`;
             if (tip.commentaireUrl) contentHtml += `<h4>Commentaire / Workflow</h4><div class="content-card-blue">${escapeHtml(tip.commentaireUrl)}</div>`;
             
-            // Si promptText existe ET qu'il n'y a PAS de vidéo YouTube (pour ne pas dupliquer la "source" principale)
             if (tip.promptText && !hasYoutubeVideo) {
                 contentHtml += `<h4>Prompt</h4><pre id="previewWorkflowPromptText">${escapeHtml(tip.promptText)}</pre>`;
-                // Bouton Copier le Prompt DANS LE PANNEAU
                 contentHtml += `<button class="preview-copy-btn" data-copy="${escapeHtml(tip.promptText)}">Copier le Prompt</button>`;
             }
 
@@ -619,7 +626,6 @@
             previewPanel.classList.add('open');
             previewOverlay.classList.add('open');
 
-            // Attacher l'événement au bouton copier qui vient d'être créé dans le panneau
             const previewCopyButton = previewPanelContent.querySelector('.preview-copy-btn');
             if (previewCopyButton) {
                 previewCopyButton.addEventListener('click', (e) => {
@@ -646,7 +652,9 @@
         async function confirmAndDeleteTip(tipId) {
             if (confirm("Êtes-vous sûr de vouloir supprimer ce workflow ?")) {
                 try {
-                    const response = await fetch(`${apiBase}delete-tip?id=${tipId}`, { method: 'DELETE' });
+                    // Pour la suppression, vous aurez besoin de l'ID du tip et du SHA du fichier all-tips.json
+                    // Le SHA est stocké dans allTipsFileSha
+                    const response = await fetch(`${apiBase}delete-tip?id=${tipId}&sha=${allTipsFileSha}`, { method: 'DELETE' });
                     if (!response.ok) throw new Error('La suppression a échoué.');
                     await initApp();
                 } catch(err) { alert('Erreur: ' + err.message); }
@@ -663,8 +671,19 @@
                 const response = await fetch(`${apiBase}get-tips`);
                 if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
                 
-                const fetchedTips = await response.json();
-                allTips = fetchedTips.map(tip => ({
+                const fetchedData = await response.json(); // La réponse est un tableau de tips
+                
+                // Stocker le SHA du fichier parent (all-tips.json)
+                // On prend le SHA du premier tip, car ils ont tous le même parentFileSha
+                if (fetchedData.length > 0 && fetchedData[0].parentFileSha) {
+                    allTipsFileSha = fetchedData[0].parentFileSha;
+                    console.log("SHA du fichier all-tips.json récupéré:", allTipsFileSha);
+                } else {
+                    console.warn("SHA du fichier all-tips.json non trouvé dans la réponse de get-tips. La mise à jour/suppression pourrait échouer.");
+                    allTipsFileSha = null; // S'assurer qu'il est null si non trouvé
+                }
+
+                allTips = fetchedData.map(tip => ({
                     ...tip,
                     id: String(tip.id),
                     dateCreation: tip.date_creation || tip.dateCreation || new Date().toISOString(),
@@ -676,10 +695,11 @@
                     commentaireUrl: tip.commentaireUrl,
                     urls: tip.urls || [],
                     fileUrls: tip.fileUrls || [],
-                    imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0]),
-                    sha: tip.sha // IMPORTANT: Assurez-vous que votre backend `get-tips` renvoie bien cette propriété.
+                    imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0] ? tip.fileUrls[0] : ''),
+                    // Le SHA du fichier parent est déjà dans tip.parentFileSha ici
                 }));
-                
+                console.log("Tous les tips normalisés pour l'affichage:", allTips); // Vérifiez ce contenu
+
                 const uniqueOutils = [...new Set(allTips.map(t => t.outil).filter(Boolean))].sort();
                 filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>' + uniqueOutils.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
 
