@@ -525,7 +525,7 @@
                 }
 
                 // Fonctions de gestion de la lightbox
-                function openLightbox(mediaUrl) { // Peut maintenant ouvrir image ou vidéo placeholder
+                function openLightbox(mediaUrl) { 
                     // La lightbox n'est vraiment pertinente que pour les images.
                     // Si c'est une vidéo, on ne l'ouvrira pas via la lightbox classique.
                     if (mediaUrl && (mediaUrl.startsWith('data:image/') || mediaUrl.match(/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i))) {
@@ -713,6 +713,7 @@
                     confirmationVisible.value = false;
 
                     let finalMediaUrl = originalMediaUrl.value; // L'URL finale du média
+                    let finalThumbnailUrl = null; // Nouvelle variable pour la miniature vidéo
 
                     try { // Ce bloc TRY gère l'ensemble de la soumission du formulaire
                         // 1. Upload du média principal (si nouveau ou changé) vers Cloudinary
@@ -729,14 +730,21 @@
                                 throw new Error(`Échec de l'upload du média: ${uploadResp.status} - ${errorText}`);
                             }
                             const uploadData = await uploadResp.json();
-                            finalMediaUrl = uploadData.url; // L'URL de Cloudinary
-                            console.log("Média principal uploadé avec succès:", finalMediaUrl);
+                            finalMediaUrl = uploadData.url; // L'URL du média principal (image ou vidéo)
+                            finalThumbnailUrl = uploadData.thumbnailUrl; // L'URL de la miniature (pour les vidéos)
+                            console.log("Média principal uploadé avec succès:", finalMediaUrl, "Thumbnail:", finalThumbnailUrl);
                         } else if (originalMediaUrl.value && !mediaFile.value) {
                              // Si aucun nouveau média n'est sélectionné et il y avait un média original, on conserve l'URL existante
                             finalMediaUrl = originalMediaUrl.value;
+                            // Si c'était une vidéo, on tente de récupérer son ancienne miniature si elle était stockée
+                            // ou on la génère à nouveau côté client si possible (mais ici on va s'appuyer sur le backend)
+                            // Pour l'instant, si pas de nouvel upload, pas de nouvelle thumbnail générée ici.
+                            // Le backend devra la conserver si elle existe.
+                            // Si workflowToEdit.thumbnailUrl existait, on devrait le récupérer ici aussi.
+                            // Pour simplifier ici, on part du principe que le backend conservera l'ancienne.
                         } else {
-                            // Si aucun média du tout n'est présent (ni original, ni nouveau)
                             finalMediaUrl = '';
+                            finalThumbnailUrl = ''; // Pas de média, pas de miniature
                         }
 
 
@@ -758,12 +766,12 @@
                             commentaireUrl: commentaireUrl.value,
                             outil: finalOutils.join(', '),
                             urls: additionalUrls,
-                            imageUrl: finalMediaUrl, // C'est maintenant l'URL de Cloudinary
-                            fileUrls: finalMediaUrl ? [finalMediaUrl] : [] 
+                            imageUrl: finalMediaUrl, // C'est l'URL du média principal
+                            videoThumbnailUrl: finalThumbnailUrl, // Nouvelle URL pour la miniature vidéo
+                            fileUrls: finalMediaUrl ? [finalMediaUrl] : [] // Assure la compatibilité si d'autres parties du code attendent fileUrls
                         };
 
                         let apiResponse;
-                        // Suppression du TRY interne ici. Le TRY externe gère tout.
                         if (isEditMode.value) {
                             const updatePayload = {
                                 id: workflowId.value,
@@ -802,7 +810,7 @@
 
                         // Mise à jour des variables de confirmation
                         const confirmedTip = result.tip || {};
-                        confirmationMediaUrl.value = confirmedTip.imageUrl || ''; // L'URL de Cloudinary
+                        confirmationMediaUrl.value = confirmedTip.imageUrl || ''; 
                         isImageConfirmation.value = confirmedTip.imageUrl ? !confirmedTip.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|webm)$/i) : true; 
                         confirmationUrls.value = confirmedTip.urls || [];
                         confirmationCommentaireUrl.value = confirmedTip.commentaireUrl || '';
@@ -833,23 +841,23 @@
                             if (fileInput.value) fileInput.value.value = null;
                         }
 
-                    } catch (err) { // <-- LE BLOC CATCH PRINCIPAL
+                    } catch (err) { 
                         console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
                         alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
-                    } finally { // <-- LE BLOC FINALLY PRINCIPAL
+                    } finally { 
                         isLoadingFormSubmission.value = false;
                     }
                 }
 
                 return {
                     auteur, titre, description, promptText, outils, customOutil, 
-                    urls, addUrlField, removeUrlField, commentaireUrl, // Removed addUrlField duplicate
+                    urls, addUrlField, removeUrlField, commentaireUrl, 
                     fileInput, mediaPreviewUrl, fileUploadError, isImagePreview, 
                     isLoading, isLoadingFormSubmission, profilsAuteurs, isLoadingProfils, toolsList,
                     confirmationVisible, confirmationMediaUrl, isImageConfirmation, confirmationUrls,
                     confirmationCommentaireUrl, confirmationTitre, confirmationDescription,
                     confirmationPromptText, 
-                    lightboxVisible, lightboxImageUrl,
+                    lightboxVisible, lightboxImageUrl, // lightboxImageUrl toujours pour les images
                     isEditMode, formTitle, submitButtonText, confirmationMessage,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
                     removeMedia, submitForm, openLightbox, closeLightbox 
