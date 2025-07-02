@@ -1,7 +1,7 @@
 // netlify/functions/uploadMedia.js
 
-// Utilisez 'require' pour Cloudinary, puisque cela fonctionnait avant
-const cloudinary = require('cloudinary').v2; 
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier'); // Ajouté pour uploader à partir d'un buffer/stream
 
 // Configuration Cloudinary (assumant que les variables d'environnement sont correctement définies sur Netlify)
 cloudinary.config({
@@ -12,8 +12,7 @@ cloudinary.config({
 });
 
 exports.handler = async (event, context) => {
-    // Log dès le début pour vérifier l'invocation
-    console.log("--- uploadMedia function: Début d'invocation (version corrigée vignette) ---");
+    console.log("--- uploadMedia function: Début d'invocation ---");
     console.log("Méthode HTTP:", event.httpMethod);
     console.log("Corps de la requête (longueur):", event.body ? event.body.length : 0);
 
@@ -39,55 +38,88 @@ exports.handler = async (event, context) => {
         };
     }
 
+    let payload;
     try {
-        const { fileContent, fileName } = JSON.parse(event.body); // Le frontend envoie le contenu base64 et le nom
+        payload = JSON.parse(event.body);
+    } catch (parseError) {
+        console.error('❌ uploadMedia: Erreur de parsing JSON:', parseError);
+        return {
+            statusCode: 400,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Invalid JSON body.' }),
+        };
+    }
 
-        if (!fileContent || !fileName) {
-            return {
-                statusCode: 400,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: 'Missing file content or name.' }),
-            };
-        }
+    const { fileContent, fileName, fileType } = payload; // Ajout de fileType envoyé par le frontend
 
-        // Détecter le type de média (image ou vidéo) par l'extension
-        const fileExtension = fileName.split('.').pop().toLowerCase();
-        const isVideo = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'].includes(fileExtension);
-        const resourceType = isVideo ? 'video' : 'image';
+    if (!fileContent || !fileName || !fileType) {
+        console.error('❌ uploadMedia: Missing fileContent, fileName, or fileType.');
+        return {
+            statusCode: 400,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Missing file content, name, or type.' }),
+        };
+    }
 
-        // Log les infos avant l'appel Cloudinary
-        console.log(`📡 uploadMedia: Tentative d'upload de ${fileName} (type: ${resourceType}) vers Cloudinary...`);
+    try {
+        // Détecter le type de ressource pour Cloudinary
+        const resourceType = fileType.startsWith('video/') ? 'video' : 'image';
         
-        // Upload du fichier vers Cloudinary
-        const uploadResult = await cloudinary.uploader.upload(
-            `data:application/octet-stream;base64,${fileContent}`, // Utilise application/octet-stream pour laisser Cloudinary déduire le type
-            {
-                folder: 'imarketing_media', // Votre dossier dans Cloudinary
-                public_id: `${Date.now()}_${fileName.split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '')}`, // ID public unique (sans extension initiale)
-                resource_type: resourceType, // 'image' ou 'video'
-                quality: 'auto',        
-                fetch_format: 'auto' 
-            }
-        );
+        // Nettoyer le nom de fichier pour un public_id propre
+        const baseFileName = fileName.split('.')[0];
+        const cleanedPublicId = `${Date.now()}_${baseFileName.replace(/[^a-zA-Z0-9_-]/g, '_')}`; // Remplace les caractères non alphanumériques par '_'
+
+        console.log(`📡 uploadMedia: Tentative d'upload de ${fileName} (type détecté: ${resourceType}, type MIME: ${fileType}) vers Cloudinary...`);
+        
+        // Utiliser upload_stream pour les uploads Base64, c'est plus efficace et gère mieux les gros fichiers
+        const uploadResult = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    folder: 'imarketing_media', // Votre dossier dans Cloudinary
+                    public_id: cleanedPublicId, // ID public unique
+                    resource_type: resourceType,
+                    // Si c'est une image, on peut laisser Cloudinary optimiser
+                    // Si c'est une vidéo, Cloudinary va appliquer ses optimisations par défaut
+                    quality: 'auto',        
+                    fetch_format: 'auto' 
+                },
+                (error, result) => {
+                    if (error) {
+                        console.error('❌ Cloudinary Uploader Error:', error);
+                        return reject(error);
+                    }
+                    resolve(result);
+                }
+            );
+            // Crée un ReadStream à partir du buffer Base64 et le pipe vers le stream d'upload Cloudinary
+            // Le fileContent est une chaîne Base64 SANS le préfixe 'data:image/jpeg;base64,'
+            // Il faut la reconvertir en Buffer si elle est envoyée sans préfixe, sinon utilisez le préfixe complet comme source.
+            // Pour l'instant, le frontend envoie juste le contenu Base64 (après le 'split(',')[1]'), donc c'est un Buffer qu'il faut créer.
+            streamifier.createReadStream(Buffer.from(fileContent, 'base64')).pipe(uploadStream);
+        });
 
         console.log('✅ Cloudinary Upload Result:', uploadResult);
 
         let thumbnailUrl = null;
-        if (isVideo) {
-            try { // Bloc try-catch spécifique pour la génération de la miniature
-                // uploadResult.public_id contient le public ID (ex: "imarketing_media/1751483542865-social_spiresm_httpss")
-                // Cloudinary construit l'URL de la vignette en utilisant ce public_id
+        if (resourceType === 'video') {
+            // Générer l'URL de la miniature de la vidéo via Cloudinary
+            try {
+                // Cloudinary peut générer des vignettes d'images à partir de vidéos.
+                // On utilise le public_id de la vidéo et des transformations pour obtenir une image.
                 thumbnailUrl = cloudinary.url(uploadResult.public_id, {
-                    resource_type: 'image', // Demander une ressource de type image
+                    resource_type: 'video', // Source est une vidéo
                     format: 'jpg',          // Format de la vignette
-                    quality: 'auto',        // Qualité automatique
-                    // width: 400, height: 225, crop: "fill" // Exemple de transformations pour la vignette
+                    width: 400,             // Largeur de la vignette
+                    height: 225,            // Hauteur de la vignette
+                    crop: "fill",           // Mode de recadrage
+                    quality: 'auto',
+                    // start_offset: 'auto', // Optionnel: pour prendre une frame auto ou à un certain temps
+                    // secure: true // Déjà dans la config globale, mais peut être spécifié ici si besoin
                 });
                 console.log('✅ Video Thumbnail URL générée:', thumbnailUrl);
             } catch (thumbError) {
-                // Log l'erreur de génération de miniature mais ne bloque pas l'upload principal
                 console.error('❌ Erreur lors de la génération de l\'URL de la miniature:', thumbError);
-                thumbnailUrl = null; // Assure que thumbnailUrl est null en cas d'échec
+                thumbnailUrl = null;
             }
         }
 
@@ -96,29 +128,35 @@ exports.handler = async (event, context) => {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Origin": "*", // À adapter en production avec votre domaine spécifique
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type",
             },
             body: JSON.stringify({
                 url: uploadResult.secure_url, // L'URL de la vidéo/image uploadée
-                thumbnailUrl: thumbnailUrl    // L'URL de la miniature (null pour les images)
+                thumbnailUrl: thumbnailUrl    // L'URL de la miniature (null pour les images, URL pour les vidéos)
             }),
         };
 
     } catch (error) {
-        // Log l'erreur générale plus en détail
-        console.error('❌ uploadMedia: Erreur lors de l\'upload vers Cloudinary (catch principal):', error);
+        console.error('❌ uploadMedia: Erreur générale lors de l\'upload (catch principal):', error);
         
-        let errorMessage = 'Une erreur inconnue est survenue lors de l\'upload.';
-        if (error.message) {
+        let statusCode = 500;
+        let errorMessage = 'Une erreur inconnue est survenue lors de l\'upload du média.';
+
+        if (error.http_code) { // Erreurs spécifiques de Cloudinary
+            statusCode = error.http_code;
+            errorMessage = `Cloudinary API Error (${error.http_code}): ${error.message}`;
+        } else if (error instanceof SyntaxError) { // Si JSON.parse a échoué plus tôt
+             statusCode = 400;
+             errorMessage = 'Invalid request payload (not valid JSON).';
+        } else if (error.message) {
             errorMessage = error.message;
-        } else if (error.http_code) { // Erreurs spécifiques de Cloudinary
-            errorMessage = `Cloudinary API Error: ${error.http_code} - ${error.message}`;
         }
         
         return {
-            statusCode: error.http_code || 500, // Tente de retourner le code d'erreur HTTP de Cloudinary
+            statusCode: statusCode,
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: `Échec de l'upload du média: ${errorMessage}` }),
         };
     }
