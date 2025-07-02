@@ -355,7 +355,7 @@
                     </template>
                     <p v-if="confirmationCommentaireUrl && confirmationCommentaireUrl.trim()" style="white-space: pre-wrap; font-style: italic; font-size: 0.9em; color: var(--grey-text); margin-top: 10px;">{{ confirmationCommentaireUrl }}</p>
                     <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
-                    <p style="white-wrap: pre-wrap;">{{ confirmationDescription }}</p>
+                    <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
                     <p v-if="confirmationPreviewText && confirmationPreviewText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPreviewText }}</p>
                     <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
                     <p style="margin-top: 15px; color: var(--primary-blue);">Redirection vers les cas d'usages dans 5 secondes...</p>
@@ -379,7 +379,7 @@
 
     <script>
         // Définitions des URL pour les fonctions Netlify
-        // Ces URLs doivent CORRESPONDRE EXACTEMENT AUX NOMS DE VOS FICHIERS DE FONCTION SUR NETLIFY !
+        // ATTENTION : Ces URLs doivent CORRESPONDRE EXACTEMENT AUX NOMS DE VOS FICHIERS DE FONCTION SUR NETLIFY (incluant la casse et les tirets) !
         const GET_TIPS_URL = "/.netlify/functions/get-tips";
         const PUSH_TIP_URL = "/.netlify/functions/pushTip"; // Correspond à pushTip.mjs
         const UPDATE_TIP_URL = "/.netlify/functions/update-tip"; // Correspond à update-tip.js
@@ -526,18 +526,15 @@
                     const urlParams = new URLSearchParams(window.location.search);
                     const mode = urlParams.get('mode');
                     const id = urlParams.get('id');
-                    // Attention: le SHA n'est plus pertinent pour l'UPDATE_TIP_URL si elle utilise FaunaDB
-                    // Il est cependant nécessaire pour l'URL de GET_TIPS_URL si cette dernière fonctionne avec GitHub files.
-                    // On le garde ici pour le mode 'edit' car le fetchWorkflowForEdit pourrait en avoir besoin.
                     const sha = urlParams.get('sha');
 
 
                     console.log("URL Params au montage:", { mode, id, sha });
 
-                    if (mode === 'edit' && id) { // Suppression de la dépendance à SHA ici pour la détection du mode edit
+                    if (mode === 'edit' && id) {
                         isEditMode.value = true;
                         workflowId.value = id;
-                        workflowSha.value = sha; // On garde le SHA s'il est utilisé par get-tips
+                        workflowSha.value = sha;
                         isLoading.value = true;
                         console.log("Mode édition détecté. Chargement du workflow:", id);
                         await fetchWorkflowForEdit(id);
@@ -674,144 +671,110 @@
                     isLoadingFormSubmission.value = true;
                     confirmationVisible.value = false;
 
-                    let finalImageUrl = originalImageUrl.value;
+                    const formData = new FormData();
 
-                    try {
-                        // 1. Upload de l'image principale (si nouvelle ou changée)
-                        if (imageFile.value) { // Utilise imageFile.value car c'est une ref
-                            const base64 = await getBase64(imageFile.value);
-                            const uploadPayload = { fileContent: base64, fileName: imageFile.value.name };
-                            const uploadResp = await fetch(UPLOAD_IMAGE_URL, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(uploadPayload)
-                            });
-                            if (!uploadResp.ok) {
-                                const errorText = await uploadResp.text();
-                                throw new Error(`Échec de l'upload d'image: ${uploadResp.status} - ${errorText}`);
-                            }
-                            const uploadData = await uploadResp.json();
-                            finalImageUrl = uploadData.url;
-                            console.log("Image principale uploadée avec succès:", finalImageUrl);
-                        } else if (originalImageUrl.value && !imageFile.value) {
-                             // Si aucune nouvelle image n'est sélectionnée et il y avait une image originale, on conserve l'URL existante
-                            finalImageUrl = originalImageUrl.value;
-                        } else {
-                            // Si aucune image du tout n'est présente (ni originale, ni nouvelle)
-                            finalImageUrl = '';
-                        }
+                    // 1. Ajouter tous vos champs de texte au FormData
+                    formData.append('titre', titre.value);
+                    formData.append('auteur', auteur.value);
+                    formData.append('description', description.value);
+                    formData.append('previewText', previewText.value);
+                    formData.append('promptText', promptText.value);
+                    formData.append('commentaireUrl', commentaireUrl.value);
 
-
-                        // 2. Préparation des URLs additionnelles
-                        const additionalUrls = urls.value.filter(url => url.trim() !== '');
-
-                        // 3. Préparation des outils
-                        const finalOutils = outils.value.filter(o => o !== 'Autre');
-                        if (outils.value.includes('Autre') && customOutil.value.trim()) {
-                            finalOutils.push(customOutil.value.trim());
-                        }
-
-                        // 4. Construction du payload du workflow
-                        const workflowPayload = {
-                            titre: titre.value,
-                            auteur: auteur.value,
-                            description: description.value,
-                            previewText: previewText.value,
-                            promptText: promptText.value,
-                            commentaireUrl: commentaireUrl.value,
-                            outil: finalOutils.join(', '),
-                            urls: additionalUrls,
-                            imageUrl: finalImageUrl,
-                            fileUrls: finalImageUrl ? [finalImageUrl] : []
-                        };
-
-                        let apiResponse;
-                        if (isEditMode.value) {
-                            const updatePayload = {
-                                id: workflowId.value,
-                                // Le SHA est envoyé par le frontend mais n'est pas utilisé par la fonction FaunaDB 'update-tip.js'
-                                // Cela ne pose pas de problème car la fonction le déstructure et l'ignore.
-                                sha: workflowSha.value,
-                                ...workflowPayload
-                            };
-                            console.log("Envoi de la requête PUT pour mise à jour:", updatePayload);
-                            apiResponse = await fetch(UPDATE_TIP_URL, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(updatePayload)
-                            });
-                        } else {
-                            console.log("Envoi de la requête POST pour création:", workflowPayload);
-                            apiResponse = await fetch(PUSH_TIP_URL, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(workflowPayload)
-                            });
-                        }
-
-                        if (!apiResponse.ok) {
-                            const errorText = await apiResponse.text();
-                            throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorText}`);
-                        }
-
-                        const result = await apiResponse.json();
-                        console.log("Réponse de l'API:", result);
-
-                        // Mise à jour des variables de confirmation
-                        confirmationImageUrls.value = finalImageUrl ? [finalImageUrl] : [];
-                        // Utilisez les URLs renvoyées par le backend si elles existent, sinon celles du formulaire
-                        confirmationUrls.value = result.tip && result.tip.urls ? result.tip.urls : additionalUrls;
-                        confirmationCommentaireUrl.value = result.tip && result.tip.commentaireUrl ? result.tip.commentaireUrl : commentaireUrl.value;
-                        confirmationTitre.value = result.tip && result.tip.titre ? result.tip.titre : titre.value;
-                        confirmationDescription.value = result.tip && result.tip.description ? result.tip.description : description.value;
-                        confirmationPreviewText.value = result.tip && result.tip.previewText ? result.tip.previewText : previewText.value;
-                        confirmationPromptText.value = result.tip && result.tip.promptText ? result.tip.promptText : promptText.value;
-
-                        confirmationVisible.value = true;
-
-                        setTimeout(() => {
-                            window.location.href = "/cas-usages.html";
-                        }, 5000);
-
-                        // Réinitialisation des champs après succès (uniquement en mode création)
-                        if (!isEditMode.value) {
-                            titre.value = '';
-                            auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
-                            description.value = '';
-                            previewText.value = '';
-                            promptText.value = '';
-                            commentaireUrl.value = '';
-                            urls.value = [''];
-                            outils.value = [];
-                            customOutil.value = '';
-                            imagePreviewUrl.value = '';
-                            originalImageUrl.value = '';
-                            imageFile.value = null;
-                            if (fileInput.value) fileInput.value.value = null;
-                        }
-
-                    } catch (err) {
-                        console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
-                        alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
-                    } finally {
-                        isLoadingFormSubmission.value = false;
+                    // 2. Gérer les outils
+                    const finalOutils = outils.value.filter(o => o !== 'Autre');
+                    if (outils.value.includes('Autre') && customOutil.value.trim()) {
+                        finalOutils.push(customOutil.value.trim());
                     }
-                }
+                    formData.append('outil', finalOutils.join(', '));
 
-                return {
-                    // Exposed properties and methods for the template
-                    auteur, titre, description, previewText, promptText, outils, customOutil,
-                    urls, addUrlField, removeUrlField, commentaireUrl,
-                    fileInput, imagePreviewUrl, fileUploadError,
-                    isLoading, isLoadingFormSubmission, profilsAuteurs, isLoadingProfils, toolsList,
-                    confirmationVisible, confirmationImageUrls, confirmationUrls,
-                    confirmationCommentaireUrl, confirmationTitre, confirmationDescription,
-                    confirmationPreviewText, confirmationPromptText,
-                    lightboxVisible, lightboxImageUrl,
-                    isEditMode, formTitle, submitButtonText, confirmationMessage,
-                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
-                    removeImage, submitForm, openLightbox, closeLightbox
-                };
+                    // 3. Gérer les URLs (liens associés) - Envoyé comme JSON stringifié
+                    const additionalUrls = urls.value.filter(url => url.trim() !== '');
+                    formData.append('urls', JSON.stringify(additionalUrls));
+
+                    // 4. Gérer l'image principale
+                    if (imageFile.value) {
+                        formData.append('files', imageFile.value, imageFile.value.name);
+                    } else if (originalImageUrl.value) {
+                        formData.append('imageUrl', originalImageUrl.value);
+                    } else {
+                        formData.append('imageUrl', '');
+                    }
+
+                    let apiResponse;
+                    if (isEditMode.value) {
+                        formData.append('id', workflowId.value);
+                        if (workflowSha.value) {
+                            formData.append('sha', workflowSha.value);
+                        }
+
+                        console.log("Envoi de la requête PUT pour mise à jour (FormData)...");
+                        apiResponse = await fetch(UPDATE_TIP_URL, {
+                            method: 'PUT',
+                            body: formData // Le navigateur gère Content-Type: multipart/form-data
+                        });
+                    } else {
+                        console.log("Envoi de la requête POST pour création (FormData)...");
+                        apiResponse = await fetch(PUSH_TIP_URL, {
+                            method: 'POST',
+                            body: formData // Le navigateur gère Content-Type: multipart/form-data
+                        });
+                    }
+
+                    if (!apiResponse.ok) {
+                        const errorText = await apiResponse.text();
+                        let errorMessage = errorText;
+                        try {
+                            const errorJson = JSON.parse(errorText);
+                            errorMessage = errorJson.message || errorText;
+                        } catch (e) {
+                            // Ignorer si ce n'est pas du JSON
+                        }
+                        throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorMessage}`);
+                    }
+
+                    const result = await apiResponse.json();
+                    console.log("Réponse de l'API:", result);
+
+                    // Mise à jour des variables de confirmation avec les données reçues du backend
+                    const confirmedTip = result.tip || {};
+                    confirmationImageUrls.value = confirmedTip.imageUrl ? [confirmedTip.imageUrl] : [];
+                    confirmationUrls.value = confirmedTip.urls || [];
+                    confirmationCommentaireUrl.value = confirmedTip.commentaireUrl || '';
+                    confirmationTitre.value = confirmedTip.titre || '';
+                    confirmationDescription.value = confirmedTip.description || '';
+                    confirmationPreviewText.value = confirmedTip.previewText || '';
+                    confirmationPromptText.value = confirmedTip.promptText || '';
+
+                    confirmationVisible.value = true;
+
+                    setTimeout(() => {
+                        window.location.href = "/cas-usages.html";
+                    }, 5000);
+
+                    // Réinitialisation des champs après succès (uniquement en mode création)
+                    if (!isEditMode.value) {
+                        titre.value = '';
+                        auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
+                        description.value = '';
+                        previewText.value = '';
+                        promptText.value = '';
+                        commentaireUrl.value = '';
+                        urls.value = [''];
+                        outils.value = [];
+                        customOutil.value = '';
+                        imagePreviewUrl.value = '';
+                        imageFile.value = null;
+                        originalImageUrl.value = '';
+                        if (fileInput.value) fileInput.value.value = null;
+                    }
+
+                } catch (err) {
+                    console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
+                    alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
+                } finally {
+                    isLoadingFormSubmission.value = false;
+                }
             }
         };
 
@@ -823,7 +786,6 @@
             bodyElement.style.overflow = 'hidden';
 
             await loadComponent("header.html", "header-placeholder");
-            // Le footer n'est pas inclus dans votre HTML, donc je ne le charge pas ici.
 
             // Mettre à jour l'état actif du menu après le chargement du header
             const currentPath = window.location.pathname.split('/').pop();
