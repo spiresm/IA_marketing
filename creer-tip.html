@@ -528,7 +528,7 @@
                 function openLightbox(mediaUrl) { // Peut maintenant ouvrir image ou vidéo placeholder
                     // La lightbox n'est vraiment pertinente que pour les images.
                     // Si c'est une vidéo, on ne l'ouvrira pas via la lightbox classique.
-                    if (mediaUrl && mediaUrl.startsWith('data:image/') || mediaUrl.match(/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i)) {
+                    if (mediaUrl && (mediaUrl.startsWith('data:image/') || mediaUrl.match(/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i))) {
                          lightboxImageUrl.value = mediaUrl;
                          lightboxVisible.value = true;
                     } else {
@@ -666,7 +666,6 @@
 
                                 // Si c'est une vidéo déjà uploadée, on peut afficher un placeholder vidéo avec son URL réelle si souhaité
                                 if (!isImagePreview.value) {
-                                    // Pour Cloudinary, l'URL elle-même peut servir de preview ou un placeholder
                                     mediaPreviewUrl.value = workflowToEdit.imageUrl; // Conserve l'URL réelle pour le placeholder
                                 }
                             } else {
@@ -713,14 +712,14 @@
                     isLoadingFormSubmission.value = true;
                     confirmationVisible.value = false;
 
-                    let finalMediaUrl = originalMediaUrl.value; // Renommé
+                    let finalMediaUrl = originalMediaUrl.value; // L'URL finale du média
 
-                    try {
+                    try { // Ce bloc TRY gère l'ensemble de la soumission du formulaire
                         // 1. Upload du média principal (si nouveau ou changé) vers Cloudinary
-                        if (mediaFile.value) { // Utilise mediaFile.value
+                        if (mediaFile.value) { 
                             const base64 = await getBase64(mediaFile.value);
                             const uploadPayload = { fileContent: base64, fileName: mediaFile.value.name };
-                            const uploadResp = await fetch(UPLOAD_MEDIA_URL, { // Utilise la nouvelle URL
+                            const uploadResp = await fetch(UPLOAD_MEDIA_URL, { 
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(uploadPayload)
@@ -760,93 +759,91 @@
                             outil: finalOutils.join(', '),
                             urls: additionalUrls,
                             imageUrl: finalMediaUrl, // C'est maintenant l'URL de Cloudinary
-                            fileUrls: finalMediaUrl ? [finalMediaUrl] : [] // Assurez la compatibilité si d'autres parties du code attendent fileUrls
+                            fileUrls: finalMediaUrl ? [finalMediaUrl] : [] 
                         };
 
                         let apiResponse;
-                        try { 
-                            if (isEditMode.value) {
-                                const updatePayload = {
-                                    id: workflowId.value,
-                                    sha: workflowSha.value, 
-                                    ...workflowPayload
-                                };
-                                console.log("Envoi de la requête PUT pour mise à jour (FormData)...");
-                                apiResponse = await fetch(UPDATE_TIP_URL, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' }, 
-                                    body: JSON.stringify(updatePayload) 
-                                });
-                            } else {
-                                console.log("Envoi de la requête POST pour création (FormData)...");
-                                apiResponse = await fetch(PUSH_TIP_URL, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' }, 
-                                    body: JSON.stringify(workflowPayload) 
-                                });
-                            }
-
-                            if (!apiResponse.ok) {
-                                const errorText = await apiResponse.text();
-                                let errorMessage = errorText;
-                                try {
-                                    const errorJson = JSON.parse(errorText);
-                                    errorMessage = errorJson.message || errorText;
-                                } catch (e) {
-                                    // Ignorer si ce n'est pas du JSON
-                                }
-                                throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorMessage}`);
-                            }
-
-                            const result = await apiResponse.json();
-                            console.log("Réponse de l'API:", result);
-
-                            // Mise à jour des variables de confirmation
-                            const confirmedTip = result.tip || {};
-                            confirmationMediaUrl.value = confirmedTip.imageUrl || ''; // L'URL de Cloudinary
-                            // Détecter le type pour l'icône dans la confirmation
-                            isImageConfirmation.value = confirmedTip.imageUrl ? !confirmedTip.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|webm)$/i) : true; 
-                            confirmationUrls.value = confirmedTip.urls || [];
-                            confirmationCommentaireUrl.value = confirmedTip.commentaireUrl || '';
-                            confirmationTitre.value = confirmedTip.titre || '';
-                            confirmationDescription.value = confirmedTip.description || '';
-                            confirmationPromptText.value = confirmedTip.promptText || '';
-
-                            confirmationVisible.value = true;
-
-                            setTimeout(() => {
-                                window.location.href = "/cas-usages.html";
-                            }, 5000);
-
-                            // Réinitialisation des champs après succès (uniquement en mode création)
-                            if (!isEditMode.value) {
-                                titre.value = '';
-                                auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
-                                description.value = '';
-                                promptText.value = '';
-                                commentaireUrl.value = '';
-                                urls.value = [''];
-                                outils.value = [];
-                                customOutil.value = '';
-                                mediaPreviewUrl.value = '';
-                                originalMediaUrl.value = '';
-                                mediaFile.value = null;
-                                isImagePreview.value = true; 
-                                if (fileInput.value) fileInput.value.value = null;
-                            }
-
-                        } catch (err) { 
-                            console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
-                            alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
-                        } finally { 
-                            isLoadingFormSubmission.value = false;
+                        // Suppression du TRY interne ici. Le TRY externe gère tout.
+                        if (isEditMode.value) {
+                            const updatePayload = {
+                                id: workflowId.value,
+                                sha: workflowSha.value, 
+                                ...workflowPayload
+                            };
+                            console.log("Envoi de la requête PUT pour mise à jour...");
+                            apiResponse = await fetch(UPDATE_TIP_URL, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' }, 
+                                body: JSON.stringify(updatePayload) 
+                            });
+                        } else {
+                            console.log("Envoi de la requête POST pour création...");
+                            apiResponse = await fetch(PUSH_TIP_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }, 
+                                body: JSON.stringify(workflowPayload) 
+                            });
                         }
+
+                        if (!apiResponse.ok) {
+                            const errorText = await apiResponse.text();
+                            let errorMessage = errorText;
+                            try {
+                                const errorJson = JSON.parse(errorText);
+                                errorMessage = errorJson.message || errorText;
+                            } catch (e) {
+                                // Ignorer si ce n'est pas du JSON
+                            }
+                            throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorMessage}`);
+                        }
+
+                        const result = await apiResponse.json();
+                        console.log("Réponse de l'API:", result);
+
+                        // Mise à jour des variables de confirmation
+                        const confirmedTip = result.tip || {};
+                        confirmationMediaUrl.value = confirmedTip.imageUrl || ''; // L'URL de Cloudinary
+                        isImageConfirmation.value = confirmedTip.imageUrl ? !confirmedTip.imageUrl.match(/\.(mp4|mov|avi|wmv|flv|webm)$/i) : true; 
+                        confirmationUrls.value = confirmedTip.urls || [];
+                        confirmationCommentaireUrl.value = confirmedTip.commentaireUrl || '';
+                        confirmationTitre.value = confirmedTip.titre || '';
+                        confirmationDescription.value = confirmedTip.description || '';
+                        confirmationPromptText.value = confirmedTip.promptText || '';
+
+                        confirmationVisible.value = true;
+
+                        setTimeout(() => {
+                            window.location.href = "/cas-usages.html";
+                        }, 5000);
+
+                        // Réinitialisation des champs après succès (uniquement en mode création)
+                        if (!isEditMode.value) {
+                            titre.value = '';
+                            auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
+                            description.value = '';
+                            promptText.value = '';
+                            commentaireUrl.value = '';
+                            urls.value = [''];
+                            outils.value = [];
+                            customOutil.value = '';
+                            mediaPreviewUrl.value = '';
+                            originalMediaUrl.value = '';
+                            mediaFile.value = null;
+                            isImagePreview.value = true; 
+                            if (fileInput.value) fileInput.value.value = null;
+                        }
+
+                    } catch (err) { // <-- LE BLOC CATCH PRINCIPAL
+                        console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
+                        alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
+                    } finally { // <-- LE BLOC FINALLY PRINCIPAL
+                        isLoadingFormSubmission.value = false;
                     }
                 }
 
                 return {
                     auteur, titre, description, promptText, outils, customOutil, 
-                    urls, addUrlField, addUrlField, removeUrlField, commentaireUrl,
+                    urls, addUrlField, removeUrlField, commentaireUrl, // Removed addUrlField duplicate
                     fileInput, mediaPreviewUrl, fileUploadError, isImagePreview, 
                     isLoading, isLoadingFormSubmission, profilsAuteurs, isLoadingProfils, toolsList,
                     confirmationVisible, confirmationMediaUrl, isImageConfirmation, confirmationUrls,
