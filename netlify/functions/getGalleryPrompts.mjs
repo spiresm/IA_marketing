@@ -73,27 +73,58 @@ export const handler = async (event) => {
 
         const allPrompts = [];
 
-        for (const file of jsonFiles) {
+        // Utiliser Promise.all pour récupérer le contenu et les dates en parallèle
+        await Promise.all(jsonFiles.map(async (file) => {
             try {
                 const fileContentRes = await fetch(file.download_url);
+                let promptContent = {};
                 if (fileContentRes.ok) {
-                    const promptContent = await fileContentRes.json();
-                    const promptId = file.name.replace('.json', ''); // L'ID est le nom du fichier sans l'extension
-                    allPrompts.push({
-                        id: promptId,
-                        fileName: file.name, // Le nom complet du fichier (ex: "mon-prompt.json")
-                        sha: file.sha,       // Le SHA du blob du fichier, nécessaire pour la suppression
-                        path: file.path,     // Le chemin complet du fichier dans le dépôt (ex: "prompts/mon-prompt.json")
-                        ...promptContent     // Les autres propriétés du prompt (auteur, texte, etc.)
-                    });
+                    promptContent = await fileContentRes.json();
                 } else {
                     const errorDetails = await fileContentRes.text();
                     console.warn(`⚠️ getGalleryPrompts: Impossible de télécharger le contenu de ${file.name}. Statut: ${fileContentRes.status}. Détails: ${errorDetails.substring(0, 100)}`);
                 }
-            } catch (downloadError) {
-                console.error(`❌ getGalleryPrompts: Erreur lors du téléchargement/parsing de ${file.name}: ${downloadError.message}`);
+
+                // --- Récupérer la date du dernier commit du fichier ---
+                let lastCommitDate = null;
+                try {
+                    const commitsApiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/commits?path=${encodeURIComponent(file.path)}&per_page=1`;
+                    const commitsRes = await fetch(commitsApiUrl, {
+                        method: "GET",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            "Accept": "application/vnd.github.v3+json",
+                            "User-Agent": "Netlify-Function-getGalleryPrompts-Commits"
+                        },
+                    });
+
+                    if (commitsRes.ok) {
+                        const commits = await commitsRes.json();
+                        if (commits && commits.length > 0) {
+                            lastCommitDate = commits[0].commit.committer.date;
+                        }
+                    } else {
+                        const errorCommitsText = await commitsRes.text();
+                        console.warn(`⚠️ getGalleryPrompts: Impossible de récupérer les commits pour ${file.name}. Statut: ${commitsRes.status}. Détails: ${errorCommitsText.substring(0, 100)}`);
+                    }
+                } catch (commitError) {
+                    console.error(`❌ getGalleryPrompts: Erreur lors de la récupération des commits pour ${file.name}: ${commitError.message}`);
+                }
+                // --- Fin de la récupération de la date ---
+
+                const promptId = file.name.replace('.json', ''); // L'ID est le nom du fichier sans l'extension
+                allPrompts.push({
+                    id: promptId,
+                    fileName: file.name, // Le nom complet du fichier (ex: "mon-prompt.json")
+                    sha: file.sha,       // Le SHA du blob du fichier, nécessaire pour la suppression
+                    path: file.path,     // Le chemin complet du fichier dans le dépôt (ex: "prompts/mon-prompt.json")
+                    date_creation: lastCommitDate, // Ajout de la date du dernier commit ici
+                    ...promptContent     // Les autres propriétés du prompt (auteur, texte, etc.)
+                });
+            } catch (processingError) {
+                console.error(`❌ getGalleryPrompts: Erreur lors du traitement du fichier ${file.name}: ${processingError.message}`);
             }
-        }
+        }));
 
         const filteredPrompts = allPrompts.filter(p => p && typeof p === 'object' && p.auteur && p.imageUrl);
 
