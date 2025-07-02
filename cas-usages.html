@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workflows - Espace IA</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -188,6 +190,23 @@
             flex-grow: 1;
         }
 
+        /* NOUVEAU STYLE: Pour le conteneur du titre et des badges au TOP */
+        .card-header-top {
+            display: flex;
+            justify-content: space-between; /* Pour la chaîne à gauche et l'outil à droite */
+            align-items: center;
+            margin-bottom: 10px; /* Espace entre le header top et le titre principal */
+        }
+        .card-header-top .left-chaine {
+            /* Styles pour la chaîne en haut à gauche */
+            font-size: 0.9em;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .card-header-top .right-tool {
+            /* Conteneur pour l'outil si besoin d'un groupe */
+        }
+
         .tip-title { 
             font-size: 1.2em; 
             font-weight: bold; 
@@ -211,28 +230,53 @@
             font-weight: 500; 
             padding: 5px 12px; 
             border-radius: 15px;
-            align-self: flex-start; 
-            margin-top: 5px; 
-            margin-bottom: 10px; 
+            margin-top: 0; 
+            margin-bottom: 0; 
+            display: inline-block;
         }
         
+        /* MODIFIÉ : metadata-section pour aligner les éléments sous l'image */
         .metadata-section {
             display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
+            flex-direction: column; /* Empile les éléments verticalement */
+            gap: 5px; /* Réduit l'espace entre les éléments empilés */
             font-size: 0.85em;
             color: var(--grey-text); 
-            padding-top: 15px; 
-            border-top: 1px solid #eee; 
-            margin-top: auto;
+            padding-top: 10px; /* Espace après l'image et avant les métadonnées */
+            border-top: 1px solid #eee; /* Ligne de séparation */
+            margin-top: 15px; /* Espace avant cette section */
+            margin-bottom: 10px; /* Espace après cette section */
         }
-        .supprimer-btn { background: none; border: none; color: #aaa; cursor: pointer; padding: 0 5px; }
+        /* MODIFIÉ : styles pour les lignes de métadonnées */
+        .metadata-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--grey-text); /* Couleur de texte par défaut pour la ligne */
+        }
+        .metadata-line strong {
+            font-weight: bold;
+            color: #333; /* Couleur plus foncée pour les noms/dates */
+        }
+        .metadata-line a {
+            color: inherit; /* Hérite de la couleur de la ligne */
+            text-decoration: none;
+        }
+        .metadata-line a:hover {
+            text-decoration: underline;
+        }
 
-        /* Styles homogènes pour les boutons d'action de la carte de Workflow */
+        /* MODIFIÉ : style spécifique pour la chaîne de couleur, maintenant dans card-header-top */
+        .chaine-text-color {  
+            font-size: 1em; /* Ajusté pour être cohérent avec le reste de la ligne */
+            font-weight: bold;  
+            white-space: nowrap;  
+        }
+
         .card-actions { 
             display: flex; 
             gap: 10px; 
-            margin-top: 20px; 
+            margin-top: auto; /* Pousse les boutons vers le bas de la carte */
             padding-top: 15px;
             border-top: 1px solid #eee;
             flex-wrap: wrap; 
@@ -481,17 +525,17 @@
                 const card = document.createElement('div');
                 card.className = 'carte';
                 card.innerHTML = `
-                    ${previewImageHtml}
                     <div class="card-content">
+                        <div class="card-header-top">
+                            <span class="chaine-text-color" style="color: ${getChainColor(tip.chaine)};">${escapeHtml(tip.chaine)}</span>
+                            </div>
                         <h3 class="tip-title">${escapeHtml(tip.titre)}</h3>
                         <div class="card-preview-icons-inline">
                             ${firstImage ? '<i class="fas fa-image"></i>' : ''}
                             ${hasYoutubeVideo ? '<i class="fab fa-youtube" style="color:red;"></i>' : ''}
                         </div>
-                        <span class="outil-badge">${escapeHtml(tip.outil)}</span>
-                        <div class="metadata-section">
-                            <span>Par <strong>${escapeHtml(tip.auteur)}</strong></span>
-                            <span>${formattedDate}</span>
+                        ${previewImageHtml} <div class="metadata-section"> <span class="outil-badge">${escapeHtml(tip.outil)}</span> <span class="metadata-line">Par <strong>${escapeHtml(tip.auteur)}</strong></span>
+                            <span class="metadata-line">Le ${formattedDate}</span>
                         </div>
                         <div class="card-actions">
                             <button class="card-action-btn-workflow toggle-content-btn" data-id="${tip.id}">Voir le Workflow</button>
@@ -537,16 +581,12 @@
         function applyFiltersAndSort() {
             let filtered = [...allTips];
             const outil = filtreOutilSelect.value;
-            // --- DÉBUT DE LA CORRECTION POUR LE FILTRE MULTI-OUTILS ---
             if (outil) {
                 filtered = filtered.filter(tip => {
-                    // Si tip.outil est une chaîne (ex: "Outil1, Outil2"), la diviser en tableau
                     const tipOutilsArray = tip.outil ? tip.outil.split(',').map(s => s.trim()) : [];
-                    // Vérifie si l'outil sélectionné par le filtre est présent dans les outils du tip
                     return tipOutilsArray.includes(outil);
                 });
             }
-            // --- FIN DE LA CORRECTION POUR LE FILTRE MULTI-OUTILS ---
             
             const auteur = filtreAuteurSelect.value;
             if (auteur) filtered = filtered.filter(tip => tip.auteur === auteur);
@@ -560,7 +600,6 @@
             }
             
             const sortOrder = filtreTriDateSelect.value;
-            // Assurez-vous que dateCreation est un objet Date valide pour le tri
             filtered.sort((a, b) => {
                 const dateA = new Date(a.dateCreation);
                 const dateB = new Date(b.dateCreation);
@@ -584,11 +623,10 @@
         function attachCardEventListeners(){
             galerieDiv.querySelectorAll('.toggle-content-btn').forEach(b => b.onclick = () => openPreviewPanel(b.dataset.id));
             galerieDiv.querySelectorAll('.supprimer-btn-workflow').forEach(b => b.onclick = () => confirmAndDeleteTip(b.dataset.id));
-            // Attacher l'écouteur au bouton Éditer
             galerieDiv.querySelectorAll('.edit-btn').forEach(b => {
                 b.addEventListener('click', () => {
                     const id = b.dataset.id;
-                    const sha = b.dataset.sha; // Le SHA du fichier all-tips.json (pour le backend GitHub)
+                    const sha = b.dataset.sha;
                     window.location.href = `creer-tip.html?mode=edit&id=${id}&sha=${sha}`;
                 });
             });
@@ -725,7 +763,7 @@
                 }));
                 console.log("Tous les tips normalisés pour l'affichage:", allTips);
 
-                const uniqueOutils = [...new Set(allTips.map(t => t.outil).flatMap(s => s ? s.split(',').map(tool => tool.trim()) : []).filter(Boolean))].sort(); // MODIFIÉ POUR LES OUTILS MULTIPLES
+                const uniqueOutils = [...new Set(allTips.map(t => t.outil).flatMap(s => s ? s.split(',').map(tool => tool.trim()) : []).filter(Boolean))].sort(); 
                 filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>' + uniqueOutils.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
 
                 const uniqueAuteurs = [...new Set(allTips.map(t => t.auteur).filter(Boolean))].sort();
