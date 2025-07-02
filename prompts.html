@@ -248,6 +248,46 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Styles pour les champs d'URLs dynamiques */
+        .url-input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px; /* Espace entre les groupes d'URL */
+        }
+        .url-input-group input {
+            margin-top: 0; /* Réinitialise la marge supérieure par défaut des inputs */
+        }
+        .url-action-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 5px; /* Espace au-dessus des boutons d'action */
+        }
+        .add-url-button, .remove-url-button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            color: white;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+        .add-url-button {
+            background-color: #28a745; /* Vert pour ajouter */
+        }
+        .add-url-button:hover {
+            background-color: #218838;
+        }
+        .remove-url-button {
+            background-color: #dc3545; /* Rouge pour supprimer */
+        }
+        .remove-url-button:hover {
+            background-color: #c82333;
+        }
+
+
         /* --- Styles du Header (ajoutés ou vérifiés) --- */
         .main-header {
             background-color: var(--header-bg);
@@ -602,6 +642,14 @@
                         <label for="description">Commentaire</label>
                         <textarea id="description" v-model="description" rows="3"></textarea>
 
+                        <label>Lien(s) associé(s) (optionnel)</label>
+                        <div v-for="(url, index) in urls" :key="index" class="url-input-group">
+                            <input type="url" :name="'url-' + index" v-model="urls[index]" :placeholder="'Lien ' + (index + 1)" />
+                            <button type="button" @click="removeUrlField(index)" class="remove-url-button">X</button>
+                        </div>
+                        <div class="url-action-buttons">
+                            <button type="button" @click="addUrlField" class="add-url-button">Ajouter un lien</button>
+                        </div>
                         <label>Image</label>
                         <div id="drop-zone"
                              @click="triggerFile"
@@ -623,6 +671,14 @@
                         <p>{{ confirmationMessage }}</p>
                         <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
                         <p style="white-space: pre-wrap;">{{ confirmationTexte }}</p>
+                        <p v-if="confirmationUrls && confirmationUrls.length > 0 && confirmationUrls[0].trim() !== ''">
+                            <h4>Lien(s) enregistré(s):</h4>
+                            <ul>
+                                <li v-for="(url, index) in confirmationUrls" :key="'conf-url-' + index" style="list-style-type: disc; margin-left: 20px;">
+                                    <a :href="url" target="_blank" style="color: var(--primary-blue); word-break: break-all;">{{ url }}</a>
+                                </li>
+                            </ul>
+                        </p>
                         <p style="white-space: pre-wrap; font-style: italic;">{{ confirmationDescription }}</p>
                         <p style="margin-top: 15px; color: var(--primary-blue);">Redirection vers la galerie dans 5 secondes...</p>
                     </div>
@@ -630,22 +686,24 @@
             `,
             setup() {
                 // Propriétés du formulaire
-                const titre = ref(''); // Ajout du champ titre
+                const titre = ref('');
                 const auteur = ref('');
                 const outil = ref('Midjourney');
                 const chaine = ref('La Une');
                 const texte = ref('');
                 const description = ref('');
+                const urls = ref(['']); // NOUVEAU: Tableau pour les URLs
                 const fileInput = ref(null);
                 const imagePreviewUrl = ref('');
                 const imageFile = ref(null);
-                const originalImageUrl = ref(''); // Pour conserver l'URL de l'image existante en mode édition
+                const originalImageUrl = ref('');
 
                 // États de l'UI
                 const confirmationVisible = ref(false);
                 const confirmationImageUrl = ref('');
                 const confirmationTexte = ref('');
                 const confirmationDescription = ref('');
+                const confirmationUrls = ref([]); // NOUVEAU: Pour afficher les URLs en confirmation
                 const isLoading = ref(false);
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true);
@@ -653,11 +711,11 @@
                 // Variables spécifiques au mode édition
                 const isEditMode = ref(false);
                 const promptId = ref(null);
-                const promptSha = ref(null); // SHA est crucial pour la mise à jour GitHub
+                const promptSha = ref(null);
 
                 // Propriétés calculées pour le template
                 const formTitle = computed(() => isEditMode.value ? 'Éditer un prompt' : 'Partager un prompt');
-                const submitButtonText = computed(() => isEditMode.value ? 'Mettre à jour' : 'Partager');
+                const submitButtonText = computed(() => isLoading.value ? 'Chargement...' : (isEditMode.value ? 'Mettre à jour' : 'Partager'));
                 const confirmationMessage = computed(() => isEditMode.value ? '✅ Prompt mis à jour avec succès !' : '✅ Prompt partagé avec succès vers la **galerie** !');
 
 
@@ -686,12 +744,23 @@
                 function removeImage() {
                     imageFile.value = null;
                     imagePreviewUrl.value = '';
-                    originalImageUrl.value = ''; // Réinitialise également l'image originale
+                    originalImageUrl.value = ''; 
                     if (fileInput.value) {
-                        fileInput.value.value = null; // Efface le fichier sélectionné du champ input
+                        fileInput.value.value = null; 
                     }
                 }
                 // --- Fin des fonctions de gestion de l'image ---
+
+                // NOUVEAU: Fonctions de gestion des URLs dynamiques
+                function addUrlField() {
+                    urls.value.push('');
+                }
+                function removeUrlField(index) {
+                    urls.value.splice(index, 1);
+                    if (urls.value.length === 0) {
+                        urls.value.push(''); // Assure qu'il y a toujours au moins un champ vide
+                    }
+                }
 
 
                 // --- Fonctions de récupération de données ---
@@ -704,7 +773,7 @@
                         const profilsList = Array.isArray(data) ? data : (data.profils || []);
                         const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
                         profilsAuteurs.value = names;
-                        if (names.length === 1 && !auteur.value) { // Pré-sélectionne si un seul profil et pas déjà sélectionné (édition)
+                        if (names.length === 1 && !auteur.value) {
                             auteur.value = names[0];
                         }
                     } catch (error) {
@@ -715,11 +784,9 @@
                     }
                 }
 
-                // Nouvelle fonction pour récupérer un prompt spécifique en mode édition
                 async function fetchPromptForEdit(id) {
                     isLoading.value = true;
                     try {
-                        // Utilise getGalleryPrompts pour récupérer tous les prompts, puis filtre
                         const response = await fetch(GET_GALLERY_PROMPTS_URL);
                         if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
                         const allPrompts = await response.json();
@@ -732,12 +799,14 @@
                             chaine.value = promptToEdit.chaine || 'La Une';
                             texte.value = promptToEdit.texte || '';
                             description.value = promptToEdit.description || '';
+                            urls.value = (Array.isArray(promptToEdit.urls) && promptToEdit.urls.length > 0) 
+                                ? promptToEdit.urls.filter(Boolean) 
+                                : ['']; // Charge les URLs existantes, ou un champ vide
                             imagePreviewUrl.value = promptToEdit.imageUrl || '';
-                            originalImageUrl.value = promptToEdit.imageUrl || ''; // Stocke l'URL originale
-                            // promptId.value et promptSha.value sont déjà définis par les params URL
+                            originalImageUrl.value = promptToEdit.imageUrl || ''; 
                         } else {
                             alert("Prompt non trouvé.");
-                            window.location.href = "/galerie.html"; // Redirige si non trouvé
+                            window.location.href = "/galerie.html";
                         }
                     } catch (error) {
                         console.error("Erreur lors du chargement du prompt pour édition:", error);
@@ -769,10 +838,9 @@
                     confirmationVisible.value = false;
                     isLoading.value = true;
 
-                    let finalImageUrl = originalImageUrl.value; // Par défaut, conserve l'image existante
+                    let finalImageUrl = originalImageUrl.value; 
 
                     try {
-                        // S'il y a un nouveau fichier image sélectionné
                         if (imageFile.value) {
                             const base64 = await getBase64(imageFile.value);
                             const payload = { fileContent: base64, fileName: imageFile.value.name };
@@ -789,10 +857,11 @@
                             finalImageUrl = data.url;
                             console.log("Image uploadée/mise à jour avec succès:", finalImageUrl);
                         } else if (!imagePreviewUrl.value) {
-                            // Si imagePreviewUrl est vide, cela signifie que l'image a été supprimée ou n'a jamais existé
                             finalImageUrl = '';
                         }
-                        // Si imageFile est null MAIS imagePreviewUrl n'est PAS null, on garde originalImageUrl.value
+                        
+                        // Filtrer les URLs vides avant l'envoi
+                        const submittedUrls = urls.value.filter(url => url.trim() !== '');
 
                         const promptData = {
                             titre: titre.value,
@@ -801,24 +870,23 @@
                             chaine: chaine.value,
                             texte: texte.value,
                             description: description.value,
-                            imageUrl: finalImageUrl // Utilise l'URL finale de l'image
+                            imageUrl: finalImageUrl,
+                            urls: submittedUrls // NOUVEAU: Inclure les URLs dans les données du prompt
                         };
 
                         let apiResponse;
                         if (isEditMode.value) {
-                            // Mode édition: appel à la fonction de mise à jour
                             console.log("Mise à jour du prompt avec ID:", promptId.value, "SHA:", promptSha.value);
                             apiResponse = await fetch(UPDATE_PROMPT_URL, {
-                                method: 'PUT', // Méthode HTTP PUT pour la mise à jour
+                                method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     id: promptId.value,
-                                    sha: promptSha.value, // Le SHA est indispensable pour la mise à jour GitHub
-                                    ...promptData // Toutes les autres données du prompt
+                                    sha: promptSha.value,
+                                    ...promptData
                                 })
                             });
                         } else {
-                            // Mode création: appel à la fonction de création
                             console.log("Création d'un nouveau prompt.");
                             apiResponse = await fetch(PUSH_PROMPT_URL, {
                                 method: 'POST',
@@ -835,6 +903,7 @@
                         confirmationImageUrl.value = finalImageUrl;
                         confirmationTexte.value = texte.value;
                         confirmationDescription.value = description.value;
+                        confirmationUrls.value = submittedUrls; // NOUVEAU: Pour afficher en confirmation
                         confirmationVisible.value = true;
 
                         setTimeout(() => {
@@ -844,18 +913,19 @@
                         // Réinitialisation des champs du formulaire après succès (uniquement en mode création)
                         if (!isEditMode.value) {
                             titre.value = '';
-                            auteur.value = '';
+                            auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
                             outil.value = 'Midjourney';
                             chaine.value = 'La Une';
                             texte.value = '';
                             description.value = '';
+                            urls.value = ['']; // NOUVEAU: Réinitialiser à un champ vide
                             imagePreviewUrl.value = '';
                             originalImageUrl.value = '';
                             imageFile.value = null;
                             if (fileInput.value) {
                                 fileInput.value.value = null;
                             }
-                            fetchProfils(); // Recharge les profils au cas où ils auraient changé
+                            // fetchProfils(); // Recharge les profils au cas où ils auraient changé, facultatif ici car ils ne changent pas souvent
                         }
 
                     } catch (err) {
@@ -870,35 +940,42 @@
 
                 // --- Logique d'initialisation du composant ---
                 onMounted(async () => {
-                    await fetchProfils(); // Charger les profils d'auteurs
+                    await fetchProfils();
 
-                    // Vérifier les paramètres d'URL pour le mode édition
                     const urlParams = new URLSearchParams(window.location.search);
                     const mode = urlParams.get('mode');
                     const id = urlParams.get('id');
-                    const sha = urlParams.get('sha'); // Récupérer le SHA
+                    const sha = urlParams.get('sha');
 
                     if (mode === 'edit' && id && sha) {
                         isEditMode.value = true;
                         promptId.value = id;
                         promptSha.value = sha;
-                        await fetchPromptForEdit(id); // Charger les données du prompt à éditer
+                        await fetchPromptForEdit(id);
                     } else {
                         // Mode création par défaut, assurez-vous que les champs sont vides
-                        titre.value = ''; // S'assurer que le titre est vide pour la création
+                        titre.value = '';
                         auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
+                        outil.value = 'Midjourney'; // Default value for new prompts
+                        chaine.value = 'La Une'; // Default value for new prompts
+                        texte.value = '';
+                        description.value = '';
+                        urls.value = ['']; // Initialise avec un champ vide pour la création
+                        imagePreviewUrl.value = '';
+                        originalImageUrl.value = '';
+                        imageFile.value = null;
                     }
                 });
                 // --- Fin de la logique d'initialisation ---
 
                 return {
-                    titre, auteur, outil, chaine, texte, description, fileInput,
-                    imagePreviewUrl, confirmationVisible,
-                    confirmationImageUrl, confirmationTexte, confirmationDescription,
+                    titre, auteur, outil, chaine, texte, description, urls, // EXPOSE 'urls'
+                    fileInput, imagePreviewUrl, confirmationVisible,
+                    confirmationImageUrl, confirmationTexte, confirmationDescription, confirmationUrls, // EXPOSE 'confirmationUrls'
                     isLoading, profilsAuteurs, isLoadingProfils,
                     isEditMode, formTitle, submitButtonText, confirmationMessage,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm,
-                    removeImage // Exposer la fonction pour supprimer l'image
+                    removeImage, addUrlField, removeUrlField // EXPOSE les nouvelles fonctions URL
                 };
             }
         };
