@@ -253,7 +253,7 @@
                 <a href="/cas-usages.html" class="retour-lien">← Retour</a>
                 <h2 style="text-align:center; color:var(--primary-blue);">{{ formTitle }}</h2>
 
-                <form @submit.prevent="submitForm" v-if="!isLoading && !confirmationVisible">
+                <form @submit.prevent="submitForm" v-if="!isLoadingFormSubmission && !confirmationVisible">
                     <div class="form-grid">
                         
                         <div class="form-group">
@@ -313,22 +313,34 @@
                             </div>
                         </div>
 
-                        <div class="form-group full-width">
-                               <label>Image principale du Workflow</label>
-                               <div id="drop-zone"
-                                        @click="triggerFile"
-                                        @dragover.prevent="onDragOver"
-                                        @dragleave="onDragLeave"
-                                        @drop.prevent="onDrop">
-                                    Déposez ou cliquez pour {{ isEditMode && imagePreviewUrl ? 'changer' : 'ajouter' }} l'image
-                               </div>
-                               <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
-                               <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
-                               <button v-if="imagePreviewUrl" @click.prevent="removeImage" style="background-color: #dc3545; margin-top: 10px;">Supprimer l'image</button>
-                        </div>
+                                                <div class="form-group full-width">
+                            <label>Image(s) / Document(s) (optionnel)</label>
+                            <div id="drop-zone"
+                                    @click="triggerFile"
+                                    @dragover.prevent="onDragOver"
+                                    @dragleave="onDragLeave"
+                                    @drop.prevent="onDrop"
+                                    aria-live="polite"
+                                    aria-atomic="true"
+                                    tabindex="0"
+                                    role="button"
+                                    title="Cliquez ou déposez des fichiers ici">
+                                Déposez ou cliquez pour ajouter des images ou documents (.txt, .pdf)
+                            </div>
+                            <input type="file" ref="fileInput" accept="image/*, .txt, .pdf" style="display:none" @change="onFileChange" **multiple** />
+                            <p v-if="fileUploadError" style="color: red; margin-top: 5px;">{{ fileUploadError }}</p>
 
-                        <div class="form-group full-width">
-                               <div v-if="isLoadingFormSubmission" class="loader"></div> <button v-else type="submit" :disabled="!titre || !auteur || !description || isLoadingFormSubmission">{{ submitButtonText }}</button>
+                            <div class="file-preview-grid">
+                                <div v-for="fileObj in selectedFiles" :key="fileObj.id" class="file-preview-item">
+                                    <img v-if="fileObj.type.startsWith('image/')" :src="fileObj.previewUrl" class="image-preview" :alt="fileObj.name" />
+                                    <span v-else class="file-icon">{{ getFileIcon(fileObj.type) }}</span>
+                                    <span class="file-name-overlay" :title="fileObj.name">{{ fileObj.name }}</span>
+                                    <button type="button" class="remove-file-button" @click="removeFile(fileObj.id)" :aria-label="`Supprimer le fichier ${fileObj.name}`">&times;</button>
+                                </div>
+                            </div>
+                        </div>
+                                                <div class="form-group full-width">
+                            <div v-if="isLoadingFormSubmission" class="loader"></div> <button v-else type="submit" :disabled="!titre || !auteur || !description || isLoadingFormSubmission">{{ submitButtonText }}</button>
                         </div>
                     </div>
                 </form>
@@ -347,7 +359,7 @@
                     </template>
                     <p v-if="confirmationCommentaireUrl && confirmationCommentaireUrl.trim()" style="white-space: pre-wrap; font-style: italic; font-size: 0.9em; color: var(--grey-text); margin-top: 10px;">{{ confirmationCommentaireUrl }}</p>
                     <p style="white-space: pre-wrap; font-weight: bold;">{{ confirmationTitre }}</p>
-                    <p style="white-space: pre-wrap;">{{ confirmationDescription }}</p>
+                    <p style="white-align: pre-wrap;">{{ confirmationDescription }}</p>
                     <p v-if="confirmationPromptText && confirmationPromptText.trim()" style="white-space: pre-wrap; font-family: monospace; background-color: #f0f0f0; padding: 10px; border-radius: 5px;">{{ confirmationPromptText }}</p>
                     <p style="margin-top: 15px; color: var(--primary-blue);">Redirection vers les cas d'usages dans 5 secondes...</p>
                 </div>
@@ -374,7 +386,8 @@
         const PUSH_TIP_URL = "/.netlify/functions/push-tip"; 
         const UPDATE_TIP_URL = "/.netlify/functions/update-tip"; 
         const GET_PROFILS_URL = "/.netlify/functions/getProfils"; // Assurez-vous que cette URL est correcte
-        const UPLOAD_IMAGE_URL = "/.netlify/functions/uploadImage"; // URL pour l'upload d'image
+        // UPLOAD_IMAGE_URL n'est plus utilisé car les fichiers sont envoyés directement via FormData
+        // const UPLOAD_IMAGE_URL = "/.netlify/functions/uploadImage"; 
 
         // Fonction utilitaire pour charger des composants HTML (Header et Footer)
         async function loadComponent(url, placeholderId) {
@@ -407,13 +420,15 @@
                 
                 const commentaireUrl = ref('');
                 
-                const imageFile = ref(null); // Rétabli pour une seule image
+                // Gestion des fichiers multiples (REINTRODUIT)
+                const selectedFiles = ref([]);
+                let fileIdCounter = 0; // Pour donner un ID unique à chaque fichier
                 
                 const fileInput = ref(null);
                 const fileUploadError = ref('');
 
-                const isLoading = ref(false);
-                const isLoadingFormSubmission = ref(false);
+                const isLoading = ref(false); // Pour le loader initial de la page ou du formulaire
+                const isLoadingFormSubmission = ref(false); // Loader spécifique à la soumission
                 const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true); 
 
@@ -442,10 +457,7 @@
                 const submitButtonText = computed(() => isLoadingFormSubmission.value ? 'Chargement...' : (isEditMode.value ? 'Mettre à jour le Workflow' : 'Partager le Workflow'));
                 const confirmationMessage = computed(() => isEditMode.value ? '✅ Workflow mis à jour avec succès !' : '✅ Workflow partagé avec succès !');
 
-                // Fonctions de gestion de l'image principale (pour le champ unique du formulaire)
-                const imagePreviewUrl = ref('');
-                const originalImageUrl = ref(''); 
-
+                // Fonctions de gestion des fichiers (REINTRODUIT)
                 function triggerFile() { fileInput.value?.click(); }
                 function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
                 function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
@@ -453,31 +465,65 @@
                     e.currentTarget.classList.remove('dragover');
                     const files = e.dataTransfer.files;
                     if (files.length) {
-                        handleImageFile(files[0]); 
+                        addFiles(files);
                     }
                 }
                 function onFileChange(e) {
-                    const file = e.target.files[0];
-                    if (file) handleImageFile(file);
-                }
-                function handleImageFile(file) {
-                    if (!file.type.startsWith('image/')) {
-                        fileUploadError.value = "Seules les images sont acceptées pour l'image principale.";
-                        return;
+                    const files = e.target.files;
+                    if (files) {
+                        addFiles(files);
+                        e.target.value = null; // Réinitialise l'input pour pouvoir uploader les mêmes fichiers à nouveau
                     }
-                    imageFile.value = file; 
-                    const reader = new FileReader();
-                    reader.onload = () => { imagePreviewUrl.value = reader.result; };
-                    reader.readAsDataURL(file);
-                    fileUploadError.value = ''; 
                 }
-                function removeImage() {
-                    imageFile.value = null;
-                    imagePreviewUrl.value = '';
-                    originalImageUrl.value = ''; 
-                    if (fileInput.value) {
-                        fileInput.value.value = null; 
+                
+                function addFiles(files) {
+                    fileUploadError.value = '';
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        if (file.type.startsWith('image/') || file.type === 'text/plain' || file.type === 'application/pdf') {
+                            const newFileObj = {
+                                id: fileIdCounter++,
+                                file: file,
+                                previewUrl: null,
+                                name: file.name,
+                                type: file.type
+                            };
+
+                            if (file.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                    if (e.target.result && typeof e.target.result === 'string' && e.target.result.startsWith('data:image')) {
+                                        newFileObj.previewUrl = e.target.result;
+                                        selectedFiles.value.push(newFileObj);
+                                    } else {
+                                        console.warn(`Résultat de lecture d'image non valide pour ${file.name}. Ignoré.`);
+                                        fileUploadError.value = `Impossible de prévisualiser l'image ${file.name}.`;
+                                    }
+                                };
+                                reader.onerror = (error) => {
+                                    console.error(`Erreur lecture fichier ${file.name}:`, error);
+                                    fileUploadError.value = `Erreur lors de la lecture du fichier ${file.name}.`;
+                                };
+                                reader.readAsDataURL(file);
+                            } else {
+                                selectedFiles.value.push(newFileObj);
+                            }
+                        } else {
+                            fileUploadError.value = `Le fichier "${file.name}" de type "${file.type}" n'est pas pris en charge. Seules les images, les fichiers .txt et .pdf sont autorisés.`;
+                        }
                     }
+                }
+
+                function removeFile(fileIdToRemove) {
+                    selectedFiles.value = selectedFiles.value.filter(fileObj => fileObj.id !== fileIdToRemove);
+                    fileUploadError.value = ''; // Efface l'erreur si un fichier est supprimé
+                }
+
+                function getFileIcon(fileType) {
+                    if (fileType.startsWith('image/')) return '🖼️'; // Ou 'IMG' si l'icône est petite
+                    if (fileType === 'text/plain') return 'TXT';
+                    if (fileType === 'application/pdf') return 'PDF';
+                    return '📄'; // Icône par défaut pour document
                 }
 
                 // Fonctions de gestion des URLs dynamiques
@@ -536,9 +582,8 @@
                         urls.value = ['']; 
                         outils.value = [];
                         customOutil.value = '';
-                        imagePreviewUrl.value = '';
-                        originalImageUrl.value = '';
-                        imageFile.value = null;
+                        // Réinitialise les fichiers sélectionnés pour le mode création
+                        selectedFiles.value = [];
                         if (fileInput.value) fileInput.value.value = null;
                         isLoading.value = false; 
                     }
@@ -614,10 +659,31 @@
                                 ? workflowToEdit.urls.filter(Boolean) 
                                 : ['']; 
 
-                            // Image principale
-                            imagePreviewUrl.value = workflowToEdit.imageUrl || (Array.isArray(workflowToEdit.fileUrls) && workflowToEdit.fileUrls[0] ? workflowToEdit.fileUrls[0] : '');
-                            originalImageUrl.value = imagePreviewUrl.value; 
-                            console.log("Image preview URL:", imagePreviewUrl.value); 
+                            // Gérer les images/documents multiples pour l'édition (REINTRODUIT)
+                            // Si le workflow a des fileUrls (venant du backend)
+                            if (Array.isArray(workflowToEdit.fileUrls) && workflowToEdit.fileUrls.length > 0) {
+                                selectedFiles.value = await Promise.all(workflowToEdit.fileUrls.map(async (url, idx) => {
+                                    // Pour la prévisualisation, nous avons juste l'URL. Pas le 'File' original.
+                                    // On simule un File objet pour la structure, mais le contenu réel n'est pas là.
+                                    // La soumission n'aura que les NOUVEAUX fichiers.
+                                    const fileName = url.split('/').pop().split('?')[0]; // Extrait le nom de fichier propre
+                                    let fileType = 'application/octet-stream'; // Type par défaut
+                                    if (fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) fileType = 'image/jpeg';
+                                    else if (fileName.match(/\.txt$/i)) fileType = 'text/plain';
+                                    else if (fileName.match(/\.pdf$/i)) fileType = 'application/pdf';
+
+                                    return {
+                                        id: fileIdCounter++,
+                                        file: null, // Pas de fichier réel pour les fichiers déjà uploadés
+                                        previewUrl: url, // L'URL existante pour l'affichage
+                                        name: fileName,
+                                        type: fileType,
+                                        isExisting: true // Marqueur pour les fichiers déjà existants
+                                    };
+                                }));
+                            } else {
+                                selectedFiles.value = [];
+                            }
                         } else {
                             console.error("Workflow non trouvé avec l'ID:", id);
                             alert("Workflow non trouvé pour édition. Redirection vers la liste des workflows.");
@@ -632,15 +698,8 @@
                     }
                 }
                 
-                // Fonction utilitaire pour convertir un fichier en Base64
-                function getBase64(file) {
-                    return new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result.split(',')[1]);
-                        reader.onerror = (error) => reject(error);
-                        reader.readAsDataURL(file);
-                    });
-                }
+                // getBase64 n'est plus nécessaire car FormData gère directement les fichiers binaires.
+                // function getBase64(file) { ... }
 
                 async function submitForm() {
                     // Validation
@@ -656,72 +715,47 @@
                     isLoadingFormSubmission.value = true; 
                     confirmationVisible.value = false;
 
-                    let finalImageUrl = originalImageUrl.value; 
-
                     try {
-                        // 1. Upload de l'image principale (si nouvelle ou changée)
-                        if (imageFile.value) {
-                            const base64 = await getBase64(imageFile.value);
-                            const uploadPayload = { fileContent: base64, fileName: imageFile.value.name };
-                            const uploadResp = await fetch(UPLOAD_IMAGE_URL, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(uploadPayload)
-                            });
-                            if (!uploadResp.ok) {
-                                const errorText = await uploadResp.text();
-                                throw new Error(`Échec de l'upload d'image: ${uploadResp.status} - ${errorText}`);
+                        // UTILISATION DE FormData pour envoyer tous les champs ET les fichiers
+                        const formData = new FormData();
+                        formData.append('titre', titre.value);
+                        formData.append('auteur', auteur.value);
+                        formData.append('description', description.value);
+                        formData.append('promptText', promptText.value);
+                        formData.append('commentaireUrl', commentaireUrl.value);
+                        formData.append('outil', outils.value.includes('Autre') && customOutil.value.trim() ? customOutil.value.trim() : finalOutils.join(', '));
+                        formData.append('urls', JSON.stringify(urls.value.filter(url => url.trim() !== ''))); // Les URLs sont toujours JSONifiées
+
+                        // Ajout des fichiers au FormData
+                        selectedFiles.value.forEach(fileObj => {
+                            // N'envoyer que les fichiers NOUVEAUX (ceux avec un objet File réel)
+                            if (fileObj.file) { 
+                                formData.append('files', fileObj.file, fileObj.name);
                             }
-                            const uploadData = await uploadResp.json();
-                            finalImageUrl = uploadData.url;
-                            console.log("Image principale uploadée avec succès:", finalImageUrl);
-                        } else if (!imagePreviewUrl.value) { 
-                            finalImageUrl = ''; 
-                        }
-
-                        // 2. Préparation des URLs additionnelles
-                        const additionalUrls = urls.value.filter(url => url.trim() !== '');
-
-                        // 3. Préparation des outils
-                        const finalOutils = outils.value.filter(o => o !== 'Autre');
-                        if (outils.value.includes('Autre') && customOutil.value.trim()) {
-                            finalOutils.push(customOutil.value.trim());
-                        }
-
-                        // 4. Construction du payload du workflow
-                        const workflowPayload = {
-                            titre: titre.value,
-                            auteur: auteur.value,
-                            description: description.value,
-                            promptText: promptText.value,
-                            commentaireUrl: commentaireUrl.value,
-                            outil: finalOutils.join(', '), 
-                            urls: additionalUrls, 
-                            imageUrl: finalImageUrl, 
-                            fileUrls: finalImageUrl ? [finalImageUrl] : [] 
-                        };
-
-                        let apiResponse;
+                        });
+                        
+                        // Si en mode édition, inclure l'ID et le SHA, et les URLs des fichiers existants
                         if (isEditMode.value) {
-                            const updatePayload = {
-                                id: workflowId.value,
-                                sha: workflowSha.value,
-                                ...workflowPayload
-                            };
-                            console.log("Envoi de la requête PUT pour mise à jour:", updatePayload);
-                            apiResponse = await fetch(UPDATE_TIP_URL, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(updatePayload)
-                            });
-                        } else {
-                            console.log("Envoi de la requête POST pour création:", workflowPayload);
-                            apiResponse = await fetch(PUSH_TIP_URL, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(workflowPayload)
-                            });
+                            formData.append('id', workflowId.value);
+                            formData.append('sha', workflowSha.value);
+                            // Envoyer les URLs des fichiers qui étaient déjà là (non supprimés)
+                            const existingFileUrls = selectedFiles.value
+                                .filter(f => f.isExisting)
+                                .map(f => f.previewUrl);
+                            formData.append('existingFileUrls', JSON.stringify(existingFileUrls)); // Nouveau champ pour les URLs existantes
                         }
+                        
+                        // Déterminez l'URL de l'API en fonction du mode (création/édition)
+                        const apiUrl = isEditMode.value ? UPDATE_TIP_URL : PUSH_TIP_URL;
+                        const httpMethod = isEditMode.value ? 'PUT' : 'POST';
+
+                        const apiResponse = await fetch(apiUrl, {
+                            method: httpMethod,
+                            // PAS de 'Content-Type': 'application/json' AVEC FormData, le navigateur le gère.
+                            body: formData
+                        });
+
+                        console.log("Réponse brute de la fonction Netlify:", apiResponse);
 
                         if (!apiResponse.ok) {
                             const errorText = await apiResponse.text();
@@ -729,11 +763,11 @@
                         }
 
                         const result = await apiResponse.json();
-                        console.log("Réponse de l'API:", result);
+                        console.log("Résultat de l'API:", result);
 
                         // Mise à jour des variables de confirmation
-                        confirmationImageUrls.value = finalImageUrl ? [finalImageUrl] : []; 
-                        confirmationUrls.value = result.urls || additionalUrls; 
+                        confirmationImageUrls.value = Array.isArray(result.fileUrls) ? result.fileUrls : []; // Utilise fileUrls du backend
+                        confirmationUrls.value = result.urls || urls.value.filter(url => url.trim() !== ''); // Réutilise les URLs du formulaire si le backend ne les renvoie pas
                         confirmationCommentaireUrl.value = result.commentaireUrl || commentaireUrl.value;
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
@@ -754,9 +788,7 @@
                             urls.value = ['']; 
                             outils.value = [];
                             customOutil.value = '';
-                            imagePreviewUrl.value = '';
-                            originalImageUrl.value = '';
-                            imageFile.value = null;
+                            selectedFiles.value = []; // Réinitialise les fichiers sélectionnés
                             if (fileInput.value) fileInput.value.value = null;
                         }
 
@@ -772,7 +804,7 @@
                     // Exposed properties and methods for the template
                     auteur, titre, description, promptText, outils, customOutil,
                     urls, addUrlField, removeUrlField, commentaireUrl,
-                    fileInput, imagePreviewUrl, fileUploadError,
+                    fileInput, fileUploadError, selectedFiles, // SelectedFiles exposé
                     isLoading, isLoadingFormSubmission, profilsAuteurs, isLoadingProfils, toolsList,
                     confirmationVisible, confirmationImageUrls, confirmationUrls,
                     confirmationCommentaireUrl, confirmationTitre, confirmationDescription,
@@ -780,7 +812,7 @@
                     lightboxVisible, lightboxImageUrl,
                     isEditMode, formTitle, submitButtonText, confirmationMessage,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
-                    removeImage, submitForm, openLightbox, closeLightbox
+                    removeFile, getFileIcon, submitForm, openLightbox, closeLightbox
                 };
             }
         };
