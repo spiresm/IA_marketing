@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -5,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workflows - Espace IA</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -190,23 +189,6 @@
             flex-grow: 1;
         }
 
-        /* NOUVEAU STYLE: Pour le conteneur du titre et des badges au TOP */
-        .card-header-top {
-            display: flex;
-            justify-content: space-between; /* Pour la chaîne à gauche et l'outil à droite */
-            align-items: center;
-            margin-bottom: 10px; /* Espace entre le header top et le titre principal */
-        }
-        .card-header-top .left-chaine {
-            /* Styles pour la chaîne en haut à gauche */
-            font-size: 0.9em;
-            font-weight: bold;
-            white-space: nowrap;
-        }
-        .card-header-top .right-tool {
-            /* Conteneur pour l'outil si besoin d'un groupe */
-        }
-
         .tip-title { 
             font-size: 1.2em; 
             font-weight: bold; 
@@ -230,53 +212,28 @@
             font-weight: 500; 
             padding: 5px 12px; 
             border-radius: 15px;
-            margin-top: 0; 
-            margin-bottom: 0; 
-            display: inline-block;
+            align-self: flex-start; 
+            margin-top: 5px; 
+            margin-bottom: 10px; 
         }
         
-        /* MODIFIÉ : metadata-section pour aligner les éléments sous l'image */
         .metadata-section {
             display: flex; 
-            flex-direction: column; /* Empile les éléments verticalement */
-            gap: 5px; /* Réduit l'espace entre les éléments empilés */
+            justify-content: space-between; 
+            align-items: center; 
             font-size: 0.85em;
             color: var(--grey-text); 
-            padding-top: 10px; /* Espace après l'image et avant les métadonnées */
-            border-top: 1px solid #eee; /* Ligne de séparation */
-            margin-top: 15px; /* Espace avant cette section */
-            margin-bottom: 10px; /* Espace après cette section */
+            padding-top: 15px; 
+            border-top: 1px solid #eee; 
+            margin-top: auto;
         }
-        /* MODIFIÉ : styles pour les lignes de métadonnées */
-        .metadata-line {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--grey-text); /* Couleur de texte par défaut pour la ligne */
-        }
-        .metadata-line strong {
-            font-weight: bold;
-            color: #333; /* Couleur plus foncée pour les noms/dates */
-        }
-        .metadata-line a {
-            color: inherit; /* Hérite de la couleur de la ligne */
-            text-decoration: none;
-        }
-        .metadata-line a:hover {
-            text-decoration: underline;
-        }
+        .supprimer-btn { background: none; border: none; color: #aaa; cursor: pointer; padding: 0 5px; }
 
-        /* MODIFIÉ : style spécifique pour la chaîne de couleur, maintenant dans card-header-top */
-        .chaine-text-color {  
-            font-size: 1em; /* Ajusté pour être cohérent avec le reste de la ligne */
-            font-weight: bold;  
-            white-space: nowrap;  
-        }
-
+        /* Styles homogènes pour les boutons d'action de la carte de Workflow */
         .card-actions { 
             display: flex; 
             gap: 10px; 
-            margin-top: auto; /* Pousse les boutons vers le bas de la carte */
+            margin-top: 20px; 
             padding-top: 15px;
             border-top: 1px solid #eee;
             flex-wrap: wrap; 
@@ -415,6 +372,7 @@
                 <a href="galerie.html">Prompts</a>
                 <a href="cas-usages.html" class="active">Workflows</a>
                 <a href="charte.html">Chartes</a>
+                <a href="faq.html">FAQ</a>
                 <a href="demandes_ia.html">Demandes<span class="notif-bubble" id="notif-count"></span></a>
                 <a href="gestion-license.html">Licenses</a>
             </nav>
@@ -471,60 +429,9 @@
     
     <script src="tools-data.js"></script> 
     <script>
-        // Définitions des URL pour les fonctions Netlify
         const apiBase = window.location.origin + '/.netlify/functions/';
-        const GET_TIPS_URL = `${apiBase}get-tips`; // Utilise apiBase
-        const PUSH_TIP_URL = `${apiBase}pushTip`; // Utilise apiBase
-        const UPDATE_TIP_URL = `${apiBase}update-tip`; // Utilise apiBase
-        const GET_PROFILS_URL = `${apiBase}getProfils`; // Utilise apiBase
-        const UPLOAD_IMAGE_URL = `${apiBase}uploadImage`; // Utilise apiBase
-
-        let allTips = []; 
-        let allTipsFileSha = null; 
-
-        // --- Fonctions utilitaires déplacées en haut pour l'accessibilité ---
-        const chainColors = {
-            "Auvio Kids": "hotpink",
-            "Auvio": "gold",
-            "La Une": "red",
-            "Tipik": "limegreen",
-            "La Première": "blue",
-            "Vivacité": "orange",
-            "La Trois": "purple",
-            "Classic 21": "#8A2BE2", 
-            "Musiq3": "#FF1493", 
-            "Autre": "#778899",
-            "Non spécifié": "#CCCCCC"
-        };
-
-        function getChainColor(chaineNom) {
-            return chainColors[chaineNom] || chainColors["Non spécifié"];
-        }
-
-        function escapeHtml(text) {
-            if (text === null || text === undefined) return '';
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return String(text).replace(/[&<>"']/g, m => map[m]);
-        }
-        
-        const getYouTubeVideoId = (url) => url ? (url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) || [])[1] || null : null;
-        
-        function formatteDate(dateString) {
-            if (!dateString) return 'Date inconnue';
-            try {
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) {
-                    return 'Date invalide';
-                }
-                const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                return date.toLocaleDateString('fr-FR', options);
-            } catch (e) {
-                console.error("Erreur de formatage de la date:", e);
-                return 'Date invalide';
-            }
-        }
-        // --- FIN des fonctions utilitaires déplacées ---
-
+        let allTips = []; // Contient tous les workflows récupérés
+        let allTipsFileSha = null; // Nouveau : Pour stocker le SHA du fichier all-tips.json
 
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
@@ -542,6 +449,14 @@
         const scrollLeftBtn = document.getElementById('scrollLeftBtn');
         const scrollRightBtn = document.getElementById('scrollRightBtn');
         
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        const getYouTubeVideoId = (url) => url ? (url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) || [])[1] || null : null;
+        
         function displayTips(tipsToDisplay) {
             galerieDiv.innerHTML = '';
             if (tipsToDisplay.length === 0) {
@@ -554,6 +469,8 @@
                 const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(url => getYouTubeVideoId(url));
                 const firstImage = tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0]);
                 
+                // On utilise allTipsFileSha ici, car chaque tip partage le SHA du fichier parent
+                // Ce SHA est nécessaire pour les opérations de modification/suppression sur GitHub
                 const workflowShaToPass = allTipsFileSha || ''; 
 
                 let previewImageHtml = '';
@@ -567,17 +484,17 @@
                 const card = document.createElement('div');
                 card.className = 'carte';
                 card.innerHTML = `
+                    ${previewImageHtml}
                     <div class="card-content">
-                        <div class="card-header-top">
-                            <span class="left-chaine chaine-text-color" style="color: ${getChainColor(tip.chaine)};">${escapeHtml(tip.chaine)}</span>
-                            </div>
                         <h3 class="tip-title">${escapeHtml(tip.titre)}</h3>
                         <div class="card-preview-icons-inline">
                             ${firstImage ? '<i class="fas fa-image"></i>' : ''}
                             ${hasYoutubeVideo ? '<i class="fab fa-youtube" style="color:red;"></i>' : ''}
                         </div>
-                        ${previewImageHtml} <div class="metadata-section"> <span class="outil-badge">${escapeHtml(tip.outil)}</span> <span class="metadata-line">Par <strong>${escapeHtml(tip.auteur)}</strong></span>
-                            <span class="metadata-line">Le ${formattedDate}</span>
+                        <span class="outil-badge">${escapeHtml(tip.outil)}</span>
+                        <div class="metadata-section">
+                            <span>Par <strong>${escapeHtml(tip.auteur)}</strong></span>
+                            <span>${formattedDate}</span>
                         </div>
                         <div class="card-actions">
                             <button class="card-action-btn-workflow toggle-content-btn" data-id="${tip.id}">Voir le Workflow</button>
@@ -623,12 +540,7 @@
         function applyFiltersAndSort() {
             let filtered = [...allTips];
             const outil = filtreOutilSelect.value;
-            if (outil) {
-                filtered = filtered.filter(tip => {
-                    const tipOutilsArray = tip.outil ? tip.outil.split(',').map(s => s.trim()) : [];
-                    return tipOutilsArray.includes(outil);
-                });
-            }
+            if (outil) filtered = filtered.filter(tip => tip.outil === outil);
             
             const auteur = filtreAuteurSelect.value;
             if (auteur) filtered = filtered.filter(tip => tip.auteur === auteur);
@@ -642,6 +554,7 @@
             }
             
             const sortOrder = filtreTriDateSelect.value;
+            // Assurez-vous que dateCreation est un objet Date valide pour le tri
             filtered.sort((a, b) => {
                 const dateA = new Date(a.dateCreation);
                 const dateB = new Date(b.dateCreation);
@@ -665,10 +578,11 @@
         function attachCardEventListeners(){
             galerieDiv.querySelectorAll('.toggle-content-btn').forEach(b => b.onclick = () => openPreviewPanel(b.dataset.id));
             galerieDiv.querySelectorAll('.supprimer-btn-workflow').forEach(b => b.onclick = () => confirmAndDeleteTip(b.dataset.id));
+            // Attacher l'écouteur au bouton Éditer
             galerieDiv.querySelectorAll('.edit-btn').forEach(b => {
                 b.addEventListener('click', () => {
                     const id = b.dataset.id;
-                    const sha = b.dataset.sha;
+                    const sha = b.dataset.sha; // Le SHA du fichier all-tips.json (pour le backend GitHub)
                     window.location.href = `creer-tip.html?mode=edit&id=${id}&sha=${sha}`;
                 });
             });
@@ -743,22 +657,26 @@
         async function confirmAndDeleteTip(tipId) {
             if (confirm("Êtes-vous sûr de vouloir supprimer ce workflow ?")) {
                 try {
+                    // L'URL de la fonction DELETE-TIP doit être sans paramètres de requête
+                    // L'ID est envoyé dans le corps JSON.
                     const response = await fetch(`${apiBase}delete-tip`, {
                         method: 'DELETE',
                         headers: {
-                            'Content-Type': 'application/json' 
+                            'Content-Type': 'application/json' // IMPORTANT: Indique que le corps est JSON
                         },
-                        body: JSON.stringify({ id: tipId })
+                        body: JSON.stringify({ id: tipId }) // L'ID est envoyé dans le corps
                     });
 
                     if (!response.ok) {
-                        const errorData = await response.json(); 
+                        const errorData = await response.json(); // Tente de parser l'erreur JSON du backend
+                        // Affiche le message d'erreur du backend s'il y en a un, sinon un message générique
                         throw new Error(errorData.message || `La suppression a échoué avec le statut : ${response.status}.`);
                     }
                     
-                    const result = await response.json(); 
-                    alert(result.message); 
+                    const result = await response.json(); // La fonction delete-tip.mjs renvoie un JSON de succès
+                    alert(result.message); // Affiche le message de succès du backend
                     
+                    // Recharge les tips après la suppression réussie pour mettre à jour l'affichage
                     await initApp(); 
                 } catch(err) { 
                     console.error('Erreur lors de la suppression du workflow:', err);
@@ -770,27 +688,6 @@
 
 
         async function initApp() {
-            // Fonction pour charger des composants HTML (Header et Footer)
-            async function loadComponent(url, placeholderId) {
-                try {
-                    const res = await fetch(url);
-                    if (!res.ok) {
-                        const errorDetail = await res.text();
-                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
-                    }
-                    document.getElementById(placeholderId).innerHTML = await res.text();
-                } catch (error) {
-                    console.error(`Erreur lors du chargement de ${url}:`, error);
-                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
-                }
-            }
-            
-            // Chargement du header et du footer
-            await loadComponent("header.html", "header-placeholder");
-            // Si vous avez un footer.html et un placeholder pour lui, décommentez:
-            // await loadComponent("footer.html", "footer-placeholder");
-
-
             attachEventListeners();
             if (typeof toolsData !== 'undefined') renderToolLogos(toolsData);
             setupScrollButtons();
@@ -802,6 +699,11 @@
                 
                 const fetchedData = await response.json(); 
                 
+                // Stocker le SHA du fichier parent (all-tips.json)
+                // C'est nécessaire pour l'opération d'édition qui utilise un backend GitHub.
+                // Si votre `get-tips` est une fonction GitHub, elle doit retourner ce SHA.
+                // Si `get-tips` utilise FaunaDB, le concept de SHA n'est pas directement applicable.
+                // Il faut alors revoir la logique d'édition ou le SHA viendrait d'un autre endroit si nécessaire.
                 if (fetchedData.length > 0 && fetchedData[0].parentFileSha) {
                     allTipsFileSha = fetchedData[0].parentFileSha;
                     console.log("SHA du fichier all-tips.json récupéré:", allTipsFileSha);
@@ -811,28 +713,37 @@
                 }
 
                 allTips = fetchedData.map(tip => ({
+                    // Copie toutes les propriétés existantes
                     ...tip,
+                    // Normalise l'ID en chaîne, car il peut être un nombre ou autre de la base de données
                     id: String(tip.id), 
+                    // Assure la présence de dates pour le tri et l'affichage
                     dateCreation: tip.date_creation || tip.dateCreation || new Date().toISOString(),
+                    // Fournit des valeurs par défaut pour les champs importants
                     titre: tip.titre || "Titre non spécifié",
                     auteur: tip.auteur || "Auteur inconnu",
                     outil: tip.outil || "Non spécifié",
-                    promptText: tip.prompt || tip.promptText, 
+                    promptText: tip.prompt || tip.promptText, // Prend 'prompt' ou 'promptText'
                     description: tip.description,
                     commentaireUrl: tip.commentaireUrl,
-                    urls: tip.urls || [], 
-                    fileUrls: tip.fileUrls || [], 
+                    urls: tip.urls || [], // Assure que c'est un tableau
+                    fileUrls: tip.fileUrls || [], // Assure que c'est un tableau
+                    // Détermine l'imageUrl principale pour l'affichage de la carte
                     imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0] ? tip.fileUrls[0] : ''),
                 }));
                 console.log("Tous les tips normalisés pour l'affichage:", allTips);
 
-                const uniqueOutils = [...new Set(allTips.map(t => t.outil).flatMap(s => s ? s.split(',').map(tool => tool.trim()) : []).filter(Boolean))].sort(); 
+                // Peuple les filtres Outils et Auteurs
+                const uniqueOutils = [...new Set(allTips.map(t => t.outil).filter(Boolean))].sort();
                 filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>' + uniqueOutils.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
 
                 const uniqueAuteurs = [...new Set(allTips.map(t => t.auteur).filter(Boolean))].sort();
                 filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>' + uniqueAuteurs.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
 
+                // Met à jour le compteur de workflows
                 if(workflowCounter) workflowCounter.textContent = `${allTips.length} Workflows`;
+                
+                // Applique les filtres et le tri pour le premier affichage
                 applyFiltersAndSort();
 
             } catch (error) {
@@ -843,6 +754,7 @@
             }
         }
         
+        // Lance l'initialisation de l'application une fois le DOM chargé
         document.addEventListener("DOMContentLoaded", initApp);
     </script>
 </body>
