@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -98,7 +97,7 @@
         
         textarea { resize: vertical; }
         #description { min-height: 120px; }
-        #prompt { min-height: 150px; }
+        #promptText { min-height: 150px; } /* Correction ID pour promptText */
         
         .post-it-highlight {
             background-color: #FFFF00;
@@ -124,6 +123,7 @@
         .checkbox-item label { font-weight: 400; margin: 0; cursor: pointer; }
         
         .url-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .url-input-group input { margin-bottom: 0; } /* Ajuster la marge */
         .url-action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 5px; }
         .add-url-button, .remove-url-button { padding: 8px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; color: white; }
         .add-url-button { background-color: #28a745; }
@@ -251,9 +251,9 @@
         <div id="app">
             <div class="container">
                 <a href="/cas-usages.html" class="retour-lien">← Retour</a>
-                <h2 style="text-align:center; color:var(--primary-blue);">Partager un Tip / workflow</h2>
+                <h2 style="text-align:center; color:var(--primary-blue);">{{ formTitle }}</h2>
 
-                <form @submit.prevent="submitForm" v-if="!globalError">
+                <form @submit.prevent="submitForm" v-if="!isLoading">
                     <div class="form-grid">
                         
                         <div class="form-group">
@@ -291,8 +291,8 @@
                         </div>
                         
                         <div class="form-group full-width">
-                            <label for="prompt">Prompt (optionnel)</label>
-                            <textarea id="prompt" v-model="promptText" placeholder="Collez le prompt exact ici..."></textarea>
+                            <label for="promptText">Prompt (optionnel)</label>
+                            <textarea id="promptText" v-model="promptText" placeholder="Collez le prompt exact ici..."></textarea>
                         </div>
                         
                         <div class="form-group">
@@ -322,31 +322,27 @@
                         </div>
 
                         <div class="form-group full-width">
-                               <label>Images / Documents (optionnel)</label>
-                            <div id="drop-zone" @click="triggerFile" @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
-                                Déposez ou cliquez pour ajouter des fichiers
-                            </div>
-                            <input type="file" ref="fileInput" @change="onFileChange" multiple style="display:none" accept="image/*,.txt,.pdf" />
-                            <p v-if="fileUploadError" style="color: red; margin-top: 5px;">{{ fileUploadError }}</p>
-                            <div class="file-preview-grid">
-                                <div v-for="fileObj in selectedFiles" :key="fileObj.id" class="file-preview-item">
-                                    <img v-if="fileObj.type && fileObj.type.startsWith('image/')" :src="fileObj.previewUrl" class="image-preview" :alt="fileObj.name" />
-                                    <span v-else class="file-icon">{{ getFileIcon(fileObj.type) }}</span>
-                                    <span class="file-name-overlay">{{ fileObj.name }}</span>
-                                    <button type="button" @click="removeFile(fileObj.id)" class="remove-file-button">&times;</button>
-                                </div>
-                            </div>
+                               <label>Image principale du Workflow</label>
+                               <div id="drop-zone"
+                                     @click="triggerFile"
+                                     @dragover.prevent="onDragOver"
+                                     @dragleave="onDragLeave"
+                                     @drop.prevent="onDrop">
+                                   Déposez ou cliquez pour {{ isEditMode && imagePreviewUrl ? 'changer' : 'ajouter' }} l'image
+                               </div>
+                               <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
+                               <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
+                               <button v-if="imagePreviewUrl" @click.prevent="removeImage" style="background-color: #dc3545; margin-top: 10px;">Supprimer l'image</button>
                         </div>
 
                         <div class="form-group full-width">
                                <div v-if="isLoading" class="loader"></div>
-                            <button v-else type="submit" :disabled="!auteur || !titre || !description || isLoading">Partager</button>
+                            <button v-else type="submit" :disabled="!titre || !auteur || !description || isLoading">{{ submitButtonText }}</button>
                         </div>
                     </div>
                 </form>
-
-                <div class="confirmation" v-if="confirmationVisible" role="status" aria-live="assertive">
-                    <p>✅ Tip / Prompt partagé avec succès !</p>
+                <div v-else class="loader"></div> <div class="confirmation" v-if="confirmationVisible" role="status" aria-live="assertive">
+                    <p>{{ confirmationMessage }}</p>
                     <template v-if="confirmationImageUrls && confirmationImageUrls.length > 0">
                         <img v-for="(url, index) in confirmationImageUrls" :key="'conf-img-' + index" :src="url" @click="openLightbox(url)" style="margin: 5px;" :alt="`Image de confirmation ${index + 1}`"/>
                     </template>
@@ -384,12 +380,11 @@
     
     <script>
         // Définitions des URL pour les fonctions Netlify
-        const SAVE_TIP_URL = "/.netlify/functions/pushTip";
-        // La fonction getProfils pour la liste simple de noms
-        // Assurez-vous que cette URL est correcte et pointe vers une fonction qui retourne
-        // un tableau d'objets avec une propriété 'name' ou directement un tableau de chaînes.
-        const GET_PROFILS_URL = "/.netlify/functions/getProfils"; 
-        const PROXY_URL = "/.netlify/functions/proxy"; // L'URL de votre fonction Proxy si utilisée
+        const GET_TIPS_URL = "/.netlify/functions/get-tips"; 
+        const PUSH_TIP_URL = "/.netlify/functions/push-tip"; 
+        const UPDATE_TIP_URL = "/.netlify/functions/update-tip"; 
+        const GET_PROFILS_URL = "/.netlify/functions/getProfils"; // Assurez-vous que cette URL est correcte
+        const UPLOAD_IMAGE_URL = "/.netlify/functions/uploadImage"; // URL pour l'upload d'image
 
         // Fonction utilitaire pour charger des composants HTML (Header et Footer)
         async function loadComponent(url, placeholderId) {
@@ -406,12 +401,12 @@
             }
         }
 
-        const { ref, createApp, onMounted, onUnmounted } = Vue;
+        const { ref, createApp, onMounted, onUnmounted, computed } = Vue;
 
         const TipForm = {
             setup() {
-                const auteur = ref(''); // Nom du collaborateur sélectionné
-                // La variable poleSelectionne n'est plus nécessaire ici pour la sélection de l'auteur
+                // Propriétés du formulaire
+                const auteur = ref('');
                 const titre = ref('');
                 const description = ref('');
                 const previewText = ref('');
@@ -419,7 +414,9 @@
                 
                 const outils = ref([]); 
                 const customOutil = ref('');
-                const urls = ref(['']); 
+                const urls = ref(['']); // Utilisation d'un tableau pour les champs de liens dynamiques
+                const urlsInput = ref(''); // Nouveau ref pour le textarea unique pour les URLs
+                
                 const commentaireUrl = ref('');
                 const selectedFiles = ref([]);
                 let fileIdCounter = 0;
@@ -427,13 +424,12 @@
                 const fileUploadError = ref('');
 
                 const isLoading = ref(false); 
-                // allCollaborateursParPole n'est plus nécessaire pour le sélecteur d'auteur simple
-                const profilsAuteurs = ref([]); // La liste plate des noms
+                const profilsAuteurs = ref([]);
                 const isLoadingProfils = ref(true); 
 
                 // État de la confirmation post-soumission
                 const confirmationVisible = ref(false);
-                const confirmationImageUrls = ref([]);
+                const confirmationImageUrls = ref([]); // Supporte plusieurs URLs d'images
                 const confirmationUrls = ref([]);
                 const confirmationCommentaireUrl = ref('');
                 const confirmationTitre = ref('');
@@ -445,53 +441,66 @@
                 const lightboxVisible = ref(false);
                 const lightboxImageUrl = ref('');
 
-                // `toolsData` est supposé être globalement disponible via tools-data.js
-                const toolsList = toolsData.sort((a, b) => a.name.localeCompare(b.name));
+                const toolsList = typeof toolsData !== 'undefined' ? toolsData.sort((a, b) => a.name.localeCompare(b.name)) : [];
 
-                // Fonction pour charger les profils d'auteurs (version simple, liste plate)
-                async function fetchProfils() {
-                    isLoadingProfils.value = true;
-                    try {
-                        // Utilise GET_PROFILS_URL qui doit retourner un tableau de chaînes (noms)
-                        // ou un tableau d'objets avec une propriété 'name'
-                        const response = await fetch(`${GET_PROFILS_URL}`); // Si vous utilisez un proxy spécifique pour getProfils: `${PROXY_URL}?action=getProfils`
-                        if (!response.ok) {
-                            const errorText = await response.text();
-                            throw new Error(`Erreur HTTP lors de la récupération des profils: ${response.status} - ${errorText}`);
-                        }
-                        const data = await response.json(); 
+                // Variables pour l'édition
+                const isEditMode = ref(false);
+                const workflowId = ref(null);
+                const workflowSha = ref(null); // Nécessaire pour la mise à jour GitHub
 
-                        // Assurez-vous que data.profils est un tableau d'objets avec une propriété 'name'
-                        // ou que data est directement un tableau de chaînes.
-                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
-                        const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
-                        profilsAuteurs.value = names; // Peupler la liste plate
+                // Propriétés calculées pour le template
+                const formTitle = computed(() => isEditMode.value ? 'Éditer un Workflow' : 'Partager un Workflow');
+                const submitButtonText = computed(() => isEditMode.value ? 'Mettre à jour le Workflow' : 'Partager le Workflow');
+                const confirmationMessage = computed(() => isEditMode.value ? '✅ Workflow mis à jour avec succès !' : '✅ Workflow partagé avec succès !');
 
-                        if (names.length === 1) {
-                            auteur.value = names[0]; // Auto-sélection si un seul nom
-                        } else {
-                            auteur.value = '';
-                        }
-                    } catch (error) {
-                        console.error("Erreur lors du chargement des profils:", error);
-                        alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
-                    } finally {
-                        isLoadingProfils.value = false;
+                // Fonctions de gestion de l'image principale (pour le champ unique du formulaire)
+                const imagePreviewUrl = ref('');
+                const originalImageUrl = ref(''); // Pour conserver l'URL existante en mode édition
+
+                function triggerFile() { fileInput.value?.click(); }
+                function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
+                function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+                function onDrop(e) {
+                    e.currentTarget.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length) {
+                        handleImageFile(files[0]); // Ne gère qu'un seul fichier pour l'image principale
+                    }
+                }
+                function onFileChange(e) {
+                    const file = e.target.files[0];
+                    if (file) handleImageFile(file);
+                }
+                function handleImageFile(file) {
+                    // Pour le champ image principale, on ne gère qu'un seul fichier
+                    if (!file.type.startsWith('image/')) {
+                        fileUploadError.value = "Seules les images sont acceptées pour l'image principale.";
+                        return;
+                    }
+                    imageFile.value = file;
+                    const reader = new FileReader();
+                    reader.onload = () => { imagePreviewUrl.value = reader.result; };
+                    reader.readAsDataURL(file);
+                    fileUploadError.value = ''; // Effacer toute erreur précédente
+                }
+                function removeImage() {
+                    imageFile.value = null;
+                    imagePreviewUrl.value = '';
+                    originalImageUrl.value = ''; // Indique qu'il n'y a plus d'image existante à conserver
+                    if (fileInput.value) {
+                        fileInput.value.value = null; // Réinitialise le champ input file
                     }
                 }
 
-                // Fonctions de gestion des URLs dynamiques
+                // Fonctions de gestion des URLs dynamiques (maintenant dans un textarea)
+                // Le v-model "urlsInput" gérera la saisie de l'utilisateur
                 function addUrlField() {
-                    urls.value.push('');
+                    // Pas nécessaire avec un textarea unique, l'utilisateur gère les retours à la ligne
                 }
-
                 function removeUrlField(index) {
-                    urls.value.splice(index, 1);
-                    if (urls.value.length === 0) {
-                        urls.value.push(''); 
-                    }
+                    // Pas nécessaire avec un textarea unique
                 }
-
+                
                 // Fonctions de gestion de la lightbox
                 function openLightbox(imageUrl) {
                     lightboxImageUrl.value = imageUrl;
@@ -509,103 +518,133 @@
                     }
                 }
 
-                // Lifecycle hooks Vue.js
                 onMounted(() => {
                     fetchProfils();
                     window.addEventListener('keydown', handleKeydown);
+
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const mode = urlParams.get('mode');
+                    const id = urlParams.get('id');
+                    const sha = urlParams.get('sha');
+
+                    if (mode === 'edit' && id && sha) {
+                        isEditMode.value = true;
+                        workflowId.value = id;
+                        workflowSha.value = sha;
+                        isLoading.value = true; // Active le loader pendant le chargement des données
+                        fetchWorkflowForEdit(id);
+                    } else {
+                        // Mode création par défaut: initialise les champs
+                        titre.value = '';
+                        auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
+                        description.value = '';
+                        previewText.value = '';
+                        promptText.value = '';
+                        commentaireUrl.value = '';
+                        urlsInput.value = ''; // Réinitialise le textarea des URLs
+                        imagePreviewUrl.value = '';
+                        originalImageUrl.value = '';
+                        imageFile.value = null;
+                        outils.value = [];
+                        customOutil.value = '';
+                    }
                 });
 
                 onUnmounted(() => {
                     window.removeEventListener('keydown', handleKeydown);
                 });
 
-                // Fonctions de gestion des fichiers (Drag & Drop, sélection)
-                function triggerFile() {
-                    fileInput.value?.click();
-                }
+                // Fonction pour charger les profils d'auteurs
+                async function fetchProfils() {
+                    isLoadingProfils.value = true;
+                    try {
+                        const response = await fetch(`${GET_PROFILS_URL}`);
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`HTTP error lors de la récupération des profils: ${response.status} - ${errorText}`);
+                        }
+                        const data = await response.json();
+                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
+                        const names = [...new Set(profilsList.map(p => typeof p === 'string' ? p : p.name).filter(Boolean))].sort();
+                        profilsAuteurs.value = names;
 
-                function onDragOver(e) {
-                    e.currentTarget.classList.add('dragover');
-                }
-
-                function onDragLeave(e) {
-                    e.currentTarget.classList.remove('dragover');
-                }
-
-                function onDrop(e) {
-                    e.currentTarget.classList.remove('dragover');
-                    const files = e.dataTransfer.files;
-                    if (files.length) {
-                        addFiles(files);
+                        if (names.length === 1 && !isEditMode.value) { // Auto-sélectionne seulement en mode création si un seul profil
+                            auteur.value = names[0];
+                        }
+                    } catch (error) {
+                        console.error("Erreur lors du chargement des profils:", error);
+                        alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
+                    } finally {
+                        isLoadingProfils.value = false;
                     }
                 }
 
-                function onFileChange(e) {
-                    const files = e.target.files;
-                    if (files) {
-                        addFiles(files);
-                        e.target.value = null; 
-                    }
-                }
+                // Fonction pour récupérer un workflow spécifique pour l'édition
+                async function fetchWorkflowForEdit(id) {
+                    try {
+                        const response = await fetch(GET_TIPS_URL);
+                        if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                        const allWorkflows = await response.json();
+                        const workflowToEdit = allWorkflows.find(w => w.id === id);
 
-                function addFiles(files) {
-                    fileUploadError.value = '';
-                    for (let i = 0; i < files.length; i++) {
-                        const file = files[i];
-                        if (file.type.startsWith('image/') || file.type === 'text/plain' || file.type === 'application/pdf') {
-                            const newFileObj = {
-                                id: fileIdCounter++,
-                                file: file,
-                                previewUrl: null,
-                                name: file.name,
-                                type: file.type
-                            };
-
-                            if (file.type.startsWith('image/')) {
-                                const reader = new FileReader();
-                                reader.onload = (e) => {
-                                    if (e.target.result && typeof e.target.result === 'string' && e.target.result.startsWith('data:image')) {
-                                        newFileObj.previewUrl = e.target.result;
-                                        selectedFiles.value.push(newFileObj);
-                                    } else {
-                                        fileUploadError.value = `Impossible de prévisualiser l'image ${file.name}.`;
-                                    }
-                                };
-                                reader.onerror = (error) => {
-                                    console.error(`Erreur lecture fichier ${file.name}:`, error);
-                                    fileUploadError.value = `Erreur lors de la lecture de l'image ${file.name}.`;
-                                };
-                                reader.readAsDataURL(file);
-                            } else {
-                                selectedFiles.value.push(newFileObj);
+                        if (workflowToEdit) {
+                            // Pré-remplir les champs du formulaire
+                            titre.value = workflowToEdit.titre || '';
+                            auteur.value = workflowToEdit.auteur || '';
+                            description.value = workflowToEdit.description || '';
+                            previewText.value = workflowToEdit.previewText || '';
+                            promptText.value = workflowToEdit.promptText || '';
+                            commentaireUrl.value = workflowToEdit.commentaireUrl || '';
+                            
+                            // Gérer les outils (checkboxes et champ custom)
+                            outils.value = workflowToEdit.outil && typeof workflowToEdit.outil === 'string' 
+                                ? workflowToEdit.outil.split(', ').map(s => s.trim())
+                                : [];
+                            if (outils.value.some(o => !toolsList.some(tl => tl.name === o) && o !== 'Autre')) {
+                                // Si un outil n'est pas dans la liste pré-définie, c'est probablement un custom
+                                // ATTENTION: cette logique est simpliste et peut nécessiter d'être affinée
+                                const customToolFound = outils.value.find(o => !toolsList.some(tl => tl.name === o));
+                                if (customToolFound) {
+                                    outils.value.push('Autre'); // Coche "Autre"
+                                    customOutil.value = customToolFound; // Met le nom dans le champ custom
+                                    // Retire l'outil custom de la liste des outils cochés pour éviter la duplication
+                                    outils.value = outils.value.filter(o => o !== customToolFound); 
+                                }
                             }
+                            
+                            urlsInput.value = (Array.isArray(workflowToEdit.urls) ? workflowToEdit.urls.filter(Boolean).join('\n') : '');
+                            
+                            // Image principale
+                            imagePreviewUrl.value = workflowToEdit.imageUrl || (Array.isArray(workflowToEdit.fileUrls) && workflowToEdit.fileUrls[0] ? workflowToEdit.fileUrls[0] : '');
+                            originalImageUrl.value = imagePreviewUrl.value; 
+
                         } else {
-                            fileUploadError.value = `Le fichier "${file.name}" de type "${file.type}" n'est pas pris en charge. Seules les images, les fichiers .txt et .pdf sont autorisés.`;
+                            alert("Workflow non trouvé pour édition.");
+                            window.location.href = "/cas-usages.html"; // Redirige si non trouvé
                         }
+                    } catch (error) {
+                        console.error("Erreur lors du chargement du workflow pour édition:", error);
+                        alert(`Impossible de charger le workflow pour édition: ${error.message}.`);
+                        window.location.href = "/cas-usages.html";
+                    } finally {
+                        isLoading.value = false; // Désactive le loader après le chargement
                     }
                 }
-
-                function removeFile(fileIdToRemove) {
-                    selectedFiles.value = selectedFiles.value.filter(fileObj => {
-                        if (fileObj.id === fileIdToRemove && fileObj.previewUrl) {
-                            URL.revokeObjectURL(fileObj.previewUrl); 
-                        }
-                        return fileObj.id !== fileIdToRemove;
+                
+                // Fonction utilitaire pour convertir un fichier en Base64
+                function getBase64(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = (error) => reject(error);
+                        reader.readAsDataURL(file);
                     });
-                    fileUploadError.value = '';
                 }
 
-                function getFileIcon(fileType) {
-                    if (fileType === 'text/plain') return 'TXT';
-                    if (fileType === 'application/pdf') return 'PDF';
-                    return '📄'; 
-                }
-
-                // Fonction principale de soumission du formulaire
                 async function submitForm() {
-                    // Validation simple
-                    if (!auteur.value || !titre.value.trim() || !description.value.trim()) {
-                        alert("Veuillez remplir tous les champs obligatoires (Votre nom, Titre, Description).");
+                    // Validation
+                    if (!titre.value.trim() || !auteur.value || !description.value.trim()) {
+                        alert("Veuillez remplir les champs obligatoires : Titre, Votre nom, et Description.");
                         return;
                     }
                     if (outils.value.includes('Autre') && !customOutil.value.trim()) {
@@ -613,95 +652,137 @@
                         return;
                     }
 
+                    isLoading.value = true;
                     confirmationVisible.value = false;
-                    isLoading.value = true; 
+
+                    let finalImageUrl = originalImageUrl.value; // Par défaut, conserve l'image existante
+                    let uploadedFileUrls = []; // Pour les URLs des fichiers uploadés (images ou documents)
 
                     try {
-                        const formData = new FormData();
-                        formData.append('auteur', auteur.value);
-                        // Pas de champ 'pole' envoyé avec cette configuration
-                        formData.append('titre', titre.value);
-                        formData.append('description', description.value);
-                        formData.append('previewText', previewText.value);
-                        formData.append('promptText', promptText.value);
-                        
-                        // Gestion des outils
+                        // 1. Upload de l'image principale (si nouvelle ou changée)
+                        if (imageFile.value) {
+                            const base64 = await getBase64(imageFile.value);
+                            const uploadPayload = { fileContent: base64, fileName: imageFile.value.name };
+                            const uploadResp = await fetch(UPLOAD_IMAGE_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(uploadPayload)
+                            });
+                            if (!uploadResp.ok) {
+                                const errorText = await uploadResp.text();
+                                throw new Error(`Échec de l'upload d'image: ${uploadResp.status} - ${errorText}`);
+                            }
+                            const uploadData = await uploadResp.json();
+                            finalImageUrl = uploadData.url;
+                            console.log("Image principale uploadée avec succès:", finalImageUrl);
+                        } else if (!imagePreviewUrl.value) { // Si l'image a été explicitement supprimée
+                            finalImageUrl = '';
+                        }
+                        // else: imageFile est null, imagePreviewUrl est non null, donc on garde originalImageUrl.value
+
+                        // 2. Préparation des URLs additionnelles
+                        const additionalUrls = urlsInput.value.split('\n').map(url => url.trim()).filter(url => url.length > 0);
+
+                        // 3. Préparation des outils
                         const finalOutils = outils.value.filter(o => o !== 'Autre');
                         if (outils.value.includes('Autre') && customOutil.value.trim()) {
                             finalOutils.push(customOutil.value.trim());
                         }
-                        formData.append('outil', finalOutils.join(', ')); 
 
-                        formData.append('dateCreation', new Date().toISOString());
-                        formData.append('pageDePartage', 'Tip / Workflow'); 
+                        // 4. Construction du payload du workflow
+                        const workflowPayload = {
+                            titre: titre.value,
+                            auteur: auteur.value,
+                            description: description.value,
+                            previewText: previewText.value,
+                            promptText: promptText.value,
+                            commentaireUrl: commentaireUrl.value,
+                            outil: finalOutils.join(', '), // Stocke les outils comme une chaîne séparée par des virgules
+                            urls: additionalUrls, // URLs de vidéos/articles
+                            imageUrl: finalImageUrl, // Image principale pour la carte
+                            fileUrls: finalImageUrl ? [finalImageUrl] : [] // Pour la compatibilité si backend utilise fileUrls comme tableau
+                        };
 
-                        // Filtrer les URLs vides et les envoyer en JSON stringifié
-                        const filteredUrls = urls.value.filter(url => url.trim() !== '');
-                        if (filteredUrls.length > 0) {
-                            formData.append('urls', JSON.stringify(filteredUrls));
+                        let apiResponse;
+                        if (isEditMode.value) {
+                            // Mode édition: ajout de l'id et du sha pour la mise à jour
+                            const updatePayload = {
+                                id: workflowId.value,
+                                sha: workflowSha.value,
+                                ...workflowPayload
+                            };
+                            apiResponse = await fetch(UPDATE_TIP_URL, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(updatePayload)
+                            });
                         } else {
-                            formData.append('urls', '[]'); 
-                        }
-                        formData.append('commentaireUrl', commentaireUrl.value.trim());
-
-                        // Ajouter les fichiers
-                        selectedFiles.value.forEach((fileObj) => {
-                            formData.append(`files`, fileObj.file, fileObj.name);
-                        });
-
-                        const tipResp = await fetch(SAVE_TIP_URL, {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        if (!tipResp.ok) {
-                            const errorText = await tipResp.text();
-                            throw new Error(`Échec de l'enregistrement du tip: ${tipResp.status} - ${errorText}`);
+                            // Mode création
+                            apiResponse = await fetch(PUSH_TIP_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(workflowPayload)
+                            });
                         }
 
-                        const result = await tipResp.json();
-
-                        // Remplir les données de confirmation
-                        confirmationImageUrls.value = Array.isArray(result.imageUrls) ? result.imageUrls : [];
-                        if (confirmationImageUrls.value.length === 0 && selectedFiles.value.some(f => f.type && f.type.startsWith('image/'))) {
-                            confirmationImageUrls.value = selectedFiles.value
-                                .filter(f => f.type && f.type.startsWith('image/') && f.previewUrl)
-                                .map(f => f.previewUrl);
+                        if (!apiResponse.ok) {
+                            const errorText = await apiResponse.text();
+                            throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorText}`);
                         }
 
-                        confirmationUrls.value = Array.isArray(result.urls) ? result.urls : [];
+                        const result = await apiResponse.json();
+
+                        // Mise à jour des variables de confirmation
+                        confirmationImageUrls.value = finalImageUrl ? [finalImageUrl] : []; // Affiche l'image principale
+                        confirmationUrls.value = result.urls || [];
                         confirmationCommentaireUrl.value = result.commentaireUrl || commentaireUrl.value;
                         confirmationTitre.value = titre.value;
                         confirmationDescription.value = description.value;
                         confirmationPreviewText.value = previewText.value;
                         confirmationPromptText.value = promptText.value;
-                        
                         confirmationVisible.value = true;
 
                         setTimeout(() => {
-                            window.location.href = "cas-usages.html?success=1";
+                            window.location.href = "/cas-usages.html"; // Redirige vers la galerie de workflows
                         }, 5000);
 
-                    } catch (error) {
-                        console.error("Erreur lors de la soumission du formulaire:", error);
-                        alert(`Une erreur est survenue lors de l'envoi du tip. Veuillez réessayer. Détails : ${error.message}`);
+                        // Réinitialisation des champs après succès (uniquement en mode création)
+                        if (!isEditMode.value) {
+                            titre.value = '';
+                            auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : ''; // Reset auto-selection
+                            description.value = '';
+                            previewText.value = '';
+                            promptText.value = '';
+                            commentaireUrl.value = '';
+                            urlsInput.value = '';
+                            outils.value = [];
+                            customOutil.value = '';
+                            imagePreviewUrl.value = '';
+                            originalImageUrl.value = '';
+                            imageFile.value = null;
+                            if (fileInput.value) fileInput.value.value = null;
+                        }
+
+                    } catch (err) {
+                        console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du workflow:`, err);
+                        alert(`Échec de l'opération du workflow: ${err.message || err}. Vérifiez la console.`);
                     } finally {
                         isLoading.value = false;
                     }
                 }
 
                 return {
-                    auteur, titre, description, previewText, promptText, outils, customOutil, fileInput,
-                    urls, addUrlField, removeUrlField, commentaireUrl,
-                    selectedFiles, fileUploadError,
-                    confirmationVisible,
-                    confirmationImageUrls, confirmationUrls, confirmationCommentaireUrl,
-                    confirmationTitre, confirmationDescription, confirmationPreviewText, confirmationPromptText,
-                    isLoading, profilsAuteurs, isLoadingProfils, toolsList, 
+                    // Exposed properties and methods for the template
+                    auteur, titre, description, previewText, promptText, outils, customOutil,
+                    urlsInput, commentaireUrl, fileInput, imagePreviewUrl, fileUploadError,
+                    isLoading, profilsAuteurs, isLoadingProfils, toolsList,
+                    confirmationVisible, confirmationImageUrls, confirmationUrls,
+                    confirmationCommentaireUrl, confirmationTitre, confirmationDescription,
+                    confirmationPreviewText, confirmationPromptText,
                     lightboxVisible, lightboxImageUrl,
-                    openLightbox, closeLightbox,
+                    isEditMode, formTitle, submitButtonText, confirmationMessage,
                     triggerFile, onDragOver, onDragLeave, onDrop, onFileChange,
-                    removeFile, getFileIcon, submitForm
+                    removeImage, submitForm, openLightbox, closeLightbox
                 };
             }
         };
@@ -711,15 +792,12 @@
             const bodyElement = document.body;
             const mainElement = document.querySelector("main");
 
-            // Masquer la barre de défilement du body au début pour une meilleure expérience
             bodyElement.style.overflow = 'hidden';
 
-            // 1. Charger les composants principaux (Header et Footer)
             await loadComponent("header.html", "header-placeholder");
-            // Le footer n'était pas dans votre code de "Partager un Prompt", donc je le retire ici.
-            // Si vous en avez un, assurez-vous qu'il est lié ici: await loadComponent("footer.html", "footer-placeholder");
+            await loadComponent("footer.html", "footer-placeholder"); // Assurez-vous d'avoir un footer.html ou retirez cette ligne
 
-            // 2. Mettre à jour l'état actif du menu après le chargement du header
+            // Mettre à jour l'état actif du menu après le chargement du header
             const currentPath = window.location.pathname.split('/').pop();
             document.querySelectorAll('nav a').forEach(link => {
                 const linkHref = link.getAttribute('href');
@@ -731,12 +809,12 @@
                 }
             });
 
-            // 3. Monter l'application Vue.js sur l'élément #app
+            // Monter l'application Vue.js sur l'élément #app
             createApp(TipForm).mount('#app');
 
-            bodyElement.classList.add("show"); 
-            if (mainElement) mainElement.classList.add("show"); 
-            bodyElement.style.overflow = ''; 
+            bodyElement.classList.add("show");
+            if (mainElement) mainElement.classList.add("show");
+            bodyElement.style.overflow = '';
         });
     </script>
 </body>
