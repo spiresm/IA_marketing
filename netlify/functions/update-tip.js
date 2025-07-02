@@ -1,40 +1,40 @@
 // netlify/functions/update-tip.js
-// ou netlify/functions/update-tip.mjs (si vous utilisez les modules ES6)
+// Cette fonction gérera la mise à jour d'un tip en modifiant le fichier all-tips.json sur GitHub.
 
-// Importations nécessaires pour FaunaDB, multiparty et les opérations de fichiers
-const faunadb = require('faunadb');
-const q = faunadb.query;
-const multiparty = require('multiparty');
-const fs = require('fs/promises'); // Utilisé pour lire les fichiers temporaires de multiparty
-const { Readable } = require('stream'); // Nécessaire pour adapter le corps de l'événement pour multiparty
+import { Octokit } from "@octokit/core";
+import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
+import { Buffer } from 'buffer';
+import multiparty from 'multiparty';
+import fs from 'fs/promises';
+import { Readable } from 'stream';
+import fetch from 'node-fetch'; // Nécessaire si le fichier all-tips.json est > 1MB et doit être téléchargé via download_url
 
-// Si vous utilisez Octokit pour la gestion des images GitHub, décommentez ces lignes
-// const { Octokit } = require("@octokit/core");
-// const { restEndpointMethods } = require("@octokit/plugin-rest-endpoint-methods");
-// const MyOctokit = Octokit.plugin(restEndpointMethods);
+const MyOctokit = Octokit.plugin(restEndpointMethods);
 
-exports.handler = async (event, context) => {
+export const handler = async (event) => {
+    console.log("------------------- Début de l'exécution de update-tip.js -------------------");
+    console.log("Méthode HTTP reçue:", event.httpMethod);
+
     // Gère les requêtes OPTIONS (preflight) pour CORS
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 204, // No Content
             headers: {
-                'Access-Control-Allow-Origin': '*', // Autorise toutes les origines (à ajuster pour la production)
-                'Access-Control-Allow-Methods': 'PUT, POST, OPTIONS', // Autorise PUT, POST et OPTIONS
-                'Access-Control-Allow-Headers': 'Content-Type', // Autorise l'en-tête Content-Type, et tout autre en-tête
-                'Access-Control-Max-Age': '86400', // Cache les résultats du preflight pendant 24h
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'PUT, OPTIONS', // Seulement PUT et OPTIONS pour cette fonction
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Max-Age': '86400',
             },
-            body: '' // Corps vide pour les requêtes OPTIONS
+            body: ''
         };
     }
 
-    // Vérifie si la méthode HTTP est PUT. Si ce n'est pas le cas, retourne une erreur 405.
     if (event.httpMethod !== 'PUT') {
         return {
             statusCode: 405,
             body: 'Method Not Allowed',
             headers: {
-                'Allow': 'PUT, OPTIONS', // Indique les méthodes autorisées pour cette ressource spécifique
+                'Allow': 'PUT, OPTIONS',
                 'Access-Control-Allow-Origin': '*',
             }
         };
@@ -65,7 +65,7 @@ exports.handler = async (event, context) => {
             });
         });
 
-        // Transforme les champs parsés par multiparty en un objet simple pour FaunaDB
+        // Transforme les champs parsés par multiparty en un objet simple
         let tipData = {};
         for (const key in fields) {
             if (fields[key] && fields[key].length > 0) {
@@ -75,119 +75,209 @@ exports.handler = async (event, context) => {
                         tipData[key] = JSON.parse(fields[key][0]);
                     } catch (e) {
                         console.error(`❌ updateTip: Erreur de parsing du champ 'urls': ${fields[key][0]}`, e);
-                        tipData[key] = []; // Assurez-vous que c'est un tableau vide en cas d'erreur
+                        tipData[key] = [];
                     }
                 } else {
-                    tipData[key] = fields[key][0]; // Pour les autres champs, prend la première valeur
+                    tipData[key] = fields[key][0];
                 }
             }
         }
 
-        // Extrait l'ID du tip et le reste des champs à mettre à jour
-        // Le SHA est ignoré ici car il est spécifique à GitHub et non à FaunaDB
-        const { id, sha, ...fieldsToUpdate } = tipData; 
+        const { id, sha, ...fieldsToUpdate } = tipData; // On a besoin de 'id' et 'sha' du tip pour GitHub
 
-        if (!id) {
-            console.warn('⚠️ updateTip: Requête de mise à jour reçue sans ID de tip.');
+        if (!id || !sha) {
+            console.warn('⚠️ updateTip: ID ou SHA du tip manquant pour la mise à jour.');
             return {
                 statusCode: 400,
-                headers: { 'Access-Control-Allow-Origin': '*' },
-                body: JSON.stringify({ message: 'Missing tip ID for update.' })
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+                body: JSON.stringify({ message: 'ID ou SHA du tip manquant. Impossible de mettre à jour.' })
+            };
+        }
+        
+        // --- Variables d'environnement GitHub ---
+        const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+        const OWNER = process.env.GITHUB_OWNER;
+        const REPO = process.env.GITHUB_REPO;
+        const TIPS_FILE_PATH = process.env.TIPS_FILE_PATH || 'data/all-tips.json'; // Chemin vers votre fichier JSON principal
+        const GITHUB_IMAGE_PATH_CONST = 'assets/images'; // Chemin pour les images sur GitHub
+
+        if (!GITHUB_TOKEN || !OWNER || !REPO) {
+            console.error("❌ updateTip: Configuration GitHub (TOKEN, OWNER, REPO) manquante.");
+            return {
+                statusCode: 500,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+                body: JSON.stringify({ message: 'Configuration GitHub manquante. Contactez l\'administrateur.' }),
             };
         }
 
-        // --- Gestion de l'image principale ---
-        // Cette logique suppose que l'upload réel de l'image vers GitHub
-        // est géré par une fonction `uploadImage` distincte appelée par le frontend.
-        // `imageUrl` dans `fieldsToUpdate` devrait déjà contenir l'URL finale de l'image.
+        const octokit = new MyOctokit({ auth: GITHUB_TOKEN });
+        let newImageUrl = fieldsToUpdate.imageUrl || null; // L'URL de l'image peut venir d'une image existante ou d'un upload séparé
+        let newFileUrls = fieldsToUpdate.fileUrls || []; // Assure que c'est un tableau
+
+        // --- Gérer l'upload d'une nouvelle image si présente dans le FormData ---
+        // Cette logique est similaire à pushTip.mjs
+        if (files && files.files && files.files.length > 0) {
+            console.log(`📡 updateTip: ${files.files.length} fichier(s) image/document détecté(s) pour upload.`);
+            const file = files.files[0]; // Pour l'instant, prends seulement le premier fichier
+            
+            if (!file.path) { // Assurez-vous que le fichier temporaire existe
+                console.warn(`⚠️ updateTip: Fichier temporaire non trouvé pour ${file.originalFilename}. Ignoré.`);
+            } else if (file.headers['content-type'].startsWith('image/')) {
+                const fileBuffer = await fs.readFile(file.path);
+                const base64Data = fileBuffer.toString('base64');
+                const safeFileName = file.originalFilename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+                const uniqueFileName = `${Date.now()}-${safeFileName}`;
+                const filePathInRepo = `${GITHUB_IMAGE_PATH_CONST}/${uniqueFileName}`;
+                
+                try {
+                    await octokit.rest.repos.createOrUpdateFileContents({
+                        owner: OWNER,
+                        repo: REPO,
+                        path: filePathInRepo,
+                        message: `Mise à jour de l'image pour le tip ${id}`,
+                        content: base64Data,
+                        branch: 'main',
+                    });
+                    newImageUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${filePathInRepo}`;
+                    newFileUrls = [newImageUrl]; // Si c'est une nouvelle image principale, on met à jour le tableau fileUrls avec elle seule
+                    console.log(`✅ updateTip: Nouvelle image principale uploadée: ${newImageUrl}`);
+                } catch (fileUploadError) {
+                    console.error(`❌ updateTip: Erreur lors de l'upload de la nouvelle image à GitHub:`, fileUploadError);
+                    // L'erreur sera gérée par le catch principal, mais on log ici.
+                }
+            } else {
+                console.log(`⚠️ updateTip: Le type de fichier ${file.originalFilename} (${file.headers['content-type']}) n'est pas une image et n'est pas pris en charge pour l'image principale.`);
+            }
+        }
         
-        // Si vous voulez que cette fonction gère l'upload d'images vers GitHub :
-        // Décommentez les imports Octokit en haut.
-        // const GITHUB_IMAGE_PATH_CONST = 'assets/images';
-        // const octokit = new MyOctokit({ auth: process.env.GITHUB_TOKEN });
-        // if (files && files.files && files.files.length > 0) {
-        //     const file = files.files[0]; // Prend le premier fichier s'il y en a
-        //     const fileBuffer = await fs.readFile(file.path);
-        //     const base64Data = fileBuffer.toString('base64');
-        //     const uniqueFileName = `${Date.now()}-${file.originalFilename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-        //     const filePathInRepo = `${GITHUB_IMAGE_PATH_CONST}/${uniqueFileName}`;
-        //     const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
-        //         owner: process.env.GITHUB_OWNER,
-        //         repo: process.env.GITHUB_REPO,
-        //         path: filePathInRepo,
-        //         message: `Mise à jour de l'image pour le tip ${id}`,
-        //         content: base64Data,
-        //         branch: 'main',
-        //     });
-        //     // Met à jour imageUrl avec la nouvelle URL de l'image uploadée
-        //     fieldsToUpdate.imageUrl = `https://raw.githubusercontent.com/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/main/${filePathInRepo}`;
-        //     fieldsToUpdate.fileUrls = [fieldsToUpdate.imageUrl]; // Mettez à jour fileUrls aussi
-        // } else if (!fieldsToUpdate.imageUrl) {
-        //     // Si pas de nouvelle image et pas d'ancienne URL fournie, assurez-vous que c'est vide
-        //     fieldsToUpdate.imageUrl = '';
-        //     fieldsToUpdate.fileUrls = [];
-        // }
-
-
-        // Mettre à jour la date de modification
+        // Assurez les valeurs par défaut
         fieldsToUpdate.date_modification = new Date().toISOString();
+        fieldsToUpdate.imageUrl = newImageUrl; // L'URL de la nouvelle image, ou l'ancienne si pas de nouvelle
+        fieldsToUpdate.fileUrls = newFileUrls; // Les URLs des fichiers, y compris la nouvelle image si uploadée
+        fieldsToUpdate.urls = fieldsToUpdate.urls || []; // S'assurer que 'urls' est un tableau
+        fieldsToUpdate.previewText = fieldsToUpdate.previewText || ""; // Assurer previewText est une chaîne
+        fieldsToUpdate.promptText = fieldsToUpdate.promptText || ""; // Assurer promptText est une chaîne
+        fieldsToUpdate.chaine = fieldsToUpdate.chaine || "Non spécifié"; // Assurer chaîne est une chaîne
+        fieldsToUpdate.outil = fieldsToUpdate.outil || "Non spécifié"; // Assurer outil est une chaîne
 
-        // Initialise le client FaunaDB
-        const client = new faunadb.Client({ secret: process.env.FAUNADB_SECRET });
 
-        console.log(`ℹ️ updateTip: Tentative de mise à jour du tip avec ID: ${id} dans FaunaDB.`);
-        // Exécute la requête de mise à jour dans FaunaDB
-        const updatedTip = await client.query(
-            q.Update(
-                q.Ref(q.Collection('tips'), id), // Référence au document par son ID dans la collection 'tips'
-                { data: fieldsToUpdate } // Les données à mettre à jour
-            )
-        );
+        // --- Logique pour lire, modifier et écrire le fichier JSON sur GitHub ---
+        let existingContent = '';
+        let fileMetadata;
+        let existingTips = [];
+        let fetchedFileSha = null;
 
-        console.log(`✅ updateTip: Tip ID ${id} mis à jour avec succès dans FaunaDB.`);
+        try {
+            const response = await octokit.rest.repos.getContent({
+                owner: OWNER,
+                repo: REPO,
+                path: TIPS_FILE_PATH,
+                ref: 'main',
+            });
+            fileMetadata = response.data;
+            fetchedFileSha = fileMetadata.sha;
+
+            if (fileMetadata.content && fileMetadata.encoding === 'base64') {
+                existingContent = Buffer.from(fileMetadata.content, 'base64').toString('utf8');
+            } else if (fileMetadata.download_url) {
+                const rawResponse = await fetch(fileMetadata.download_url);
+                if (!rawResponse.ok) throw new Error(`Failed to download raw content: ${rawResponse.statusText}`);
+                existingContent = await rawResponse.text();
+            } else {
+                throw new Error('Impossible de récupérer le contenu du fichier tips: Format de réponse GitHub inattendu.');
+            }
+            existingTips = JSON.parse(existingContent);
+            if (!Array.isArray(existingTips)) {
+                console.warn("⚠️ updateTip: Le contenu JSON existant n'est pas un tableau. Il sera écrasé.");
+                existingTips = [];
+            }
+            console.log(`✅ updateTip: Fichier ${TIPS_FILE_PATH} récupéré et parsé.`);
+
+        } catch (error) {
+            if (error.status === 404) {
+                console.error(`❌ updateTip: Le fichier ${TIPS_FILE_PATH} n'existe pas sur GitHub.`);
+                return {
+                    statusCode: 404,
+                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+                    body: JSON.stringify({ success: false, message: `Le fichier de tips (${TIPS_FILE_PATH}) n'existe pas. Impossible de mettre à jour.` }),
+                };
+            } else {
+                console.error("❌ updateTip: Erreur lors de la récupération du fichier JSON existant:", error);
+                throw error; // Relaunch the error
+            }
+        }
+
+        // Trouver le tip à mettre à jour par son ID
+        const tipIndex = existingTips.findIndex(tip => String(tip.id) === String(id));
+
+        if (tipIndex === -1) {
+            console.error(`❌ updateTip: Tip avec l'ID ${id} non trouvé dans le fichier.`);
+            return {
+                statusCode: 404,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+                body: JSON.stringify({ success: false, message: `Tip avec l'ID ${id} non trouvé pour la mise à jour.` }),
+            };
+        }
+
+        // Mettre à jour les champs du tip existant avec les nouvelles données
+        existingTips[tipIndex] = {
+            ...existingTips[tipIndex], // Garde les champs non modifiés
+            ...fieldsToUpdate,         // Applique les nouvelles données
+            id: String(id),            // Assure que l'ID reste le même (et en string)
+            date_modification: fieldsToUpdate.date_modification // Assure que la date de modification est la dernière
+        };
+        // Ajoutez le parentFileSha au tip pour qu'il soit récupérable par le frontend
+        // lors d'un `get-tips` ultérieur pour une autre édition/suppression.
+        existingTips[tipIndex].parentFileSha = fetchedFileSha; 
+
+
+        const updatedContent = Buffer.from(JSON.stringify(existingTips, null, 2)).toString('base64');
+        const commitMessage = `Mise à jour du tip "${fieldsToUpdate.titre || 'Sans titre'}" (ID: ${id})`;
+
+        // Tenter de mettre à jour le fichier JSON sur GitHub avec le SHA récupéré
+        await octokit.rest.repos.createOrUpdateFileContents({
+            owner: OWNER,
+            repo: REPO,
+            path: TIPS_FILE_PATH,
+            message: commitMessage,
+            content: updatedContent,
+            sha: fetchedFileSha, // Utiliser le SHA actuel pour la mise à jour
+            branch: 'main',
+        });
+
+        console.log(`✅ updateTip: Fichier JSON des tips mis à jour sur GitHub. Tip ${id} modifié.`);
+
         return {
             statusCode: 200,
             headers: {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'PUT, POST, OPTIONS',
+                'Access-Control-Allow-Methods': 'PUT, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type',
             },
-            // Retourne l'ID et les données mises à jour pour que le frontend puisse les confirmer
-            // Les `...updatedTip.data` incluront tous les champs mis à jour par FaunaDB
-            body: JSON.stringify({ message: 'Tip updated successfully!', tip: { id: updatedTip.ref.id, ...updatedTip.data } }),
+            body: JSON.stringify({ 
+                message: 'Tip mis à jour avec succès !', 
+                tip: existingTips[tipIndex], // Retourne l'objet tip mis à jour
+                parentFileSha: fetchedFileSha // Retourne le SHA du fichier mis à jour
+            }),
         };
 
     } catch (error) {
-        // Gère spécifiquement les erreurs si le document n'est pas trouvé dans FaunaDB
-        if (error.name === 'NotFound') {
-            console.error(`❌ updateTip: Tip avec ID ${tipData.id} non trouvé dans FaunaDB.`, error);
+        console.error('❌ updateTip: Erreur lors de la mise à jour du tip sur GitHub:', error);
+        // Gérer spécifiquement les erreurs de conflit si nécessaire (409)
+        if (error.status === 409) {
             return {
-                statusCode: 404,
-                headers: { 'Access-Control-Allow-Origin': '*' },
-                body: JSON.stringify({ message: `Tip with ID ${tipData.id} not found.` }),
+                statusCode: 409,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+                body: JSON.stringify({ message: `Conflit de version. Le workflow a été modifié par un autre processus. Veuillez recharger et réessayer.` }),
             };
         }
-
-        // Gère les erreurs de parsing de multiparty
-        if (error.message && error.message.includes('Expected multipart/form-data')) {
-             console.error('❌ updateTip: Erreur: Le Content-Type n\'est pas multipart/form-data comme attendu par multiparty.', error);
-             return {
-                 statusCode: 400,
-                 headers: { 'Access-Control-Allow-Origin': '*' },
-                 body: JSON.stringify({ message: `Erreur de requête: Le format de données n'est pas supporté (attendu: multipart/form-data).` }),
-             };
-         }
-        
-        console.error('❌ updateTip: Erreur générale lors de la mise à jour du tip ou du parsing:', error);
         return {
-            statusCode: error.requestResult?.statusCode || 500, // Tente de récupérer le code d'état de l'erreur FaunaDB
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'PUT, POST, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type'
-            },
-            body: JSON.stringify({ message: `Erreur interne du serveur lors de la mise à jour du tip: ${error.message || 'Une erreur inconnue est survenue.'}` }),
+            statusCode: error.status || 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ message: `Erreur interne du serveur lors de la mise à jour: ${error.message || 'Une erreur inconnue est survenue.'}` }),
         };
+    } finally {
+        console.log("------------------- Fin de l'exécution de update-tip.js -------------------");
     }
 };
