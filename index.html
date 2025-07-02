@@ -417,6 +417,7 @@
         };
 
         const isImageUrl = (url) => url && (/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i).test(url);
+        const isVideoUrl = (url) => url && (/\.(mp4|webm|ogg)$/i).test(url); // Nouvelle fonction pour vérifier si c'est une vidéo
 
         const createCard = (item, type) => {
             const card = document.createElement("div");
@@ -432,25 +433,52 @@
             } else if (type === 'cas-usage') {
                 mainCardTitle = 'Dernier workflow partagé';
             } else {
-                mainCardTitle = 'Dernier ajout';
+                mainCardTitle = 'Dernier ajout'; // Cas générique, même si non utilisé ici
             }
 
             let mediaHtml = '';
+            let mediaAltText = `Vignette pour ${escapeHtml(item.titre)}`;
             const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl);
+            const cloudinaryCloudName = "dh8taukjd"; // <--- REMPLACEZ PAR VOTRE NOM DE CLOUD CLOUDINARY ICI AUSSI
 
             if (youtubeVideoId) {
                 mediaHtml = `
                     <div class="card-image-container">
                         <img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette vidéo YouTube pour ${escapeHtml(item.titre)}">
                     </div>`;
-            } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER' && isImageUrl(item.imageUrl)) { 
-                mediaHtml = `
-                    <div class="card-image-container">
-                        <img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre)}">
-                    </div>`;
+            } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
+                // Si imageUrl existe et n'est pas un placeholder pour absence d'image
+                if (isImageUrl(item.imageUrl)) {
+                    // C'est une image directe (JPG/PNG etc.)
+                    mediaHtml = `
+                        <div class="card-image-container">
+                            <img src="${escapeHtml(item.imageUrl)}" alt="${mediaAltText}">
+                        </div>`;
+                } else if (isVideoUrl(item.imageUrl) && item.imageUrl.includes(`res.cloudinary.com/${cloudinaryCloudName}/video/upload/`)) {
+                    // C'est une vidéo Cloudinary, tenter de générer une vignette
+                    const cloudinaryVideoPath = item.imageUrl.split(`video/upload/`)[1];
+                    if (cloudinaryVideoPath) {
+                        const thumbnailUrl = `https://res.cloudinary.com/${cloudinaryCloudName}/video/upload/c_fill,w_180,h_180,f_jpg/${cloudinaryVideoPath}`;
+                        mediaHtml = `
+                            <div class="card-image-container">
+                                <img src="${escapeHtml(thumbnailUrl)}" alt="Vignette vidéo Cloudinary pour ${escapeHtml(item.titre)}">
+                            </div>`;
+                    } else {
+                        // Fallback si l'URL Cloudinary est mal formée
+                        mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-video fa-3x" style="color:#ccc;"></i></div>`;
+                    }
+                } else if (isVideoUrl(item.imageUrl)) {
+                    // C'est une vidéo non-Cloudinary ou non-transformable en vignette
+                    mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-video fa-3x" style="color:#ccc;"></i></div>`;
+                } else {
+                    // Dernier recours si imageUrl n'est ni image, ni vidéo identifiable
+                    mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
+                }
             } else {
+                // Aucun imageUrl valide ou un placeholder 'NO_IMAGE_PLACEHOLDER'
                 mediaHtml = `<div class="card-image-container" style="display:flex; justify-content:center; align-items:center; height:180px; background-color:#f0f0f0; border-radius:8px;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
             }
+
 
             const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
 
@@ -535,7 +563,10 @@
 
                 const normalizeItem = (item) => {
                     const firstVideoUrl = (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url));
-                    
+                    // Utiliser le premier URL de fileUrls comme imageUrl s'il n'y a pas d'imageUrl spécifique
+                    // Ceci est important car fileUrls peut contenir des images OU des vidéos Cloudinary
+                    const primaryFileUrl = (Array.isArray(item.fileUrls) && item.fileUrls.length > 0) ? item.fileUrls[0] : null;
+
                     return {
                         ...item,
                         titre: item.titre || "Titre non spécifié",
@@ -544,7 +575,8 @@
                         chaine: item.chaine || "Non spécifié",
                         description: item.description || item.promptText || 'Pas de description.',
                         date: item.date_creation || item.dateCreation, 
-                        imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'),
+                        // imageUrl sera le premier de ces éléments qui est valide
+                        imageUrl: item.imageUrl || primaryFileUrl || 'NO_IMAGE_PLACEHOLDER', 
                         firstVideoUrl: firstVideoUrl
                     };
                 };
@@ -597,6 +629,7 @@
                         `<span class="news-item">${escapeHtml(item.title)}</span>`
                     ).join('');
                     
+                    // Dupliquer le contenu pour un défilement continu
                     newsTickerContent.innerHTML += newsTickerContent.innerHTML;
                 } else {
                     newsTickerContent.innerHTML = '<span>Aucune actualité pour le moment.</span>';
