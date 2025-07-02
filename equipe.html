@@ -288,7 +288,7 @@
             return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
         }
         
-        // AJOUT DE LA FONCTION MANQUANTE
+        // ** CORRECTIF 1 : Ajout de la fonction manquante **
         function escapeHtml(unsafe) {
             if (typeof unsafe !== 'string') return '';
             return unsafe
@@ -439,7 +439,25 @@
             
             profils = profilsData || [];
             galleryPrompts = promptsData || [];
-            sharedTips = tipsData || [];
+            
+            // ** CORRECTIF 2 : Normalisation des données pour les workflows/tips **
+            if (tipsData) {
+                sharedTips = tipsData.map(tip => ({
+                    ...tip,
+                    id: String(tip.id),
+                    dateCreation: tip.date_creation || tip.dateCreation || new Date().toISOString(),
+                    titre: tip.titre || "Titre non spécifié",
+                    auteur: tip.auteur || "Auteur inconnu",
+                    outil: tip.outil || "Non spécifié",
+                    promptText: tip.prompt || tip.promptText,
+                    description: tip.description,
+                    commentaireUrl: tip.commentaireUrl,
+                    urls: tip.urls || [],
+                    fileUrls: tip.fileUrls || []
+                }));
+            } else {
+                sharedTips = [];
+            }
 
             const poles = [...new Set(profils.map(p => p.pole).filter(Boolean))].sort();
             filterPole.innerHTML = '<option value="">Tous les pôles</option>' + poles.map(p => `<option value="${p}">${p}</option>`).join('');
