@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -316,12 +314,29 @@
             background-color: #E0F2F7; color: var(--dark-blue);
             padding: 15px; border-radius: 8px; margin-bottom: 15px; white-space: pre-wrap; word-break: break-word;
         }
+        /* Style pour les iframes YouTube */
         .video-responsive { position: relative; padding-bottom: 56.25%; height: 0; margin: 10px 0; border-radius: 8px; overflow: hidden; }
         .video-responsive iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
-        .preview-panel-image-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-        .preview-panel-image-container a { display: block; transition: transform 0.2s ease; }
-        .preview-panel-image-container a:hover { transform: scale(1.05); }
-        .preview-panel-image-container img { max-width: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; }
+        
+        /* Styles pour les images et vidéos ajoutées dynamiquement dans le panneau de prévisualisation */
+        .preview-panel-media-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            /* Si vous voulez que les vidéos s'alignent avec les images, enlevez le video-responsive wrapper du JS
+               et mettez un style pour .preview-panel-media-container video ici */
+        }
+        .preview-panel-media-container a { display: block; transition: transform 0.2s ease; }
+        .preview-panel-media-container a:hover { transform: scale(1.05); }
+        .preview-panel-media-container img { max-width: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; }
+        .preview-panel-media-container video {
+            max-width: 100%; /* S'assure que la vidéo ne déborde pas */
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
 
         /* Bouton "Copier" dans le panneau de prévisualisation (pour les workflows) */
         .preview-copy-btn {
@@ -468,17 +483,35 @@
                 const dateObj = new Date(tip.dateCreation);
                 const formattedDate = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
                 const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(url => getYouTubeVideoId(url));
-                const firstImage = tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0]);
                 
-                const workflowShaToPass = allTipsFileSha || ''; 
+                // Déterminer la première image/vidéo pour la vignette de la carte
+                let cardThumbnailSrc = '';
+                let isVideoThumbnail = false;
 
-                let previewImageHtml = '';
                 if (hasYoutubeVideo) {
                     const videoId = getYouTubeVideoId(tip.urls.find(getYouTubeVideoId));
-                    previewImageHtml = `<img src="https://i.ytimg.com/vi/${videoId}/hqdefault.jpg" class="card-thumbnail-preview" alt="Vidéo YouTube">`;
-                } else if (firstImage) {
-                    previewImageHtml = `<img src="${escapeHtml(firstImage)}" class="card-thumbnail-preview" alt="Aperçu" loading="lazy">`;
+                    cardThumbnailSrc = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+                    isVideoThumbnail = true;
+                } else if (Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) {
+                    const firstFileUrl = tip.fileUrls[0];
+                    const fileExtension = firstFileUrl.split('.').pop().toLowerCase();
+                    if (['mp4', 'webm', 'ogg'].includes(fileExtension)) {
+                        // Pour les vidéos non YouTube, utiliser une icône ou une image par défaut si pas de vignette spécifique
+                        cardThumbnailSrc = 'https://via.placeholder.com/180x180?text=Vid%C3%A9o'; // Placeholder pour les vidéos directes
+                        isVideoThumbnail = true;
+                    } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
+                        cardThumbnailSrc = firstFileUrl;
+                    }
+                } else if (tip.imageUrl) {
+                    cardThumbnailSrc = tip.imageUrl;
                 }
+                
+                let previewImageHtml = '';
+                if (cardThumbnailSrc) {
+                    previewImageHtml = `<img src="${escapeHtml(cardThumbnailSrc)}" class="card-thumbnail-preview" alt="${isVideoThumbnail ? 'Vidéo' : 'Aperçu'}" loading="lazy">`;
+                }
+
+                const workflowShaToPass = allTipsFileSha || ''; 
                 
                 const card = document.createElement('div');
                 card.className = 'carte';
@@ -487,8 +520,8 @@
                     <div class="card-content">
                         <h3 class="tip-title">${escapeHtml(tip.titre)}</h3>
                         <div class="card-preview-icons-inline">
-                            ${firstImage ? '<i class="fas fa-image"></i>' : ''}
-                            ${hasYoutubeVideo ? '<i class="fab fa-youtube" style="color:red;"></i>' : ''}
+                            ${(Array.isArray(tip.fileUrls) && tip.fileUrls.some(url => ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(url.split('.').pop().toLowerCase()))) || tip.imageUrl ? '<i class="fas fa-image"></i>' : ''}
+                            ${(Array.isArray(tip.fileUrls) && tip.fileUrls.some(url => ['mp4', 'webm', 'ogg'].includes(url.split('.').pop().toLowerCase()))) || hasYoutubeVideo ? '<i class="fas fa-video" style="color:red;"></i>' : ''}
                         </div>
                         <span class="outil-badge">${escapeHtml(tip.outil)}</span>
                         <div class="metadata-section">
@@ -557,7 +590,8 @@
             if (searchText) {
                 filtered = filtered.filter(tip =>
                     (tip.titre && tip.titre.toLowerCase().includes(searchText)) ||
-                    (tip.promptText && tip.promptText.toLowerCase().includes(searchText))
+                    (tip.promptText && tip.promptText.toLowerCase().includes(searchText)) ||
+                    (tip.description && tip.description.toLowerCase().includes(searchText)) // Ajout de la description pour la recherche
                 );
             }
             
@@ -608,7 +642,7 @@
             if (tip.description) contentHtml += `<h4>Description</h4><p>${escapeHtml(tip.description)}</p>`;
             if (tip.commentaireUrl) contentHtml += `<h4>Commentaire / Workflow</h4><div class="content-card-blue">${escapeHtml(tip.commentaireUrl)}</div>`;
             
-            if (tip.promptText && !hasYoutubeVideo) {
+            if (tip.promptText && !hasYoutubeVideo) { // Afficher le prompt uniquement s'il n'y a pas de vidéo YouTube (pour éviter la redondance si le prompt est dans la vidéo)
                 contentHtml += `<h4>Prompt</h4><pre id="previewWorkflowPromptText">${escapeHtml(tip.promptText)}</pre>`;
                 contentHtml += `<button class="preview-copy-btn" data-copy="${escapeHtml(tip.promptText)}">Copier le Prompt</button>`;
             }
@@ -625,13 +659,32 @@
                         linksHtml += `<p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></p>`;
                     }
                 });
-                if (videosHtml) contentHtml += `<h4>Vidéo(s)</h4>${videosHtml}`;
-                if (linksHtml) contentHtml += `<h4>Lien(s)</h4>${linksHtml}`;
+                if (videosHtml) contentHtml += `<h4>Vidéo(s) YouTube</h4>${videosHtml}`;
+                if (linksHtml) contentHtml += `<h4>Lien(s) externe(s)</h4>${linksHtml}`;
             }
 
-            const imageUrls = (Array.isArray(tip.fileUrls) ? tip.fileUrls : []).filter(Boolean);
-            if (imageUrls.length > 0) {
-                contentHtml += `<h4>Images additionnelles</h4><div class="preview-panel-image-container">${imageUrls.map(url => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(url)}" alt="Image du workflow"></a>`).join('')}</div>`;
+            // Gérer les médias additionnels (images et vidéos Cloudinary)
+            const mediaFiles = (Array.isArray(tip.fileUrls) ? tip.fileUrls : []).filter(Boolean);
+            if (mediaFiles.length > 0) {
+                let mediaHtml = '';
+                mediaFiles.forEach(url => {
+                    const fileExtension = url.split('.').pop().toLowerCase();
+                    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
+                        mediaHtml += `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(url)}" alt="Image du workflow"></a>`;
+                    } else if (['mp4', 'webm', 'ogg'].includes(fileExtension)) {
+                        mediaHtml += `
+                            <div style="margin-bottom: 10px;">
+                                <video controls preload="metadata" class="preview-panel-media-container-video">
+                                    <source src="${escapeHtml(url)}" type="video/${fileExtension}">
+                                    Votre navigateur ne supporte pas la balise vidéo.
+                                </video>
+                            </div>
+                        `;
+                    }
+                });
+                if (mediaHtml) {
+                    contentHtml += `<h4>Médias additionnels</h4><div class="preview-panel-media-container">${mediaHtml}</div>`;
+                }
             }
             
             previewPanelContent.innerHTML = contentHtml;
@@ -649,8 +702,11 @@
         function closePreviewPanel() {
             previewPanel.classList.remove('open');
             previewOverlay.classList.remove('open');
+            // Réinitialiser les sources des iframes et vidéos pour arrêter la lecture
             const iframes = previewPanelContent.querySelectorAll('iframe');
             iframes.forEach(iframe => { iframe.src = iframe.src; });
+            const videos = previewPanelContent.querySelectorAll('video');
+            videos.forEach(video => { video.pause(); video.currentTime = 0; });
         }
         
         async function copyToClipboard(text, buttonElement) {
@@ -723,7 +779,7 @@
                     commentaireUrl: tip.commentaireUrl,
                     urls: tip.urls || [], 
                     fileUrls: tip.fileUrls || [], 
-                    imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0] ? tip.fileUrls[0] : ''),
+                    // imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0] ? tip.fileUrls[0] : ''), // Supprimé, géré par displayTips
                 }));
                 console.log("Tous les tips normalisés pour l'affichage:", allTips);
 
