@@ -1,17 +1,19 @@
 // netlify/functions/uploadMedia.js
 
-// Changez la ligne d'importation de Cloudinary pour utiliser 'require'
+// Utilisez 'require' pour Cloudinary, puisque cela fonctionnait avant
 const cloudinary = require('cloudinary').v2; 
-// REMOVED: import { v2 as cloudinary } from 'cloudinary'; // Supprimez cette ligne si elle était présente
 
-// Pas besoin de 'Buffer' si le body est déjà base64, mais le garder ne fait pas de mal si d'autres fonctions l'utilisent.
-// const { Buffer } = require('buffer'); 
-
-// ... (le reste de votre code de fonction est déjà correct)
+// Configuration Cloudinary (assumant que les variables d'environnement sont correctement définies sur Netlify)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true // Utilise HTTPS
+});
 
 exports.handler = async (event, context) => {
-    // Log dès le début pour vérifier l'invocation (IMPORTANT pour le diagnostic)
-    console.log("--- uploadMedia function: Début d'invocation ---");
+    // Log dès le début pour vérifier l'invocation
+    console.log("--- uploadMedia function: Début d'invocation (version corrigée vignette) ---");
     console.log("Méthode HTTP:", event.httpMethod);
     console.log("Corps de la requête (longueur):", event.body ? event.body.length : 0);
 
@@ -54,18 +56,17 @@ exports.handler = async (event, context) => {
         const resourceType = isVideo ? 'video' : 'image';
 
         // Log les infos avant l'appel Cloudinary
-        console.log(`📡 uploadMedia: Tentative d'upload de ${fileName} (${resourceType}) vers Cloudinary...`);
+        console.log(`📡 uploadMedia: Tentative d'upload de ${fileName} (type: ${resourceType}) vers Cloudinary...`);
         
         // Upload du fichier vers Cloudinary
         const uploadResult = await cloudinary.uploader.upload(
-            `data:${file.type};base64,${fileContent}`, // Assurez-vous que le MIME type est correct (sera déduit par Cloudinary)
+            `data:application/octet-stream;base64,${fileContent}`, // Utilise application/octet-stream pour laisser Cloudinary déduire le type
             {
-                folder: 'imarketing_media', // Votre dossier Cloudinary
-                public_id: `${Date.now()}_${fileName.split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '')}`,
-                resource_type: resourceType,
-                // quality et format auto pour l'optimisation par Cloudinary
+                folder: 'imarketing_media', // Votre dossier dans Cloudinary
+                public_id: `${Date.now()}_${fileName.split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '')}`, // ID public unique (sans extension initiale)
+                resource_type: resourceType, // 'image' ou 'video'
                 quality: 'auto',        
-                fetch_format: 'auto'
+                fetch_format: 'auto' 
             }
         );
 
@@ -73,18 +74,24 @@ exports.handler = async (event, context) => {
 
         let thumbnailUrl = null;
         if (isVideo) {
-            // Construire l'URL de la miniature de la vidéo
-            const publicIdWithoutExtension = uploadResult.public_id; 
-            thumbnailUrl = cloudinary.url(publicIdWithoutExtension, {
-                resource_type: 'image', 
-                format: 'jpg',          
-                quality: 'auto',        
-                fetch_format: 'auto'    
-            });
-            console.log('✅ Video Thumbnail URL:', thumbnailUrl);
+            try { // Bloc try-catch spécifique pour la génération de la miniature
+                // uploadResult.public_id contient le public ID (ex: "imarketing_media/1751483542865-social_spiresm_httpss")
+                // Cloudinary construit l'URL de la vignette en utilisant ce public_id
+                thumbnailUrl = cloudinary.url(uploadResult.public_id, {
+                    resource_type: 'image', // Demander une ressource de type image
+                    format: 'jpg',          // Format de la vignette
+                    quality: 'auto',        // Qualité automatique
+                    // width: 400, height: 225, crop: "fill" // Exemple de transformations pour la vignette
+                });
+                console.log('✅ Video Thumbnail URL générée:', thumbnailUrl);
+            } catch (thumbError) {
+                // Log l'erreur de génération de miniature mais ne bloque pas l'upload principal
+                console.error('❌ Erreur lors de la génération de l\'URL de la miniature:', thumbError);
+                thumbnailUrl = null; // Assure que thumbnailUrl est null en cas d'échec
+            }
         }
 
-        // Retourne l'URL du média principal et l'URL de la miniature (si vidéo)
+        // Retourne l'URL du média principal et l'URL de la miniature (si vidéo, sinon null)
         return {
             statusCode: 200,
             headers: {
@@ -94,13 +101,15 @@ exports.handler = async (event, context) => {
                 "Access-Control-Allow-Headers": "Content-Type",
             },
             body: JSON.stringify({
-                url: uploadResult.secure_url,
-                thumbnailUrl: thumbnailUrl
+                url: uploadResult.secure_url, // L'URL de la vidéo/image uploadée
+                thumbnailUrl: thumbnailUrl    // L'URL de la miniature (null pour les images)
             }),
         };
 
     } catch (error) {
-        console.error('❌ Cloudinary Upload Error (Détails):', error); // Plus de détails dans le log
+        // Log l'erreur générale plus en détail
+        console.error('❌ uploadMedia: Erreur lors de l\'upload vers Cloudinary (catch principal):', error);
+        
         let errorMessage = 'Une erreur inconnue est survenue lors de l\'upload.';
         if (error.message) {
             errorMessage = error.message;
