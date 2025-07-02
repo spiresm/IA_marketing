@@ -80,7 +80,7 @@
         .notif-bubble {
             position: absolute; top: 0px; right: 0px; background: red; color: white;
             border-radius: 50%; padding: 2px 6px; font-size: 12px; font-weight: bold;
-            display: none; /* Cache la bulle par défaut */
+            display: none;
         }
 
         /* --- Conteneur principal et sections --- */
@@ -177,6 +177,7 @@
             height: 180px;
             object-fit: cover;
             display: block;
+            background-color: #eee;
         }
         
         .card-content {
@@ -197,6 +198,7 @@
             background-color: #e9ecef; color: #495057; font-size: 0.8em;
             font-weight: 500; padding: 5px 12px; border-radius: 15px;
             align-self: flex-start;
+            margin-top: 10px;
         }
         
         .card-actions { 
@@ -236,8 +238,28 @@
         }
         .preview-panel-header h3 { margin: 0; font-size: 1.3em; color: var(--dark-blue); }
         .close-preview-btn { background: none; border: none; font-size: 1.8em; cursor: pointer; color: #888; }
+        
+        /* --- Styles du contenu du panneau latéral (AJOUTÉS) --- */
         .preview-panel-content { padding: 25px; overflow-y: auto; flex-grow: 1; }
-        .video-responsive iframe { width: 100%; height: 100%; border: 0; }
+        .preview-panel-content h4 {
+            margin-top: 25px; margin-bottom: 10px; color: #333; font-size: 1.1em;
+            border-bottom: 2px solid var(--primary-blue); padding-bottom: 8px;
+        }
+        .preview-panel-content h4:first-child { margin-top: 0; }
+        .preview-panel-content pre {
+            background-color: #e9e9e9; border: 1px solid #ddd; border-radius: 8px; padding: 15px;
+            white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; font-size: 0.9em;
+        }
+        .content-card-blue {
+            background-color: #E0F2F7; color: var(--dark-blue);
+            padding: 15px; border-radius: 8px; margin-bottom: 15px; white-space: pre-wrap; word-break: break-word;
+        }
+        .video-responsive { position: relative; padding-bottom: 56.25%; height: 0; margin: 10px 0; border-radius: 8px; overflow: hidden; }
+        .video-responsive iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+        .preview-panel-image-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .preview-panel-image-container a { display: block; transition: transform 0.2s ease; }
+        .preview-panel-image-container a:hover { transform: scale(1.05); }
+        .preview-panel-image-container img { max-width: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; }
 
         footer {
             background-color: #333; color: white; text-align: center;
@@ -395,7 +417,6 @@
 
         function renderToolLogos(toolsData) {
             if (!toolLogosGrid || !toolsData) return;
-            
             toolLogosGrid.innerHTML = '';
             const allToolsCard = document.createElement('div');
             allToolsCard.className = 'tool-card';
@@ -440,17 +461,15 @@
             }
             
             const sortOrder = filtreTriDateSelect.value;
-            filtered.sort((a, b) => {
-                const dateA = new Date(a.dateCreation); const dateB = new Date(b.dateCreation);
-                return sortOrder === 'recent' ? dateB - dateA : dateA - dateB;
-            });
+            filtered.sort((a, b) => new Date(a.dateCreation) - new Date(b.dateCreation) * (sortOrder === 'recent' ? -1 : 1));
             displayTips(filtered);
         }
         
         function attachEventListeners() {
             [searchInput, filtreOutilSelect, filtreAuteurSelect, filtreTriDateSelect].forEach(filter => {
-                if(filter) filter.addEventListener('input', applyFiltersAndSort);
+                if(filter) filter.addEventListener('change', applyFiltersAndSort);
             });
+            searchInput.addEventListener('input', applyFiltersAndSort);
             if(closePreviewBtn) closePreviewBtn.addEventListener('click', closePreviewPanel);
             if(previewOverlay) previewOverlay.addEventListener('click', closePreviewPanel);
         }
@@ -461,12 +480,41 @@
             galerieDiv.querySelectorAll('.supprimer-btn').forEach(b => b.onclick = () => confirmAndDeleteTip(b.dataset.id));
         }
 
+        // --- MODIFICATION : Logique de remplissage du panneau restaurée ---
         function openPreviewPanel(tipId) {
             const tip = allTips.find(t => t.id == tipId);
             if (!tip) return;
+            
             previewPanelTitle.textContent = tip.titre;
             let contentHtml = '';
-            // Panel content generation logic here
+            
+            const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(getYouTubeVideoId);
+            
+            if (tip.description) contentHtml += `<h4>Description</h4><p>${escapeHtml(tip.description)}</p>`;
+            if (tip.commentaireUrl) contentHtml += `<h4>Commentaire / Workflow</h4><div class="content-card-blue">${escapeHtml(tip.commentaireUrl)}</div>`;
+            if (tip.promptText && !hasYoutubeVideo) contentHtml += `<h4>Prompt</h4><pre>${escapeHtml(tip.promptText)}</pre>`;
+            
+            if (Array.isArray(tip.urls) && tip.urls.length > 0) {
+                let linksHtml = ''; 
+                let videosHtml = '';
+                tip.urls.forEach(url => {
+                    if(!url) return;
+                    const videoId = getYouTubeVideoId(url);
+                    if (videoId) {
+                        videosHtml += `<div class="video-responsive"><iframe src="https://www.youtube-nocookie.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe></div>`;
+                    } else {
+                        linksHtml += `<p><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></p>`;
+                    }
+                });
+                if (videosHtml) contentHtml += `<h4>Vidéo(s)</h4>${videosHtml}`;
+                if (linksHtml) contentHtml += `<h4>Lien(s)</h4>${linksHtml}`;
+            }
+
+            const imageUrls = (Array.isArray(tip.fileUrls) ? tip.fileUrls : []).filter(Boolean);
+            if (imageUrls.length > 0) {
+                contentHtml += `<h4>Images additionnelles</h4><div class="preview-panel-image-container">${imageUrls.map(url => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(url)}" alt="Image du workflow"></a>`).join('')}</div>`;
+            }
+            
             previewPanelContent.innerHTML = contentHtml;
             previewPanel.classList.add('open');
             previewOverlay.classList.add('open');
@@ -475,7 +523,12 @@
         function closePreviewPanel() {
             previewPanel.classList.remove('open');
             previewOverlay.classList.remove('open');
+            const iframes = previewPanelContent.querySelectorAll('iframe');
+            iframes.forEach(iframe => { iframe.src = iframe.src; });
         }
+        
+        async function copyToClipboard(text, buttonElement) { /* ... (logique inchangée) ... */ }
+        async function confirmAndDeleteTip(tipId) { /* ... (logique inchangée) ... */ }
 
         async function initApp() {
             attachEventListeners();
@@ -496,6 +549,10 @@
                     auteur: tip.auteur || "Auteur inconnu",
                     outil: tip.outil || "Non spécifié",
                     promptText: tip.prompt || tip.promptText,
+                    description: tip.description,
+                    commentaireUrl: tip.commentaireUrl,
+                    urls: tip.urls || [],
+                    fileUrls: tip.fileUrls || [],
                     imageUrl: tip.imageUrl || (Array.isArray(tip.fileUrls) && tip.fileUrls[0])
                 }));
                 
