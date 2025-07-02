@@ -512,19 +512,20 @@
                         // Tenter de générer une URL de vignette Cloudinary
                         const cloudinaryVideoPath = firstFileUrl.split(`video/upload/`)[1];
                         if (cloudinaryVideoPath) {
-                            // MODIFICATION ICI: Utilisation de ar_16:9 et c_fill pour un ratio vidéo standard
+                            // Utilisation de ar_16:9 et w_280 pour un ratio vidéo standard et une largeur cohérente
+                            // c_fill est conservé car le CSS gère le padding-bottom pour le ratio 16:9
                             cardThumbnailSrc = `https://res.cloudinary.com/${cloudinaryCloudName}/video/upload/c_fill,ar_16:9,w_280,f_jpg/${cloudinaryVideoPath}`;
                             isVideoThumbnail = true;
                         } else {
                             // Fallback si l'URL Cloudinary est mal formée
-                            cardThumbnailSrc = 'https://via.placeholder.com/180x180?text=Vid%C3%A9o'; 
+                            cardThumbnailSrc = 'https://via.placeholder.com/280x157?text=Vid%C3%A9o'; // Taille adaptée au ratio 16:9
                             isVideoThumbnail = true;
                         }
                     } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
                         cardThumbnailSrc = firstFileUrl;
                     } else if (['mp4', 'webm', 'ogg'].includes(fileExtension)) {
                         // Si c'est une vidéo mais pas Cloudinary ou ne peut pas être transformée, utiliser le placeholder générique
-                        cardThumbnailSrc = 'https://via.placeholder.com/180x180?text=Vid%C3%A9o'; 
+                        cardThumbnailSrc = 'https://via.placeholder.com/280x157?text=Vid%C3%A9o'; // Taille adaptée au ratio 16:9
                         isVideoThumbnail = true;
                     }
                 } else if (tip.imageUrl) {
@@ -535,8 +536,13 @@
                 let previewImageHtml = '';
                 if (cardThumbnailSrc) {
                     // Le CSS .card-thumbnail-preview gère maintenant le ratio pour l'image
-                    previewImageHtml = `<img src="${escapeHtml(cardThumbnailSrc)}" class="card-thumbnail-preview" alt="${isVideoThumbnail ? 'Vidéo' : 'Aperçu'}" loading="lazy">`;
+                    // La balise img sera insérée DANS le conteneur .card-thumbnail-preview
+                    previewImageHtml = `<div class="card-thumbnail-preview"><img src="${escapeHtml(cardThumbnailSrc)}" alt="${isVideoThumbnail ? 'Vidéo' : 'Aperçu'}" loading="lazy"></div>`;
+                } else {
+                    // Si aucune source de vignette n'est trouvée (très rare avec les logiques actuelles)
+                    previewImageHtml = `<div class="card-thumbnail-preview" style="display:flex; justify-content:center; align-items:center;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
                 }
+
 
                 const workflowShaToPass = allTipsFileSha || ''; 
                 
