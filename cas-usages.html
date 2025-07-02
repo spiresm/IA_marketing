@@ -415,7 +415,6 @@
                 <a href="galerie.html">Prompts</a>
                 <a href="cas-usages.html" class="active">Workflows</a>
                 <a href="charte.html">Chartes</a>
-                <a href="faq.html">FAQ</a>
                 <a href="demandes_ia.html">Demandes<span class="notif-bubble" id="notif-count"></span></a>
                 <a href="gestion-license.html">Licenses</a>
             </nav>
@@ -472,9 +471,60 @@
     
     <script src="tools-data.js"></script> 
     <script>
+        // Définitions des URL pour les fonctions Netlify
         const apiBase = window.location.origin + '/.netlify/functions/';
-        let allTips = []; // Contient tous les workflows récupérés
-        let allTipsFileSha = null; // Nouveau : Pour stocker le SHA du fichier all-tips.json
+        const GET_TIPS_URL = `${apiBase}get-tips`; // Utilise apiBase
+        const PUSH_TIP_URL = `${apiBase}pushTip`; // Utilise apiBase
+        const UPDATE_TIP_URL = `${apiBase}update-tip`; // Utilise apiBase
+        const GET_PROFILS_URL = `${apiBase}getProfils`; // Utilise apiBase
+        const UPLOAD_IMAGE_URL = `${apiBase}uploadImage`; // Utilise apiBase
+
+        let allTips = []; 
+        let allTipsFileSha = null; 
+
+        // --- Fonctions utilitaires déplacées en haut pour l'accessibilité ---
+        const chainColors = {
+            "Auvio Kids": "hotpink",
+            "Auvio": "gold",
+            "La Une": "red",
+            "Tipik": "limegreen",
+            "La Première": "blue",
+            "Vivacité": "orange",
+            "La Trois": "purple",
+            "Classic 21": "#8A2BE2", 
+            "Musiq3": "#FF1493", 
+            "Autre": "#778899",
+            "Non spécifié": "#CCCCCC"
+        };
+
+        function getChainColor(chaineNom) {
+            return chainColors[chaineNom] || chainColors["Non spécifié"];
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        const getYouTubeVideoId = (url) => url ? (url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) || [])[1] || null : null;
+        
+        function formatteDate(dateString) {
+            if (!dateString) return 'Date inconnue';
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) {
+                    return 'Date invalide';
+                }
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                return date.toLocaleDateString('fr-FR', options);
+            } catch (e) {
+                console.error("Erreur de formatage de la date:", e);
+                return 'Date invalide';
+            }
+        }
+        // --- FIN des fonctions utilitaires déplacées ---
+
 
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
@@ -491,14 +541,6 @@
         const toolLogosGrid = document.getElementById('tool-logos-grid');
         const scrollLeftBtn = document.getElementById('scrollLeftBtn');
         const scrollRightBtn = document.getElementById('scrollRightBtn');
-        
-        function escapeHtml(text) {
-            if (text === null || text === undefined) return '';
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return String(text).replace(/[&<>"']/g, m => map[m]);
-        }
-        
-        const getYouTubeVideoId = (url) => url ? (url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) || [])[1] || null : null;
         
         function displayTips(tipsToDisplay) {
             galerieDiv.innerHTML = '';
@@ -527,7 +569,7 @@
                 card.innerHTML = `
                     <div class="card-content">
                         <div class="card-header-top">
-                            <span class="chaine-text-color" style="color: ${getChainColor(tip.chaine)};">${escapeHtml(tip.chaine)}</span>
+                            <span class="left-chaine chaine-text-color" style="color: ${getChainColor(tip.chaine)};">${escapeHtml(tip.chaine)}</span>
                             </div>
                         <h3 class="tip-title">${escapeHtml(tip.titre)}</h3>
                         <div class="card-preview-icons-inline">
@@ -728,6 +770,27 @@
 
 
         async function initApp() {
+            // Fonction pour charger des composants HTML (Header et Footer)
+            async function loadComponent(url, placeholderId) {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        const errorDetail = await res.text();
+                        throw new Error(`HTTP error! status: ${res.status} - ${res.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                    }
+                    document.getElementById(placeholderId).innerHTML = await res.text();
+                } catch (error) {
+                    console.error(`Erreur lors du chargement de ${url}:`, error);
+                    document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}. (${error.message})</p>`;
+                }
+            }
+            
+            // Chargement du header et du footer
+            await loadComponent("header.html", "header-placeholder");
+            // Si vous avez un footer.html et un placeholder pour lui, décommentez:
+            // await loadComponent("footer.html", "footer-placeholder");
+
+
             attachEventListeners();
             if (typeof toolsData !== 'undefined') renderToolLogos(toolsData);
             setupScrollButtons();
