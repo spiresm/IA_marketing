@@ -1,112 +1,80 @@
-const fetch = require('node-fetch');
-const { XMLParser } = require('fast-xml-parser');
+// netlify/functions/fetch-news.js
 
-const RSS_FEEDS = [
-    { name: "Blog du Modérateur", url: "https://www.blogdumoderateur.com/feed/" },
-    { name: "JDN Intelligence Artificielle", url: "https://www.journaldunet.com/web-tech/intelligence-artificielle/rss/" },
-    { name: "e-marketing.fr", url: "https://www.e-marketing.fr/rss.xml" },
-    { name: "Les Echos Tech & Médias", url: "https://www.lesechos.fr/tech-medias/rss.xml" },
-    { name: "IA France (The AI Observer)", url: "https://ia.media.lemde.fr/rss/full.xml" } // Nouveau flux IA
-];
+// Importation de node-fetch pour faire des requêtes HTTP côté serveur
+// Assurez-vous que 'node-fetch' est bien listé dans les dépendances de votre package.json
+// et que vous avez exécuté 'npm install node-fetch' à la racine de votre projet.
+const fetch = require('node-fetch'); 
 
-const parser = new XMLParser({
-    ignoreAttributes: true,
-    htmlEntities: true // Active le décodage des entités HTML
-});
+// La fonction principale qui sera exécutée par Netlify Functions
+// `event` contient les informations de la requête HTTP entrante (ex: paramètres d'URL)
+// `context` contient les informations sur l'environnement d'exécution (pas utilisé ici mais toujours présent)
+exports.handler = async function(event, context) {
+    // Récupérer les paramètres de l'URL passés par votre page web
+    // Par exemple, si l'URL est /fetch-news?api_key=XXX&keywords=YYY
+    const { api_key, keywords, sources, categories, languages, sort, limit } = event.queryStringParameters;
 
-exports.handler = async (event, context) => {
-    console.log("📡 Lancement de fetchNews avec plusieurs flux (IA + Marketing)...");
+    // --- Vérification de la clé API ---
+    // C'est une mesure de sécurité et de robustesse.
+    // Si la clé API est manquante ou si c'est encore la valeur par défaut 'VOTRE_CLE_API_MEDIASTACK',
+    // on renvoie une erreur pour éviter de gaspiller des requêtes à l'API MediasStack.
+    if (!api_key || api_key === 'ed1b80c9d919f4e38074e1a219abd0c3') {
+        console.error("Erreur: Clé API MediasStack manquante ou non configurée dans la fonction Netlify.");
+        return {
+            statusCode: 400, // Code 400 signifie "Bad Request" (requête invalide)
+            body: JSON.stringify({ 
+                error: "Missing or invalid MediasStack API key. Please configure it in the Netlify Function.",
+                details: "La clé API MediasStack n'a pas été fournie ou est la valeur par défaut."
+            })
+        };
+    }
+
+    // --- Construction de l'URL de l'API MediasStack ---
+    // Utilisation de encodeURIComponent pour s'assurer que les mots-clés et sources sont bien encodés pour l'URL
+    const mediasStackUrl = `http://api.mediastack.com/v1/news?access_key=${api_key}&keywords=${encodeURIComponent(keywords || '')}&sources=${encodeURIComponent(sources || '')}&categories=${encodeURIComponent(categories || '')}&languages=${languages || 'en'}&sort=${sort || 'published_desc'}&limit=${limit || 6}`;
 
     try {
-        let allArticles = [];
+        // --- Exécution de la requête HTTP vers l'API MediasStack ---
+        const response = await fetch(mediasStackUrl);
+        const data = await response.json(); // Tente de parser la réponse comme du JSON
 
-        for (const feed of RSS_FEEDS) {
-            try {
-                const response = await fetch(feed.url);
-
-                if (response.status === 429) {
-                    console.warn(`⏳ ${feed.name} a retourné un 429 Too Many Requests. Passage au flux suivant.`);
-                    continue;
-                }
-
-                if (!response.ok) {
-                    console.error(`❌ ${feed.name} (${feed.url}) a échoué : ${response.status} ${response.statusText}`);
-                    continue;
-                }
-
-                const xml = await response.text();
-                const result = parser.parse(xml);
-
-                let items = [];
-                // Logique pour gérer les formats RSS (rss.channel.item) et Atom (feed.entry)
-                if (result.rss?.channel?.item) {
-                    items = Array.isArray(result.rss.channel.item)
-                        ? result.rss.channel.item
-                        : [result.rss.channel.item];
-                } else if (result.feed?.entry) {
-                    items = Array.isArray(result.feed.entry)
-                        ? result.feed.entry
-                        : [result.feed.entry];
-                }
-
-                const articles = items.map(item => ({
-                    title: item.title || 'Titre inconnu',
-                    url: item.link?.href || item.link || '#', // Gère les liens dans Atom (href) et RSS (directement link)
-                    pubDate: item.pubDate || item.updated || new Date().toISOString(),
-                    source: feed.name
-                }));
-
-                console.log(`✅ ${feed.name} → ${articles.length} articles récupérés`);
-                allArticles = allArticles.concat(articles);
-
-            } catch (err) {
-                console.error(`❌ Erreur sur ${feed.name} (${feed.url}) :`, err.message);
-            }
-        }
-
-        if (allArticles.length === 0) {
-            console.warn("⚠️ Aucun article récupéré. Envoi d’un message par défaut.");
+        // --- Gestion des réponses de l'API MediasStack ---
+        // MediasStack peut renvoyer un statut HTTP 200 (OK) même si une erreur est présente dans le corps JSON (par exemple, limites atteintes)
+        // Il est donc important de vérifier la propriété 'error' dans les données JSON.
+        if (!response.ok || data.error) {
+            console.error("Erreur de l'API MediasStack:", data.error || `Statut HTTP: ${response.status}`);
             return {
-                statusCode: 200,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                body: JSON.stringify([{
-                    title: "Aucune actualité disponible pour le moment",
-                    url: "#",
-                    pubDate: new Date().toISOString(),
-                    source: "System"
-                }])
+                statusCode: response.status !== 200 ? response.status : 400, // Garde le statut HTTP de MediasStack ou 400 si l'erreur est dans le JSON
+                body: JSON.stringify({ 
+                    error: data.error ? (data.error.message || data.error) : `MediasStack API returned an error with status ${response.status}`,
+                    details: data.error ? data.error.code : 'No specific error code from MediasStack'
+                })
             };
         }
 
-        allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-        const topArticles = allArticles.slice(0, 15);
-        console.log(`📰 Total articles final : ${topArticles.length}`);
-
+        // --- Succès : Renvoi des données à la page web ---
         return {
-            statusCode: 200,
+            statusCode: 200, // Code 200 signifie "OK"
             headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=3600, must-revalidate" // Cache d'1 heure
+                "Content-Type": "application/json", // Indique que la réponse est au format JSON
+                // Les en-têtes CORS sont CRUCIAUX pour permettre à votre frontend d'accéder à cette fonction.
+                // Pour le développement, "*" est souvent utilisé.
+                // En production, il est plus sûr de le remplacer par votre domaine spécifique, ex: "https://iamarketing.netlify.app"
+                "Access-Control-Allow-Origin": "*", 
+                "Access-Control-Allow-Methods": "GET", // Permet la méthode GET
+                "Access-Control-Allow-Headers": "Content-Type", // Permet l'en-tête Content-Type
             },
-            body: JSON.stringify(topArticles),
+            body: JSON.stringify(data) // Convertit les données JSON en chaîne de caractères pour le corps de la réponse
         };
 
     } catch (error) {
-        console.error("❌ Erreur générale dans fetchNews:", error.message);
+        // --- Gestion des erreurs inattendues (ex: problème réseau, JSON invalide) ---
+        console.error("Erreur inattendue lors de l'appel de MediasStack via la fonction Netlify:", error);
         return {
-            statusCode: 500,
-            headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            body: JSON.stringify({
-                error: "Erreur serveur",
-                message: error.message
-            }),
+            statusCode: 500, // Code 500 signifie "Internal Server Error" (erreur interne du serveur)
+            body: JSON.stringify({ 
+                error: "Failed to fetch news data through Netlify Function.", 
+                details: error.message 
+            })
         };
     }
 };
