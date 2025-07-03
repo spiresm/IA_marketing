@@ -1,5 +1,3 @@
-// netlify/functions/uploadMedia.js
-
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier'); // Ajouté pour uploader à partir d'un buffer/stream
 
@@ -21,7 +19,7 @@ exports.handler = async (event, context) => {
         return {
             statusCode: 204, // No Content
             headers: {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': '*', // À adapter en production avec votre domaine spécifique
                 'Access-Control-Allow-Methods': 'POST, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type',
                 'Access-Control-Max-Age': '86400',
@@ -50,7 +48,7 @@ exports.handler = async (event, context) => {
         };
     }
 
-    const { fileContent, fileName, fileType } = payload; // Ajout de fileType envoyé par le frontend
+    const { fileContent, fileName, fileType } = payload;
 
     if (!fileContent || !fileName || !fileType) {
         console.error('❌ uploadMedia: Missing fileContent, fileName, or fileType.');
@@ -62,26 +60,40 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // Détecter le type de ressource pour Cloudinary
-        const resourceType = fileType.startsWith('video/') ? 'video' : 'image';
-        
-        // Nettoyer le nom de fichier pour un public_id propre
-        const baseFileName = fileName.split('.')[0];
-        const cleanedPublicId = `${Date.now()}_${baseFileName.replace(/[^a-zA-Z0-9_-]/g, '_')}`; // Remplace les caractères non alphanumériques par '_'
+        // --- DÉBUT DES MODIFICATIONS CLÉS POUR GÉRER LES FICHIERS JSON/DOCUMENTS ---
+        let resourceType = 'auto'; // Laisser Cloudinary détecter si possible, mais spécifier pour 'raw'
+        let resourceFormat = fileName.split('.').pop(); // Récupérer l'extension originale
+
+        if (fileType.startsWith('image/')) {
+            resourceType = 'image';
+        } else if (fileType.startsWith('video/')) {
+            resourceType = 'video';
+        } else {
+            // Pour tous les autres types (PDF, JSON, TXT, DOC, XLS, PPT), utilisez 'raw'
+            resourceType = 'raw';
+            // Pour les fichiers raw, le format est souvent important pour le téléchargement
+            // Si le fileType est 'application/json' ou 'application/pdf', Cloudinary le gérera bien.
+            // Si c'est un format non détecté, il est bon de spécifier l'extension.
+        }
+
+        // Nettoyer le nom de fichier pour un public_id propre (supprime les extensions pour éviter les doublons)
+        const baseFileName = fileName.split('.').slice(0, -1).join('.'); // Nom sans extension
+        const uniqueSuffix = Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+        const cleanedPublicId = `${baseFileName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${uniqueSuffix}`;
 
         console.log(`📡 uploadMedia: Tentative d'upload de ${fileName} (type détecté: ${resourceType}, type MIME: ${fileType}) vers Cloudinary...`);
-        
-        // Utiliser upload_stream pour les uploads Base64, c'est plus efficace et gère mieux les gros fichiers
+
         const uploadResult = await new Promise((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
                 {
                     folder: 'imarketing_media', // Votre dossier dans Cloudinary
                     public_id: cleanedPublicId, // ID public unique
-                    resource_type: resourceType,
-                    // Si c'est une image, on peut laisser Cloudinary optimiser
-                    // Si c'est une vidéo, Cloudinary va appliquer ses optimisations par défaut
-                    quality: 'auto',        
-                    fetch_format: 'auto' 
+                    resource_type: resourceType, // C'EST LA CLÉ ! Utilise 'image', 'video' ou 'raw'
+                    format: resourceFormat,      // Conserve le format original
+                    // 'quality' et 'fetch_format' ne sont pertinents que pour les images/vidéos
+                    // et peuvent causer des problèmes pour les fichiers 'raw'.
+                    // Il est préférable de les conditionner ou de les omettre pour 'raw'.
+                    ...(resourceType !== 'raw' && { quality: 'auto', fetch_format: 'auto' }),
                 },
                 (error, result) => {
                     if (error) {
@@ -92,29 +104,22 @@ exports.handler = async (event, context) => {
                 }
             );
             // Crée un ReadStream à partir du buffer Base64 et le pipe vers le stream d'upload Cloudinary
-            // Le fileContent est une chaîne Base64 SANS le préfixe 'data:image/jpeg;base64,'
-            // Il faut la reconvertir en Buffer si elle est envoyée sans préfixe, sinon utilisez le préfixe complet comme source.
-            // Pour l'instant, le frontend envoie juste le contenu Base64 (après le 'split(',')[1]'), donc c'est un Buffer qu'il faut créer.
             streamifier.createReadStream(Buffer.from(fileContent, 'base64')).pipe(uploadStream);
         });
+        // --- FIN DES MODIFICATIONS CLÉS ---
 
         console.log('✅ Cloudinary Upload Result:', uploadResult);
 
         let thumbnailUrl = null;
         if (resourceType === 'video') {
-            // Générer l'URL de la miniature de la vidéo via Cloudinary
             try {
-                // Cloudinary peut générer des vignettes d'images à partir de vidéos.
-                // On utilise le public_id de la vidéo et des transformations pour obtenir une image.
                 thumbnailUrl = cloudinary.url(uploadResult.public_id, {
-                    resource_type: 'video', // Source est une vidéo
-                    format: 'jpg',          // Format de la vignette
-                    width: 400,             // Largeur de la vignette
-                    height: 225,            // Hauteur de la vignette
-                    crop: "fill",           // Mode de recadrage
+                    resource_type: 'video',
+                    format: 'jpg',
+                    width: 400,
+                    height: 225,
+                    crop: "fill",
                     quality: 'auto',
-                    // start_offset: 'auto', // Optionnel: pour prendre une frame auto ou à un certain temps
-                    // secure: true // Déjà dans la config globale, mais peut être spécifié ici si besoin
                 });
                 console.log('✅ Video Thumbnail URL générée:', thumbnailUrl);
             } catch (thumbError) {
@@ -123,37 +128,36 @@ exports.handler = async (event, context) => {
             }
         }
 
-        // Retourne l'URL du média principal et l'URL de la miniature (si vidéo, sinon null)
         return {
             statusCode: 200,
             headers: {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*", // À adapter en production avec votre domaine spécifique
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type",
             },
             body: JSON.stringify({
-                url: uploadResult.secure_url, // L'URL de la vidéo/image uploadée
-                thumbnailUrl: thumbnailUrl    // L'URL de la miniature (null pour les images, URL pour les vidéos)
+                url: uploadResult.secure_url,
+                thumbnailUrl: thumbnailUrl
             }),
         };
 
     } catch (error) {
         console.error('❌ uploadMedia: Erreur générale lors de l\'upload (catch principal):', error);
-        
+
         let statusCode = 500;
         let errorMessage = 'Une erreur inconnue est survenue lors de l\'upload du média.';
 
-        if (error.http_code) { // Erreurs spécifiques de Cloudinary
+        if (error.http_code) {
             statusCode = error.http_code;
             errorMessage = `Cloudinary API Error (${error.http_code}): ${error.message}`;
-        } else if (error instanceof SyntaxError) { // Si JSON.parse a échoué plus tôt
-             statusCode = 400;
-             errorMessage = 'Invalid request payload (not valid JSON).';
+        } else if (error instanceof SyntaxError) {
+            statusCode = 400;
+            errorMessage = 'Invalid request payload (not valid JSON).';
         } else if (error.message) {
             errorMessage = error.message;
         }
-        
+
         return {
             statusCode: statusCode,
             headers: { 'Content-Type': 'application/json' },
