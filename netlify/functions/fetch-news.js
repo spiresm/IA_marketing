@@ -17,17 +17,12 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // --- MODIFICATION ICI : Mots-clés très génériques pour le test ---
-    // Nous allons utiliser 'actualité' ou 'news' ou 'breaking' pour voir si des articles remontent.
-    // Les sources et catégories restent vides pour ne pas restreindre la recherche.
-
-    const testKeywords = 'actualité OR news OR breaking'; // Mots-clés très larges
+    const testKeywords = 'actualité OR news OR breaking'; 
     const testSources = ''; // Laisse vide pour rechercher dans toutes les sources disponibles
     const testCategories = ''; // Laisse vide pour rechercher dans toutes les catégories disponibles
     const testLanguages = 'fr,en'; // Cherche en français et anglais pour maximiser les chances
     const testLimit = 20; // Augmente la limite pour avoir plus de chances de trouver des articles
 
-    // Utilise les paramètres de test si les paramètres originaux sont trop restrictifs
     const finalKeywords = keywords || testKeywords;
     const finalSources = sources || testSources;
     const finalCategories = categories || testCategories;
@@ -36,14 +31,18 @@ exports.handler = async function(event, context) {
 
     const mediasStackUrl = `http://api.mediastack.com/v1/news?access_key=${api_key}&keywords=${encodeURIComponent(finalKeywords)}&sources=${encodeURIComponent(finalSources)}&categories=${encodeURIComponent(finalCategories)}&languages=${finalLanguages}&sort=${sort || 'published_desc'}&limit=${finalLimit}`;
 
-    console.log("URL de requête MediasStack:", mediasStackUrl); // Utile pour le débogage Netlify Logs
+    console.log("URL de requête MediasStack envoyée :", mediasStackUrl); // Log de l'URL pour vérification
 
     try {
         const response = await fetch(mediasStackUrl);
         const data = await response.json();
+        
+        // --- NOUVELLE LIGNE : LOG DE LA RÉPONSE JSON COMPLÈTE DE MEDIASTACK ---
+        console.log("Réponse de MediasStack (JSON) reçue :", JSON.stringify(data, null, 2)); 
+        // ----------------------------------------------------------------------
 
         if (!response.ok || data.error) {
-            console.error("Erreur de l'API MediasStack:", data.error || `Statut HTTP: ${response.status}`);
+            console.error("Erreur de l'API MediasStack :", data.error || `Statut HTTP: ${response.status}`);
             return {
                 statusCode: response.status !== 200 ? response.status : 400,
                 body: JSON.stringify({ 
@@ -65,7 +64,7 @@ exports.handler = async function(event, context) {
         };
 
     } catch (error) {
-        console.error("Erreur inattendue lors de l'appel de MediasStack via la fonction Netlify:", error);
+        console.error("Erreur inattendue lors de l'appel de MediasStack via la fonction Netlify :", error);
         return {
             statusCode: 500,
             body: JSON.stringify({ 
