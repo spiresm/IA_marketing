@@ -17,21 +17,22 @@ exports.handler = async function(event, context) {
         };
     }
 
-    // --- MODIFICATION ICI : Assouplissement des paramètres pour le test ---
-    // Nous allons utiliser des mots-clés et des sources plus génériques pour voir si des articles remontent.
-    // Vous pouvez commenter les lignes d'origine et décommenter celles-ci pour le test.
+    // --- MODIFICATION ICI : Mots-clés très génériques pour le test ---
+    // Nous allons utiliser 'actualité' ou 'news' ou 'breaking' pour voir si des articles remontent.
+    // Les sources et catégories restent vides pour ne pas restreindre la recherche.
 
-    const testKeywords = 'AI OR artificial intelligence OR marketing'; // Mots-clés plus simples et directs
+    const testKeywords = 'actualité OR news OR breaking'; // Mots-clés très larges
     const testSources = ''; // Laisse vide pour rechercher dans toutes les sources disponibles
     const testCategories = ''; // Laisse vide pour rechercher dans toutes les catégories disponibles
-    const testLanguages = 'en'; // Priorise l'anglais qui a souvent plus de contenu sur l'IA/marketing
+    const testLanguages = 'fr,en'; // Cherche en français et anglais pour maximiser les chances
+    const testLimit = 20; // Augmente la limite pour avoir plus de chances de trouver des articles
 
-    // Utilisez les paramètres de test si les paramètres originaux sont trop restrictifs
+    // Utilise les paramètres de test si les paramètres originaux sont trop restrictifs
     const finalKeywords = keywords || testKeywords;
     const finalSources = sources || testSources;
     const finalCategories = categories || testCategories;
     const finalLanguages = languages || testLanguages;
-    const finalLimit = limit || 10; // Augmente la limite pour avoir plus de chances de trouver des articles
+    const finalLimit = limit || testLimit;
 
     const mediasStackUrl = `http://api.mediastack.com/v1/news?access_key=${api_key}&keywords=${encodeURIComponent(finalKeywords)}&sources=${encodeURIComponent(finalSources)}&categories=${encodeURIComponent(finalCategories)}&languages=${finalLanguages}&sort=${sort || 'published_desc'}&limit=${finalLimit}`;
 
