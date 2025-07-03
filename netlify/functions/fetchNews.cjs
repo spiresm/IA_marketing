@@ -9,21 +9,23 @@ const fetch = require('node-fetch');
 // `event` contient les informations de la requête HTTP entrante (ex: paramètres d'URL)
 // `context` contient les informations sur l'environnement d'exécution (pas utilisé ici mais toujours présent)
 exports.handler = async function(event, context) {
-    // Récupérer les paramètres de l'URL passés par votre page web
-    // Par exemple, si l'URL est /fetch-news?api_key=XXX&keywords=YYY
-    const { api_key, keywords, sources, categories, languages, sort, limit } = event.queryStringParameters;
+    // --- Récupération de la clé API depuis les variables d'environnement Netlify ---
+    // C'est la méthode sécurisée pour accéder à la clé.
+    const api_key = process.env.MEDIASTACK_API_KEY; 
+
+    // Récupérer les autres paramètres de l'URL passés par votre page web
+    const { keywords, sources, categories, languages, sort, limit } = event.queryStringParameters;
 
     // --- Vérification de la clé API ---
-    // C'est une mesure de sécurité et de robustesse.
-    // Si la clé API est manquante ou si c'est encore la valeur par défaut 'VOTRE_CLE_API_MEDIASTACK',
-    // on renvoie une erreur pour éviter de gaspiller des requêtes à l'API MediasStack.
-    if (!api_key || api_key === 'ed1b80c9d919f4e38074e1a219abd0c3') {
-        console.error("Erreur: Clé API MediasStack manquante ou non configurée dans la fonction Netlify.");
+    // Si la clé API est manquante ou vide (par exemple, si la variable d'environnement n'est pas configurée),
+    // on renvoie une erreur.
+    if (!api_key) {
+        console.error("Erreur: Clé API MediasStack manquante dans les variables d'environnement Netlify.");
         return {
             statusCode: 400, // Code 400 signifie "Bad Request" (requête invalide)
             body: JSON.stringify({ 
-                error: "Missing or invalid MediasStack API key. Please configure it in the Netlify Function.",
-                details: "La clé API MediasStack n'a pas été fournie ou est la valeur par défaut."
+                error: "Missing MediasStack API key in Netlify environment variables. Please configure it.",
+                details: "La clé API MediasStack n'a pas été trouvée dans les variables d'environnement de la fonction Netlify."
             })
         };
     }
@@ -57,9 +59,7 @@ exports.handler = async function(event, context) {
             headers: {
                 "Content-Type": "application/json", // Indique que la réponse est au format JSON
                 // Les en-têtes CORS sont CRUCIAUX pour permettre à votre frontend d'accéder à cette fonction.
-                // Pour le développement, "*" est souvent utilisé.
-                // En production, il est plus sûr de le remplacer par votre domaine spécifique, ex: "https://iamarketing.netlify.app"
-                "Access-Control-Allow-Origin": "*", 
+                "Access-Control-Allow-Origin": "*", // À adapter à votre domaine spécifique en production (ex: "https://iamarketing.netlify.app")
                 "Access-Control-Allow-Methods": "GET", // Permet la méthode GET
                 "Access-Control-Allow-Headers": "Content-Type", // Permet l'en-tête Content-Type
             },
@@ -72,7 +72,7 @@ exports.handler = async function(event, context) {
         return {
             statusCode: 500, // Code 500 signifie "Internal Server Error" (erreur interne du serveur)
             body: JSON.stringify({ 
-                error: "Failed to fetch news data through Netlify Function.", 
+                error: "Failed to fetch news data through Netlify Function (unexpected error).", 
                 details: error.message 
             })
         };
