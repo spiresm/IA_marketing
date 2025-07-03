@@ -336,9 +336,6 @@
             display: flex;
             align-items: center;
             position: relative;
-            /* La section a déjà padding: 20px de .content-section. */
-            /* Si un padding plus petit (comme 15px) est désiré pour le ticker,
-               il faut l'ajouter ici en l'écrasant : padding: 15px 20px; */
         }
         
         .news-ticker-section .icon {
@@ -350,8 +347,7 @@
 
         .news-ticker-container {
             flex-grow: 1;
-            /* Assure que le conteneur prend l'espace disponible */
-            overflow: hidden; /* Important pour cacher le débordement de l'animation */
+            overflow: hidden;
             margin-right: 15px;
         }
         
@@ -366,16 +362,15 @@
         }
 
         .news-item {
-            padding-right: 40px; /* Espace entre les éléments du ticker */
-            /* Le style de couleur est appliqué via JS */
+            padding-right: 40px;
         }
 
         /* Style pour le nom de l'auteur dans le flux RSS (comme sur l'image de référence) */
         .news-item .author-name {
             color: black;
             font-weight: normal;
-            font-style: italic; /* Ajouté pour l'italique */
-            font-size: 0.85em; /* Rendu un peu plus petit */
+            font-style: italic;
+            font-size: 0.85em;
             margin-left: 5px;
         }
 
@@ -414,14 +409,13 @@
         /* Media queries pour la responsivité */
         @media (max-width: 768px) {
             .latest-additions-grid, .veille-grid {
-                grid-template-columns: 1fr; /* Une seule colonne sur mobile */
+                grid-template-columns: 1fr;
             }
             nav { justify-content: flex-start; overflow-x: auto; }
             
             .news-ticker-section {
                 flex-direction: column;
                 align-items: flex-start;
-                /* Padding déjà défini par .content-section, ajustez si besoin sur mobile */
             }
             .news-ticker-section .icon {
                 margin-bottom: 10px;
@@ -436,7 +430,6 @@
                 width: 100%;
                 text-align: center;
             }
-            /* Assurer que le padding du main n'est pas excessif sur petit écran */
             main {
                 padding: 20px 10px; 
             }
@@ -493,11 +486,15 @@
 
     <script>
     document.addEventListener("DOMContentLoaded", () => {
+        // URLs des fonctions Netlify
         const GET_TIPS_URL = "/.netlify/functions/get-tips";
         const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";    
-        const NEWS_DATA_PATH = 'news-data.json';
-        const MEDIASTACK_API_KEY = 'ed1b80c9d919f4e38074e1a219abd0c3'; // <-- REMPLACEZ CECI PAR VOTRE VRAIE CLÉ API MEDIASTACK
+        const NEWS_DATA_PATH = 'news-data.json'; // Toujours utilisé pour le ticker, si c'est un fichier local
+        
+        // La clé API MediasStack n'est PLUS ici. Elle doit être gérée côté fonction Netlify via variables d'environnement.
+        // const MEDIASTACK_API_KEY = 'YOUR_API_KEY_HERE'; 
 
+        // Fonctions utilitaires
         const getYouTubeVideoId = (url) => {
             if (!url) return null;
             const match = url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -509,10 +506,8 @@
 
         const createCard = (item, type) => {
             const card = document.createElement("div");
-            
             const chaineCouleur = getChainColor(item.chaine);
             card.style.borderLeft = `5px solid ${chaineCouleur}`;
-            
             card.className = `addition-card ${type}`;
 
             let mainCardTitle = '';
@@ -704,7 +699,6 @@
                 if (newsItems.length > 0) {
                     newsTickerContent.innerHTML = newsItems.map(item => {
                         const messageColor = getChainColor(item.chaine);
-                        // Assurez-vous que l'auteur est inclus dans le JSON news-data.json
                         const authorText = item.author ? ` <span class="author-name">(${escapeHtml(item.author)})</span>` : '';
                         return `<span class="news-item" style="color: ${messageColor};">${escapeHtml(item.title)}${authorText}</span>`;
                     }).join('');
@@ -724,25 +718,33 @@
             if (!veilleGrid) return;
             veilleGrid.innerHTML = '<p>Chargement des articles de veille...</p>';
 
-            if (!MEDIASTACK_API_KEY || MEDIASTACK_API_KEY === 'VOTRE_CLE_API_MEDIASTACK') {
-                veilleGrid.innerHTML = '<p style="color: red;">Veuillez configurer votre clé API MediasStack dans le script.</p>';
-                return;
-            }
-
+            // La clé API n'est plus gérée côté client. La fonction Netlify la récupérera via ENV.
+            // Si la fonction Netlify n'est pas déployée, cette partie du code ne la trouvera pas
+            // et vous verrez toujours une erreur 404 (mais pas de clé manquante dans le front-end).
+            
             const keywords = 'artificial intelligence OR AI OR machine learning OR marketing OR digital marketing OR SEO OR SEM';
             const sources = 'techcrunch,wired,venturebeat,marketingland,searchengineland,forbes,bloomberg'; 
             const categories = 'technology,business';
 
-            const proxyUrl = `/.netlify/functions/fetch-news?api_key=${MEDIASTACK_API_KEY}&keywords=${encodeURIComponent(keywords)}&sources=${encodeURIComponent(sources)}&categories=${encodeURIComponent(categories)}&languages=fr,en&sort=published_desc&limit=6`;
+            // L'URL n'inclut plus l'api_key car la fonction Netlify la gère elle-même.
+            const proxyUrl = `/.netlify/functions/fetch-news?keywords=${encodeURIComponent(keywords)}&sources=${encodeURIComponent(sources)}&categories=${encodeURIComponent(categories)}&languages=fr,en&sort=published_desc&limit=6`;
 
             try {
                 const response = await fetch(proxyUrl);
                 if (!response.ok) {
+                    // Tenter de lire le corps de la réponse pour obtenir plus de détails sur l'erreur
                     const errorText = await response.text();
-                    console.error("Erreur lors de la récupération des données MediasStack:", errorText);
+                    console.error("Erreur lors de la récupération des données MediasStack (via proxy):", errorText);
                     throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
                 }
                 const data = await response.json();
+
+                // Gérer les erreurs renvoyées par la fonction Netlify (ex: clé API manquante dans la fonction)
+                if (data.error) {
+                    console.error("Erreur de la fonction Netlify:", data.error);
+                    veilleGrid.innerHTML = `<p style="color: red;">Erreur de la fonction Netlify: ${escapeHtml(data.error)}</p>`;
+                    return;
+                }
 
                 if (data.data && data.data.length > 0) {
                     veilleGrid.innerHTML = '';
@@ -763,10 +765,9 @@
 
             } catch (error) {
                 console.error("Erreur lors du chargement des articles de veille:", error);
-                veilleGrid.innerHTML = `<p style="color: red;">Erreur de chargement des articles de veille. Vérifiez la clé API ou les limites de requête.</p>`;
+                veilleGrid.innerHTML = `<p style="color: red;">Erreur lors du chargement des articles de veille. Cause probable: la fonction Netlify n'est pas trouvée ou est mal configurée.</p>`;
             }
         }
-
 
         displayLatestAdditions();
         loadNewsTicker();
