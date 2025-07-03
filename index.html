@@ -265,8 +265,8 @@
             background-color: var(--dark-blue);
         }
 
+
         /* --- Styles spécifiques à la section de veille MediasStack --- */
-        /* Elle utilise .content-section pour la boîte principale */
         .veille-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -331,7 +331,6 @@
 
 
         /* --- Styles spécifiques au flux RSS --- */
-        /* Cette section utilise .content-section pour la boîte principale */
         .news-ticker-section {
             display: flex;
             align-items: center;
@@ -365,7 +364,6 @@
             padding-right: 40px;
         }
 
-        /* Style pour le nom de l'auteur dans le flux RSS (comme sur l'image de référence) */
         .news-item .author-name {
             color: black;
             font-weight: normal;
@@ -489,10 +487,9 @@
         // URLs des fonctions Netlify
         const GET_TIPS_URL = "/.netlify/functions/get-tips";
         const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";    
-        const NEWS_DATA_PATH = 'news-data.json'; // Toujours utilisé pour le ticker, si c'est un fichier local
+        const NEWS_DATA_PATH = 'news-data.json'; 
         
-        // La clé API MediasStack n'est PLUS ici. Elle doit être gérée côté fonction Netlify via variables d'environnement.
-        // const MEDIASTACK_API_KEY = 'YOUR_API_KEY_HERE'; 
+        // La clé API MediasStack n'est PLUS définie ici. Elle est gérée côté fonction Netlify via variables d'environnement.
 
         // Fonctions utilitaires
         const getYouTubeVideoId = (url) => {
@@ -718,28 +715,25 @@
             if (!veilleGrid) return;
             veilleGrid.innerHTML = '<p>Chargement des articles de veille...</p>';
 
-            // La clé API n'est plus gérée côté client. La fonction Netlify la récupérera via ENV.
-            // Si la fonction Netlify n'est pas déployée, cette partie du code ne la trouvera pas
-            // et vous verrez toujours une erreur 404 (mais pas de clé manquante dans le front-end).
-            
-            const keywords = 'artificial intelligence OR AI OR machine learning OR marketing OR digital marketing OR SEO OR SEM';
-            const sources = 'techcrunch,wired,venturebeat,marketingland,searchengineland,forbes,bloomberg'; 
-            const categories = 'technology,business';
+            // --- MODIFICATION ICI : Définition des paramètres directement dans le frontend pour le test ---
+            const testKeywords = 'actualité OR news OR breaking'; 
+            const testSources = ''; // Laisse vide
+            const testCategories = ''; // Laisse vide
+            const testLanguages = 'fr,en';
+            const testLimit = 20;
 
-            // L'URL n'inclut plus l'api_key car la fonction Netlify la gère elle-même.
-            const proxyUrl = `/.netlify/functions/fetch-news?keywords=${encodeURIComponent(keywords)}&sources=${encodeURIComponent(sources)}&categories=${encodeURIComponent(categories)}&languages=fr,en&sort=published_desc&limit=6`;
+            const proxyUrl = `/.netlify/functions/fetch-news?keywords=${encodeURIComponent(testKeywords)}&sources=${encodeURIComponent(testSources)}&categories=${encodeURIComponent(testCategories)}&languages=${testLanguages}&sort=published_desc&limit=${testLimit}`;
+            // --- FIN DES MODIFICATIONS ---
 
             try {
                 const response = await fetch(proxyUrl);
                 if (!response.ok) {
-                    // Tenter de lire le corps de la réponse pour obtenir plus de détails sur l'erreur
                     const errorText = await response.text();
                     console.error("Erreur lors de la récupération des données MediasStack (via proxy):", errorText);
                     throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
                 }
                 const data = await response.json();
 
-                // Gérer les erreurs renvoyées par la fonction Netlify (ex: clé API manquante dans la fonction)
                 if (data.error) {
                     console.error("Erreur de la fonction Netlify:", data.error);
                     veilleGrid.innerHTML = `<p style="color: red;">Erreur de la fonction Netlify: ${escapeHtml(data.error)}</p>`;
