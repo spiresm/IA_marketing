@@ -267,14 +267,35 @@
 
 
         /* --- Styles spécifiques à la section de veille --- */
-        /* Note: Les styles pour .veille-grid, .veille-card, etc., sont conservés car le code n8n injectera des éléments HTML avec ces classes. */
-        .veille-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
+        /* Conteneur principal pour le défilement et les flèches */
+        .veille-scroll-container {
+            position: relative;
+            width: 100%;
+            overflow: hidden; /* Cache les cartes qui dépassent */
         }
 
+        /* Conteneur des cartes de veille - gère le défilement horizontal */
+        .veille-grid {
+            display: flex; /* Utilise flexbox pour l'alignement horizontal */
+            flex-wrap: nowrap; /* Empêche les cartes de passer à la ligne */
+            gap: 20px; /* Espace entre les cartes */
+            overflow-x: auto; /* Permet le défilement horizontal */
+            -webkit-overflow-scrolling: touch; /* Améliore le défilement sur les appareils tactiles */
+            scroll-behavior: smooth; /* Rend le défilement fluide */
+            padding-bottom: 15px; /* Pour éviter que la scrollbar ne cache le contenu */
+            scrollbar-width: none; /* Masque la scrollbar Firefox */
+            -ms-overflow-style: none;  /* Masque la scrollbar IE/Edge */
+        }
+
+        /* Masque la scrollbar pour Webkit (Chrome, Safari) */
+        .veille-grid::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Styles des cartes individuelles de veille (maintenus) */
         .veille-card {
+            flex: 0 0 280px; /* Chaque carte a une largeur fixe et ne grandit pas */
+            min-width: 280px; /* Assure une largeur minimale */
             background: #f9f9f9;
             border-radius: 12px;
             padding: 15px;
@@ -290,44 +311,54 @@
             box-shadow: 0 6px 15px rgba(0,0,0,0.08);
         }
 
-        .veille-card h4 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            font-size: 1.2em;
-            color: var(--dark-blue);
-        }
-
-        .veille-card p {
-            font-size: 0.95em;
-            color: var(--grey-text);
-            line-height: 1.5;
-            flex-grow: 1;
-            margin-bottom: 10px;
-        }
-
-        .veille-card .source-info {
-            font-size: 0.85em;
-            color: #666;
-            text-align: right;
-            margin-top: 10px;
-        }
-
-        .veille-card a {
-            display: block;
-            text-align: center;
-            margin-top: 15px;
-            padding: 8px 12px;
-            background-color: var(--primary-blue);
+        /* Styles des flèches de navigation */
+        .scroll-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
             color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: background-color 0.2s ease;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            z-index: 10;
+            border-radius: 50%;
+            font-size: 1.5em;
+            opacity: 0.8;
+            transition: opacity 0.3s, background 0.3s;
+            display: flex; /* Pour centrer l'icône */
+            align-items: center;
+            justify-content: center;
         }
 
-        .veille-card a:hover {
-            background-color: var(--dark-blue);
-            text-decoration: none;
+        .scroll-arrow:hover {
+            opacity: 1;
+            background: var(--primary-blue);
+        }
+
+        .scroll-arrow.left {
+            left: -20px; /* Positionnement à l'extérieur de la box si nécessaire */
+        }
+
+        .scroll-arrow.right {
+            right: -20px; /* Positionnement à l'extérieur de la box si nécessaire */
+        }
+
+        /* Masquer les flèches si pas de défilement nécessaire */
+        .scroll-arrow.hidden {
+            display: none;
+        }
+        /* Ajustement des flèches pour qu'elles restent dans la section content-section */
+        .content-section {
+            position: relative; /* Nécessaire pour positionner les flèches à l'intérieur */
+            padding-left: 50px; /* Espace pour la flèche gauche */
+            padding-right: 50px; /* Espace pour la flèche droite */
+        }
+        .content-section .scroll-arrow.left {
+            left: 5px;
+        }
+        .content-section .scroll-arrow.right {
+            right: 5px;
         }
 
 
@@ -407,8 +438,23 @@
 
         /* Media queries pour la responsivité */
         @media (max-width: 768px) {
-            .latest-additions-grid, .veille-grid {
+            .latest-additions-grid {
                 grid-template-columns: 1fr;
+            }
+            /* Pour la section veille, on assure le défilement même sur mobile */
+            .veille-grid {
+                flex-wrap: nowrap; /* Maintient les cartes sur une seule ligne */
+                overflow-x: auto; /* Force le défilement */
+            }
+            .content-section {
+                padding-left: 20px; /* Ajuste le padding pour mobile */
+                padding-right: 20px;
+            }
+            .content-section .scroll-arrow.left {
+                left: -5px; /* Ajuste les flèches pour mobile */
+            }
+            .content-section .scroll-arrow.right {
+                right: -5px;
             }
             nav { justify-content: flex-start; overflow-x: auto; }
             
@@ -456,13 +502,37 @@
     <main>
         <section class="content-section">
             <h3>Veille IA & Marketing</h3>
-            <div id="veille-articles-grid" class="veille-grid">
-<div class="veille-card"><h4>⚡ Microsoft présente 8 arguments pour passer de Windows 10 à Windows 11</h4><br>Microsoft intensifie ses efforts pour encourager les utilisateurs de Windows 10 à passer à Windows 11, en mettant en avant huit arguments-clés pour justifier le changement. Les détails de ces arguments n'ont pas été précisés dans le résumé de l'article.<br><br><p><a href="https://www.lesnumeriques.com/ordinateur-portable/windows-11-voici-les-8-raisons-de-quitter-windows-10-des-maintenant-selon-microsoft-n238625.html" target="_blank" rel="noopener noreferrer">Lire l’article</a></p></div>
-<div class="veille-card"><h4>⚡ Appel à la transparence d'Apple sur les capacités réelles de son intelligence artificielle</h4><br>Pour renforcer la confiance des utilisateurs dans ses appareils, Apple doit démontrer plus de transparence sur les capacités réelles de l'intelligence artificielle qu'elle met en avant. La performance de ces nouvelles fonctionnalités suscite des interrogations sur leur efficacité.<br><br><p><a href="https://www.begeek.fr/pour-ameliorer-apple-intelligence-apple-doit-dabord-etre-transparent-sur-ses-capacites-reelles-416611" target="_blank" rel="noopener noreferrer">Lire l’article</a></p></div>
-<div class="veille-card"><h4>⚡ Les outils de publicité IA de Reddit, une aide pour les marques</h4><br>Reddit déploie des outils publicitaires alimentés par l'intelligence artificielle, permettant aux entreprises de comprendre ce que les utilisateurs de la plateforme pensent de leurs marques. Reddit Community Intelligence offre ces précieuses informations et plus encore.<br><br><p><a href="https://www.zdnet.fr/actualites/comment-les-nouveaux-outils-publicitaires-ia-de-reddit-aident-les-marques-a-rejoindre-la-conversation-477513.htm" target="_blank" rel="noopener noreferrer">Lire l’article</a></p></div>
-<div class="veille-card"><h4>⚡ Restyle, l'outil de montage vidéo IA de Meta, déçoit à ses débuts</h4><br>Meta, anciennement Facebook, a récemment déployé "Restyle", son nouvel outil de montage vidéo alimenté par l'intelligence artificielle. Malgré une promesse belle, les premiers tests ont mis en lumière des résultats décevants et parfois étranges.<br><br><p><a href="https://www.generation-nt.com/actualites/meta-ia-video-montage-restyle-instagram-2058970" target="_blank" rel="noopener noreferrer">Lire l’article</a></p></div>
-<div class="veille-card"><h4>⚡ Controverse autour de la fuite massive d'identifiants : marketing de la peur ou véritable menace ?</h4><br>La prétendue fuite massive de 16 milliards d'identifiants a fait les gros titres, impliquant des géants comme Apple, Google, et Facebook. Cependant, certains experts suggèrent qu'il s'agit d'une stratégie de "marketing de la peur" plutôt qu'une véritable menace. <br><br><p><a href="https://www.numerama.com/cyberguerre/1996181-on-est-dans-le-marketing-de-la-peur-des-experts-decryptent-la-fausse-fuite-inedite-de-16-milliards-didentifiants.html" target="_blank" rel="noopener noreferrer">Lire l’article</a></p></div>
-</div>
+            <div class="veille-scroll-container">
+                <div id="veille-articles-grid" class="veille-grid">
+                    <div class="veille-card">
+                        <h4>⚡ Exemple Article 1</h4>
+                        <p>Description courte de l'article de veille 1.</p>
+                        <p><a href="#" target="_blank" rel="noopener noreferrer">Lire l’article →</a></p>
+                    </div>
+                    <div class="veille-card">
+                        <h4>⚡ Exemple Article 2</h4>
+                        <p>Description courte de l'article de veille 2.</p>
+                        <p><a href="#" target="_blank" rel="noopener noreferrer">Lire l’article →</a></p>
+                    </div>
+                    <div class="veille-card">
+                        <h4>⚡ Exemple Article 3</h4>
+                        <p>Description courte de l'article de veille 3.</p>
+                        <p><a href="#" target="_blank" rel="noopener noreferrer">Lire l’article →</a></p>
+                    </div>
+                    <div class="veille-card">
+                        <h4>⚡ Exemple Article 4</h4>
+                        <p>Description courte de l'article de veille 4.</p>
+                        <p><a href="#" target="_blank" rel="noopener noreferrer">Lire l’article →</a></p>
+                    </div>
+                    <div class="veille-card">
+                        <h4>⚡ Exemple Article 5</h4>
+                        <p>Description courte de l'article de veille 5.</p>
+                        <p><a href="#" target="_blank" rel="noopener noreferrer">Lire l’article →</a></p>
+                    </div>
+                </div>
+                <button class="scroll-arrow left" id="veille-scroll-left"><i class="fas fa-chevron-left"></i></button>
+                <button class="scroll-arrow right" id="veille-scroll-right"><i class="fas fa-chevron-right"></i></button>
+            </div>
         </section>
 
         <section class="news-ticker-section content-section">
@@ -731,6 +801,49 @@
         displayLatestAdditions();
         loadNewsTicker();
         // loadVeilleArticles(); // Cette ligne est commentée ou supprimée car la veille est gérée par n8n
+
+        const veilleGridContainer = document.querySelector('.veille-scroll-container');
+        const veilleGrid = document.getElementById('veille-articles-grid');
+        const scrollLeftBtn = document.getElementById('veille-scroll-left');
+        const scrollRightBtn = document.getElementById('veille-scroll-right');
+
+        // Fonction pour mettre à jour la visibilité des flèches
+        const updateScrollArrows = () => {
+            if (!veilleGridContainer || !veilleGrid || !scrollLeftBtn || !scrollRightBtn) return;
+
+            // Masquer les flèches si le contenu ne déborde pas
+            if (veilleGrid.scrollWidth <= veilleGrid.clientWidth) {
+                scrollLeftBtn.classList.add('hidden');
+                scrollRightBtn.classList.add('hidden');
+            } else {
+                // Montrer/masquer les flèches en fonction de la position de défilement
+                scrollLeftBtn.classList.toggle('hidden', veilleGrid.scrollLeft === 0);
+                scrollRightBtn.classList.toggle('hidden', veilleGrid.scrollLeft + veilleGrid.clientWidth >= veilleGrid.scrollWidth - 1); /* -1 pour tolérance */
+            }
+        };
+
+        // Événements de clic pour les flèches
+        if (scrollLeftBtn) {
+            scrollLeftBtn.addEventListener('click', () => {
+                veilleGrid.scrollBy({ left: -300, behavior: 'smooth' }); // Défile de 300px vers la gauche
+            });
+        }
+        if (scrollRightBtn) {
+            scrollRightBtn.addEventListener('click', () => {
+                veilleGrid.scrollBy({ left: 300, behavior: 'smooth' }); // Défile de 300px vers la droite
+            });
+        }
+
+        // Mettre à jour la visibilité des flèches lors du défilement et au redimensionnement
+        if (veilleGrid) {
+            veilleGrid.addEventListener('scroll', updateScrollArrows);
+        }
+        window.addEventListener('resize', updateScrollArrows);
+
+        // Initialiser la visibilité des flèches après le chargement du contenu (ou peu après)
+        // Utiliser setTimeout pour s'assurer que le contenu est bien injecté par n8n si c'est dynamique.
+        setTimeout(updateScrollArrows, 500); 
+
 
         const currentPath = window.location.pathname.split('/').pop();
         document.querySelectorAll('nav a').forEach(link => {
