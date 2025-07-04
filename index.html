@@ -365,7 +365,7 @@
             /* La couleur sera définie inline via JavaScript */
         }
 
-        .news-item .author-name {
+        .news-item .author-info { /* Renommé de author-name pour être plus générique */
             color: black; /* Défini le nom de l'auteur en noir */
             font-weight: normal;
             font-style: italic;
@@ -504,7 +504,9 @@
 
         const createCard = (item, type) => {
             const card = document.createElement("div");
-            const chaineCouleur = getChainColor(item.chaine);
+            // NOTE: Ici, la 'chaine' est utilisée pour la couleur des cartes "Derniers ajouts",
+            // qui est distincte de la logique du flux RSS.
+            const chaineCouleur = getChainColor(item.chaine); 
             card.style.borderLeft = `5px solid ${chaineCouleur}`;
             card.className = `addition-card ${type}`;
 
@@ -577,6 +579,7 @@
             return card;
         };
 
+        // Cette mapping est pour les "Derniers ajouts" et peut différer du RSS si les "chaînes" sont différentes des "pôles"
         const chainColors = {
             "Auvio Kids": "hotpink",
             "Auvio": "gold",
@@ -591,7 +594,7 @@
             "Non spécifié": "#CCCCCC"
         };
 
-        function getChainColor(chaineNom) {
+        function getChainColor(chaineNom) { 
             return chainColors[chaineNom] || chainColors["Non spécifié"];
         }
 
@@ -696,10 +699,24 @@
                 const newsItems = await response.json();
                 if (newsItems.length > 0) {
                     newsTickerContent.innerHTML = newsItems.map(item => {
-                        const messageColor = getChainColor(item.chaine);
-                        // Applique la couleur de la chaîne au titre et ajoute le nom de l'auteur en noir
-                        const authorText = item.author ? `<span class="author-name"> (${escapeHtml(item.author)})</span>` : '';
-                        return `<span class="news-item" style="color: ${messageColor};">${escapeHtml(item.title)}${authorText}</span>`;
+                        // MODIFICATION CLÉ 1: Utilise directement item.color si disponible, sinon la couleur par défaut du pôle
+                        const messageColor = item.color || chainColors["Non spécifié"]; // Fallback au gris si ni item.color ni item.pole n'est valide pour une couleur spécifique
+
+                        // MODIFICATION CLÉ 2: Construit le texte complet avec message, collaborateur et pôle
+                        let fullText = escapeHtml(item.title);
+                        let infoParts = [];
+                        if (item.collaborateur && item.collaborateur !== 'Non spécifié') {
+                            infoParts.push(escapeHtml(item.collaborateur));
+                        }
+                        if (item.pole && item.pole !== 'Autre') { // Assure que "Autre" n'est pas affiché comme un pôle spécifique
+                            infoParts.push(escapeHtml(item.pole));
+                        }
+
+                        if (infoParts.length > 0) {
+                            fullText += `<span class="author-info"> (${infoParts.join(' - ')})</span>`;
+                        }
+                        
+                        return `<span class="news-item" style="color: ${messageColor};">${fullText}</span>`;
                     }).join('');
                     
                     // Duplique le contenu pour l'effet de défilement continu
