@@ -267,6 +267,7 @@
 
 
         /* --- Styles spécifiques à la section de veille --- */
+        /* Note: Les styles pour .veille-grid, .veille-card, etc., sont conservés car le code n8n injectera des éléments HTML avec ces classes. */
         .veille-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -362,7 +363,6 @@
 
         .news-item {
             padding-right: 40px;
-            /* La couleur sera définie inline via JavaScript */
         }
 
         .news-item .author-info { /* Renommé de author-name pour être plus générique */
@@ -457,8 +457,7 @@
         <section class="content-section">
             <h3>Veille IA & Marketing</h3>
             <div id="veille-articles-grid" class="veille-grid">
-                <p>La section de veille a été retirée.</p>
-            </div>
+                </div>
         </section>
 
         <section class="news-ticker-section content-section">
@@ -502,9 +501,7 @@
 
         const createCard = (item, type) => {
             const card = document.createElement("div");
-            // NOTE: Ici, la 'chaine' est utilisée pour la couleur des cartes "Derniers ajouts",
-            // qui est distincte de la logique du flux RSS.
-            const chaineCouleur = getChainColor(item.chaine); 
+            const chaineCouleur = getChainColor(item.chaine);
             card.style.borderLeft = `5px solid ${chaineCouleur}`;
             card.className = `addition-card ${type}`;
 
@@ -577,7 +574,6 @@
             return card;
         };
 
-        // Cette mapping est pour les "Derniers ajouts" et peut différer du RSS si les "chaînes" sont différentes des "pôles"
         const chainColors = {
             "Auvio Kids": "hotpink",
             "Auvio": "gold",
@@ -592,7 +588,7 @@
             "Non spécifié": "#CCCCCC"
         };
 
-        function getChainColor(chaineNom) {    
+        function getChainColor(chaineNom) {
             return chainColors[chaineNom] || chainColors["Non spécifié"];
         }
 
@@ -697,19 +693,15 @@
                 const newsItems = await response.json();
                 if (newsItems.length > 0) {
                     newsTickerContent.innerHTML = newsItems.map(item => {
-                        // MODIFICATION CLÉ 1: Utilise directement item.color si disponible, sinon la couleur par défaut du pôle
                         const messageColor = item.color || chainColors["Non spécifié"]; // Fallback au gris si ni item.color ni item.pole n'est valide pour une couleur spécifique
-
-                        // MODIFICATION CLÉ 2: Construit le texte complet avec message, collaborateur et pôle
                         let fullText = escapeHtml(item.title);
                         let infoParts = [];
                         if (item.collaborateur && item.collaborateur !== 'Non spécifié') {
                             infoParts.push(escapeHtml(item.collaborateur));
                         }
-                        if (item.pole && item.pole !== 'Autre') { // Assure que "Autre" n'est pas affiché comme un pôle spécifique
+                        if (item.pole && item.pole !== 'Autre') {
                             infoParts.push(escapeHtml(item.pole));
                         }
-
                         if (infoParts.length > 0) {
                             fullText += `<span class="author-info"> (${infoParts.join(' - ')})</span>`;
                         }
@@ -728,12 +720,12 @@
             }
         }
 
-        // La fonction loadVeilleArticles est supprimée car elle faisait appel à MediasStack.
-        // La section correspondante dans le HTML a été mise à jour avec un message statique.
+        // Ancienne fonction loadVeilleArticles() supprimée car elle utilisait MediasStack.
+        // La section correspondante dans le HTML est maintenant gérée par le workflow n8n.
         
         displayLatestAdditions();
         loadNewsTicker();
-        // loadVeilleArticles(); // Cette ligne est commentée ou supprimée
+        // loadVeilleArticles(); // Cette ligne est commentée ou supprimée car la veille est gérée par n8n
 
         const currentPath = window.location.pathname.split('/').pop();
         document.querySelectorAll('nav a').forEach(link => {
