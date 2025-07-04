@@ -272,17 +272,20 @@
 
         /* --- Styles spécifiques à la section de veille --- */
         /* Conteneur principal pour le défilement et les flèches */
+        /* C'est ce conteneur qui aura un overflow: hidden si nécessaire pour les flèches, mais il sera plus grand */
         .veille-scroll-container {
             position: relative;
             width: 100%; /* Prend la largeur de la section parent */
-            overflow: hidden; /* Cache les cartes qui dépassent */
+            overflow: visible; /* Les flèches peuvent sortir de ce conteneur */
+            /* Aucun padding latéral ici, c'est le veille-grid qui le gérera */
         }
 
-        /* Nouveau conteneur pour les flèches et la grille, permettant de gérer l'espace des flèches */
-        .veille-inner-scroll-container {
-            position: relative;
-            /* Laisser les flèches se positionner en dehors de ce padding */
-            padding: 0 45px; /* Ajuste ce padding pour l'espace des flèches */
+        /* Conteneur qui contient la grille de cartes et les flèches */
+        /* C'est lui qui délimite la zone de défilement réelle des cartes */
+        .veille-inner-scroll-container { /* Nouveau wrapper pour le contenu défilant et les flèches */
+            position: relative; /* Pour positionner les flèches à l'intérieur de ce conteneur */
+            /* Le padding ici crée l'espace visible pour les flèches */
+            padding: 0 50px; /* Ajuste ce padding pour l'espace des flèches */
             box-sizing: border-box; /* Important pour que le padding soit inclus dans la largeur */
         }
 
@@ -307,7 +310,7 @@
             display: none;
         }
 
-        /* Styles des cartes individuelles de veille (maintenus) */
+        /* Styles des cartes individuelles de veille */
         .veille-card {
             flex: 0 0 280px; /* Chaque carte a une largeur fixe et ne grandit pas */
             min-width: 280px; /* Assure une largeur minimale */
@@ -316,10 +319,10 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             display: flex;
             flex-direction: column;
-            justify-content: space-between; /* Pousse les éléments vers le haut/bas */
+            /* La hauteur est fixe pour aligner les boutons, ajustez si le "chapeau" dépasse trop */
+            height: 200px; /* HAUTEUR FIXE RÉDUITE COMME DEMANDÉ */
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             padding: 15px; /* Padding interne de la carte */
-            height: 230px; /* HAUTEUR FIXE POUR ALIGNER LES BOUTONS (Ajuster si le contenu dépasse trop) */
         }
 
         .veille-card:hover {
@@ -333,9 +336,8 @@
             flex-direction: column;
             flex-grow: 1; /* Permet au contenu de prendre toute la hauteur disponible */
             padding: 0; /* Pas de padding ici, il est sur .veille-card */
-            justify-content: space-between; /* Alignement strict des éléments enfants */
-            /* Texte de description coupé avec des points de suspension si trop long */
-            overflow: hidden; 
+            justify-content: space-between; /* ALIGNEMENT STRICT DES BOUTONS EN BAS */
+            overflow: hidden; /* Cache le contenu qui dépasse la hauteur fixe de la carte */
         }
 
         /* Styles des titres dans les cartes de veille */
@@ -344,29 +346,36 @@
             margin-bottom: 10px;
             font-size: 1.2em;
             color: var(--dark-blue);
-            /* Tronquer le titre si trop long */
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* Styles des paragraphes dans les cartes de veille (pour la description si elle existe) */
-        .veille-card p {
-            font-size: 0.95em;
-            color: var(--grey-text);
-            line-height: 1.5;
-            margin-bottom: 10px; /* Espace après la description */
-            /* Tronquer la description à un certain nombre de lignes si elle existe */
+            /* Le titre ne sera PAS tronqué ici, il doit s'afficher en entier */
+            /* Si le titre est très long, il pourra déborder ou faire varier la hauteur de la carte si la hauteur fixe est retirée */
+            /* Si la hauteur fixe est maintenue et le titre est très long, il sera coupé par l'overflow du parent */
+            white-space: normal; /* Permet au texte de passer à la ligne */
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
-            -webkit-line-clamp: 3; /* Limite la description à 3 lignes */
+            -webkit-line-clamp: 2; /* Limite le titre à 2 lignes si nécessaire pour le chapeau */
             -webkit-box-orient: vertical;
         }
-        /* Assure que le paragraphe de description ne prend pas de marge si vide */
-        .veille-card p:empty {
-            margin-bottom: 0; 
-            height: 0; /* Supprime l'espace si le paragraphe est vide */
+
+        /* Styles des paragraphes de description (maintenant retirés du HTML d'exemple) */
+        .veille-card p {
+            /* Ces styles s'appliqueront si des <p> sont injectés par n8n */
+            font-size: 0.95em;
+            color: var(--grey-text);
+            line-height: 1.5;
+            margin-bottom: 10px;
+            /* Pas de flex-grow: 1 ici, car la hauteur est fixe et le texte sera tronqué */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 0; /* Pas de lignes pour la description, elle est retirée */
+            -webkit-box-orient: vertical;
+        }
+        .veille-card p:empty { /* Masque l'espace si le paragraphe est vide */
+            margin: 0;
+            padding: 0;
+            height: 0;
+            -webkit-line-clamp: 0;
         }
 
         /* Styles pour les éléments spécifiques du contenu de veille */
@@ -374,7 +383,7 @@
             font-size: 0.9em;
             color: var(--grey-text);
             margin-top: 5px;
-            margin-bottom: 0; /* Plus de marge ici, gérée par le flex-grow */
+            margin-bottom: auto; /* Pousse le bouton vers le bas */
         }
         .veille-card p.meta-line strong {
             font-weight: bold;
@@ -395,6 +404,7 @@
             color: #666;
             text-align: left; /* Alignement par défaut du texte */
             margin-top: 5px; /* Espace après le bouton */
+            margin-bottom: auto; /* Pousse la source vers le bas, avant le bouton */
         }
         .veille-card a { /* S'applique aux liens à l'intérieur des cartes s'ils ne sont pas des boutons */
             color: #007acc; 
@@ -409,7 +419,7 @@
             display: block; /* S'assure que le bouton prend toute la largeur disponible */
             text-align: center;
             margin-top: auto; /* Pousse le bouton vers le bas dans le flex container */
-            padding: 7px 10px; /* Bouton un peu plus petit */
+            padding: 6px 10px; /* BOUTONS PLUS PETITS (Ajusté) */
             background-color: var(--primary-blue);
             color: white;
             text-decoration: none;
@@ -419,7 +429,7 @@
             transition: background-color 0.2s;
             white-space: nowrap;
             box-sizing: border-box;
-            font-size: 0.85em; /* Taille de police légèrement plus petite */
+            font-size: 0.8em; /* Taille de police légèrement plus petite */
         }
         .veille-card .article-action-button:hover {
             background-color: var(--dark-blue);
@@ -451,11 +461,11 @@
         }
         .scroll-arrow.left {
             left: 0; /* Positionné au bord de .veille-inner-scroll-container */
-            transform: translateY(-50%) translateX(-50%); /* Décalage pour être centré sur le bord */
+            transform: translateY(-50%) translateX(-100%); /* Décalage pour être centré sur le bord */
         }
         .scroll-arrow.right {
             right: 0; /* Positionné au bord de .veille-inner-scroll-container */
-            transform: translateY(-50%) translateX(50%); /* Décalage pour être centré sur le bord */
+            transform: translateY(-50%) translateX(100%); /* Décalage pour être centré sur le bord */
         }
         .scroll-arrow.hidden {
             display: none;
@@ -956,12 +966,16 @@
         // Événements de clic pour les flèches
         if (scrollLeftBtn) {
             scrollLeftBtn.addEventListener('click', () => {
-                veilleGrid.scrollBy({ left: -300, behavior: 'auto' }); // Défilement rapide (auto)
+                // Calcul du défilement pour sauter exactement une carte + son espacement
+                const scrollAmount = veilleGrid.querySelector('.veille-card') ? (veilleGrid.querySelector('.veille-card').offsetWidth + 20) : 300;
+                veilleGrid.scrollBy({ left: -scrollAmount, behavior: 'auto' }); // Défilement rapide (auto)
             });
         }
         if (scrollRightBtn) {
             scrollRightBtn.addEventListener('click', () => {
-                veilleGrid.scrollBy({ left: 300, behavior: 'auto' }); // Défilement rapide (auto)
+                // Calcul du défilement pour sauter exactement une carte + son espacement
+                const scrollAmount = veilleGrid.querySelector('.veille-card') ? (veilleGrid.querySelector('.veille-card').offsetWidth + 20) : 300;
+                veilleGrid.scrollBy({ left: scrollAmount, behavior: 'auto' }); // Défilement rapide (auto)
             });
         }
 
