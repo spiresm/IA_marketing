@@ -506,7 +506,7 @@
             const card = document.createElement("div");
             // NOTE: Ici, la 'chaine' est utilisée pour la couleur des cartes "Derniers ajouts",
             // qui est distincte de la logique du flux RSS.
-            const chaineCouleur = getChainColor(item.chaine); 
+            const chaineCouleur = getChainColor(item.chaine);   
             card.style.borderLeft = `5px solid ${chaineCouleur}`;
             card.className = `addition-card ${type}`;
 
@@ -563,7 +563,7 @@
                         ${toolBadge}
                     </div>
                     <h4>${mainCardTitle}</h4>
-                    <div class="card-subtitle">${escapeHtml(item.titre)}</div>    
+                    <div class="card-subtitle">${escapeHtml(item.titre)}</div>   
                     ${mediaHtml}
                     <div class="card-meta">
                         <span class="meta-line">Chaîne: <strong style="color: ${chaineCouleur};">${escapeHtml(item.chaine)}</strong></span>
@@ -588,8 +588,8 @@
             "La Première": "blue",
             "Vivacité": "orange",
             "La Trois": "purple",
-            "Classic 21": "#8A2BE2",    
-            "Musiq3": "#FF1493",    
+            "Classic 21": "#8A2BE2",   
+            "Musiq3": "#FF1493",   
             "Autre": "#778899",
             "Non spécifié": "#CCCCCC"
         };
@@ -735,22 +735,30 @@
             if (!veilleGrid) return;
             veilleGrid.innerHTML = '<p>Chargement des articles de veille...</p>';
 
-            // --- MODIFICATION ICI : Définition des paramètres directement dans le frontend pour le test ---
             const testKeywords = 'actualité OR news OR breaking'; 
-            const testSources = ''; // Laisse vide
-            const testCategories = ''; // Laisse vide
+            const testSources = '';
+            const testCategories = '';
             const testLanguages = 'fr,en';
             const testLimit = 20;
 
             const proxyUrl = `/.netlify/functions/fetch-news?keywords=${encodeURIComponent(testKeywords)}&sources=${encodeURIComponent(testSources)}&categories=${encodeURIComponent(testCategories)}&languages=${testLanguages}&sort=published_desc&limit=${testLimit}`;
-            // --- FIN DES MODIFICATIONS ---
 
             try {
                 const response = await fetch(proxyUrl);
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error("Erreur lors de la récupération des données MediasStack (via proxy):", errorText);
-                    throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
+                    // Tente de parser l'erreur JSON si c'est le cas
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        const errorMessage = errorData.errorDescription || errorData.errorMessage || "Détails d'erreur inconnus.";
+                        // Affiche l'erreur spécifique du n8n dans le HTML
+                        veilleGrid.innerHTML = `<p style="color: red;">Erreur lors du chargement des articles de veille: ${escapeHtml(errorMessage)}</p>`;
+                    } catch (parseError) {
+                        // Si ce n'est pas du JSON, affiche le texte brut
+                        veilleGrid.innerHTML = `<p style="color: red;">Erreur HTTP: ${response.status} - ${escapeHtml(errorText)}</p>`;
+                    }
+                    return; // Arrête l'exécution si la réponse n'est pas OK
                 }
                 const data = await response.json();
 
@@ -779,7 +787,7 @@
 
             } catch (error) {
                 console.error("Erreur lors du chargement des articles de veille:", error);
-                veilleGrid.innerHTML = `<p style="color: red;">Erreur lors du chargement des articles de veille. Cause probable: la fonction Netlify n'est pas trouvée ou est mal configurée.</p>`;
+                veilleGrid.innerHTML = `<p style="color: red;">Erreur lors du chargement des articles de veille. Cause probable: la fonction Netlify n'est pas trouvée ou est mal configurée, ou problème réseau.</p>`;
             }
         }
 
