@@ -710,72 +710,23 @@
             }
         }
 
-        async function loadVeilleArticles() {
-            const veilleGrid = document.getElementById('veille-articles-grid');
-            if (!veilleGrid) return;
-            veilleGrid.innerHTML = '<p>Chargement des articles de veille...</p>';
-
-            // --- MODIFICATION ICI : Définition des paramètres directement dans le frontend pour le test ---
-            const testKeywords = 'actualité OR news OR breaking'; 
-            const testSources = ''; // Laisse vide
-            const testCategories = ''; // Laisse vide
-            const testLanguages = 'fr,en';
-            const testLimit = 20;
-
-            const proxyUrl = `/.netlify/functions/fetch-news?keywords=${encodeURIComponent(testKeywords)}&sources=${encodeURIComponent(testSources)}&categories=${encodeURIComponent(testCategories)}&languages=${testLanguages}&sort=published_desc&limit=${testLimit}`;
-            // --- FIN DES MODIFICATIONS ---
-
-            try {
-                const response = await fetch(proxyUrl);
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error("Erreur lors de la récupération des données MediasStack (via proxy):", errorText);
-                    throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
-                }
-                const data = await response.json();
-
-                if (data.error) {
-                    console.error("Erreur de la fonction Netlify:", data.error);
-                    veilleGrid.innerHTML = `<p style="color: red;">Erreur de la fonction Netlify: ${escapeHtml(data.error)}</p>`;
-                    return;
-                }
-
-                if (data.data && data.data.length > 0) {
-                    veilleGrid.innerHTML = '';
-                    data.data.forEach(article => {
-                        const card = document.createElement('div');
-                        card.className = 'veille-card';
-                        card.innerHTML = `
-                            <h4>${escapeHtml(article.title || 'Titre inconnu')}</h4>
-                            <p>${escapeHtml(article.description ? article.description.substring(0, 150) + '...' : 'Pas de description.')}</p>
-                            <div class="source-info">Source: ${escapeHtml(article.source || 'Inconnu')} | Publié le: ${formatteDate(article.published_at)}</div>
-                            <a href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer">Lire l'article</a>
-                        `;
-                        veilleGrid.appendChild(card);
+        // ASYNC FUNCTION loadVeilleArticles() REMOVED HERE
+        
+        document.addEventListener("DOMContentLoaded", () => {
+            displayLatestAdditions();
+            loadNewsTicker();
+            // Appel à loadVeilleArticles() REMOVED HERE
+            
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
+                    link.classList.add("active");
                 } else {
-                    veilleGrid.innerHTML = '<p>Aucun article de veille trouvé pour le moment.</p>';
+                    link.classList.remove("active");
                 }
-
-            } catch (error) {
-                console.error("Erreur lors du chargement des articles de veille:", error);
-                veilleGrid.innerHTML = `<p style="color: red;">Erreur lors du chargement des articles de veille. Cause probable: la fonction Netlify n'est pas trouvée ou est mal configurée.</p>`;
-            }
-        }
-
-        displayLatestAdditions();
-        loadNewsTicker();
-        loadVeilleArticles();
-
-        const currentPath = window.location.pathname.split('/').pop();
-        document.querySelectorAll('nav a').forEach(link => {
-            const linkHref = link.getAttribute('href');
-            const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-            if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
-                link.classList.add("active");
-            } else {
-                link.classList.remove("active");
-            }
-        });
+            });
     });
     </script>
 
