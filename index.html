@@ -272,20 +272,16 @@
 
         /* --- Styles spécifiques à la section de veille --- */
         /* Conteneur principal pour le défilement et les flèches */
-        /* C'est ce conteneur qui aura un overflow: hidden si nécessaire pour les flèches, mais il sera plus grand */
         .veille-scroll-container {
             position: relative;
             width: 100%; /* Prend la largeur de la section parent */
-            overflow: visible; /* Les flèches peuvent sortir de ce conteneur */
-            /* Aucun padding latéral ici, c'est le veille-grid qui le gérera */
+            overflow: hidden; /* Cache les cartes qui dépassent */
         }
 
-        /* Conteneur qui contient la grille de cartes et les flèches */
-        /* C'est lui qui délimite la zone de défilement réelle des cartes */
-        .veille-inner-scroll-container { /* Nouveau wrapper pour le contenu défilant et les flèches */
+        /* Nouveau conteneur pour les flèches et la grille, permettant de gérer l'espace des flèches */
+        .veille-inner-scroll-container { 
             position: relative; /* Pour positionner les flèches à l'intérieur de ce conteneur */
-            /* Le padding ici crée l'espace visible pour les flèches */
-            padding: 0 50px; /* Ajuste ce padding pour l'espace des flèches */
+            padding: 0 45px; /* Espace pour les flèches (à ajuster) */
             box-sizing: border-box; /* Important pour que le padding soit inclus dans la largeur */
         }
 
@@ -296,7 +292,7 @@
             gap: 20px; /* Espace entre les cartes */
             overflow-x: auto; /* Permet le défilement horizontal */
             -webkit-overflow-scrolling: touch; /* Améliore le défilement sur les appareils tactiles */
-            scroll-behavior: auto; /* DÉFILEMENT INSTANTANÉ (comme demandé) */
+            scroll-behavior: auto; /* DÉFILEMENT INSTANTANÉ */
             padding-bottom: 15px; /* Pour éviter que la scrollbar ne cache le contenu */
             scrollbar-width: none; /* Masque la scrollbar Firefox */
             -ms-overflow-style: none;  /* Masque la scrollbar IE/Edge */
@@ -319,10 +315,10 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             display: flex;
             flex-direction: column;
-            /* La hauteur est fixe pour aligner les boutons, ajustez si le "chapeau" dépasse trop */
-            height: 200px; /* HAUTEUR FIXE RÉDUITE COMME DEMANDÉ */
+            justify-content: space-between; /* Pousse les éléments vers le haut/bas */
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             padding: 15px; /* Padding interne de la carte */
+            height: 200px; /* HAUTEUR FIXE POUR ALIGNER LES BOUTONS */
         }
 
         .veille-card:hover {
@@ -346,25 +342,20 @@
             margin-bottom: 10px;
             font-size: 1.2em;
             color: var(--dark-blue);
-            /* Le titre ne sera PAS tronqué ici, il doit s'afficher en entier */
-            /* Si le titre est très long, il pourra déborder ou faire varier la hauteur de la carte si la hauteur fixe est retirée */
-            /* Si la hauteur fixe est maintenue et le titre est très long, il sera coupé par l'overflow du parent */
             white-space: normal; /* Permet au texte de passer à la ligne */
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
-            -webkit-line-clamp: 2; /* Limite le titre à 2 lignes si nécessaire pour le chapeau */
+            -webkit-line-clamp: 2; /* Limite le titre à 2 lignes */
             -webkit-box-orient: vertical;
         }
 
         /* Styles des paragraphes de description (maintenant retirés du HTML d'exemple) */
         .veille-card p {
-            /* Ces styles s'appliqueront si des <p> sont injectés par n8n */
             font-size: 0.95em;
             color: var(--grey-text);
             line-height: 1.5;
             margin-bottom: 10px;
-            /* Pas de flex-grow: 1 ici, car la hauteur est fixe et le texte sera tronqué */
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
@@ -418,8 +409,8 @@
         .veille-card .article-action-button { 
             display: block; /* S'assure que le bouton prend toute la largeur disponible */
             text-align: center;
-            margin-top: auto; /* Pousse le bouton vers le bas dans le flex container */
-            padding: 6px 10px; /* BOUTONS PLUS PETITS (Ajusté) */
+            margin-top: 15px; /* Espace au-dessus du bouton */
+            padding: 6px 10px; /* BOUTONS PLUS PETITS */
             background-color: var(--primary-blue);
             color: white;
             text-decoration: none;
@@ -454,22 +445,23 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            opacity: 1; /* LES FLÈCHES SONT TOUJOURS VISIBLES */
         }
         .scroll-arrow:hover {
             background-color: var(--dark-blue);
             transform: translateY(-50%) scale(1.1); /* Léger effet de zoom au survol */
         }
         .scroll-arrow.left {
-            left: 0; /* Positionné au bord de .veille-inner-scroll-container */
-            transform: translateY(-50%) translateX(-100%); /* Décalage pour être centré sur le bord */
+            left: -15px; /* Poussé plus à l'intérieur */
+            transform: translateY(-50%) translateX(-50%); /* Ajustement pour être centré sur le bord */
         }
         .scroll-arrow.right {
-            right: 0; /* Positionné au bord de .veille-inner-scroll-container */
-            transform: translateY(-50%) translateX(100%); /* Décalage pour être centré sur le bord */
+            right: -15px; /* Poussé plus à l'intérieur */
+            transform: translateY(-50%) translateX(50%); /* Ajustement pour être centré sur le bord */
         }
-        .scroll-arrow.hidden {
-            display: none;
-        }
+        /* La classe .hidden n'est plus gérée par JS pour masquer les flèches */
+
+
         /* La section content-section.veille-section-container est la base relative */
         /* Son padding interne est le padding normal de 20px */
         /* Les flèches sont positionnées par rapport à elle en dehors de ce padding */
@@ -948,18 +940,36 @@
         const scrollLeftBtn = document.getElementById('veille-scroll-left');
         const scrollRightBtn = document.getElementById('veille-scroll-right');
 
-        // Fonction pour mettre à jour la visibilité des flèches
+        // Fonction pour mettre à jour la visibilité des flèches (MAINTENANT TOUJOURS VISIBLES)
         const updateScrollArrows = () => {
             if (!veilleGridContainer || !veilleGrid || !scrollLeftBtn || !scrollRightBtn) return;
-
-            // Masquer les flèches si le contenu ne déborde pas
+            
+            // Les flèches sont toujours visibles, il faut juste gérer leur état (disabled/enabled)
+            // en fonction du défilement. Pour ce faire, on pourrait ajuster leur opacité
+            // ou leur couleur s'il n'y a plus de contenu à défiler, mais la demande est
+            // qu'elles soient visibles en permanence, donc nous laissons leur display à 'block'.
+            // Nous allons retirer l'ajout/retrait de la classe 'hidden'.
+            
+            // Pour l'interaction, on peut les désactiver visuellement si le scroll est au bout
             if (veilleGrid.scrollWidth <= veilleGrid.clientWidth) {
-                scrollLeftBtn.classList.add('hidden');
-                scrollRightBtn.classList.add('hidden');
+                // Pas de défilement nécessaire, les flèches peuvent être moins "actives" visuellement
+                scrollLeftBtn.style.opacity = '0.5';
+                scrollRightBtn.style.opacity = '0.5';
+                scrollLeftBtn.style.cursor = 'default';
+                scrollRightBtn.style.cursor = 'default';
             } else {
-                // Montrer/masquer les flèches en fonction de la position de défilement
-                scrollLeftBtn.classList.toggle('hidden', veilleGrid.scrollLeft === 0);
-                scrollRightBtn.classList.toggle('hidden', veilleGrid.scrollLeft + veilleGrid.clientWidth >= veilleGrid.scrollWidth - 1); /* -1 pour tolérance */
+                // Défilement possible, flèches actives
+                scrollLeftBtn.style.opacity = '1';
+                scrollRightBtn.style.opacity = '1';
+                scrollLeftBtn.style.cursor = 'pointer';
+                scrollRightBtn.style.cursor = 'pointer';
+
+                // Gestion de l'opacité quand on est au début/fin du scroll
+                scrollLeftBtn.style.opacity = veilleGrid.scrollLeft === 0 ? '0.5' : '1';
+                scrollLeftBtn.style.cursor = veilleGrid.scrollLeft === 0 ? 'default' : 'pointer';
+
+                scrollRightBtn.style.opacity = (veilleGrid.scrollLeft + veilleGrid.clientWidth >= veilleGrid.scrollWidth - 1) ? '0.5' : '1';
+                scrollRightBtn.style.cursor = (veilleGrid.scrollLeft + veilleGrid.clientWidth >= veilleGrid.scrollWidth - 1) ? 'default' : 'pointer';
             }
         };
 
@@ -987,7 +997,14 @@
 
         // Initialiser la visibilité des flèches après le chargement du contenu (ou peu après)
         // Utiliser setTimeout pour s'assurer que le contenu est bien injecté par n8n si c'est dynamique.
-        setTimeout(updateScrollArrows, 500); 
+        setTimeout(() => {
+            updateScrollArrows(); // Appelle une première fois après un court délai
+            // Optionnel : observer les mutations si le contenu est ajouté de manière asynchrone après le DOMContentLoaded
+            const observer = new MutationObserver(updateScrollArrows);
+            if (veilleGrid) {
+                observer.observe(veilleGrid, { childList: true, subtree: true });
+            }
+        }, 500); 
 
 
         const currentPath = window.location.pathname.split('/').pop();
