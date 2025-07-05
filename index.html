@@ -238,7 +238,7 @@
             if (!grid) return;
 
             try {
-                const response = await fetch('veille-articles.json'); // Votre n8n doit créer ce fichier
+                const response = await fetch('veille-articles.json');
                 if (!response.ok) throw new Error(`Fichier de veille introuvable (statut: ${response.status})`);
                 
                 const articles = await response.json();
@@ -324,6 +324,7 @@
         // =========================================================================
         // SECTION 2 : FONCTIONS UTILITAIRES ET "DERNIERS AJOUTS"
         // =========================================================================
+        
         const escapeHtml = (text) => {
             if (text === null || text === undefined) return '';
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
@@ -335,12 +336,66 @@
             const match = url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
             return match ? match[1] : null;
         };
+        
+        const formatteDate = (dateString) => {
+            if (!dateString) return 'Date inconnue';
+            try { return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }); } 
+            catch (e) { return 'Date invalide'; }
+        };
+
+        const createCard = (item, type) => {
+            const card = document.createElement("div");
+            card.className = 'addition-card';
+            const mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
+            let mediaHtml = '';
+            const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl);
+
+            if (youtubeVideoId) {
+                mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
+            } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
+                mediaHtml = `<div class="card-image-container"><img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
+            }
+            
+            const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
+            card.innerHTML = `<div class="card-content-wrapper"><div class="card-top-meta">${toolBadge}</div><h4>${mainCardTitle}</h4><div class="card-subtitle">${escapeHtml(item.titre)}</div>${mediaHtml}<div class="card-meta"><span class="meta-line"><strong>Auteur:</strong> ${escapeHtml(item.auteur)}</span><span class="meta-line"><strong>Créé le:</strong> ${formatteDate(item.date)}</span></div><a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="view-button">Voir plus</a></div>`;
+            return card;
+        };
 
         async function displayLatestAdditions() {
             const container = document.getElementById("latest-additions-grid");
             if (!container) return;
-            // La logique pour récupérer et afficher les derniers ajouts (prompts, workflows) va ici
-            // ... (code de votre fonction displayLatestAdditions originale)
+            container.innerHTML = '<p>Chargement des contenus...</p>';
+
+            const GET_TIPS_URL = "/.netlify/functions/get-tips";
+            const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
+
+            try {
+                const [tipsResponse, promptsResponse] = await Promise.all([
+                    fetch(GET_TIPS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
+                    fetch(GET_PROMPTS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])}))
+                ]);
+
+                let tips = tipsResponse.ok ? await tipsResponse.json() : [];
+                let prompts = promptsResponse.ok ? await promptsResponse.json() : [];
+
+                const normalizeItem = (item) => ({...item, titre: item.titre || "Titre non spécifié", auteur: item.auteur || "Auteur inconnu", date: item.date_creation || item.dateCreation, chaine: item.chaine || "Non spécifié", outil: item.outil || "Non spécifié", imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'), firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url))});
+                
+                tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
+                prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                container.innerHTML = '';
+                let itemsToDisplay = [];
+                if (prompts.length > 0) itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
+                if (tips.length > 0) itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
+
+                if (itemsToDisplay.length > 0) {
+                    itemsToDisplay.forEach(({ item, type }) => container.appendChild(createCard(item, type)));
+                } else {
+                    container.innerHTML = '<p>Aucun ajout récent à afficher.</p>';
+                }
+            } catch (error) {
+                container.innerHTML = `<p style="color: var(--error-text);">Erreur de chargement des contenus.</p>`;
+            }
         }
 
         // =========================================================================
@@ -349,8 +404,27 @@
         async function loadNewsTicker() {
             const newsTickerContent = document.getElementById('newsTickerContent');
             if (!newsTickerContent) return;
-            // La logique pour charger le news-data.json va ici
-            // ... (code de votre fonction loadNewsTicker originale)
+            const NEWS_DATA_PATH = 'news-data.json';
+            try {
+                const response = await fetch(NEWS_DATA_PATH);
+                if (!response.ok) throw new Error('Fichier news introuvable.');
+                const newsItems = await response.json();
+
+                if (newsItems.length > 0) {
+                    const fullTextHtml = newsItems.map(item => {
+                        let fullText = escapeHtml(item.title);
+                        if (item.collaborateur && item.collaborateur !== 'Non spécifié') {
+                            fullText += `<span class="author-info"> (${escapeHtml(item.collaborateur)})</span>`;
+                        }
+                        return `<span class="news-item" style="color: ${item.color || '#333'};">${fullText}</span>`;
+                    }).join(' &nbsp; • &nbsp; ');
+                    newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml;
+                } else {
+                    newsTickerContent.innerHTML = '<span>Aucune actualité pour le moment.</span>';
+                }
+            } catch (error) {
+                newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
+            }
         }
         
         // =========================================================================
@@ -362,6 +436,8 @@
                 const linkHref = new URL(link.href, window.location.origin).pathname.split('/').pop();
                 if (linkHref === currentPath) {
                     link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
                 }
             });
         }
