@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -176,28 +177,14 @@
             margin-bottom: 12px;
             color: var(--dark-blue);
             font-size: 1.6em;
-            border-bottom: 3px solid var(--primary-blue); /* Ligne par défaut pour les titres */
+            border-bottom: 3px solid var(--primary-blue);
             padding-bottom: 10px;
             font-weight: bold;
             position: relative;
             padding-left: 40px;
         }
-        /* Style spécifique pour les titres sans icône ni ligne */
-        .side-panel-content h3.no-icon-no-border {
-            border-bottom: none; /* Supprime la ligne */
-            padding-bottom: 0; /* Ajuste le padding */
-            padding-left: 0; /* Supprime l'espace pour l'icône */
-            font-size: 1.4em; /* Texte un peu plus petit */
-            margin-bottom: 15px; /* Espacement après le titre */
-        }
-        .side-panel-content h3.no-icon-no-border::before {
-            content: none; /* Supprime l'icône */
-        }
-
-
         .side-panel-content h3:first-child { margin-top: 0; }
-        /* Style pour les titres avec icône */
-        .side-panel-content h3.has-icon::before {
+        .side-panel-content h3::before {
             font-family: "Font Awesome 6 Free";
             font-weight: 900;
             position: absolute;
@@ -207,8 +194,10 @@
             top: 50%;
             transform: translateY(-50%);
         }
-        .side-panel-content h3.tools-icon.has-icon::before { content: "\f0ad"; /* Icone Outil pour Outils Favoris */ }
-        .side-panel-content h3.note-icon.has-icon::before { content: "\f249"; /* Icone Note pour Note */ }
+        .side-panel-content h3.prompts-icon::before { content: "\f03e"; /* Icone Image pour Prompts */ }
+        .side-panel-content h3.workflows-icon::before { content: "\f0ae"; /* Icone Workflow pour Workflows */ }
+        .side-panel-content h3.tools-icon::before { content: "\f0ad"; /* Icone Outil pour Outils Favoris */ }
+        .side-panel-content h3.note-icon::before { content: "\f249"; /* Icone Note pour Note */ }
 
 
         .side-panel-content ul { padding-left: 25px; list-style: none; }
@@ -257,7 +246,6 @@
             display: flex; flex-wrap: wrap; gap: 15px;
             justify-content: center;
             margin-top: 20px;
-            margin-bottom: 30px; /* Ajout d'un peu d'espace en bas */
         }
         .gallery-images-container img {
             width: 150px;
@@ -385,25 +373,13 @@
             }
         }
         
-        // Version améliorée de escapeHtml pour les attributs
-        function escapeHtmlAttribute(unsafe) {
-            if (typeof unsafe !== 'string') return '';
-            return unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/"/g, "&quot;") // Échappe les guillemets doubles
-                .replace(/'/g, "&#039;") // Échappe les apostrophes
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-        }
-
-        // Ancienne escapeHtml pour le texte brut (non-attribut)
-        function escapeHtml(unsafe) {
-            if (typeof unsafe !== 'string') return '';
-            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;');
-        }
-        
         function normalizeString(str) {
             return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
+        }
+        
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') return '';
+            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
         
         function renderProfils(filteredProfils) {
@@ -419,14 +395,14 @@
                 const hasNote = p.note && p.note.trim() !== '';
 
                 card.innerHTML = `
-                    <div class="profil-card-clickable" title="Voir les détails de ${escapeHtmlAttribute(p.name)}">
+                    <div class="profil-card-clickable" title="Voir les détails de ${p.name}">
                         <span class="note-badge" style="display: ${hasNote ? 'inline-block' : 'none'}">Note</span>
-                        <img src="${p.photo || 'https://placehold.co/90x90?text=Profil'}" alt="${escapeHtmlAttribute(p.name)}">
-                        <h3>${escapeHtml(p.name || 'N/A')}</h3>
-                        <p class="pole">${escapeHtml(p.pole || 'N/A')}</p>
+                        <img src="${p.photo || 'https://placehold.co/90x90?text=Profil'}" alt="Photo de ${p.name}">
+                        <h3>${p.name || 'N/A'}</h3>
+                        <p class="pole">${p.pole || 'N/A'}</p>
                     </div>
                     <div class="note-editor">
-                        <textarea>${escapeHtml(p.note || '')}</textarea>
+                        <textarea>${p.note || ''}</textarea>
                         <div class="actions">
                             <button class="save-note">Enregistrer</button>
                             <button class="clear-note">Effacer</button>
@@ -501,7 +477,7 @@
                 header.insertBefore(imgElement, header.querySelector('h2'));
             }
             imgElement.src = profil.photo || 'https://placehold.co/120x120?text=Profil';
-            imgElement.alt = escapeHtmlAttribute(profil.name); // Utilisez escapeHtmlAttribute ici
+            imgElement.alt = `Photo de ${profil.name}`;
 
             panelName.textContent = profil.name;
             panelPole.textContent = profil.pole || 'N/A';
@@ -509,30 +485,29 @@
             // --- Construction du contenu du panneau ---
             let panelHtmlContent = '';
 
-            // 1. Section Derniers Prompts Partagés (sans icône ni ligne)
+            // 1. Section Derniers Prompts Partagés
             const promptsByAuthor = galleryPrompts.filter(p => normalizeString(p.auteur) === normalizeString(profil.name));
-            panelHtmlContent += `<h3 class="no-icon-no-border">Derniers Prompts Partagés</h3>`;
+            panelHtmlContent += `<h3 class="prompts-icon">Derniers Prompts Partagés</h3>`;
             if (promptsByAuthor.length > 0) {
                 panelHtmlContent += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt => 
-                    // Utiliser escapeHtmlAttribute pour les attributs title et alt
-                    `<a href="galerie.html" title="${escapeHtmlAttribute(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/150'}" alt="${escapeHtmlAttribute(prompt.titre)}"></a>`
+                    `<a href="galerie.html" title="${escapeHtml(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/150'}" alt="${escapeHtml(prompt.titre)}"></a>`
                 ).join('')}</div>`;
             } else {
                 panelHtmlContent += '<p>Aucun prompt partagé.</p>';
             }
 
-            // 2. Section Dernier Workflow Partagé (sans icône ni ligne)
+            // 2. Section Dernier Workflow Partagé
             const tipsByAuthor = sharedTips.filter(tip => normalizeString(tip.auteur) === normalizeString(profil.name));
-            panelHtmlContent += `<h3 class="no-icon-no-border">Dernier Workflow Partagé</h3>`;
+            panelHtmlContent += `<h3 class="workflows-icon">Dernier Workflow Partagé</h3>`;
             if (tipsByAuthor.length > 0) {
                 tipsByAuthor.sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation));
                 const latestTip = tipsByAuthor[0];
                 
                 const imageUrl = latestTip.imageUrl || (latestTip.fileUrls && latestTip.fileUrls.length > 0 ? latestTip.fileUrls[0] : null);
-                const imageHtml = imageUrl ? `<img src="${imageUrl}" alt="${escapeHtmlAttribute(latestTip.titre)}" class="tip-card-img">` : '';
+                const imageHtml = imageUrl ? `<img src="${imageUrl}" alt="Illustration" class="tip-card-img">` : '';
 
                 panelHtmlContent += `
-                    <a href="cas-usages.html" class="tip-card" title="${escapeHtmlAttribute(latestTip.titre)}">
+                    <a href="cas-usages.html" class="tip-card" title="${escapeHtml(latestTip.titre)}">
                         ${imageHtml}
                         <div class="tip-card-text">
                             <h4>${escapeHtml(latestTip.titre)}</h4>
@@ -543,15 +518,15 @@
                 panelHtmlContent += '<p>Aucun workflow partagé.</p>';
             }
 
-            // 3. Section Outils Favoris (avec icône et ligne)
+            // 3. Section Outils Favoris
             const toolsList = (profil.tools && profil.tools.length > 0) 
                 ? `<ul>${profil.tools.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` : '<p>Aucun outil spécifié.</p>';
-            panelHtmlContent += `<h3 class="tools-icon has-icon">Outils Favoris</h3>${toolsList}`;
+            panelHtmlContent += `<h3 class="tools-icon">Outils Favoris</h3>${toolsList}`;
             
-            // 4. Section Note (si présente, avec icône et ligne)
+            // 4. Section Note (si présente)
             if (profil.note) {
                 const noteContent = `<div class="note-content">${escapeHtml(profil.note)}</div>`;
-                panelHtmlContent += `<h3 class="note-icon has-icon">Note</h3>${noteContent}`;
+                panelHtmlContent += `<h3 class="note-icon">Note</h3>${noteContent}`;
             }
 
             panelContent.innerHTML = panelHtmlContent;
