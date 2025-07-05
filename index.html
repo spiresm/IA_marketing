@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
+        /* VOTRE CSS COMPLET DE 200+ LIGNES EST ICI ET RESTE INCHANGÉ */
         :root {
             --primary-blue: #0077b6;
             --dark-blue: #005f8a;
@@ -65,10 +66,7 @@
             white-space: nowrap;
             position: relative;
         }
-        nav a:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-        nav a.active {
+        nav a:hover, nav a.active {
             background-color: white;
             color: var(--primary-blue);
         }
@@ -549,18 +547,17 @@
 
     <script>
     document.addEventListener("DOMContentLoaded", () => {
-        // Le script est simplifié car la plupart du contenu est maintenant géré par n8n.
-        // Seuls les éléments interactifs qui doivent exister au chargement de la page sont conservés.
+        // Le script est simplifié pour ne gérer que l'interactivité de la page,
+        // et non plus le chargement du contenu qui est délégué à n8n.
 
-        const NEWS_DATA_PATH = 'news-data.json';
-        
+        // --- Logique pour le bandeau d'actualités ---
         async function loadNewsTicker() {
             const newsTickerContent = document.getElementById('newsTickerContent');
             if (!newsTickerContent) return;
             
             try {
-                const response = await fetch(NEWS_DATA_PATH);
-                if (!response.ok) throw new Error('Fichier d\'actualités non trouvé.');
+                const response = await fetch('news-data.json');
+                if (!response.ok) throw new Error('Fichier news introuvable.');
 
                 const newsItems = await response.json();
                 if (newsItems.length > 0) {
@@ -580,22 +577,15 @@
                         return `<span class="news-item" style="color: ${messageColor};">${fullText}</span>`;
                     }).join('');
                     
-                    // Duplication pour l'effet de défilement continu
+                    // Duplication pour l'effet de défilement
                     newsTickerContent.innerHTML = fullTextHtml + fullTextHtml;
                 } else {
                     newsTickerContent.innerHTML = '<span>Aucune actualité pour le moment.</span>';
                 }
             } catch (error) {
-                console.error("Erreur de chargement du bandeau d'actualités:", error);
+                console.error("Erreur chargement news:", error);
                 newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
             }
-        }
-
-        // Fonction d'échappement HTML de base
-        function escapeHtml(text) {
-            if (text === null || text === undefined) return '';
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return String(text).replace(/[&<>"']/g, m => map[m]);
         }
 
         // --- Logique pour les flèches de la section Veille ---
@@ -604,28 +594,36 @@
         const scrollRightBtn = document.getElementById('veille-scroll-right');
 
         if (veilleGrid && scrollLeftBtn && scrollRightBtn) {
+            const scrollAmount = 300; // Défilement fixe
             scrollLeftBtn.addEventListener('click', () => {
-                const scrollAmount = veilleGrid.querySelector('.veille-card') ? (veilleGrid.querySelector('.veille-card').offsetWidth + 20) : 300;
                 veilleGrid.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
             });
             scrollRightBtn.addEventListener('click', () => {
-                const scrollAmount = veilleGrid.querySelector('.veille-card') ? (veilleGrid.querySelector('.veille-card').offsetWidth + 20) : 300;
                 veilleGrid.scrollBy({ left: scrollAmount, behavior: 'smooth' });
             });
         }
         
         // --- Navigation Active ---
-        const currentPath = window.location.pathname.split('/').pop() || "index.html";
-        document.querySelectorAll('nav a').forEach(link => {
-            const linkHref = link.getAttribute('href').split('/').pop();
-            if (linkHref === currentPath) {
-                link.classList.add("active");
-            } else {
-                link.classList.remove("active");
-            }
-        });
+        try {
+            const currentPath = window.location.pathname.split('/').pop() || "index.html";
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = new URL(link.href).pathname.split('/').pop();
+                if (linkHref === currentPath) {
+                    link.classList.add("active");
+                }
+            });
+        } catch (e) {
+            console.error("Erreur lors de la mise à jour de la navigation active:", e);
+        }
 
-        // Lancement des fonctions nécessaires au chargement
+        // --- Fonctions utilitaires ---
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Lancement des fonctions au chargement
         loadNewsTicker();
     });
     </script>
