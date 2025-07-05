@@ -16,11 +16,11 @@
             --background-grey: #f0f2f5;
             --grey-text: #555;
             --border-color: #ccc;
-            --card-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            --fun-blue-light: #4c96d7;
-            --fun-blue-dark: #004a7c;
-            --note-background: #fffbe6;
-            --note-border: #ffcb05;
+            --card-shadow: 0 4px 15px rgba(0,0,0,0.08); /* Ajouté pour consistance */
+            --fun-blue-light: #4c96d7; /* Couleur bleue claire pour le dégradé */
+            --fun-blue-dark: #004a7c; /* Couleur bleue foncée pour le dégradé */
+            --note-background: #fffbe6; /* Couleur pour les notes/commentaires */
+            --note-border: #ffcb05; /* Couleur de bordure pour les notes/commentaires */
         }
 
         body {
@@ -376,7 +376,9 @@
         }
 
         /* Style pour les sections spécifiques (Prompt, Commentaire, Médias) sans ligne/icône, texte un peu plus petit */
-        .preview-panel-content h4.sub-section-title {
+        .preview-panel-content h4.prompt-title,
+        .preview-panel-content h4.comment-title,
+        .preview-panel-content h4.media-title {
              border-bottom: none;
              padding-bottom: 0;
              margin-bottom: 15px;
@@ -485,7 +487,9 @@
             .preview-panel-content h4 {
                 font-size: 1.4em;
             }
-            .preview-panel-content h4.sub-section-title {
+            .preview-panel-content h4.prompt-title,
+            .preview-panel-content h4.comment-title,
+            .preview-panel-content h4.media-title {
                 font-size: 1.2em;
             }
             .preview-panel-media-container img {
@@ -523,11 +527,8 @@
                     <h2>Outils IA Populaires</h2>
                     <div id="workflow-counter">0</div>
                 </div>
-                <div class="tools-scroll-container">
-                    <button class="scroll-button left" id="scrollLeftBtn"><i class="fas fa-chevron-left"></i></button>
-                    <div id="tool-logos-grid" class="tools-grid"></div>
-                    <button class="scroll-button right" id="scrollRightBtn"><i class="fas fa-chevron-right"></i></button>
-                </div>
+                <div id="tool-logos-grid" class="tools-grid"></div>
+                <button class="scroll-button right" id="scrollRightBtn"><i class="fas fa-chevron-right"></i></button>
             </div>
 
             <div id="filters">
@@ -938,9 +939,19 @@
 
         async function initApp() {
             attachEventListeners();
-            // toolsData et renderToolLogos sont spécifiques à la section outils, les garder ici est une erreur de ma part.
-            // if (typeof toolsData !== 'undefined') renderToolLogos(toolsData);
-            // setupScrollButtons();
+            // --- RESTAURATION DU CAROUSEL DES LOGOS D'OUTILS ---
+            // Le script tools-data.js doit être chargé AVANT ce script principal
+            // et définir une variable globale 'toolsData'.
+            if (typeof toolsData !== 'undefined' && toolsData.length > 0) {
+                renderToolLogos(toolsData);
+                setupScrollButtons();
+            } else {
+                console.warn("tools-data.js n'a pas pu être chargé ou est vide. Le carrousel des logos ne sera pas affiché.");
+                // Optionnel: masquer la section du carrousel si toolsData n'est pas disponible
+                document.querySelector('.tool-logos-section').style.display = 'none';
+            }
+            // --- FIN RESTAURATION ---
+
 
             galerieDiv.innerHTML = '<p style="text-align: center;">Chargement des workflows...</p>';
             try {
@@ -949,15 +960,15 @@
 
                 const fetchedData = await response.json();
 
-                // allTipsFileSha n'est pertinent que si vous gérez la suppression/modification via GitHub API dans le backend.
+                // allTipsFileSha est pertinent si votre fonction de suppression/mise à jour l'utilise pour GitHub
                 // Si ce n'est pas le cas, cette partie peut être retirée.
-                // if (fetchedData.length > 0 && fetchedData[0].parentFileSha) {
-                //     allTipsFileSha = fetchedData[0].parentFileSha;
-                //     console.log("SHA du fichier all-tips.json récupéré:", allTipsFileSha);
-                // } else {
-                //     console.warn("SHA du fichier all-tips.json non trouvé dans la réponse de get-tips. La mise à jour/suppression pourrait échouer si le backend GitHub est utilisé.");
-                //     allTipsFileSha = null;
-                // }
+                if (fetchedData.length > 0 && fetchedData[0].parentFileSha) {
+                    allTipsFileSha = fetchedData[0].parentFileSha;
+                    console.log("SHA du fichier all-tips.json récupéré:", allTipsFileSha);
+                } else {
+                    console.warn("SHA du fichier all-tips.json non trouvé dans la réponse de get-tips. La mise à jour/suppression pourrait échouer si le backend GitHub est utilisé.");
+                    allTipsFileSha = null;
+                }
 
                 allTips = fetchedData.map(tip => ({
                     ...tip,
