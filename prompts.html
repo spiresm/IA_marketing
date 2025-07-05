@@ -1,971 +1,910 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Workflows - Espace IA</title>
+    <title>Partager un Prompt - Espace IA</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preload" href="header.html" as="fetch" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css" /> 
+
     <style>
-        /* CSS unifié pour l'ensemble du site */
+        /* Variables CSS (assurez-vous qu'elles sont cohérentes avec style.css si présent) */
         :root {
             --primary-blue: #0077b6;
             --dark-blue: #005f8a;
             --light-blue: #64B5F6;
+            --lighter-blue: #42A5F5;
             --background-grey: #f0f2f5;
-            --grey-text: #555;
+            --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            --text-color: #333;
+            --light-text-color: #777;
             --border-color: #ccc;
-            --card-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            --fun-blue-light: #4c96d7;
-            --fun-blue-dark: #004a7c;
-            --note-background: #fffbe6;
-            --note-border: #ffcb05;
+            --white-card-bg: #ffffff; /* Ajouté pour la cohérence des fonds blancs */
+            --input-bg: #f9fafb; /* Ajouté pour la cohérence des fonds d'input */
+            --header-bg: #ffffff; /* Fond du header */
+            --nav-link-color: #333;
+            --nav-link-hover-color: var(--primary-blue);
+            --active-link-color: var(--primary-blue);
+            --dark-mode-bg: #2b2b2b;
+            --dark-mode-text: #e0e0e0;
+            --dark-mode-card-bg: #3a3a3a;
+            --dark-mode-border: #555;
+            --dark-mode-input-bg: #444;
         }
 
+        /* Styles Dark Mode */
+        body.dark-mode {
+            background-color: var(--dark-mode-bg);
+            color: var(--dark-mode-text);
+        }
+        body.dark-mode .container {
+            background-color: var(--dark-mode-card-bg);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        body.dark-mode .retour-lien,
+        body.dark-mode .info-bubble-content h3 {
+            color: var(--light-blue);
+        }
+        body.dark-mode label,
+        body.dark-mode input,
+        body.dark-mode select,
+        body.dark-mode textarea {
+            color: var(--dark-mode-text);
+        }
+        body.dark-mode input,
+        body.dark-mode select,
+        body.dark-mode textarea {
+            background-color: var(--dark-mode-input-bg);
+            border-color: var(--dark-mode-border);
+        }
+        body.dark-mode input:focus,
+        body.dark-mode select:focus,
+        body.dark-mode textarea:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.4);
+        }
+        body.dark-mode #drop-zone {
+            border-color: var(--light-blue);
+            color: var(--light-text-color);
+        }
+        body.dark-mode #drop-zone.dragover {
+            background: #3f5b66; /* Un peu plus sombre pour le dark mode */
+        }
+        body.dark-mode .confirmation {
+            background: #2f4f4f; /* Fond plus sombre pour la confirmation */
+            border-color: #4CAF50; /* Bordure verte cohérente */
+        }
+        body.dark-mode .loader {
+            border-top-color: var(--primary-blue);
+        }
+
+
+        /* Styles généraux pour l'animation d'apparition de la page */
         body {
-            font-family: 'Segoe UI', 'Inter', sans-serif;
+            opacity: 0;
+            transition: opacity 0.5s ease;
             margin: 0;
+            font-family: 'Inter', sans-serif; /* Utilise la police Inter */
             background-color: var(--background-grey);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body.show {
+            opacity: 1;
         }
 
         main {
+            opacity: 0;
+            transition: opacity 0.5s ease;
             padding: 40px 20px;
-            flex-grow: 1;
+            flex-grow: 1; /* Permet au main de prendre l'espace disponible */
         }
 
-        /* --- Barre de Navigation --- */
-        .nav-wrapper {
-            background-color: var(--primary-blue);
-            width: 100%;
-            position: relative;
-            flex-shrink: 0;
-            padding: 5px 0;
+        main.show {
+            opacity: 1;
         }
 
-        .menu-container {
-            max-width: 1200px;
+        /* Styles pour le conteneur principal du formulaire */
+        .container {
+            max-width: 600px;
             margin: 0 auto;
-            padding: 0 30px;
-            box-sizing: border-box;
-        }
-
-        nav {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        nav a {
-            text-decoration: none;
-            color: white;
-            font-weight: bold;
-            font-size: 1.1em;
-            padding: 10px 18px;
-            border-radius: 8px;
-            transition: background 0.3s ease;
-            margin: 0 5px;
-            white-space: nowrap;
-            position: relative;
-        }
-
-        nav a:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        nav a.active {
-            background-color: white;
-            color: var(--primary-blue);
-        }
-
-        .notif-bubble {
-            position: absolute; top: 0px; right: 0px; background: red; color: white;
-            border-radius: 50%; padding: 2px 6px; font-size: 12px; font-weight: bold;
-            display: none;
-        }
-
-        /* --- Conteneur principal et sections --- */
-        .main-container {
-            max-width: 960px;
-            margin: 25px auto;
-            padding: 25px;
-            box-sizing: border-box;
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-
-        .create-workflow-button-container {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-        .create-workflow-button {
-            display: inline-flex; align-items: center; gap: 8px; background-color: var(--primary-blue);
-            color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none;
-            font-weight: bold; font-size: 1.1em; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .tool-logos-section {
-            margin-bottom: 25px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 25px;
-        }
-        .tool-logos-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px;
-        }
-        .tool-logos-header h2 { color: var(--dark-blue); margin: 0; font-size:1.4em; }
-        #workflow-counter {
-            background-color: #e9ecef; color: #495057; padding: 8px 15px;
-            border-radius: 8px; font-size: 0.9em; font-weight: 600;
-        }
-        .tools-scroll-container { display: flex; align-items: center; position: relative; }
-        .scroll-button {
-            background-color: var(--primary-blue); color: white; border: none; padding: 10px 15px;
-            cursor: pointer; border-radius: 50%; font-size: 1.2em; position: absolute;
-            top: 50%; transform: translateY(-50%); z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        .scroll-button.left { left: -25px; }
-        .scroll-button.right { right: -25px; }
-        .tools-grid {
-            display: flex; overflow-x: auto; scroll-behavior: smooth;
-            gap: 15px; padding: 10px 5px; scrollbar-width: none;
-        }
-        .tools-grid::-webkit-scrollbar { display: none; }
-        .tool-card {
-            flex: 0 0 auto; width: 80px; background-color: #f9fafb; padding: 10px;
-            border-radius: 8px; border: 1px solid #eee;
-            transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; text-align: center; min-height: 100px;
-        }
-        .tool-card:hover { transform: translateY(-3px); box-shadow: 0 5px 10px rgba(0,0,0,0.1); }
-        .tool-card img { max-width: 50px; height: auto; margin-bottom: 8px; }
-        .tool-card .tool-name { font-weight: bold; color: var(--dark-blue); font-size: 0.8em; }
-
-        #filters {
-            display: flex; gap: 15px; width: 100%; flex-wrap: wrap; margin-bottom: 25px;
-        }
-        #filters input, #filters select {
-            flex: 1; min-width: 200px; background-color: #f9fafb;
-            border: 1px solid var(--border-color); border-radius: 8px;
-            padding: 12px 15px; font-size: 1em;
-        }
-
-        /* --- Galerie de Workflows --- */
-        #galerie {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
-        }
-
-        .carte {
-            background: #fff;
+            background: var(--white-card-bg);
             border-radius: 12px;
             box-shadow: var(--card-shadow);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .carte:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-        }
-
-        /* VIGNETTES VIDEO (RATIO 16:9) */
-        .card-thumbnail-preview {
-            width: 100%;
-            height: 0;
-            padding-bottom: 56.25%; /* Ratio 16:9 */
+            padding: 30px;
             position: relative;
-            overflow: hidden;
-            display: block;
-            background-color: #eee;
-        }
-        .card-thumbnail-preview img {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
         }
 
-        .card-content {
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-        }
-
-        .tip-title {
-            font-size: 1.2em;
+        /* Styles du lien de retour */
+        .retour-lien {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: var(--primary-blue);
+            text-decoration: none;
             font-weight: bold;
-            margin: 0;
-            color: var(--dark-blue);
-            margin-bottom: 10px;
+            font-size: 1.05em;
         }
 
-        .card-preview-icons-inline {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 10px;
-            color: var(--grey-text);
+        .retour-lien:hover {
+            text-decoration: underline;
         }
 
-        .outil-badge {
-            background-color: #e9ecef;
-            color: #495057;
-            font-size: 0.8em;
-            font-weight: 500;
-            padding: 5px 12px;
-            border-radius: 15px;
-            align-self: flex-start;
+        /* Styles des labels et inputs/select/textarea */
+        label {
+            font-weight: 600;
+            display: block;
+            margin-top: 15px;
+            color: var(--text-color);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
             margin-top: 5px;
-            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            background: var(--input-bg);
+            box-sizing: border-box;
+            color: var(--text-color);
         }
 
-        .metadata-section {
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary-blue);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.2);
+        }
+
+        /* Styles pour le drag & drop de l'image */
+        #drop-zone {
+            border: 2px dashed var(--primary-blue);
+            padding: 20px;
+            text-align: center;
+            color: var(--light-text-color);
+            margin-top: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #drop-zone.dragover {
+            background: var(--light-blue); /* Plus clair pour le mode clair */
+        }
+
+        #image-preview {
+            display: block;
+            max-width: 80%;
+            max-height: 200px;
+            object-fit: contain;
+            margin: 15px auto;
+            border-radius: 10px;
+            border: 1px solid #eee;
+        }
+
+        /* Styles du bouton de soumission */
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary-blue);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            margin-top: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: var(--dark-blue);
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        /* Styles de la section de confirmation */
+        .confirmation {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 10px;
+            text-align: center;
+            color: var(--text-color);
+        }
+
+        .confirmation img {
+            max-width: 80%;
+            height: auto;
+            margin-top: 15px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        /* Styles du loader */
+        .loader {
+            display: block;
+            margin: 20px auto;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* --- Styles du Header (ajoutés ou vérifiés) --- */
+        .main-header {
+            background-color: var(--header-bg);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.85em;
-            color: var(--grey-text);
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-            margin-top: auto;
+            flex-wrap: wrap; /* Pour la réactivité */
+            border-bottom: 1px solid var(--border-color);
         }
-        .supprimer-btn { background: none; border: none; color: #aaa; cursor: pointer; padding: 0 5px; }
 
-        /* Styles homogènes pour les boutons d'action de la carte de Workflow */
-        .card-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-            flex-wrap: wrap;
+        body.dark-mode .main-header {
+            background-color: var(--dark-mode-card-bg); /* Fond plus foncé pour le header en dark mode */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            border-bottom-color: var(--dark-mode-border);
         }
-        .card-action-btn-workflow {
-            background-color: var(--primary-blue);
-            color: white;
-            border: none;
-            padding: 10px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.85em;
-            font-weight: 600;
-            transition: background-color 0.2s;
-            flex-shrink: 0;
-            text-align: center;
+
+        .main-header .logo {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--primary-blue);
             text-decoration: none;
+            flex-shrink: 0;
+            margin-right: 20px; /* Espace à droite du logo */
+        }
+
+        body.dark-mode .main-header .logo {
+            color: var(--light-blue);
+        }
+
+        .main-header nav {
+            flex-grow: 1; /* Permet à la navigation de prendre l'espace */
             display: flex;
-            align-items: center;
             justify-content: center;
-            width: calc(50% - 5px);
-            box-sizing: border-box;
-        }
-        .card-action-btn-workflow:hover {
-            background-color: var(--dark-blue);
+            min-width: 300px; /* Pour éviter que le menu ne se contracte trop sur une seule ligne */
         }
 
-        /* Style pour le bouton supprimer (icône seule) */
-        .supprimer-btn-workflow {
-            background: none;
-            border: none;
-            color: #aaa;
-            cursor: pointer;
-            padding: 0 5px;
-            font-size: 1.2em;
-            transition: color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: auto;
-        }
-        .supprimer-btn-workflow:hover {
-            color: #dc3545;
-        }
-
-        /* --- Panneau latéral (MODIFIÉ) --- */
-        .preview-panel {
-            position: fixed; top: 0; right: -100%; width: 740px; max-width: 90%; height: 100%;
-            background-color: #f9f9f9; box-shadow: -4px 0 15px rgba(0,0,0,0.1);
-            transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            z-index: 1000; display: flex; flex-direction: column;
-            border-left: 5px solid var(--primary-blue);
-        }
-        .preview-panel.open { right: 0; }
-        .preview-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.5); z-index: 999;
-            opacity: 0; visibility: hidden; transition: opacity 0.4s;
-        }
-        .preview-overlay.open { opacity: 1; visibility: visible; }
-
-        /* HEADER du panneau latéral (MODIFIÉ) */
-        .preview-panel-header {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 30px 25px 20px;
-            border-bottom: 1px solid #e0e0e0;
-            background: linear-gradient(135deg, var(--fun-blue-light) 0%, var(--fun-blue-dark) 100%);
-            color: white;
-            position: relative;
-        }
-        .preview-panel-header .close-preview-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: none;
-            border: none;
-            font-size: 2.5em;
-            cursor: pointer;
-            color: white;
-            opacity: 0.8;
-            transition: opacity 0.2s;
-        }
-        .preview-panel-header .close-preview-btn:hover {
-            opacity: 1;
-        }
-        .preview-panel-header h3 {
+        .main-header .nav-links {
+            list-style: none;
             margin: 0;
-            font-size: 2.2em;
-            font-weight: bold;
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-            text-align: center;
-        }
-        /* Style pour l'auteur et l'outil sous le titre dans l'en-tête */
-        .preview-panel-header p.header-meta {
-            font-size: 1.1em;
-            color: rgba(255, 255, 255, 0.9);
-            margin-top: 10px;
-            text-align: center;
-        }
-
-
-        /* --- Styles du contenu du panneau latéral (AJUSTÉS) --- */
-        .preview-panel-content { padding: 25px; overflow-y: auto; flex-grow: 1; background-color: #fff; }
-        .preview-panel-content h4 {
-            margin-top: 30px;
-            margin-bottom: 12px;
-            color: var(--dark-blue);
-            font-size: 1.6em;
-            border-bottom: 3px solid var(--primary-blue);
-            padding-bottom: 10px;
-            font-weight: bold;
-            position: relative;
-            padding-left: 0; /* Pas d'icône, pas de padding */
-        }
-        .preview-panel-content h4:first-child { margin-top: 0; }
-        .preview-panel-content h4::before {
-            content: none; /* Supprime toute icône par défaut */
-        }
-
-        /* Style pour les sections spécifiques (Prompt, Commentaire, Médias) sans ligne/icône, texte un peu plus petit */
-        .preview-panel-content h4.sub-section-title {
-             border-bottom: none;
-             padding-bottom: 0;
-             margin-bottom: 15px;
-             font-size: 1.4em; /* Texte un peu plus petit pour ces titres */
-        }
-
-
-        .preview-panel-content pre {
-            background-color: #e9e9e9; border: 1px solid #ddd; border-radius: 8px; padding: 15px;
-            white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; font-size: 0.95em;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
-            line-height: 1.5;
-        }
-        .content-card-blue {
-            background-color: var(--note-background);
-            border-left: 6px solid var(--note-border);
-            color: #444;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: 1.05em;
-            line-height: 1.6;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        /* Style pour les iframes YouTube */
-        .video-responsive { position: relative; padding-bottom: 56.25%; height: 0; margin: 15px 0; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .video-responsive iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
-
-        /* Styles pour les images et vidéos ajoutées dynamiquement dans le panneau de prévisualisation */
-        .preview-panel-media-container {
+            padding: 0;
             display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 15px;
-            justify-content: center;
-        }
-        .preview-panel-media-container a { display: block; transition: transform 0.2s ease; }
-        .preview-panel-media-container a:hover { transform: scale(1.05); }
-        .preview-panel-media-container img {
-            max-width: 250px;
-            height: auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            cursor: pointer;
-            border: 3px solid var(--primary-blue);
-        }
-        .preview-panel-media-container video {
-            max-width: 100%;
-            height: auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border: 3px solid var(--primary-blue);
+            gap: 25px; /* Espacement entre les éléments du menu */
+            flex-wrap: wrap; /* Permet aux liens de passer à la ligne */
+            justify-content: center; /* Centre les liens si wrapping */
         }
 
-        /* Bouton "Copier" dans le panneau de prévisualisation (pour les workflows) */
-        .preview-copy-btn {
+        .main-header .nav-links li a {
+            text-decoration: none;
+            color: var(--nav-link-color);
+            font-weight: 500;
+            padding: 5px 0;
+            transition: color 0.3s ease, border-bottom 0.3s ease;
+            position: relative; /* Pour l'underline animé */
+        }
+
+        body.dark-mode .main-header .nav-links li a {
+            color: var(--dark-mode-text);
+        }
+
+        .main-header .nav-links li a::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -3px;
+            left: 0;
             background-color: var(--primary-blue);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.2s;
-            display: block;
+            transition: width 0.3s ease;
+        }
+
+        .main-header .nav-links li a:hover::after,
+        .main-header .nav-links li a.active::after {
             width: 100%;
-            text-align: center;
-            margin-top: 25px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .preview-copy-btn:hover {
-            background-color: var(--dark-blue);
-            transform: translateY(-2px);
         }
 
-        footer {
-            background-color: #333; color: white; text-align: center;
-            padding: 20px; margin-top: auto; width: 100%;
+        .main-header .nav-links li a.active {
+            color: var(--active-link-color);
+            font-weight: 700;
         }
 
+        body.dark-mode .main-header .nav-links li a.active {
+            color: var(--light-blue);
+        }
+
+        /* Dark Mode Toggle */
+        .dark-mode-toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 20px; /* Espace à gauche du toggle */
+            flex-shrink: 0;
+        }
+
+        .dark-mode-label {
+            font-size: 0.9em;
+            color: var(--text-color);
+        }
+        body.dark-mode .dark-mode-label {
+            color: var(--dark-mode-text);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 22px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary-blue);
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px var(--primary-blue);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(18px);
+        }
+
+        /* Responsive adjustments for header */
         @media (max-width: 768px) {
-            #galerie { grid-template-columns: 1fr; }
-            nav { justify-content: flex-start; overflow-x: auto; }
-            #filters { flex-direction: column; }
-            .card-actions {
+            .main-header {
                 flex-direction: column;
+                align-items: flex-start;
+                padding: 15px;
             }
-            .card-action-btn-workflow {
+            .main-header .logo {
+                margin-bottom: 15px;
+            }
+            .main-header nav {
                 width: 100%;
-                min-width: unset;
+                justify-content: flex-start; /* Aligner les liens à gauche sur mobile */
+                margin-bottom: 15px;
             }
-            .preview-panel {
+            .main-header .nav-links {
+                flex-direction: column; /* Empile les liens verticalement */
+                gap: 10px;
+                align-items: flex-start; /* Aligner les éléments à gauche */
+            }
+            .main-header .dark-mode-toggle-container {
+                margin-left: 0; /* Pas de marge à gauche sur mobile */
                 width: 100%;
-                max-width: 100%;
-            }
-            .preview-panel-header h3 {
-                font-size: 1.8em;
-            }
-            .preview-panel-header p.header-meta {
-                font-size: 1em;
-            }
-            .preview-panel-content h4 {
-                font-size: 1.4em;
-            }
-            .preview-panel-content h4.sub-section-title {
-                font-size: 1.2em;
-            }
-            .preview-panel-media-container img {
-                max-width: 100%;
+                justify-content: flex-end; /* Aligner le toggle à droite */
             }
         }
     </style>
 </head>
 <body>
 
-    <div class="nav-wrapper">
-        <div class="menu-container">
-            <nav>
-                <a href="index.html">Accueil</a>
-                <a href="equipe.html">Équipe</a>
-                <a href="outils.html">Outils</a>
-                <a href="galerie.html">Prompts</a>
-                <a href="cas-usages.html" class="active">Workflows</a>
-                <a href="charte.html">Chartes</a>
-                <a href="faq.html">FAQ</a>
-                <a href="demandes_ia.html">Demandes<span class="notif-bubble" id="notif-count"></span></a>
-                <a href="gestion-license.html">Licenses</a>
-            </nav>
-        </div>
-    </div>
-
+    <div id="header-placeholder"></div>
     <main>
-        <div class="main-container">
-            <div class="create-workflow-button-container">
-                <a href="creer-tip.html" class="create-workflow-button">Créer un Workflow</a>
-            </div>
-
-            <div class="tool-logos-section">
-                <div class="tool-logos-header">
-                    <h2>Outils IA Populaires</h2>
-                    <div id="workflow-counter">0</div>
-                </div>
-                <div class="tools-scroll-container">
-                    <button class="scroll-button left" id="scrollLeftBtn"><i class="fas fa-chevron-left"></i></button>
-                    <div id="tool-logos-grid" class="tools-grid"></div>
-                    <button class="scroll-button right" id="scrollRightBtn"><i class="fas fa-chevron-right"></i></button>
-                </div>
-            </div>
-
-            <div id="filters">
-                <input type="text" id="search-input" placeholder="Rechercher un mot clé..." />
-                <select id="filtre-outil"><option value="">Tous les outils</option></select>
-                <select id="filtre-auteur"><option value="">Tous les auteurs</option></select>
-                <select id="filtre-tri-date">
-                    <option value="recent" selected>Plus récent</option>
-                    <option value="ancien">Plus ancien</option>
-                </select>
-            </div>
-
-            <div id="error-display" style="display: none; color: var(--error-text); text-align: center;"></div>
-            <div id="galerie">
-                <p style="text-align: center;">Chargement des workflows...</p>
-            </div>
-        </div>
+        <div id="app"></div>
     </main>
 
-    <footer id="footer-placeholder">
-        <p>&copy; 2025 Espace IA. Tous droits réservés.</p>
-    </footer>
-
-    <div id="previewOverlay" class="preview-overlay"></div>
-    <div id="previewPanel" class="preview-panel">
-        <div class="preview-panel-header">
-            <button class="close-preview-btn" id="closePreviewBtn">&times;</button>
-            <h3 id="previewPanelTitle">Aperçu</h3>
-            <p id="previewPanelMeta" class="header-meta"></p>
-        </div>
-        <div id="previewPanelContent" class="preview-panel-content"></div>
-    </div>
-
-    <script src="tools-data.js"></script>
     <script>
-        const apiBase = window.location.origin + '/.netlify/functions/';
-        let allTips = [];
-        let allTipsFileSha = null;
-
-        const galerieDiv = document.getElementById('galerie');
-        const errorDisplay = document.getElementById('error-display');
-        const filtreOutilSelect = document.getElementById('filtre-outil');
-        const filtreAuteurSelect = document.getElementById('filtre-auteur');
-        const filtreTriDateSelect = document.getElementById('filtre-tri-date');
-        const searchInput = document.getElementById('search-input');
-        const previewPanel = document.getElementById('previewPanel');
-        const previewPanelTitle = document.getElementById('previewPanelTitle');
-        const previewPanelContent = document.getElementById('previewPanelContent');
-        const closePreviewBtn = document.getElementById('closePreviewBtn');
-        const previewOverlay = document.getElementById('previewOverlay');
-        const workflowCounter = document.getElementById('workflow-counter');
-        const toolLogosGrid = document.getElementById('tool-logos-grid');
-        const scrollLeftBtn = document.getElementById('scrollLeftBtn');
-        const scrollRightBtn = document.getElementById('scrollRightBtn');
-        const previewPanelMeta = document.getElementById('previewPanelMeta');
-
-        // Fonction pour le contenu textuel normal (NE PAS ENCODER LES APOSTROPHES ICI)
-        function escapeHtml(text) {
-            if (text === null || text === undefined) return '';
-            // N'encode que les caractères HTML essentiels sauf l'apostrophe pour le texte courant
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
-            return String(text).replace(/[&<>"']/g, m => map[m] || m); // 'm' pour l'apostrophe
-        }
-
-        // Fonction robuste pour échapper les chaînes destinées aux attributs HTML
-        function escapeHtmlAttribute(unsafe) {
-            if (typeof unsafe !== 'string') {
-                return '';
-            }
-            let escaped = JSON.stringify(unsafe);
-            if (escaped.startsWith('"') && escaped.endsWith('"')) {
-                escaped = escaped.slice(1, -1);
-            }
-            return escaped.replace(/`/g, '\\`');
-        }
-
-        const getYouTubeVideoId = (url) => url ? (url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) || [])[1] || null : null;
-
-        const isImageExtension = (ext) => ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
-        const isVideoExtension = (ext) => ['mp4', 'webm', 'ogg'].includes(ext);
-        const isDocumentExtension = (ext) => ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx', 'json'].includes(ext);
-
-        function getDocumentIcon(extension) {
-            switch (extension) {
-                case 'pdf': return 'fas fa-file-pdf';
-                case 'doc':
-                case 'docx': return 'fas fa-file-word';
-                case 'xls':
-                case 'xlsx': return 'fas fa-file-excel';
-                case 'ppt':
-                case 'pptx': return 'fas fa-file-powerpoint';
-                case 'txt': return 'fas fa-file-alt';
-                case 'json': return 'fas fa-file-code';
-                default: return 'fas fa-file';
+        // Fonction utilitaire pour charger des composants HTML via fetch.
+        async function loadComponent(url, placeholderId) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorDetail = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}. URL: ${url}. Response: ${errorDetail.substring(0, 200)}...`);
+                }
+                document.getElementById(placeholderId).innerHTML = await response.text();
+                console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Erreur lors du chargement de ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style='color:red;text-align:center;'>Erreur de chargement du composant: ${url}</p>`;
             }
         }
 
-        function displayTips(tipsToDisplay) {
-            galerieDiv.innerHTML = '';
-            if (tipsToDisplay.length === 0) {
-                galerieDiv.innerHTML = '<p style="text-align: center; padding: 40px;">Aucun workflow ne correspond à vos filtres.</p>';
+        // Initialisation du Dark Mode (à exécuter après le chargement du header)
+        function initializeDarkMode() {
+            const toggle = document.getElementById('darkModeToggle');
+            const bodyElement = document.body;
+
+            if (!toggle) {
+                console.warn("DarkModeToggle non trouvé dans le header. Le mode sombre ne sera pas activé via le toggle.");
                 return;
             }
-            tipsToDisplay.forEach(tip => {
-                const dateObj = new Date(tip.dateCreation);
-                const formattedDate = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-                const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(url => getYouTubeVideoId(url));
 
-                let cardThumbnailSrc = '';
-                let isVideoThumbnail = false;
-
-                if (hasYoutubeVideo) {
-                    const videoId = getYouTubeVideoId(tip.urls.find(getYouTubeVideoId));
-                    cardThumbnailSrc = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-                    isVideoThumbnail = true;
-                } else if (Array.isArray(tip.fileUrls) && tip.fileUrls.length > 0) {
-                    const firstFileUrl = tip.fileUrls[0];
-                    const fileExtension = firstFileUrl.split('.').pop().toLowerCase();
-                    const cloudinaryCloudName = "dh8taukjd"; // <--- REMPLACEZ PAR VOTRE NOM DE CLOUD CLOUDINARY
-
-                    if (isVideoExtension(fileExtension) && firstFileUrl.includes(`res.cloudinary.com/${cloudinaryCloudName}/video/upload/`)) {
-                        const cloudinaryVideoPath = firstFileUrl.split(`video/upload/`)[1];
-                        if (cloudinaryVideoPath) {
-                            cardThumbnailSrc = `https://res.cloudinary.com/${cloudinaryCloudName}/video/upload/c_fill,ar_16:9,w_280,f_jpg/${cloudinaryVideoPath}`;
-                            isVideoThumbnail = true;
-                        } else {
-                            cardThumbnailSrc = 'https://via.placeholder.com/280x157?text=Vid%C3%A9o';
-                            isVideoThumbnail = true;
-                        }
-                    } else if (isImageExtension(fileExtension)) {
-                        cardThumbnailSrc = firstFileUrl;
-                    } else if (isVideoExtension(fileExtension)) {
-                        cardThumbnailSrc = 'https://via.placeholder.com/280x157?text=Vid%C3%A9o';
-                        isVideoThumbnail = true;
-                    } else if (isDocumentExtension(fileExtension)) {
-                        cardThumbnailSrc = `https://via.placeholder.com/280x157?text=${fileExtension.toUpperCase()}`;
-                        isVideoThumbnail = false;
-                    }
-                } else if (tip.imageUrl) {
-                    cardThumbnailSrc = tip.imageUrl;
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                bodyElement.classList.add(savedTheme);
+                if (savedTheme === 'dark-mode') {
+                    toggle.checked = true;
                 }
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                bodyElement.classList.add('dark-mode');
+                toggle.checked = true;
+            } else {
+                bodyElement.classList.add('light-mode');
+            }
 
-                let previewImageHtml = '';
-                if (cardThumbnailSrc) {
-                    previewImageHtml = `<div class="card-thumbnail-preview"><img src="${escapeHtmlAttribute(cardThumbnailSrc)}" alt="${escapeHtmlAttribute(tip.titre)}" loading="lazy"></div>`;
+            toggle.addEventListener('change', () => {
+                if (toggle.checked) {
+                    bodyElement.classList.remove('light-mode');
+                    bodyElement.classList.add('dark-mode');
+                    localStorage.setItem('theme', 'dark-mode');
                 } else {
-                    previewImageHtml = `<div class="card-thumbnail-preview" style="display:flex; justify-content:center; align-items:center;"><i class="fas fa-image fa-3x" style="color:#ccc;"></i></div>`;
+                    bodyElement.classList.remove('dark-mode');
+                    bodyElement.classList.add('light-mode');
+                    localStorage.setItem('theme', 'light-mode');
                 }
-
-                const workflowShaToPass = allTipsFileSha || '';
-
-                const card = document.createElement('div');
-                card.className = 'carte';
-                card.innerHTML = `
-                    ${previewImageHtml}
-                    <div class="card-content">
-                        <h3 class="tip-title">${escapeHtml(tip.titre)}</h3>
-                        <div class="card-preview-icons-inline">
-                            ${(Array.isArray(tip.fileUrls) && tip.fileUrls.some(url => isImageExtension(url.split('.').pop().toLowerCase()))) || tip.imageUrl ? '<i class="fas fa-image"></i>' : ''}
-                            ${(Array.isArray(tip.fileUrls) && tip.fileUrls.some(url => isVideoExtension(url.split('.').pop().toLowerCase()))) || hasYoutubeVideo ? '<i class="fas fa-video" style="color:red;"></i>' : ''}
-                            ${(Array.isArray(tip.fileUrls) && tip.fileUrls.some(url => isDocumentExtension(url.split('.').pop().toLowerCase()))) ? '<i class="fas fa-file-alt"></i>' : ''}
-                        </div>
-                        <span class="outil-badge">${escapeHtml(tip.outil)}</span>
-                        <div class="metadata-section">
-                            <span>Par <strong>${escapeHtml(tip.auteur)}</strong></span>
-                            <span>${formattedDate}</span>
-                        </div>
-                        <div class="card-actions">
-                            <button class="card-action-btn-workflow toggle-content-btn" data-id="${escapeHtmlAttribute(tip.id)}">Voir le Workflow</button>
-                            <button class="card-action-btn-workflow edit-btn" data-id="${escapeHtmlAttribute(tip.id)}" data-sha="${escapeHtmlAttribute(workflowShaToPass)}">Éditer</button>
-                            <button class="supprimer-btn-workflow" data-id="${escapeHtmlAttribute(tip.id)}" title="${escapeHtmlAttribute('Supprimer')}"><i class="fas fa-trash-alt"></i></button>
-                        </div>
-                    </div>
-                `;
-                galerieDiv.appendChild(card);
             });
-            attachCardEventListeners();
-        }
 
-        function renderToolLogos(toolsData) {
-            if (!toolLogosGrid || !toolsData) return;
-            toolLogosGrid.innerHTML = '';
-            const allToolsCard = document.createElement('div');
-            allToolsCard.className = 'tool-card';
-            allToolsCard.innerHTML = `<i class="fas fa-asterisk" style="font-size: 30px; margin-bottom: 10px; color: var(--primary-blue);"></i><span class="tool-name">Tous</span>`;
-            allToolsCard.addEventListener('click', () => {
-                filtreOutilSelect.value = "";
-                applyFiltersAndSort();
-            });
-            toolLogosGrid.appendChild(allToolsCard);
-
-            toolsData.forEach(tool => {
-                const toolCard = document.createElement('div');
-                toolCard.className = 'tool-card';
-                toolCard.innerHTML = `<img src="${escapeHtmlAttribute(tool.img)}" alt="${escapeHtmlAttribute(tool.name)}" loading="lazy"><span class="tool-name">${escapeHtml(tool.name)}</span>`;
-                toolCard.addEventListener('click', () => {
-                    filtreOutilSelect.value = tool.name;
-                    applyFiltersAndSort();
-                });
-                toolLogosGrid.appendChild(toolCard);
-            });
-        }
-
-        function setupScrollButtons() {
-            if (scrollLeftBtn) scrollLeftBtn.addEventListener('click', () => toolLogosGrid.scrollBy({ left: -200, behavior: 'smooth' }));
-            if (scrollRightBtn) scrollRightBtn.addEventListener('click', () => toolLogosGrid.scrollBy({ left: 200, behavior: 'smooth' }));
-        }
-
-        function applyFiltersAndSort() {
-            let filtered = [...allTips];
-            const outil = filtreOutilSelect.value;
-            if (outil) {
-                filtered = filtered.filter(tip => {
-                    const tipOutilsArray = tip.outil ? tip.outil.split(',').map(s => s.trim()) : [];
-                    return tipOutilsArray.includes(outil);
-                });
-            }
-
-            const auteur = filtreAuteurSelect.value;
-            if (auteur) filtered = filtered.filter(tip => tip.auteur === auteur);
-
-            const searchText = searchInput.value.toLowerCase();
-            if (searchText) {
-                filtered = filtered.filter(tip =>
-                    (tip.titre && tip.titre.toLowerCase().includes(searchText)) ||
-                    (tip.promptText && tip.promptText.toLowerCase().includes(searchText)) ||
-                    (tip.description && tip.description.toLowerCase().includes(searchText))
-                );
-            }
-
-            const sortOrder = filtreTriDateSelect.value;
-            filtered.sort((a, b) => {
-                const dateA = new Date(a.dateCreation);
-                const dateB = new Date(b.dateCreation);
-                if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
-                if (isNaN(dateA.getTime())) return 1;
-                if (isNaN(dateB.getTime())) return -1;
-                return sortOrder === 'recent' ? dateB - dateA : dateA - dateB;
-            });
-            displayTips(filtered);
-        }
-
-        function attachEventListeners() {
-            [searchInput, filtreOutilSelect, filtreAuteurSelect, filtreTriDateSelect].forEach(filter => {
-                if(filter) filter.addEventListener('change', applyFiltersAndSort);
-            });
-            searchInput.addEventListener('input', applyFiltersAndSort);
-            if(closePreviewBtn) closePreviewBtn.addEventListener('click', closePreviewPanel);
-            if(previewOverlay) previewOverlay.addEventListener('click', closePreviewPanel);
-        }
-
-        function attachCardEventListeners(){
-            galerieDiv.querySelectorAll('.toggle-content-btn').forEach(b => b.onclick = () => openPreviewPanel(b.dataset.id));
-            galerieDiv.querySelectorAll('.supprimer-btn-workflow').forEach(b => b.onclick = () => confirmAndDeleteTip(b.dataset.id));
-            galerieDiv.querySelectorAll('.edit-btn').forEach(b => {
-                b.addEventListener('click', () => {
-                    const id = b.dataset.id;
-                    const sha = b.dataset.sha;
-                    window.location.href = `creer-tip.html?mode=edit&id=${id}&sha=${sha}`;
-                });
-            });
-        }
-
-        function openPreviewPanel(tipId) {
-            const tip = allTips.find(t => t.id == tipId);
-            if (!tip) return;
-
-            previewPanelTitle.textContent = escapeHtml(tip.titre);
-            previewPanelMeta.innerHTML = `Par <strong>${escapeHtml(tip.auteur)}</strong> - ${escapeHtml(tip.outil)}`;
-
-            let contentHtml = '';
-
-            // Section Description
-            if (tip.description) contentHtml += `<h4 class="sub-section-title">Description</h4><p>${escapeHtml(tip.description)}</p>`;
-
-            // Section Commentaire / Workflow
-            if (tip.commentaireUrl) contentHtml += `<h4 class="sub-section-title">Commentaire / Workflow</h4><div class="content-card-blue">${escapeHtml(tip.commentaireUrl)}</div>`;
-
-            // Section Prompt (sans icône ni ligne, texte réduit)
-            const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(getYouTubeVideoId);
-            if (tip.promptText && !hasYoutubeVideo) {
-                contentHtml += `<h4 class="sub-section-title">Prompt</h4><pre id="previewWorkflowPromptText">${escapeHtml(tip.promptText)}</pre>`;
-                contentHtml += `<button class="preview-copy-btn" data-copy="${escapeHtmlAttribute(tip.promptText)}">Copier le Prompt</button>`;
-            }
-
-            // Section Vidéos YouTube
-            if (Array.isArray(tip.urls) && tip.urls.length > 0) {
-                let videosHtml = '';
-                let linksHtml = '';
-                tip.urls.forEach(url => {
-                    if(!url) return;
-                    const videoId = getYouTubeVideoId(url);
-                    if (videoId) {
-                        videosHtml += `<div class="video-responsive"><iframe src="https://www.youtube-nocookie.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe></div>`;
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                if (!localStorage.getItem('theme')) {
+                    if (event.matches) {
+                        bodyElement.classList.remove('light-mode');
+                        bodyElement.classList.add('dark-mode');
+                        toggle.checked = true;
                     } else {
-                        linksHtml += `<p><a href="${escapeHtmlAttribute(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></p>`;
+                        bodyElement.classList.remove('dark-mode');
+                        bodyElement.classList.add('light-mode');
+                        toggle.checked = false;
                     }
-                });
-                if (videosHtml) contentHtml += `<h4 class="sub-section-title">Vidéo(s) YouTube</h4>${videosHtml}`;
-                if (linksHtml) contentHtml += `<h4 class="sub-section-title">Lien(s) externe(s)</h4>${linksHtml}`;
-            }
-
-            // Gérer les médias additionnels (images, vidéos, et maintenant documents Cloudinary)
-            const mediaFiles = (Array.isArray(tip.fileUrls) ? tip.fileUrls : []).filter(Boolean);
-            if (mediaFiles.length > 0) {
-                let mediaHtml = '';
-                mediaFiles.forEach(url => {
-                    const fileExtension = url.split('.').pop().toLowerCase();
-                    if (isImageExtension(fileExtension)) {
-                        mediaHtml += `<a href="${escapeHtmlAttribute(url)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtmlAttribute(url)}" alt="${escapeHtmlAttribute('Image du workflow')}"></a>`;
-                    } else if (isVideoExtension(fileExtension)) {
-                        mediaHtml += `
-                            <div style="margin-bottom: 15px;">
-                                <video controls preload="metadata" class="preview-panel-media-container-video">
-                                    <source src="${escapeHtmlAttribute(url)}" type="video/${fileExtension}">
-                                    Votre navigateur ne supporte pas la balise vidéo.
-                                </video>
-                            </div>
-                        `;
-                    } else if (isDocumentExtension(fileExtension)) {
-                        const iconClass = getDocumentIcon(fileExtension);
-                        mediaHtml += `
-                            <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px; background-color: #f0f8ff; padding: 10px; border-radius: 8px;">
-                                <i class="${iconClass}" style="font-size: 2em; color: var(--primary-blue);"></i>
-                                <a href="${escapeHtmlAttribute(url)}" target="_blank" rel="noopener noreferrer" style="font-weight: bold; color: var(--dark-blue); text-decoration: none;">
-                                    ${escapeHtml(url.split('/').pop())} </a>
-                            </div>
-                        `;
-                    }
-                });
-                if (mediaHtml) {
-                    contentHtml += `<h4 class="sub-section-title">Médias additionnels</h4><div class="preview-panel-media-container">${mediaHtml}</div>`;
                 }
-            }
-
-            previewPanelContent.innerHTML = contentHtml;
-            previewPanel.classList.add('open');
-            previewOverlay.classList.add('open');
-
-            const previewCopyButton = previewPanelContent.querySelector('.preview-copy-btn');
-            if (previewCopyButton) {
-                previewCopyButton.addEventListener('click', (e) => {
-                    copyToClipboard(e.target.dataset.copy, e.target);
-                });
-            }
+            });
         }
 
-        function closePreviewPanel() {
-            previewPanel.classList.remove('open');
-            previewOverlay.classList.remove('open');
-            const iframes = previewPanelContent.querySelectorAll('iframe');
-            iframes.forEach(iframe => { iframe.src = iframe.src; });
-            const videos = previewPanelContent.querySelectorAll('video');
-            videos.forEach(video => { video.pause(); video.currentTime = 0; });
-        }
-
-        async function copyToClipboard(text, buttonElement) {
-            try {
-                await navigator.clipboard.writeText(text);
-                buttonElement.textContent = 'Copié !';
-                setTimeout(() => { buttonElement.textContent = 'Copier le Prompt'; }, 2000);
-            } catch (err) { alert('Échec de la copie.'); }
-        }
-
-        async function confirmAndDeleteTip(tipId) {
-            if (confirm("Êtes-vous sûr de vouloir supprimer ce workflow ?")) {
-                try {
-                    const response = await fetch(`${apiBase}delete-tip`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ id: tipId })
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || `La suppression a échoué avec le statut : ${response.status}.`);
-                    }
-
-                    const result = await response.json();
-                    alert(result.message);
-
-                    await initApp();
-                } catch(err) {
-                    console.error('Erreur lors de la suppression du workflow:', err);
-                    alert('Erreur: ' + err.message);
-                }
-            }
-        }
-
-        async function initApp() {
-            attachEventListeners();
-            if (typeof toolsData !== 'undefined') renderToolLogos(toolsData);
-            setupScrollButtons();
-
-            galerieDiv.innerHTML = '<p style="text-align: center;">Chargement des workflows...</p>';
-            try {
-                const response = await fetch(`${apiBase}get-tips`);
-                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-
-                const fetchedData = await response.json();
-
-                if (fetchedData.length > 0 && fetchedData[0].parentFileSha) {
-                    allTipsFileSha = fetchedData[0].parentFileSha;
-                    console.log("SHA du fichier all-tips.json récupéré:", allTipsFileSha);
+        // Mise à jour de l'état actif du menu
+        function updateActiveMenuLink() {
+            const currentPath = window.location.pathname.split('/').pop();
+            document.querySelectorAll('nav a').forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+                // Spécifie explicitement 'prompts.html' pour cette page
+                if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "prompts.html") {
+                    link.classList.add("active");
                 } else {
-                    console.warn("SHA du fichier all-tips.json non trouvé dans la réponse de get-tips. La mise à jour/suppression pourrait échouer si le backend GitHub est utilisé.");
-                    allTipsFileSha = null;
+                    link.classList.remove("active");
                 }
-
-                allTips = fetchedData.map(tip => ({
-                    ...tip,
-                    id: String(tip.id),
-                    dateCreation: tip.date_creation || tip.dateCreation || new Date().toISOString(),
-                    titre: tip.titre || "Titre non spécifié",
-                    auteur: tip.auteur || "Auteur inconnu",
-                    outil: tip.outil || "Non spécifié",
-                    promptText: tip.prompt || tip.promptText,
-                    description: tip.description,
-                    commentaireUrl: tip.commentaireUrl,
-                    urls: tip.urls || [],
-                    fileUrls: tip.fileUrls || [],
-                }));
-                console.log("Tous les tips normalisés pour l'affichage:", allTips);
-
-                const uniqueOutils = [...new Set(allTips.map(t => t.outil).flatMap(s => s ? s.split(',').map(tool => tool.trim()) : []).filter(Boolean))].sort();
-                filtreOutilSelect.innerHTML = '<option value="">Tous les outils</option>' + uniqueOutils.map(o => `<option value="${escapeHtmlAttribute(o)}">${escapeHtml(o)}</option>`).join('');
-
-                const uniqueAuteurs = [...new Set(allTips.map(t => t.auteur).filter(Boolean))].sort();
-                filtreAuteurSelect.innerHTML = '<option value="">Tous les auteurs</option>' + uniqueAuteurs.map(a => `<option value="${escapeHtmlAttribute(a)}">${escapeHtml(a)}</option>`).join('');
-
-                if(workflowCounter) workflowCounter.textContent = `${allTips.length} Workflows`;
-                applyFiltersAndSort();
-
-            } catch (error) {
-                console.error("Erreur d'initialisation (get-tips):", error);
-                errorDisplay.style.display = 'block';
-                errorDisplay.textContent = `Erreur de chargement des données: ${error.message}. Vérifiez la console pour plus de détails.`;
-                galerieDiv.innerHTML = '';
-            }
+            });
         }
 
-        document.addEventListener("DOMContentLoaded", initApp);
+
+        // Exécution principale à l'initialisation du DOM
+        document.addEventListener("DOMContentLoaded", async () => {
+            const bodyElement = document.body;
+            const mainElement = document.querySelector('main');
+
+            // Masquer la barre de défilement du body au début pour une meilleure expérience
+            bodyElement.style.overflow = 'hidden';
+
+            // 1. Charger le composant Header
+            await loadComponent("header.html", "header-placeholder");
+
+            // 2. Mettre à jour l'état actif du menu après le chargement du header
+            updateActiveMenuLink();
+
+            // 3. Initialiser le mode sombre après le chargement du header (car le toggle est dans le header)
+            initializeDarkMode();
+
+            // 4. Révéler le contenu principal et restaurer le défilement
+            bodyElement.classList.add("show");
+            mainElement.classList.add("show");
+            bodyElement.style.overflow = ''; // Restaurer le défilement du body
+        });
+    </script>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+        const { ref, createApp, onMounted, computed } = Vue; // Ajout de 'computed'
+
+        const PROXY_URL = "/.netlify/functions/proxy"; // L'URL de votre fonction Netlify
+        const GET_GALLERY_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts"; // URL pour récupérer les prompts
+        const PUSH_PROMPT_URL = "/.netlify/functions/pushPrompt"; // URL pour créer un prompt
+        const UPDATE_PROMPT_URL = "/.netlify/functions/updatePrompt"; // URL pour mettre à jour un prompt
+
+        const PromptForm = {
+            template: `
+                <div class="container">
+                    <a href="galerie.html" class="retour-lien">← Retour</a>
+                    <h2 style="text-align:center; color:var(--primary-blue);">{{ formTitle }}</h2>
+
+                    <form @submit.prevent="submitForm">
+                        <label for="titre">Titre du prompt</label>
+                        <input type="text" id="titre" v-model="titre" required placeholder="Un titre court et clair pour votre prompt" />
+
+                        <label for="auteur">Votre nom</label>
+                        <select id="auteur" v-model="auteur" required>
+                            <option value="" disabled>Sélectionnez un nom</option>
+                            <option v-for="profilNom in profilsAuteurs" :key="profilNom" :value="profilNom">{{ profilNom }}</option>
+                        </select>
+                        <p v-if="profilsAuteurs.length === 0 && !isLoadingProfils" style="color: var(--light-text-color); font-size: 0.9em; margin-top: 5px;">
+                            Aucun profil trouvé. Assurez-vous d'avoir créé des profils dans la section "Équipe".
+                        </p>
+                        <p v-if="isLoadingProfils" style="color: var(--primary-blue); font-size: 0.9em; margin-top: 5px;">Chargement des noms de profils...</p>
+
+                        <label for="outil">Outil IA utilisé</label>
+                        <select id="outil" v-model="outil">
+                            <option>Midjourney</option>
+                            <option>DALL·E</option>
+                            <option>Stable Diffusion</option>
+                            <option>Adobe Firefly</option>
+                            <option>Runway</option>
+                            <option>ChatGPT</option>
+                            <option>Autre</option>
+                        </select>
+
+                        <label for="chaine">Chaîne</label>
+                        <select id="chaine" v-model="chaine">
+                            <option>La Une</option>
+                            <option>Tipik</option>
+                            <option>La Trois</option>
+                            <option>La Première</option>
+                            <option>Classic 21</option>
+                            <option>Vivacité</option>
+                            <option>Musiq3</option>
+                            <option>Auvio</option>
+                            <option>Auvio Kids</option>
+                            <option>Autre</option>
+                        </select>
+
+                        <label for="texte">Prompt</label>
+                        <textarea id="texte" v-model="texte" rows="4" required></textarea>
+
+                        <label for="description">Commentaire</label>
+                        <textarea id="description" v-model="description" rows="3"></textarea>
+
+                        <label>Image</label>
+                        <div id="drop-zone"
+                             @click="triggerFile"
+                             @dragover.prevent="onDragOver"
+                             @dragleave="onDragLeave"
+                             @drop.prevent="onDrop">
+                            Déposez ou cliquez pour {{ isEditMode ? 'changer' : 'ajouter' }} l'image
+                        </div>
+                        <input type="file" ref="fileInput" accept="image/*" style="display:none" @change="onFileChange" />
+                        <img v-if="imagePreviewUrl" :src="imagePreviewUrl" id="image-preview" />
+                        <button v-if="imagePreviewUrl && isEditMode" @click.prevent="removeImage" style="background-color: #dc3545; margin-top: 10px;">Supprimer l'image</button>
+
+
+                        <div v-if="isLoading" class="loader"></div>
+                        <button v-else type="submit" :disabled="!auteur || !titre || isLoading">{{ submitButtonText }}</button>
+                    </form>
+
+                    <div class="confirmation" v-if="confirmationVisible">
+                        <p>{{ confirmationMessage }}</p>
+                        <img v-if="confirmationImageUrl" :src="confirmationImageUrl" />
+                        <p style="white-space: pre-wrap;">{{ confirmationTexte }}</p>
+                        <p style="white-space: pre-wrap; font-style: italic;">{{ confirmationDescription }}</p>
+                        <p style="margin-top: 15px; color: var(--primary-blue);">Redirection vers la galerie dans 5 secondes...</p>
+                    </div>
+                </div>
+            `,
+            setup() {
+                // Propriétés du formulaire
+                const titre = ref(''); // Ajout du champ titre
+                const auteur = ref('');
+                const outil = ref('Midjourney');
+                const chaine = ref('La Une');
+                const texte = ref('');
+                const description = ref('');
+                const fileInput = ref(null);
+                const imagePreviewUrl = ref('');
+                const imageFile = ref(null);
+                const originalImageUrl = ref(''); // Pour conserver l'URL de l'image existante en mode édition
+
+                // États de l'UI
+                const confirmationVisible = ref(false);
+                const confirmationImageUrl = ref('');
+                const confirmationTexte = ref('');
+                const confirmationDescription = ref('');
+                const isLoading = ref(false);
+                const profilsAuteurs = ref([]);
+                const isLoadingProfils = ref(true);
+
+                // Variables spécifiques au mode édition
+                const isEditMode = ref(false);
+                const promptId = ref(null);
+                const promptSha = ref(null); // SHA est crucial pour la mise à jour GitHub
+
+                // Propriétés calculées pour le template
+                const formTitle = computed(() => isEditMode.value ? 'Éditer un prompt' : 'Partager un prompt');
+                const submitButtonText = computed(() => isEditMode.value ? 'Mettre à jour' : 'Partager');
+                const confirmationMessage = computed(() => isEditMode.value ? '✅ Prompt mis à jour avec succès !' : '✅ Prompt partagé avec succès vers la **galerie** !');
+
+
+                // --- Fonctions de gestion de l'image ---
+                function triggerFile() { fileInput.value?.click(); }
+                function onDragOver(e) { e.currentTarget.classList.add('dragover'); }
+                function onDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+                function onDrop(e) {
+                    e.currentTarget.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length) {
+                        fileInput.value.files = files;
+                        handleFile(files[0]);
+                    }
+                }
+                function onFileChange(e) {
+                    const file = e.target.files[0];
+                    if (file) handleFile(file);
+                }
+                function handleFile(file) {
+                    imageFile.value = file;
+                    const reader = new FileReader();
+                    reader.onload = () => { imagePreviewUrl.value = reader.result; };
+                    reader.readAsDataURL(file);
+                }
+                function removeImage() {
+                    imageFile.value = null;
+                    imagePreviewUrl.value = '';
+                    originalImageUrl.value = ''; // Réinitialise également l'image originale
+                    if (fileInput.value) {
+                        fileInput.value.value = null; // Efface le fichier sélectionné du champ input
+                    }
+                }
+                // --- Fin des fonctions de gestion de l'image ---
+
+
+                // --- Fonctions de récupération de données ---
+                async function fetchProfils() {
+                    isLoadingProfils.value = true;
+                    try {
+                        const response = await fetch(`${PROXY_URL}?action=getProfils`);
+                        if (!response.ok) { throw new Error(`HTTP error: ${response.status}`); }
+                        const data = await response.json();
+                        const profilsList = Array.isArray(data) ? data : (data.profils || []);
+                        const names = [...new Set(profilsList.map(p => p.name).filter(Boolean))].sort();
+                        profilsAuteurs.value = names;
+                        if (names.length === 1 && !auteur.value) { // Pré-sélectionne si un seul profil et pas déjà sélectionné (édition)
+                            auteur.value = names[0];
+                        }
+                    } catch (error) {
+                        console.error("Erreur lors du chargement des profils:", error);
+                        alert("Impossible de charger la liste des auteurs. Vérifiez la console pour plus de détails.");
+                    } finally {
+                        isLoadingProfils.value = false;
+                    }
+                }
+
+                // Nouvelle fonction pour récupérer un prompt spécifique en mode édition
+                async function fetchPromptForEdit(id) {
+                    isLoading.value = true;
+                    try {
+                        // Utilise getGalleryPrompts pour récupérer tous les prompts, puis filtre
+                        const response = await fetch(GET_GALLERY_PROMPTS_URL);
+                        if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                        const allPrompts = await response.json();
+                        const promptToEdit = allPrompts.find(p => p.id === id);
+
+                        if (promptToEdit) {
+                            titre.value = promptToEdit.titre || '';
+                            auteur.value = promptToEdit.auteur || '';
+                            outil.value = promptToEdit.outil || 'Midjourney';
+                            chaine.value = promptToEdit.chaine || 'La Une';
+                            texte.value = promptToEdit.texte || '';
+                            description.value = promptToEdit.description || '';
+                            imagePreviewUrl.value = promptToEdit.imageUrl || '';
+                            originalImageUrl.value = promptToEdit.imageUrl || ''; // Stocke l'URL originale
+                            // promptId.value et promptSha.value sont déjà définis par les params URL
+                        } else {
+                            alert("Prompt non trouvé.");
+                            window.location.href = "/galerie.html"; // Redirige si non trouvé
+                        }
+                    } catch (error) {
+                        console.error("Erreur lors du chargement du prompt pour édition:", error);
+                        alert(`Impossible de charger le prompt: ${error.message}.`);
+                        window.location.href = "/galerie.html";
+                    } finally {
+                        isLoading.value = false;
+                    }
+                }
+                // --- Fin des fonctions de récupération de données ---
+
+
+                // --- Soumission du formulaire ---
+                function getBase64(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = (error) => reject(error);
+                        reader.readAsDataURL(file);
+                    });
+                }
+
+                async function submitForm() {
+                    if (!auteur.value || !titre.value || !texte.value.trim()) {
+                        alert("Veuillez remplir tous les champs obligatoires (Titre, Auteur, Prompt).");
+                        return;
+                    }
+
+                    confirmationVisible.value = false;
+                    isLoading.value = true;
+
+                    let finalImageUrl = originalImageUrl.value; // Par défaut, conserve l'image existante
+
+                    try {
+                        // S'il y a un nouveau fichier image sélectionné
+                        if (imageFile.value) {
+                            const base64 = await getBase64(imageFile.value);
+                            const payload = { fileContent: base64, fileName: imageFile.value.name };
+                            const resp = await fetch('/.netlify/functions/uploadImage', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (!resp.ok) {
+                                const errorText = await resp.text();
+                                throw new Error(`Upload failed: ${resp.status} - ${errorText}`);
+                            }
+                            const data = await resp.json();
+                            finalImageUrl = data.url;
+                            console.log("Image uploadée/mise à jour avec succès:", finalImageUrl);
+                        } else if (!imagePreviewUrl.value) {
+                            // Si imagePreviewUrl est vide, cela signifie que l'image a été supprimée ou n'a jamais existé
+                            finalImageUrl = '';
+                        }
+                        // Si imageFile est null MAIS imagePreviewUrl n'est PAS null, on garde originalImageUrl.value
+
+                        const promptData = {
+                            titre: titre.value,
+                            auteur: auteur.value,
+                            outil: outil.value,
+                            chaine: chaine.value,
+                            texte: texte.value,
+                            description: description.value,
+                            imageUrl: finalImageUrl // Utilise l'URL finale de l'image
+                        };
+
+                        let apiResponse;
+                        if (isEditMode.value) {
+                            // Mode édition: appel à la fonction de mise à jour
+                            console.log("Mise à jour du prompt avec ID:", promptId.value, "SHA:", promptSha.value);
+                            apiResponse = await fetch(UPDATE_PROMPT_URL, {
+                                method: 'PUT', // Méthode HTTP PUT pour la mise à jour
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    id: promptId.value,
+                                    sha: promptSha.value, // Le SHA est indispensable pour la mise à jour GitHub
+                                    ...promptData // Toutes les autres données du prompt
+                                })
+                            });
+                        } else {
+                            // Mode création: appel à la fonction de création
+                            console.log("Création d'un nouveau prompt.");
+                            apiResponse = await fetch(PUSH_PROMPT_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(promptData)
+                            });
+                        }
+
+                        if (!apiResponse.ok) {
+                            const errorText = await apiResponse.text();
+                            throw new Error(`${isEditMode.value ? 'Mise à jour' : 'Création'} échouée: ${apiResponse.status} - ${errorText}`);
+                        }
+
+                        confirmationImageUrl.value = finalImageUrl;
+                        confirmationTexte.value = texte.value;
+                        confirmationDescription.value = description.value;
+                        confirmationVisible.value = true;
+
+                        setTimeout(() => {
+                            window.location.href = "/galerie.html";
+                        }, 5000);
+
+                        // Réinitialisation des champs du formulaire après succès (uniquement en mode création)
+                        if (!isEditMode.value) {
+                            titre.value = '';
+                            auteur.value = '';
+                            outil.value = 'Midjourney';
+                            chaine.value = 'La Une';
+                            texte.value = '';
+                            description.value = '';
+                            imagePreviewUrl.value = '';
+                            originalImageUrl.value = '';
+                            imageFile.value = null;
+                            if (fileInput.value) {
+                                fileInput.value.value = null;
+                            }
+                            fetchProfils(); // Recharge les profils au cas où ils auraient changé
+                        }
+
+                    } catch (err) {
+                        console.error(`Erreur lors de l'opération (${isEditMode.value ? 'mise à jour' : 'création'}) du prompt:`, err);
+                        alert(`Échec de l'opération du prompt: ${err.message || err}. Vérifiez la console.`);
+                    } finally {
+                        isLoading.value = false;
+                    }
+                }
+                // --- Fin de la soumission du formulaire ---
+
+
+                // --- Logique d'initialisation du composant ---
+                onMounted(async () => {
+                    await fetchProfils(); // Charger les profils d'auteurs
+
+                    // Vérifier les paramètres d'URL pour le mode édition
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const mode = urlParams.get('mode');
+                    const id = urlParams.get('id');
+                    const sha = urlParams.get('sha'); // Récupérer le SHA
+
+                    if (mode === 'edit' && id && sha) {
+                        isEditMode.value = true;
+                        promptId.value = id;
+                        promptSha.value = sha;
+                        await fetchPromptForEdit(id); // Charger les données du prompt à éditer
+                    } else {
+                        // Mode création par défaut, assurez-vous que les champs sont vides
+                        titre.value = ''; // S'assurer que le titre est vide pour la création
+                        auteur.value = profilsAuteurs.value.length === 1 ? profilsAuteurs.value[0] : '';
+                    }
+                });
+                // --- Fin de la logique d'initialisation ---
+
+                return {
+                    titre, auteur, outil, chaine, texte, description, fileInput,
+                    imagePreviewUrl, confirmationVisible,
+                    confirmationImageUrl, confirmationTexte, confirmationDescription,
+                    isLoading, profilsAuteurs, isLoadingProfils,
+                    isEditMode, formTitle, submitButtonText, confirmationMessage,
+                    triggerFile, onDragOver, onDragLeave, onDrop, onFileChange, submitForm,
+                    removeImage // Exposer la fonction pour supprimer l'image
+                };
+            }
+        };
+
+        createApp(PromptForm).mount('#app');
     </script>
 </body>
 </html>
