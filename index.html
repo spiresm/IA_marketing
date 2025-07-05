@@ -521,8 +521,7 @@
             <div class="veille-scroll-container">
                 <div class="veille-inner-scroll-container"> 
                     <div id="veille-articles-grid" class="veille-grid">
-                        <p>Chargement de la veille...</p>
-                    </div>
+                        </div>
                 </div>
             </div>
             <button class="scroll-arrow left" id="veille-scroll-left"><i class="fas fa-chevron-left"></i></button>
@@ -539,7 +538,13 @@
             <a href="admin-news.html" class="message-button">Laisser un message</a>
         </section>
 
-        </main>
+        <div class="content-section">
+            <h2>Derniers ajouts</h2>
+            <div id="latest-additions-grid" class="latest-additions-grid">
+                <p>Chargement des contenus...</p>
+            </div>
+        </div>
+    </main>
     
     <footer id="footer-placeholder">
         <p>&copy; 2025 Espace IA. Tous droits réservés.</p>
@@ -547,85 +552,159 @@
 
     <script>
     document.addEventListener("DOMContentLoaded", () => {
-        // Le script est simplifié pour ne gérer que l'interactivité de la page,
-        // et non plus le chargement du contenu qui est délégué à n8n.
+        // --- DÉBUT DE LA PARTIE RESTAURÉE ---
 
-        // --- Logique pour le bandeau d'actualités ---
-        async function loadNewsTicker() {
-            const newsTickerContent = document.getElementById('newsTickerContent');
-            if (!newsTickerContent) return;
-            
-            try {
-                const response = await fetch('news-data.json');
-                if (!response.ok) throw new Error('Fichier news introuvable.');
-
-                const newsItems = await response.json();
-                if (newsItems.length > 0) {
-                    let fullTextHtml = newsItems.map(item => {
-                        const messageColor = item.color || "#333";
-                        let fullText = escapeHtml(item.title);
-                        let infoParts = [];
-                        if (item.collaborateur && item.collaborateur !== 'Non spécifié') {
-                            infoParts.push(escapeHtml(item.collaborateur));
-                        }
-                        if (item.pole && item.pole !== 'Autre') {
-                            infoParts.push(escapeHtml(item.pole));
-                        }
-                        if (infoParts.length > 0) {
-                            fullText += `<span class="author-info"> (${infoParts.join(' - ')})</span>`;
-                        }
-                        return `<span class="news-item" style="color: ${messageColor};">${fullText}</span>`;
-                    }).join('');
-                    
-                    // Duplication pour l'effet de défilement
-                    newsTickerContent.innerHTML = fullTextHtml + fullTextHtml;
-                } else {
-                    newsTickerContent.innerHTML = '<span>Aucune actualité pour le moment.</span>';
-                }
-            } catch (error) {
-                console.error("Erreur chargement news:", error);
-                newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
-            }
-        }
-
-        // --- Logique pour les flèches de la section Veille ---
-        const veilleGrid = document.getElementById('veille-articles-grid');
-        const scrollLeftBtn = document.getElementById('veille-scroll-left');
-        const scrollRightBtn = document.getElementById('veille-scroll-right');
-
-        if (veilleGrid && scrollLeftBtn && scrollRightBtn) {
-            const scrollAmount = 300; // Défilement fixe
-            scrollLeftBtn.addEventListener('click', () => {
-                veilleGrid.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-            });
-            scrollRightBtn.addEventListener('click', () => {
-                veilleGrid.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-            });
-        }
+        const GET_TIPS_URL = "/.netlify/functions/get-tips";
+        const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
         
-        // --- Navigation Active ---
-        try {
-            const currentPath = window.location.pathname.split('/').pop() || "index.html";
-            document.querySelectorAll('nav a').forEach(link => {
-                const linkHref = new URL(link.href).pathname.split('/').pop();
-                if (linkHref === currentPath) {
-                    link.classList.add("active");
-                }
-            });
-        } catch (e) {
-            console.error("Erreur lors de la mise à jour de la navigation active:", e);
-        }
+        const getYouTubeVideoId = (url) => {
+            if (!url) return null;
+            const match = url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            return match ? match[1] : null;
+        };
 
-        // --- Fonctions utilitaires ---
+        const isImageUrl = (url) => url && (/\.(gif|jpe?g|tiff?|png|webp|bmp)$/i).test(url);
+        const isVideoUrl = (url) => url && (/\.(mp4|webm|ogg)$/i).test(url);
+
+        const createCard = (item, type) => {
+            const card = document.createElement("div");
+            const chaineCouleur = getChainColor(item.chaine);
+            card.style.borderLeft = `5px solid ${chaineCouleur}`;
+            card.className = `addition-card ${type}`;
+
+            let mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
+            
+            let mediaHtml = '';
+            const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl);
+
+            if (youtubeVideoId) {
+                mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
+            } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
+                mediaHtml = `<div class="card-image-container"><img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
+            } else {
+                mediaHtml = `<div class="card-image-container"><i class="fas fa-image fa-3x"></i></div>`;
+            }
+
+            const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
+            
+            card.innerHTML = `
+                <div class="card-content-wrapper">
+                    <div class="card-top-meta">${toolBadge}</div>
+                    <h4>${mainCardTitle}</h4>
+                    <div class="card-subtitle">${escapeHtml(item.titre)}</div>
+                    ${mediaHtml}
+                    <div class="card-meta">
+                        <span class="meta-line">Chaîne: <strong style="color: ${chaineCouleur};">${escapeHtml(item.chaine)}</strong></span>
+                        <span class="meta-line">Créé par: <strong><a href="profil.html?name=${encodeURIComponent(item.auteur)}">${escapeHtml(item.auteur)}</a></strong></span>
+                        <span class="meta-line">Créé le: <strong>${formatteDate(item.date)}</strong></span>
+                    </div>
+                    <p>${escapeHtml(item.description)}</p>
+                    <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="view-button">Voir plus</a>
+                </div>`;
+            return card;
+        };
+
+        const chainColors = { "Auvio Kids": "hotpink", "Auvio": "gold", "La Une": "red", "Tipik": "limegreen", "La Première": "blue", "Vivacité": "orange", "La Trois": "purple", "Classic 21": "#8A2BE2", "Musiq3": "#FF1493", "Autre": "#778899", "Non spécifié": "#CCCCCC" };
+        function getChainColor(chaineNom) { return chainColors[chaineNom] || chainColors["Non spécifié"]; }
         function escapeHtml(text) {
             if (text === null || text === undefined) return '';
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
             return String(text).replace(/[&<>"']/g, m => map[m]);
         }
+        function formatteDate(dateString) {
+            if (!dateString) return 'Date inconnue';
+            try {
+                return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+            } catch (e) { return 'Date invalide'; }
+        }
 
-        // Lancement des fonctions au chargement
+        async function displayLatestAdditions() {
+            const container = document.getElementById("latest-additions-grid");
+            if (!container) return;
+            container.innerHTML = '<p>Chargement des contenus...</p>';
+            try {
+                const [tipsResponse, promptsResponse] = await Promise.all([ fetch(GET_TIPS_URL), fetch(GET_PROMPTS_URL) ]);
+                if (!tipsResponse.ok || !promptsResponse.ok) throw new Error("Erreur réseau.");
+
+                let tips = await tipsResponse.json();
+                let prompts = await promptsResponse.json();
+
+                const normalizeItem = (item) => ({
+                    ...item,
+                    titre: item.titre || "Titre non spécifié",
+                    auteur: item.auteur || "Auteur inconnu",
+                    description: item.description || item.promptText || 'Pas de description.',
+                    date: item.date_creation || item.dateCreation,
+                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'),
+                    firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url))
+                });
+
+                tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
+                prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                container.innerHTML = '';
+                let itemsToDisplay = [];
+                if (prompts.length > 0) itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
+                if (tips.length > 0) itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
+
+                if (itemsToDisplay.length > 0) {
+                    itemsToDisplay.forEach(({ item, type }) => container.appendChild(createCard(item, type)));
+                } else {
+                    container.innerHTML = '<p>Aucun ajout récent à afficher.</p>';
+                }
+            } catch (error) {
+                container.innerHTML = `<p style="color: red;">Erreur de chargement des contenus.</p>`;
+            }
+        }
+
+        // --- FIN DE LA PARTIE RESTAURÉE ---
+
+
+        // --- CODE EXISTANT ET CONSERVÉ ---
+        const NEWS_DATA_PATH = 'news-data.json';
+        async function loadNewsTicker() {
+            const newsTickerContent = document.getElementById('newsTickerContent');
+            if (!newsTickerContent) return;
+            try {
+                const response = await fetch(NEWS_DATA_PATH);
+                if (!response.ok) throw new Error('Fichier news introuvable.');
+                const newsItems = await response.json();
+                if (newsItems.length > 0) {
+                    let fullTextHtml = newsItems.map(item => {
+                        let fullText = escapeHtml(item.title);
+                        if (item.collaborateur && item.collaborateur !== 'Non spécifié') {
+                            fullText += `<span class="author-info"> (${escapeHtml(item.collaborateur)})</span>`;
+                        }
+                        return `<span class="news-item" style="color: ${item.color || '#333'};">${fullText}</span>`;
+                    }).join('');
+                    newsTickerContent.innerHTML = fullTextHtml + fullTextHtml;
+                } else {
+                    newsTickerContent.innerHTML = '<span>Aucune actualité.</span>';
+                }
+            } catch (error) {
+                console.error("Erreur chargement news:", error);
+            }
+        }
+
+        const veilleGrid = document.getElementById('veille-articles-grid');
+        const scrollLeftBtn = document.getElementById('veille-scroll-left');
+        const scrollRightBtn = document.getElementById('veille-scroll-right');
+        if (veilleGrid && scrollLeftBtn && scrollRightBtn) {
+            scrollLeftBtn.addEventListener('click', () => veilleGrid.scrollBy({ left: -300, behavior: 'smooth' }));
+            scrollRightBtn.addEventListener('click', () => veilleGrid.scrollBy({ left: 300, behavior: 'smooth' }));
+        }
+
+        const currentPath = window.location.pathname.split('/').pop() || "index.html";
+        document.querySelectorAll('nav a').forEach(link => {
+            const linkHref = new URL(link.href, window.location.origin).pathname.split('/').pop();
+            if (linkHref === currentPath) link.classList.add("active");
+        });
+
+        // APPEL DES FONCTIONS
+        displayLatestAdditions(); // Appel de la fonction restaurée
         loadNewsTicker();
     });
     </script>
+
 </body>
 </html>
