@@ -385,13 +385,25 @@
             }
         }
         
-        function normalizeString(str) {
-            return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
+        // Version améliorée de escapeHtml pour les attributs
+        function escapeHtmlAttribute(unsafe) {
+            if (typeof unsafe !== 'string') return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/"/g, "&quot;") // Échappe les guillemets doubles
+                .replace(/'/g, "&#039;") // Échappe les apostrophes
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
         }
-        
+
+        // Ancienne escapeHtml pour le texte brut (non-attribut)
         function escapeHtml(unsafe) {
             if (typeof unsafe !== 'string') return '';
             return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;');
+        }
+        
+        function normalizeString(str) {
+            return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
         }
         
         function renderProfils(filteredProfils) {
@@ -407,14 +419,14 @@
                 const hasNote = p.note && p.note.trim() !== '';
 
                 card.innerHTML = `
-                    <div class="profil-card-clickable" title="Voir les détails de ${p.name}">
+                    <div class="profil-card-clickable" title="Voir les détails de ${escapeHtmlAttribute(p.name)}">
                         <span class="note-badge" style="display: ${hasNote ? 'inline-block' : 'none'}">Note</span>
-                        <img src="${p.photo || 'https://placehold.co/90x90?text=Profil'}" alt="Photo de ${p.name}">
-                        <h3>${p.name || 'N/A'}</h3>
-                        <p class="pole">${p.pole || 'N/A'}</p>
+                        <img src="${p.photo || 'https://placehold.co/90x90?text=Profil'}" alt="${escapeHtmlAttribute(p.name)}">
+                        <h3>${escapeHtml(p.name || 'N/A')}</h3>
+                        <p class="pole">${escapeHtml(p.pole || 'N/A')}</p>
                     </div>
                     <div class="note-editor">
-                        <textarea>${p.note || ''}</textarea>
+                        <textarea>${escapeHtml(p.note || '')}</textarea>
                         <div class="actions">
                             <button class="save-note">Enregistrer</button>
                             <button class="clear-note">Effacer</button>
@@ -489,7 +501,7 @@
                 header.insertBefore(imgElement, header.querySelector('h2'));
             }
             imgElement.src = profil.photo || 'https://placehold.co/120x120?text=Profil';
-            imgElement.alt = `Photo de ${profil.name}`;
+            imgElement.alt = escapeHtmlAttribute(profil.name); // Utilisez escapeHtmlAttribute ici
 
             panelName.textContent = profil.name;
             panelPole.textContent = profil.pole || 'N/A';
@@ -502,7 +514,8 @@
             panelHtmlContent += `<h3 class="no-icon-no-border">Derniers Prompts Partagés</h3>`;
             if (promptsByAuthor.length > 0) {
                 panelHtmlContent += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt => 
-                    `<a href="galerie.html" title="${escapeHtml(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/150'}" alt="${escapeHtml(prompt.titre)}"></a>`
+                    // Utiliser escapeHtmlAttribute pour les attributs title et alt
+                    `<a href="galerie.html" title="${escapeHtmlAttribute(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/150'}" alt="${escapeHtmlAttribute(prompt.titre)}"></a>`
                 ).join('')}</div>`;
             } else {
                 panelHtmlContent += '<p>Aucun prompt partagé.</p>';
@@ -516,10 +529,10 @@
                 const latestTip = tipsByAuthor[0];
                 
                 const imageUrl = latestTip.imageUrl || (latestTip.fileUrls && latestTip.fileUrls.length > 0 ? latestTip.fileUrls[0] : null);
-                const imageHtml = imageUrl ? `<img src="${imageUrl}" alt="Illustration" class="tip-card-img">` : '';
+                const imageHtml = imageUrl ? `<img src="${imageUrl}" alt="${escapeHtmlAttribute(latestTip.titre)}" class="tip-card-img">` : '';
 
                 panelHtmlContent += `
-                    <a href="cas-usages.html" class="tip-card" title="${escapeHtml(latestTip.titre)}">
+                    <a href="cas-usages.html" class="tip-card" title="${escapeHtmlAttribute(latestTip.titre)}">
                         ${imageHtml}
                         <div class="tip-card-text">
                             <h4>${escapeHtml(latestTip.titre)}</h4>
