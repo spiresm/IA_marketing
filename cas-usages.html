@@ -171,6 +171,7 @@
             flex-direction: column;
             overflow: hidden;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer; /* Rendre toute la carte cliquable */
         }
         .carte:hover {
             transform: translateY(-5px);
@@ -275,6 +276,11 @@
         .card-action-btn-workflow:hover {
             background-color: var(--dark-blue);
         }
+        /* Le bouton "Voir le Workflow" est masqué car le clic de la carte l'ouvre */
+        .card-action-btn-workflow.toggle-content-btn {
+            display: none;
+        }
+
 
         /* Style pour le bouton supprimer (icône seule) */
         .supprimer-btn-workflow {
@@ -362,11 +368,11 @@
             padding-bottom: 10px;
             font-weight: bold;
             position: relative;
-            padding-left: 0; /* Pas d'icône, pas de padding */
+            padding-left: 0;
         }
         .preview-panel-content h4:first-child { margin-top: 0; }
         .preview-panel-content h4::before {
-            content: none; /* Supprime toute icône par défaut */
+            content: none;
         }
 
         /* Style pour les sections spécifiques (Prompt, Commentaire, Médias) sans ligne/icône, texte un peu plus petit */
@@ -374,7 +380,7 @@
              border-bottom: none;
              padding-bottom: 0;
              margin-bottom: 15px;
-             font-size: 1.4em; /* Texte un peu plus petit pour ces titres */
+             font-size: 1.4em;
         }
 
 
@@ -673,8 +679,11 @@
 
                 const workflowShaToPass = allTipsFileSha || '';
 
+                // MODIFICATION ICI: Encapsule le contenu de la carte dans un div cliquable
                 const card = document.createElement('div');
                 card.className = 'carte';
+                card.dataset.id = tip.id; // Stocke l'ID pour le clic
+
                 card.innerHTML = `
                     ${previewImageHtml}
                     <div class="card-content">
@@ -690,14 +699,23 @@
                             <span>${formattedDate}</span>
                         </div>
                         <div class="card-actions">
-                            <button class="card-action-btn-workflow toggle-content-btn" data-id="${escapeHtmlAttribute(tip.id)}">Voir le Workflow</button>
                             <button class="card-action-btn-workflow edit-btn" data-id="${escapeHtmlAttribute(tip.id)}" data-sha="${escapeHtmlAttribute(workflowShaToPass)}">Éditer</button>
                             <button class="supprimer-btn-workflow" data-id="${escapeHtmlAttribute(tip.id)}" title="${escapeHtmlAttribute('Supprimer')}"><i class="fas fa-trash-alt"></i></button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
+
+                // Ajout de l'écouteur de clic directement sur la carte
+                card.addEventListener('click', (event) => {
+                    // Empêcher l'ouverture du panneau si le clic vient d'un bouton d'action interne
+                    if (event.target.closest('.card-action-btn-workflow') || event.target.closest('.supprimer-btn-workflow')) {
+                        return;
+                    }
+                    openPreviewPanel(card.dataset.id);
+                });
+
                 galerieDiv.appendChild(card);
             });
+            // Les écouteurs pour les boutons internes seront attachés via attachCardEventListeners
             attachCardEventListeners();
         }
 
@@ -774,10 +792,15 @@
         }
 
         function attachCardEventListeners(){
-            galerieDiv.querySelectorAll('.toggle-content-btn').forEach(b => b.onclick = () => openPreviewPanel(b.dataset.id));
-            galerieDiv.querySelectorAll('.supprimer-btn-workflow').forEach(b => b.onclick = () => confirmAndDeleteTip(b.dataset.id));
+            // Le clic sur la carte gère l'ouverture du panneau.
+            // On attache uniquement les écouteurs pour les boutons "Éditer" et "Supprimer".
+            galerieDiv.querySelectorAll('.supprimer-btn-workflow').forEach(b => b.onclick = (event) => {
+                event.stopPropagation(); // Empêche le clic sur le bouton de déclencher le clic sur la carte
+                confirmAndDeleteTip(b.dataset.id);
+            });
             galerieDiv.querySelectorAll('.edit-btn').forEach(b => {
-                b.addEventListener('click', () => {
+                b.addEventListener('click', (event) => {
+                    event.stopPropagation(); // Empêche le clic sur le bouton de déclencher le clic sur la carte
                     const id = b.dataset.id;
                     const sha = b.dataset.sha;
                     window.location.href = `creer-tip.html?mode=edit&id=${id}&sha=${sha}`;
@@ -915,23 +938,25 @@
 
         async function initApp() {
             attachEventListeners();
-            if (typeof toolsData !== 'undefined') renderToolLogos(toolsData);
-            setupScrollButtons();
+            // toolsData n'est pas utilisé sur cette page, je le commente
+            // if (typeof toolsData !== 'undefined') renderToolLogos(toolsData);
+            // setupScrollButtons(); // Pas de scroll buttons pour les outils sur cette page
 
             galerieDiv.innerHTML = '<p style="text-align: center;">Chargement des workflows...</p>';
             try {
-                const response = await fetch(`${apiBase}get-tips`);
+                const response = await fetch(`${apiBase}get-tips`); // Utilisez get-tips pour les workflows
                 if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
 
                 const fetchedData = await response.json();
 
-                if (fetchedData.length > 0 && fetchedData[0].parentFileSha) {
-                    allTipsFileSha = fetchedData[0].parentFileSha;
-                    console.log("SHA du fichier all-tips.json récupéré:", allTipsFileSha);
-                } else {
-                    console.warn("SHA du fichier all-tips.json non trouvé dans la réponse de get-tips. La mise à jour/suppression pourrait échouer si le backend GitHub est utilisé.");
-                    allTipsFileSha = null;
-                }
+                // allTipsFileSha n'est pas utilisé pour les workflows, mais si votre delete-tip l'utilise, il faut le récupérer
+                // if (fetchedData.length > 0 && fetchedData[0].parentFileSha) {
+                //     allTipsFileSha = fetchedData[0].parentFileSha;
+                //     console.log("SHA du fichier all-tips.json récupéré:", allTipsFileSha);
+                // } else {
+                //     console.warn("SHA du fichier all-tips.json non trouvé dans la réponse de get-tips. La mise à jour/suppression pourrait échouer si le backend GitHub est utilisé.");
+                //     allTipsFileSha = null;
+                // }
 
                 allTips = fetchedData.map(tip => ({
                     ...tip,
