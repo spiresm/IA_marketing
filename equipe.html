@@ -383,45 +383,56 @@
             renderProfils(filtered);
         }
 
-        function openSidePanel(profil) {
-            if(!profil) return;
-            panelName.textContent = profil.name;
-            const toolsList = (profil.tools && profil.tools.length > 0) 
-                ? `<ul>${profil.tools.map(t => `<li>${t}</li>`).join('')}</ul>` : '<p>Aucun outil spécifié.</p>';
-            
-            const noteContent = profil.note ? `<div class="note-content">${profil.note}</div>` : '';
+function openSidePanel(profil) {
+    if(!profil) return;
+    
+    panelName.textContent = profil.name;
+    
+    const toolsList = (profil.tools && profil.tools.length > 0) 
+        ? `<ul>${profil.tools.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` : '<p>Aucun outil spécifié.</p>';
+    
+    const noteContent = profil.note ? `<div class="note-content">${escapeHtml(profil.note)}</div>` : '';
 
-            const promptsByAuthor = galleryPrompts.filter(p => normalizeString(p.auteur) === normalizeString(profil.name));
-            let promptsHtml = '<h3>Derniers Prompts Partagés</h3>';
-            if (promptsByAuthor.length > 0) {
-                promptsHtml += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt => 
-                    `<a href="galerie.html" title="${escapeHtml(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/100'}" alt="${escapeHtml(prompt.titre)}"></a>`
-                ).join('')}</div>`;
-            } else {
-                promptsHtml += '<p>Aucun prompt partagé.</p>';
-            }
+    const promptsByAuthor = galleryPrompts.filter(p => normalizeString(p.auteur) === normalizeString(profil.name));
+    let promptsHtml = '<h3>Derniers Prompts Partagés</h3>';
+    if (promptsByAuthor.length > 0) {
+        promptsHtml += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt => 
+            `<a href="galerie.html" title="${escapeHtml(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/100'}" alt="${escapeHtml(prompt.titre)}"></a>`
+        ).join('')}</div>`;
+    } else {
+        promptsHtml += '<p>Aucun prompt partagé.</p>';
+    }
 
-            const tipsByAuthor = sharedTips.filter(tip => normalizeString(tip.auteur) === normalizeString(profil.name));
-            let tipsHtml = '<h3>Derniers Workflows Partagés</h3>';
-            if (tipsByAuthor.length > 0) {
-                tipsHtml += tipsByAuthor.slice(0, 3).map(tip => `
-                    <a href="cas-usages.html" class="tip-card" title="${escapeHtml(tip.titre)}">
-                        <h4>${escapeHtml(tip.titre)}</h4>
-                        <p>${escapeHtml(tip.outil)}</p>
-                    </a>`).join('');
-            } else {
-                tipsHtml += '<p>Aucun workflow partagé.</p>';
-            }
+    // --- PARTIE MODIFIÉE ---
+    const tipsByAuthor = sharedTips.filter(tip => normalizeString(tip.auteur) === normalizeString(profil.name));
+    let tipsHtml = '<h3>Dernier Workflow Partagé</h3>'; // Titre au singulier
 
-            panelContent.innerHTML = `
-                <h3>Pôle</h3><p>${profil.pole || 'N/A'}</p>
-                <h3>Outils Favoris</h3>${toolsList}
-                ${profil.note ? `<h3>Note</h3>${noteContent}` : ''}
-                ${promptsHtml}
-                ${tipsHtml}
-            `;
-            sidePanel.classList.add("open");
-            overlay.classList.add("open");
+    if (tipsByAuthor.length > 0) {
+        // Trier par date de création pour trouver le plus récent
+        tipsByAuthor.sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation));
+        const latestTip = tipsByAuthor[0]; // On prend seulement le premier (le plus récent)
+
+        // On génère le HTML uniquement pour ce workflow
+        tipsHtml += `
+            <a href="cas-usages.html" class="tip-card" title="${escapeHtml(latestTip.titre)}">
+                <h4>${escapeHtml(latestTip.titre)}</h4>
+                <p>${escapeHtml(latestTip.outil)}</p>
+            </a>`;
+    } else {
+        tipsHtml += '<p>Aucun workflow partagé.</p>';
+    }
+    // --- FIN DE LA PARTIE MODIFIÉE ---
+
+    panelContent.innerHTML = `
+        <h3>Pôle</h3><p>${profil.pole || 'N/A'}</p>
+        <h3>Outils Favoris</h3>${toolsList}
+        ${profil.note ? `<h3>Note</h3>${noteContent}` : ''}
+        ${promptsHtml}
+        ${tipsHtml}
+    `;
+    
+    sidePanel.classList.add("open");
+    overlay.classList.add("open");
         }
 
         function closeSidePanel() {
