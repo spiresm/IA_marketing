@@ -387,21 +387,29 @@
             return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
         }
 
-        // Version améliorée de escapeHtml pour les attributs (plus robuste)
+        // Nouvelle fonction pour échapper les chaînes de caractères destinées aux attributs HTML
+        // Utilise JSON.stringify pour une robustesse maximale, puis retire les guillemets extérieurs
         function escapeHtmlAttribute(unsafe) {
-            if (typeof unsafe !== 'string') return '';
-            return unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/"/g, "&quot;") // Échappe les guillemets doubles
-                .replace(/'/g, "&#039;") // Échappe les apostrophes
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
+            if (typeof unsafe !== 'string') {
+                return ''; // Gérer les non-chaînes
+            }
+            // JSON.stringify échappe guillemets, backslashs, etc.
+            // On retire les guillemets doubles ajoutés par stringify si la chaîne originale ne contient pas de guillemets
+            // et que la chaîne n'est pas vide (pour ne pas retourner "" pour une chaîne vide).
+            let escaped = JSON.stringify(unsafe);
+            // On retire les guillemets de début et fin si la chaîne est propre
+            if (escaped.startsWith('"') && escaped.endsWith('"')) {
+                escaped = escaped.slice(1, -1);
+            }
+            // Et on s'assure que les backticks qui pourraient se trouver dans la chaîne sont échappés pour le template literal.
+            // Bien que stringify s'en occupe déjà pour la plupart des caractères problématiques.
+            return escaped.replace(/`/g, '\\`');
         }
 
-        // Version pour le contenu textuel normal (moins strict sur les guillemets/apostrophes)
+        // Ancienne fonction pour le contenu HTML (moins strict que les attributs)
         function escapeHtml(unsafe) {
             if (typeof unsafe !== 'string') return '';
-            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;');
+            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
         function renderProfils(filteredProfils) {
@@ -417,9 +425,9 @@
                 const hasNote = p.note && p.note.trim() !== '';
 
                 card.innerHTML = `
-                    <div class="profil-card-clickable" title="Voir les détails de ${escapeHtmlAttribute(p.name)}">
+                    <div class="profil-card-clickable" title="${escapeHtmlAttribute('Voir les détails de ' + p.name)}">
                         <span class="note-badge" style="display: ${hasNote ? 'inline-block' : 'none'}">Note</span>
-                        <img src="${p.photo || 'https://placehold.co/90x90?text=Profil'}" alt="${escapeHtmlAttribute(p.name)}">
+                        <img src="${p.photo || 'https://placehold.co/90x90?text=Profil'}" alt="${escapeHtmlAttribute('Photo de ' + p.name)}">
                         <h3>${escapeHtml(p.name || 'N/A')}</h3>
                         <p class="pole">${escapeHtml(p.pole || 'N/A')}</p>
                     </div>
@@ -499,7 +507,7 @@
                 header.insertBefore(imgElement, header.querySelector('h2'));
             }
             imgElement.src = profil.photo || 'https://placehold.co/120x120?text=Profil';
-            imgElement.alt = escapeHtmlAttribute(profil.name);
+            imgElement.alt = escapeHtmlAttribute('Photo de ' + profil.name);
 
             panelName.textContent = profil.name;
             panelPole.textContent = profil.pole || 'N/A';
@@ -512,6 +520,7 @@
             panelHtmlContent += `<h3 class="no-icon-no-border">Derniers Prompts Partagés</h3>`;
             if (promptsByAuthor.length > 0) {
                 panelHtmlContent += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt =>
+                    // Utiliser escapeHtmlAttribute pour les attributs title et alt
                     `<a href="galerie.html" title="${escapeHtmlAttribute(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/150'}" alt="${escapeHtmlAttribute(prompt.titre)}"></a>`
                 ).join('')}</div>`;
             } else {
