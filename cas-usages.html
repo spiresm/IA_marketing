@@ -38,55 +38,8 @@
         }
 
         /* --- Barre de Navigation --- */
-        .nav-wrapper {
-            background-color: var(--primary-blue);
-            width: 100%;
-            position: relative;
-            flex-shrink: 0;
-            padding: 5px 0;
-        }
-
-        .menu-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 30px;
-            box-sizing: border-box;
-        }
-
-        nav {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        nav a {
-            text-decoration: none;
-            color: white;
-            font-weight: bold;
-            font-size: 1.1em;
-            padding: 10px 18px;
-            border-radius: 8px;
-            transition: background 0.3s ease;
-            margin: 0 5px;
-            white-space: nowrap;
-            position: relative;
-        }
-
-        nav a:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        nav a.active {
-            background-color: white;
-            color: var(--primary-blue);
-        }
-
-        .notif-bubble {
-            position: absolute; top: 0px; right: 0px; background: red; color: white;
-            border-radius: 50%; padding: 2px 6px; font-size: 12px; font-weight: bold;
-            display: none;
-        }
+        /* Ces styles seront déplacés vers header.html */
+        /* .nav-wrapper, .menu-container, nav, nav a, .notif-bubble sont gérés dans header.html */
 
         /* --- Conteneur principal et sections --- */
         .main-container {
@@ -480,12 +433,32 @@
                 width: 100%;
                 max-width: 100%;
             }
+            /* Ajustements du header en responsive */
+            .preview-panel-header {
+                flex-direction: row; /* Revenir à la ligne */
+                flex-wrap: wrap; /* Permettre le wrapping */
+                justify-content: flex-start; /* Aligner à gauche */
+                padding: 15px; /* Moins de padding */
+            }
+            .preview-panel-header #panelToolLogo {
+                width: 50px; /* Taille plus petite */
+                height: 50px; /* Taille plus petite */
+                margin-bottom: 0; /* Pas de marge en bas */
+            }
             .preview-panel-header h3 {
-                font-size: 1.8em;
+                font-size: 1.5em; /* Taille plus petite */
+                text-align: left;
+                flex-grow: 1; /* Permettre de prendre l'espace */
             }
             .preview-panel-header p.header-meta {
-                font-size: 1em;
+                display: none; /* Masquer sur mobile si le header est trop petit */
             }
+            .preview-panel-header .close-preview-btn {
+                position: static; /* Revenir à la position normale */
+                margin-left: auto; /* Pousser à droite */
+                font-size: 1.5em;
+            }
+
             .preview-panel-content h4 {
                 font-size: 1.4em;
             }
@@ -502,21 +475,7 @@
 </head>
 <body>
 
-    <div class="nav-wrapper">
-        <div class="menu-container">
-            <nav>
-                <a href="index.html">Accueil</a>
-                <a href="equipe.html">Équipe</a>
-                <a href="outils.html">Outils</a>
-                <a href="galerie.html">Prompts</a>
-                <a href="cas-usages.html" class="active">Workflows</a>
-                <a href="charte.html">Chartes</a>
-                <a href="faq.html">FAQ</a>
-                <a href="demandes_ia.html">Demandes<span class="notif-bubble" id="notif-count"></span></a>
-                <a href="gestion-license.html">Licenses</a>
-            </nav>
-        </div>
-    </div>
+    <div id="header-placeholder"></div>
 
     <main>
         <div class="main-container">
@@ -564,14 +523,139 @@
             <h3 id="previewPanelTitle">Aperçu</h3>
             <p id="previewPanelMeta" class="header-meta"></p>
         </div>
-        <div id="previewPanelContent" class="preview-panel-content"></div>
+        <div id="panelContent" class="preview-panel-content"></div>
     </div>
 
     <script src="tools-data.js"></script>
     <script>
+        // Fonction utilitaire pour charger les composants externes (header/footer)
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    console.error(`Could not load ${url}, status: ${res.status}`);
+                    document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+                    return;
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+                // console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Error loading ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Error loading: ${url}</p>`;
+            }
+        }
+
+        // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
+        function initializeHeaderDropdown() {
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesBtn && toolsResourcesContent) {
+                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+                window.removeEventListener('click', handleWindowClick);
+
+                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+                window.addEventListener('click', handleWindowClick);
+
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+            } else {
+                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+            }
+        }
+
+        // Gestionnaire d'événement pour le clic sur le bouton du dropdown
+        function handleDropdownClick(event) {
+            event.preventDefault(); 
+            const toolsResourcesBtn = event.currentTarget; 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                toolsResourcesBtn.classList.remove('active');
+            } else {
+                toolsResourcesContent.style.display = 'block';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+                toolsResourcesBtn.classList.add('active');
+            }
+        }
+
+        // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
+        function handleWindowClick(event) {
+            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                    toolsResourcesContent.style.display = 'none';
+                    if (toolsResourcesBtn) { 
+                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
+        function updateActiveNavLinks() {
+            const currentPath = window.location.pathname.split('/').pop();
+
+            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
+                const currentFileName = currentPath.replace('.html', '');
+
+                const isCurrentPage = (linkFileName === currentFileName) || 
+                                      (linkFileName === '' && currentFileName === 'index');
+
+                if (isCurrentPage) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
+
+            let dropdownHasActiveLink = false;
+            dropdownLinks.forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
+                const currentFileName = currentPath.replace('.html', '');
+
+                const isCurrentSubPage = (linkFileName === currentFileName);
+
+                if (isCurrentSubPage) {
+                    link.classList.add('active'); 
+                    dropdownHasActiveLink = true;
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            if (toolsResourcesBtn) {
+                if (dropdownHasActiveLink) {
+                    toolsResourcesBtn.classList.add('active');
+                } else {
+                    if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+        
+        // =========================================================================
+        // DEBUT DU CODE SPECIFIQUE A CAS-USAGES.HTML
+        // =========================================================================
+
         const apiBase = window.location.origin + '/.netlify/functions/';
         let allTips = [];
-        let allTipsFileSha = null;
+        let allTipsFileSha = null; // Utilisé pour l'édition/suppression sur GitHub
 
         const galerieDiv = document.getElementById('galerie');
         const errorDisplay = document.getElementById('error-display');
@@ -581,7 +665,7 @@
         const searchInput = document.getElementById('search-input');
         const previewPanel = document.getElementById('previewPanel');
         const previewPanelTitle = document.getElementById('previewPanelTitle');
-        const previewPanelContent = document.getElementById('previewPanelContent');
+        const previewPanelContent = document.getElementById('panelContent'); // Nom de l'ID était 'panelContent'
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const previewOverlay = document.getElementById('previewOverlay');
         const workflowCounter = document.getElementById('workflow-counter');
@@ -793,19 +877,19 @@
             });
             searchInput.addEventListener('input', applyFiltersAndSort);
             if(closePreviewBtn) closePreviewBtn.addEventListener('click', closePreviewPanel);
-            if(previewOverlay) previewOverlay.addEventListener('click', closePreviewPanel);
+            if(previewOverlay) previewOverlay.addEventListener('click', (e) => {
+                if(e.target === previewOverlay) closePreviewPanel();
+            });
         }
 
         function attachCardEventListeners(){
-            // Le clic sur la carte gère l'ouverture du panneau.
-            // On attache uniquement les écouteurs pour les boutons "Éditer" et "Supprimer".
             galerieDiv.querySelectorAll('.supprimer-btn-workflow').forEach(b => b.onclick = (event) => {
-                event.stopPropagation(); // Empêche le clic sur le bouton de déclencher le clic sur la carte
+                event.stopPropagation();
                 confirmAndDeleteTip(b.dataset.id);
             });
             galerieDiv.querySelectorAll('.edit-btn').forEach(b => {
                 b.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Empêche le clic sur le bouton de déclencher le clic sur la carte
+                    event.stopPropagation();
                     const id = b.dataset.id;
                     const sha = b.dataset.sha;
                     window.location.href = `creer-tip.html?mode=edit&id=${id}&sha=${sha}`;
@@ -822,20 +906,16 @@
 
             let contentHtml = '';
 
-            // Section Description
             if (tip.description) contentHtml += `<h4 class="sub-section-title">Description</h4><p>${escapeHtml(tip.description)}</p>`;
 
-            // Section Commentaire / Workflow
             if (tip.commentaireUrl) contentHtml += `<h4 class="sub-section-title">Commentaire / Workflow</h4><div class="content-card-blue">${escapeHtml(tip.commentaireUrl)}</div>`;
 
-            // Section Prompt (sans icône ni ligne, texte réduit)
             const hasYoutubeVideo = Array.isArray(tip.urls) && tip.urls.some(getYouTubeVideoId);
             if (tip.promptText && !hasYoutubeVideo) {
                 contentHtml += `<h4 class="sub-section-title">Prompt</h4><pre id="previewWorkflowPromptText">${escapeHtml(tip.promptText)}</pre>`;
                 contentHtml += `<button class="preview-copy-btn" data-copy="${escapeHtmlAttribute(tip.promptText)}">Copier le Prompt</button>`;
             }
 
-            // Section Vidéos YouTube
             if (Array.isArray(tip.urls) && tip.urls.length > 0) {
                 let videosHtml = '';
                 let linksHtml = '';
@@ -852,7 +932,6 @@
                 if (linksHtml) contentHtml += `<h4 class="sub-section-title">Lien(s) externe(s)</h4>${linksHtml}`;
             }
 
-            // Gérer les médias additionnels (images, vidéos, et maintenant documents Cloudinary)
             const mediaFiles = (Array.isArray(tip.fileUrls) ? tip.fileUrls : []).filter(Boolean);
             if (mediaFiles.length > 0) {
                 let mediaHtml = '';
@@ -951,7 +1030,6 @@
                 setupScrollButtons();
             } else {
                 console.warn("tools-data.js n'a pas pu être chargé ou est vide. Le carrousel des logos ne sera pas affiché.");
-                // Masquer la section du carrousel si les données ne sont pas disponibles
                 const toolLogosSection = document.querySelector('.tool-logos-section');
                 if (toolLogosSection) {
                     toolLogosSection.style.display = 'none';
@@ -1009,7 +1087,23 @@
             }
         }
 
-        document.addEventListener("DOMContentLoaded", initApp);
+        // =========================================================================
+        // APPEL DE TOUTES LES FONCTIONS PRINCIPALES AU CHARGEMENT DU DOM
+        // =========================================================================
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Charger les composants header et footer
+            await Promise.all([
+                loadComponent("header.html", "header-placeholder"),
+                loadComponent("footer.html", "footer-placeholder")
+            ]);
+
+            // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
+            initializeHeaderDropdown();
+            updateActiveNavLinks();
+
+            // Initialiser l'application spécifique à la page Workflows
+            initApp();
+        });
     </script>
 </body>
 </html>
