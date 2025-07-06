@@ -253,7 +253,7 @@
                 return;
             }
             document.getElementById(placeholderId).innerHTML = await res.text();
-            console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
+            // console.log(`Component ${url} loaded successfully into #${placeholderId}.`); // Utile pour déboguer le chargement
         } catch (error) {
             console.error(`Error loading ${url}:`, error);
             document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Error loading: ${url}</p>`;
@@ -366,592 +366,229 @@
     }
 
 
+    // =========================================================================
+    // SECTION 1 : CARROUSEL DE VEILLE
+    // =========================================================================
+    async function loadAndInitVeille() {
+        const grid = document.getElementById('veille-articles-grid');
+        if (!grid) return;
+        try {
+            const response = await fetch('veille-articles.json'); 
+            if (!response.ok) throw new Error(`Fichier introuvable (statut: ${response.status})`);
+            const articles = await response.json();
+            if (!articles || articles.length === 0) {
+                grid.innerHTML = '<p style="padding: 20px; text-align: center;">Aucun article de veille.</p>';
+                return;
+            }
+            grid.innerHTML = articles.map(article => `
+                <div class="veille-card">
+                    <div class="card-meta-info">
+                        <span class="meta-tag"><i class="fas fa-calendar-alt"></i> ${article.date || 'Date'}</span>
+                        <span class="meta-tag"><i class="fas fa-newspaper"></i> ${article.source || 'Source'}</span>
+                        <span class="meta-tag"><i class="fas fa-tag"></i> ${article.tag || 'Tag'}</span>
+                    </div>
+                    <h4>⚡ ${article.titre || 'Titre'}</h4>
+                    <div class="card-content"><p>${article.resume || 'Résumé'}</p></div>
+                    <div class="card-footer"><a href="${article.url || '#'}" target="_blank" class="view-article-button">Lire l’article</a></div>
+                </div>
+            `).join('');
+            initVeilleCarousel();
+        } catch (error) {
+            console.error("Erreur chargement veille:", error);
+            grid.innerHTML = `<p style="padding: 20px; text-align: center; color: var(--error-text);">Impossible de charger les articles.</p>`;
+        }
+    }
+
+    function initVeilleCarousel() {
+        const grid = document.getElementById('veille-articles-grid');
+        const prevButton = document.getElementById('veille-scroll-left');
+        const nextButton = document.getElementById('veille-scroll-right');
+        const scrollContainer = grid.parentElement;
+        if (!grid || !prevButton || !nextButton || !scrollContainer) return;
+        const cards = grid.querySelectorAll('.veille-card');
+        if (cards.length <= 1) return;
+        prevButton.style.display = 'flex';
+        nextButton.style.display = 'flex';
+        let currentIndex = 0;
+        grid.style.transition = 'transform 0.5s ease-in-out';
+        const updateCarousel = () => {
+            const offset = -currentIndex * scrollContainer.clientWidth;
+            grid.style.transform = `translateX(${offset}px)`;
+            prevButton.disabled = currentIndex === 0;
+            nextButton.disabled = currentIndex >= cards.length - 1;
+        };
+        nextButton.addEventListener('click', () => { if (currentIndex < cards.length - 1) { currentIndex++; updateCarousel(); }});
+        prevButton.addEventListener('click', () => { if (currentIndex > 0) { currentIndex--; updateCarousel(); }});
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                grid.style.transition = 'none'; 
+                updateCarousel();
+                setTimeout(() => { grid.style.transition = 'transform 0.5s ease-in-out'; }, 50);
+            } else {
+                grid.style.transform = 'none';
+            }
+        });
+        if (window.innerWidth > 768) updateCarousel();
+    }
+    
+    // =========================================================================
+    // SECTION 2 : DERNIERS AJOUTS
+    // =========================================================================
+    const escapeHtml = (text) => {
+        if (text === null || text === undefined) return '';
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    };
+    const getYouTubeVideoId = (url) => {
+        if (!url) return null;
+        const match = url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        return match ? match[1] : null;
+    };
+    const formatteDate = (dateString) => {
+        if (!dateString) return 'Date inconnue';
+        try { return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }); } 
+        catch (e) { return 'Date invalide'; }
+    };
+    const createCard = (item, type) => {
+        const card = document.createElement("div");
+        card.className = 'addition-card';
+        const mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
+        let mediaHtml = '';
+        const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl);
+        if (youtubeVideoId) {
+            mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
+        } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
+            mediaHtml = `<div class="card-image-container"><img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
+        }
+        const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
+        
+        const profileImgSrc = item.profileImageUrl || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P';
+
+        card.innerHTML = `
+            <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="card-link-wrapper">
+                <div class="card-content-wrapper">
+                    <h4>${mainCardTitle}</h4>
+                    <div class="profile-circle">
+                        <img src="${profileImgSrc}" alt="Profil de ${escapeHtml(item.auteur)}">
+                    </div>
+                    <div class="card-top-meta">${toolBadge}</div>
+                    <div class="card-subtitle">${escapeHtml(item.titre)}</div>
+                    ${mediaHtml}
+                    <div class="card-meta">
+                        <span class="meta-line"><strong>Auteur:</strong> ${escapeHtml(item.auteur)}</span>
+                        <span class="meta-line"><strong>Créé le:</strong> ${formatteDate(item.date)}</span>
+                    </div>
+                    </div>
+            </a>
+        `;
+        return card;
+    };
+    async function displayLatestAdditions() {
+        const container = document.getElementById("latest-additions-grid");
+        if (!container) return;
+        container.innerHTML = '<p>Chargement...</p>';
+        const GET_TIPS_URL = "/.netlify/functions/get-tips";
+        const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
+        const GET_PROFILS_URL = "/.netlify/functions/getProfils";
+
+        try {
+            const [tipsResponse, promptsResponse, profilsResponse] = await Promise.all([
+                fetch(GET_TIPS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
+                fetch(GET_PROMPTS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
+                fetch(GET_PROFILS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])}))
+            ]);
+
+            let tips = tipsResponse.ok ? await tipsResponse.json() : [];
+            let prompts = promptsResponse.ok ? await promptsResponse.json() : [];
+            let profils = profilsResponse.ok ? await profilsResponse.json() : [];
+
+            const profilsMap = new Map();
+            profils.forEach(p => {
+                if (p.name) {
+                    profilsMap.set(p.name.toLowerCase().trim(), p);
+                }
+            });
+
+            const normalizeItem = (item) => {
+                const normalizedAuteur = item.auteur ? item.auteur.toLowerCase().trim() : '';
+                const profilCorrespondant = profilsMap.get(normalizedAuteur);
+                
+                let resolvedProfileImageUrl = 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P'; 
+                if (profilCorrespondant && profilCorrespondant.photo) {
+                    resolvedProfileImageUrl = profilCorrespondant.photo;
+                } else if (item.profileImageUrl) { 
+                    resolvedProfileImageUrl = item.profileImageUrl;
+                }
+
+                return {
+                    ...item, 
+                    titre: item.titre || "Titre", 
+                    auteur: item.auteur || "Inconnu", 
+                    date: item.date_creation || item.dateCreation, 
+                    outil: item.outil || "Non spécifié", 
+                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'), 
+                    firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url)),
+                    profileImageUrl: resolvedProfileImageUrl
+                };
+            };
+
+            tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
+            prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
+            container.innerHTML = '';
+            let itemsToDisplay = [];
+            if (prompts.length > 0) itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
+            if (tips.length > 0) itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
+            if (itemsToDisplay.length > 0) {
+                itemsToDisplay.forEach(({ item, type }) => container.appendChild(createCard(item, type)));
+            } else {
+                container.innerHTML = '<p>Aucun ajout récent.</p>';
+            }
+        } catch (error) {
+            console.error("Erreur de chargement des derniers ajouts:", error);
+            container.innerHTML = `<p style="color: var(--error-text);">Erreur de chargement des derniers ajouts.</p>`;
+        }
+    }
+
+    // =========================================================================
+    // SECTION 3 : BANDEAU D'ACTUALITÉS
+    // =========================================================================
+    async function loadNewsTicker() {
+        const newsTickerContent = document.getElementById('newsTickerContent');
+        if (!newsTickerContent) return;
+        const NEWS_DATA_PATH = 'news-data.json';
+        try {
+            const response = await fetch(NEWS_DATA_PATH);
+            if (!response.ok) throw new Error('Fichier news introuvable.');
+            const newsItems = await response.json();
+            if (newsItems.length > 0) {
+                const fullTextHtml = newsItems.map(item => `<span class="news-item">${escapeHtml(item.title)}</span>`).join(' &nbsp; • &nbsp; ');
+                newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml;
+            } else {
+                newsTickerContent.innerHTML = '<span>Aucune actualité.</span>';
+            }
+        } catch (error) {
+            console.error("Erreur chargement news ticker:", error);
+            newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
+        }
+    }
+    
+    // Le DOMContentLoaded global qui appelle toutes les fonctions
     document.addEventListener("DOMContentLoaded", async () => {
-        // Charge les composants externes (header et footer)
+        // Charger les composants (header et footer)
         await Promise.all([
             loadComponent("header.html", "header-placeholder"),
             loadComponent("footer.html", "footer-placeholder")
         ]);
 
-        // Initialise le dropdown et les liens actifs APRÈS le chargement du header
+        // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
         initializeHeaderDropdown();
         updateActiveNavLinks(); 
 
         // =========================================================================
-        // SECTION 1 : CARROUSEL DE VEILLE
+        // APPEL DE TOUTES LES FONCTIONS SPÉCIFIQUES À INDEX.HTML
         // =========================================================================
-        async function loadAndInitVeille() {
-            const grid = document.getElementById('veille-articles-grid');
-            if (!grid) return;
-            try {
-                const response = await fetch('veille-articles.json'); 
-                if (!response.ok) throw new Error(`Fichier introuvable (statut: ${response.status})`);
-                const articles = await response.json();
-                if (!articles || articles.length === 0) {
-                    grid.innerHTML = '<p style="padding: 20px; text-align: center;">Aucun article de veille.</p>';
-                    return;
-                }
-                grid.innerHTML = articles.map(article => `
-                    <div class="veille-card">
-                        <div class="card-meta-info">
-                            <span class="meta-tag"><i class="fas fa-calendar-alt"></i> ${article.date || 'Date'}</span>
-                            <span class="meta-tag"><i class="fas fa-newspaper"></i> ${article.source || 'Source'}</span>
-                            <span class="meta-tag"><i class="fas fa-tag"></i> ${article.tag || 'Tag'}</span>
-                        </div>
-                        <h4>⚡ ${article.titre || 'Titre'}</h4>
-                        <div class="card-content"><p>${article.resume || 'Résumé'}</p></div>
-                        <div class="card-footer"><a href="${article.url || '#'}" target="_blank" class="view-article-button">Lire l’article</a></div>
-                    </div>
-                `).join('');
-                initVeilleCarousel();
-            } catch (error) {
-                console.error("Erreur chargement veille:", error);
-                grid.innerHTML = `<p style="padding: 20px; text-align: center; color: var(--error-text);">Impossible de charger les articles.</p>`;
-            }
-        }
-
-        function initVeilleCarousel() {
-            const grid = document.getElementById('veille-articles-grid');
-            const prevButton = document.getElementById('veille-scroll-left');
-            const nextButton = document.getElementById('veille-scroll-right');
-            const scrollContainer = grid.parentElement;
-            if (!grid || !prevButton || !nextButton || !scrollContainer) return;
-            const cards = grid.querySelectorAll('.veille-card');
-            if (cards.length <= 1) return;
-            prevButton.style.display = 'flex';
-            nextButton.style.display = 'flex';
-            let currentIndex = 0;
-            grid.style.transition = 'transform 0.5s ease-in-out';
-            const updateCarousel = () => {
-                const offset = -currentIndex * scrollContainer.clientWidth;
-                grid.style.transform = `translateX(${offset}px)`;
-                prevButton.disabled = currentIndex === 0;
-                nextButton.disabled = currentIndex >= cards.length - 1;
-            };
-            nextButton.addEventListener('click', () => { if (currentIndex < cards.length - 1) { currentIndex++; updateCarousel(); }});
-            prevButton.addEventListener('click', () => { if (currentIndex > 0) { currentIndex--; updateCarousel(); }});
-            window.addEventListener('resize', () => {
-                if (window.innerWidth > 768) {
-                    grid.style.transition = 'none'; 
-                    updateCarousel();
-                    setTimeout(() => { grid.style.transition = 'transform 0.5s ease-in-out'; }, 50);
-                } else {
-                    grid.style.transform = 'none';
-                }
-            });
-            if (window.innerWidth > 768) updateCarousel();
-        };
-        
-        // =========================================================================
-        // SECTION 2 : DERNIERS AJOUTS
-        // =========================================================================
-        const escapeHtml = (text) => {
-            if (text === null || text === undefined) return '';
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return String(text).replace(/[&<>"']/g, m => map[m]);
-        };
-        const getYouTubeVideoId = (url) => {
-            if (!url) return null;
-            const match = url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-            return match ? match[1] : null;
-        };
-        const formatteDate = (dateString) => {
-            if (!dateString) return 'Date inconnue';
-            try { return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }); } 
-            catch (e) { return 'Date invalide'; }
-        };
-        const createCard = (item, type) => {
-            const card = document.createElement("div");
-            card.className = 'addition-card';
-            const mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
-            let mediaHtml = '';
-            const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl);
-            if (youtubeVideoId) {
-                mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
-            } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
-                mediaHtml = `<div class="card-image-container"><img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
-            }
-            const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
-            
-            const profileImgSrc = item.profileImageUrl || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P';
-
-            card.innerHTML = `
-                <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="card-link-wrapper">
-                    <div class="card-content-wrapper">
-                        <h4>${mainCardTitle}</h4>
-                        <div class="profile-circle">
-                            <img src="${profileImgSrc}" alt="Profil de ${escapeHtml(item.auteur)}">
-                        </div>
-                        <div class="card-top-meta">${toolBadge}</div>
-                        <div class="card-subtitle">${escapeHtml(item.titre)}</div>
-                        ${mediaHtml}
-                        <div class="card-meta">
-                            <span class="meta-line"><strong>Auteur:</strong> ${escapeHtml(item.auteur)}</span>
-                            <span class="meta-line"><strong>Créé le:</strong> ${formatteDate(item.date)}</span>
-                        </div>
-                        </div>
-                </a>
-            `;
-            return card;
-        };
-        async function displayLatestAdditions() {
-            const container = document.getElementById("latest-additions-grid");
-            if (!container) return;
-            container.innerHTML = '<p>Chargement...</p>';
-            const GET_TIPS_URL = "/.netlify/functions/get-tips";
-            const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
-            const GET_PROFILS_URL = "/.netlify/functions/getProfils";
-
-            try {
-                const [tipsResponse, promptsResponse, profilsResponse] = await Promise.all([
-                    fetch(GET_TIPS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
-                    fetch(GET_PROMPTS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
-                    fetch(GET_PROFILS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])}))
-                ]);
-
-                let tips = tipsResponse.ok ? await tipsResponse.json() : [];
-                let prompts = promptsResponse.ok ? await promptsResponse.json() : [];
-                let profils = profilsResponse.ok ? await profilsResponse.json() : [];
-
-                const profilsMap = new Map();
-                profils.forEach(p => {
-                    if (p.name) {
-                        profilsMap.set(p.name.toLowerCase().trim(), p);
-                    }
-                });
-
-                const normalizeItem = (item) => {
-                    const normalizedAuteur = item.auteur ? item.auteur.toLowerCase().trim() : '';
-                    const profilCorrespondant = profilsMap.get(normalizedAuteur);
-                    
-                    let resolvedProfileImageUrl = 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P'; 
-                    if (profilCorrespondant && profilCorrespondant.photo) {
-                        resolvedProfileImageUrl = profilCorrespondant.photo;
-                    } else if (item.profileImageUrl) { 
-                        resolvedProfileImageUrl = item.profileImageUrl;
-                    }
-
-                    return {
-                        ...item, 
-                        titre: item.titre || "Titre", 
-                        auteur: item.auteur || "Inconnu", 
-                        date: item.date_creation || item.dateCreation, 
-                        outil: item.outil || "Non spécifié", 
-                        imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'), 
-                        firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url)),
-                        profileImageUrl: resolvedProfileImageUrl
-                    };
-                };
-
-                tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
-                prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
-                container.innerHTML = '';
-                let itemsToDisplay = [];
-                if (prompts.length > 0) itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
-                if (tips.length > 0) itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
-                if (itemsToDisplay.length > 0) {
-                    itemsToDisplay.forEach(({ item, type }) => container.appendChild(createCard(item, type)));
-                } else {
-                    container.innerHTML = '<p>Aucun ajout récent.</p>';
-                }
-            } catch (error) {
-                console.error("Erreur de chargement des derniers ajouts:", error);
-                container.innerHTML = `<p style="color: var(--error-text);">Erreur de chargement des derniers ajouts.</p>`;
-            }
-        }
-
-        // =========================================================================
-        // SECTION 3 : BANDEAU D'ACTUALITÉS
-        // =========================================================================
-        async function loadNewsTicker() {
-            const newsTickerContent = document.getElementById('newsTickerContent');
-            if (!newsTickerContent) return;
-            const NEWS_DATA_PATH = 'news-data.json';
-            try {
-                const response = await fetch(NEWS_DATA_PATH);
-                if (!response.ok) throw new Error('Fichier news introuvable.');
-                const newsItems = await response.json();
-                if (newsItems.length > 0) {
-                    const fullTextHtml = newsItems.map(item => `<span class="news-item">${escapeHtml(item.title)}</span>`).join(' &nbsp; • &nbsp; ');
-                    newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml;
-                } else {
-                    newsTickerContent.innerHTML = '<span>Aucune actualité.</span>';
-                }
-            } catch (error) {
-                console.error("Erreur chargement news ticker:", error);
-                newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
-            }
-        }
-        
-        // =========================================================================
-        // SECTION 4 : LOGIQUE DU MENU ACTIF
-        // =========================================================================
-        // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
-        function updateActiveNavLinks() {
-            const currentPath = window.location.pathname.split('/').pop();
-
-            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
-                const linkHref = link.getAttribute('href');
-                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
-                const currentFileName = currentPath.replace('.html', '');
-
-                const isCurrentPage = (linkFileName === currentFileName) || 
-                                      (linkFileName === '' && currentFileName === 'index');
-
-                if (isCurrentPage) {
-                    link.classList.add("active");
-                } else {
-                    link.classList.remove("active");
-                }
-            });
-
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
-
-            let dropdownHasActiveLink = false;
-            dropdownLinks.forEach(link => {
-                const linkHref = link.getAttribute('href');
-                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
-                const currentFileName = currentPath.replace('.html', '');
-
-                const isCurrentSubPage = (linkFileName === currentFileName);
-
-                if (isCurrentSubPage) {
-                    link.classList.add('active'); 
-                    dropdownHasActiveLink = true;
-                } else {
-                    link.classList.remove('active');
-                }
-            });
-
-            if (toolsResourcesBtn) {
-                if (dropdownHasActiveLink) {
-                    toolsResourcesBtn.classList.add('active');
-                } else {
-                    if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
-                        toolsResourcesBtn.classList.remove('active');
-                    }
-                }
-            }
-        }
-
-
-        // =========================================================================
-        // APPEL DE TOUTES LES FONCTIONS PRINCIPALES AU CHARGEMENT DU DOM
-        // =========================================================================
-        // Fonction utilitaire pour charger les composants externes (header/footer)
-        async function loadComponent(url, placeholderId) {
-            try {
-                const res = await fetch(url);
-                if (!res.ok) {
-                    console.error(`Could not load ${url}, status: ${res.status}`);
-                    document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
-                    return;
-                }
-                document.getElementById(placeholderId).innerHTML = await res.text();
-                // console.log(`Component ${url} loaded successfully into #${placeholderId}.`); // Utile pour déboguer le chargement
-            } catch (error) {
-                console.error(`Error loading ${url}:`, error);
-                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Error loading: ${url}</p>`;
-            }
-        }
-
-        // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
-        function initializeHeaderDropdown() {
-            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-
-            if (toolsResourcesBtn && toolsResourcesContent) {
-                // Supprime tout écouteur de clic précédent pour éviter la duplication si la fonction est appelée plusieurs fois
-                // (utile si vous rechargez des parties du DOM)
-                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
-                window.removeEventListener('click', handleWindowClick);
-
-                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
-                window.addEventListener('click', handleWindowClick);
-
-                toolsResourcesContent.style.display = 'none';
-                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-
-            } else {
-                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
-            }
-        }
-
-        // Gestionnaire d'événement pour le clic sur le bouton du dropdown
-        function handleDropdownClick(event) {
-            event.preventDefault(); 
-            const toolsResourcesBtn = event.currentTarget; 
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-
-            if (toolsResourcesContent.style.display === 'block') {
-                toolsResourcesContent.style.display = 'none';
-                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-                toolsResourcesBtn.classList.remove('active');
-            } else {
-                // Optionnel: Fermer les autres dropdowns ouverts si vous en aviez plusieurs
-                // document.querySelectorAll('.dropdown-content').forEach(dc => dc.style.display = 'none');
-                toolsResourcesContent.style.display = 'block';
-                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
-                toolsResourcesBtn.classList.add('active');
-            }
-        }
-
-        // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
-        function handleWindowClick(event) {
-            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-
-            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
-                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
-                    toolsResourcesContent.style.display = 'none';
-                    if (toolsResourcesBtn) { 
-                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-                        toolsResourcesBtn.classList.remove('active');
-                    }
-                }
-            }
-        }
-
-
-        document.addEventListener("DOMContentLoaded", async () => {
-            // Charger les composants (header et footer)
-            await Promise.all([
-                loadComponent("header.html", "header-placeholder"),
-                loadComponent("footer.html", "footer-placeholder")
-            ]);
-
-            // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
-            initializeHeaderDropdown();
-            updateActiveNavLinks(); 
-
-            // =========================================================================
-            // SECTION 1 : CARROUSEL DE VEILLE
-            // =========================================================================
-            async function loadAndInitVeille() {
-                const grid = document.getElementById('veille-articles-grid');
-                if (!grid) return;
-                try {
-                    const response = await fetch('veille-articles.json'); 
-                    if (!response.ok) throw new Error(`Fichier introuvable (statut: ${response.status})`);
-                    const articles = await response.json();
-                    if (!articles || articles.length === 0) {
-                        grid.innerHTML = '<p style="padding: 20px; text-align: center;">Aucun article de veille.</p>';
-                        return;
-                    }
-                    grid.innerHTML = articles.map(article => `
-                        <div class="veille-card">
-                            <div class="card-meta-info">
-                                <span class="meta-tag"><i class="fas fa-calendar-alt"></i> ${article.date || 'Date'}</span>
-                                <span class="meta-tag"><i class="fas fa-newspaper"></i> ${article.source || 'Source'}</span>
-                                <span class="meta-tag"><i class="fas fa-tag"></i> ${article.tag || 'Tag'}</span>
-                            </div>
-                            <h4>⚡ ${article.titre || 'Titre'}</h4>
-                            <div class="card-content"><p>${article.resume || 'Résumé'}</p></div>
-                            <div class="card-footer"><a href="${article.url || '#'}" target="_blank" class="view-article-button">Lire l’article</a></div>
-                        </div>
-                    `).join('');
-                    initVeilleCarousel();
-                } catch (error) {
-                    console.error("Erreur chargement veille:", error);
-                    grid.innerHTML = `<p style="padding: 20px; text-align: center; color: var(--error-text);">Impossible de charger les articles.</p>`;
-                }
-            }
-
-            function initVeilleCarousel() {
-                const grid = document.getElementById('veille-articles-grid');
-                const prevButton = document.getElementById('veille-scroll-left');
-                const nextButton = document.getElementById('veille-scroll-right');
-                const scrollContainer = grid.parentElement;
-                if (!grid || !prevButton || !nextButton || !scrollContainer) return;
-                const cards = grid.querySelectorAll('.veille-card');
-                if (cards.length <= 1) return;
-                prevButton.style.display = 'flex';
-                nextButton.style.display = 'flex';
-                let currentIndex = 0;
-                grid.style.transition = 'transform 0.5s ease-in-out';
-                const updateCarousel = () => {
-                    const offset = -currentIndex * scrollContainer.clientWidth;
-                    grid.style.transform = `translateX(${offset}px)`;
-                    prevButton.disabled = currentIndex === 0;
-                    nextButton.disabled = currentIndex >= cards.length - 1;
-                };
-                nextButton.addEventListener('click', () => { if (currentIndex < cards.length - 1) { currentIndex++; updateCarousel(); }});
-                prevButton.addEventListener('click', () => { if (currentIndex > 0) { currentIndex--; updateCarousel(); }});
-                window.addEventListener('resize', () => {
-                    if (window.innerWidth > 768) {
-                        grid.style.transition = 'none'; 
-                        updateCarousel();
-                        setTimeout(() => { grid.style.transition = 'transform 0.5s ease-in-out'; }, 50);
-                    } else {
-                        grid.style.transform = 'none';
-                    }
-                });
-                if (window.innerWidth > 768) updateCarousel();
-            };
-            
-            // =========================================================================
-            // SECTION 2 : DERNIERS AJOUTS
-            // =========================================================================
-            const escapeHtml = (text) => {
-                if (text === null || text === undefined) return '';
-                const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-                return String(text).replace(/[&<>"']/g, m => map[m]);
-            };
-            const getYouTubeVideoId = (url) => {
-                if (!url) return null;
-                const match = url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                return match ? match[1] : null;
-            };
-            const formatteDate = (dateString) => {
-                if (!dateString) return 'Date inconnue';
-                try { return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }); } 
-                catch (e) { return 'Date invalide'; }
-            };
-            const createCard = (item, type) => {
-                const card = document.createElement("div");
-                card.className = 'addition-card';
-                const mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
-                let mediaHtml = '';
-                const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl);
-                if (youtubeVideoId) {
-                    mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
-                } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
-                    mediaHtml = `<div class="card-image-container"><img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
-                }
-                const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
-                
-                const profileImgSrc = item.profileImageUrl || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P';
-
-                card.innerHTML = `
-                    <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="card-link-wrapper">
-                        <div class="card-content-wrapper">
-                            <h4>${mainCardTitle}</h4>
-                            <div class="profile-circle">
-                                <img src="${profileImgSrc}" alt="Profil de ${escapeHtml(item.auteur)}">
-                            </div>
-                            <div class="card-top-meta">${toolBadge}</div>
-                            <div class="card-subtitle">${escapeHtml(item.titre)}</div>
-                            ${mediaHtml}
-                            <div class="card-meta">
-                                <span class="meta-line"><strong>Auteur:</strong> ${escapeHtml(item.auteur)}</span>
-                                <span class="meta-line"><strong>Créé le:</strong> ${formatteDate(item.date)}</span>
-                            </div>
-                            </div>
-                    </a>
-                `;
-                return card;
-            };
-            async function displayLatestAdditions() {
-                const container = document.getElementById("latest-additions-grid");
-                if (!container) return;
-                container.innerHTML = '<p>Chargement...</p>';
-                const GET_TIPS_URL = "/.netlify/functions/get-tips";
-                const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
-                const GET_PROFILS_URL = "/.netlify/functions/getProfils";
-
-                try {
-                    const [tipsResponse, promptsResponse, profilsResponse] = await Promise.all([
-                        fetch(GET_TIPS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
-                        fetch(GET_PROMPTS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
-                        fetch(GET_PROFILS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])}))
-                    ]);
-
-                    let tips = tipsResponse.ok ? await tipsResponse.json() : [];
-                    let prompts = promptsResponse.ok ? await promptsResponse.json() : [];
-                    let profils = profilsResponse.ok ? await profilsResponse.json() : [];
-
-                    const profilsMap = new Map();
-                    profils.forEach(p => {
-                        if (p.name) {
-                            profilsMap.set(p.name.toLowerCase().trim(), p);
-                        }
-                    });
-
-                    const normalizeItem = (item) => {
-                        const normalizedAuteur = item.auteur ? item.auteur.toLowerCase().trim() : '';
-                        const profilCorrespondant = profilsMap.get(normalizedAuteur);
-                        
-                        let resolvedProfileImageUrl = 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P'; 
-                        if (profilCorrespondant && profilCorrespondant.photo) {
-                            resolvedProfileImageUrl = profilCorrespondant.photo;
-                        } else if (item.profileImageUrl) { 
-                            resolvedProfileImageUrl = item.profileImageUrl;
-                        }
-
-                        return {
-                            ...item, 
-                            titre: item.titre || "Titre", 
-                            auteur: item.auteur || "Inconnu", 
-                            date: item.date_creation || item.dateCreation, 
-                            outil: item.outil || "Non spécifié", 
-                            imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'), 
-                            firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url)),
-                            profileImageUrl: resolvedProfileImageUrl
-                        };
-                    };
-
-                    tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
-                    prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
-                    container.innerHTML = '';
-                    let itemsToDisplay = [];
-                    if (prompts.length > 0) itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
-                    if (tips.length > 0) itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
-                    if (itemsToDisplay.length > 0) {
-                        itemsToDisplay.forEach(({ item, type }) => container.appendChild(createCard(item, type)));
-                    } else {
-                        container.innerHTML = '<p>Aucun ajout récent.</p>';
-                    }
-                } catch (error) {
-                    console.error("Erreur de chargement des derniers ajouts:", error);
-                    container.innerHTML = `<p style="color: var(--error-text);">Erreur de chargement des derniers ajouts.</p>`;
-                }
-            }
-
-            // =========================================================================
-            // SECTION 3 : BANDEAU D'ACTUALITÉS
-            // =========================================================================
-            async function loadNewsTicker() {
-                const newsTickerContent = document.getElementById('newsTickerContent');
-                if (!newsTickerContent) return;
-                const NEWS_DATA_PATH = 'news-data.json';
-                try {
-                    const response = await fetch(NEWS_DATA_PATH);
-                    if (!response.ok) throw new Error('Fichier news introuvable.');
-                    const newsItems = await response.json();
-                    if (newsItems.length > 0) {
-                        const fullTextHtml = newsItems.map(item => `<span class="news-item">${escapeHtml(item.title)}</span>`).join(' &nbsp; • &nbsp; ');
-                        newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml;
-                    } else {
-                        newsTickerContent.innerHTML = '<span>Aucune actualité.</span>';
-                    }
-                } catch (error) {
-                    console.error("Erreur chargement news ticker:", error);
-                    newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
-                }
-            }
-            
-            document.addEventListener("DOMContentLoaded", async () => {
-                // Charger les composants (header et footer)
-                await Promise.all([
-                    loadComponent("header.html", "header-placeholder"),
-                    loadComponent("footer.html", "footer-placeholder")
-                ]);
-
-                // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
-                initializeHeaderDropdown();
-                updateActiveNavLinks(); 
-
-                // =========================================================================
-                // APPEL DE TOUTES LES FONCTIONS SPÉCIFIQUES À INDEX.HTML
-                // =========================================================================
-                loadAndInitVeille(); 
-                displayLatestAdditions();
-                loadNewsTicker();
-            });
-        </script>
-
-</body>
-</html>
+        loadAndInitVeille(); 
+        displayLatestAdditions();
+        loadNewsTicker();
+    });
+</script>
