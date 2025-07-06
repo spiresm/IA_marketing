@@ -39,23 +39,8 @@
             width: 100%;
             box-sizing: border-box;
         }
-        .nav-wrapper {
-            background-color: var(--primary-blue);
-            width: 100%;
-            position: relative;
-            flex-shrink: 0;
-            padding: 5px 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .menu-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 30px;
-            box-sizing: border-box;
-        }
-        nav { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; }
-        nav a { text-decoration: none; color: white; font-weight: bold; font-size: 1.1em; padding: 10px 18px; border-radius: 8px; transition: background 0.3s ease; margin: 0 5px; white-space: nowrap; position: relative; }
-        nav a:hover, nav a.active { background-color: white; color: var(--primary-blue); }
+        /* Les styles du nav-wrapper et du menu-container seront maintenant dans header.html */
+        /* Tous les styles liés au header, nav, dropdown doivent être dans header.html */
         
         .content-section { 
             width: 100%; 
@@ -701,22 +686,7 @@
 </head>
 <body>
 
-    <div class="nav-wrapper">
-        <div class="menu-container">
-            <nav>
-                <a href="index.html">Accueil</a>
-                <a href="equipe.html">Équipe</a>
-                <a href="outils.html">Outils</a>
-                <a href="galerie.html">Prompts</a>
-                <a href="cas-usages.html">Workflows</a>
-                <a href="charte.html">Chartes</a>
-                <a href="faq.html">FAQ</a>
-                <a href="demandes_ia.html">Demandes</a>
-                <a href="gestion-license.html">Licenses</a>
-                <a href="brainstorming.html" class="active">Brainstorming</a>
-            </nav>
-        </div>
-    </div>
+    <div id="header-placeholder"></div>
 
     <main>
         <section class="content-section" id="brainstorm-creation-section">
@@ -781,14 +751,135 @@
     </div>
 
     <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-        const apiBase = './.netlify/functions/';
-        let allProfils = []; // Stockera tous les profils bruts
-        let currentParticipants = new Map(); // Stocke les participants du brainstorming en cours (ID -> {profilData, ideas, media})
-        let allBrainstormings = []; // Stocke tous les brainstormings chargés
-        let editingBrainstormId = null; // ID du brainstorming en cours d'édition, null si nouveau
+        // =========================================================================
+        // FONCTIONS GLOBALES POUR LE CHARGEMENT DES COMPOSANTS ET LE HEADER/DROPDOWN
+        // =========================================================================
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    console.error(`Could not load ${url}, status: ${res.status}`);
+                    document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+                    return;
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+                // console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
+            } catch (error) {
+                console.error(`Error loading ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+            }
+        }
 
-        // Éléments du DOM
+        function initializeHeaderDropdown() {
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesBtn && toolsResourcesContent) {
+                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+                window.removeEventListener('click', handleWindowClick);
+
+                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+                window.addEventListener('click', handleWindowClick);
+
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+            } else {
+                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+            }
+        }
+
+        function handleDropdownClick(event) {
+            event.preventDefault(); 
+            const toolsResourcesBtn = event.currentTarget; 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                toolsResourcesBtn.classList.remove('active');
+            } else {
+                toolsResourcesContent.style.display = 'block';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+                toolsResourcesBtn.classList.add('active');
+            }
+        }
+
+        function handleWindowClick(event) {
+            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                    toolsResourcesContent.style.display = 'none';
+                    if (toolsResourcesBtn) { 
+                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        function updateActiveNavLinks() {
+            const currentPath = window.location.pathname.split('/').pop();
+
+            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
+                const currentFileName = currentPath.replace('.html', '');
+
+                const isCurrentPage = (linkFileName === currentFileName) || 
+                                      (linkFileName === '' && currentFileName === 'index');
+
+                if (isCurrentPage) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
+
+            let dropdownHasActiveLink = false;
+            dropdownLinks.forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
+                const currentFileName = currentPath.replace('.html', '');
+
+                const isCurrentSubPage = (linkFileName === currentFileName);
+
+                if (isCurrentSubPage) {
+                    link.classList.add('active'); 
+                    dropdownHasActiveLink = true;
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            if (toolsResourcesBtn) {
+                if (dropdownHasActiveLink) {
+                    toolsResourcesBtn.classList.add('active');
+                } else {
+                    if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+        
+        // =========================================================================
+        // DEBUT DU CODE SPECIFIQUE A BRAINSTORMING.HTML
+        // =========================================================================
+
+        const apiBase = './.netlify/functions/';
+        let allProfils = []; 
+        let currentParticipants = new Map(); 
+        let allBrainstormings = []; 
+        let editingBrainstormId = null; 
+
         const brainstormCreationSection = document.getElementById('brainstorm-creation-section');
         const brainstormingNameInput = document.getElementById('brainstorming-name');
         const filterPoleSelect = document.getElementById('filter-pole');
@@ -800,7 +891,6 @@
         const brainstormingListSection = document.getElementById('brainstorming-list-section');
         const brainstormingListDiv = document.getElementById('brainstorming-list');
 
-        // Éléments du DOM pour la modale
         const brainstormDetailModal = document.getElementById('brainstorm-detail-modal');
         const closeModalBtn = brainstormDetailModal.querySelector('.close-modal-btn');
         const modalBrainstormName = document.getElementById('modal-brainstorm-name');
@@ -809,7 +899,7 @@
         const modalEditBtn = document.getElementById('modal-edit-btn');
 
 
-        // --- Fonctions utilitaires ---
+        // --- Fonctions utilitaires (celles-ci sont spécifiques à brainstorming.html) ---
         const escapeHtml = (text) => {
             if (text === null || text === undefined) return '';
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
@@ -882,11 +972,10 @@
 
             const profilToAdd = allProfils.find(p => p.id === selectedProfilId);
             if (profilToAdd && !currentParticipants.has(profilToAdd.id)) {
-                // Initialise les données du participant pour ce brainstorming
                 currentParticipants.set(profilToAdd.id, {
                     profil: profilToAdd,
                     ideas: '',
-                    media: [] // Laissé vide car plus d'upload de médias
+                    media: []
                 });
                 createParticipantCard(profilToAdd);
                 participantSelect.value = '';
@@ -982,7 +1071,6 @@
                 return;
             }
 
-            // Mettre à jour les dernières idées des participants avant de sauvegarder
             currentParticipants.forEach((data, id) => {
                 const card = brainstormingArea.querySelector(`[data-participant-id="${id}"]`);
                 if (card) {
@@ -995,11 +1083,11 @@
                 name: data.profil.name,
                 photo: data.profil.photo,
                 ideas: data.ideas,
-                media: [] // Toujours vide car la fonctionnalité média est désactivée
+                media: [] 
             }));
 
             const brainstormingData = {
-                id: editingBrainstormId || Date.now().toString(), // Génère un nouvel ID ou utilise celui en cours d'édition
+                id: editingBrainstormId || Date.now().toString(), 
                 name: brainstormName,
                 date: new Date().toISOString(),
                 participants: participantsDataForSave
@@ -1017,17 +1105,16 @@
                 console.log('Brainstorming enregistré:', result);
                 alert("Brainstorming enregistré avec succès !");
                 
-                // Réinitialiser l'état après sauvegarde
                 editingBrainstormId = null;
                 brainstormingNameInput.value = '';
                 currentParticipants.clear();
                 brainstormingArea.innerHTML = `<p id="no-participant-msg" style="text-align: center; color: var(--grey-text);">
                     Ajoutez des participants ci-dessus pour commencer le brainstorming.
                 </p>`;
-                filterAndPopulateParticipants(); // Réactive tous les profils dans le sélecteur
+                filterAndPopulateParticipants(); 
                 checkSaveButtonValidity();
 
-                loadBrainstormings(); // Recharger la liste des brainstormings enregistrés
+                loadBrainstormings(); 
             } catch (error) {
                 console.error('Erreur lors de l\'enregistrement du brainstorming:', error);
                 alert("Erreur lors de l'enregistrement du brainstorming.");
@@ -1078,20 +1165,18 @@
                     </div>
                 `;
                 
-                // Rendre la carte cliquable pour ouvrir la modale de détails
                 card.addEventListener('click', (event) => {
-                    // S'assurer que le clic n'est pas sur un bouton (éditer/supprimer)
                     if (!event.target.closest('button')) {
                         openBrainstormDetailModal(b.id);
                     }
                 });
 
                 card.querySelector('.edit-btn').addEventListener('click', (event) => {
-                    event.stopPropagation(); // Empêche le déclenchement du clic sur la carte
+                    event.stopPropagation(); 
                     editBrainstorming(b.id);
                 });
                 card.querySelector('.delete-btn').addEventListener('click', (event) => {
-                    event.stopPropagation(); // Empêche le déclenchement du clic sur la carte
+                    event.stopPropagation(); 
                     deleteBrainstorming(b.id, b.name);
                 });
                 brainstormingListDiv.appendChild(card);
@@ -1107,7 +1192,7 @@
 
             modalBrainstormName.textContent = escapeHtml(brainstorm.name);
             modalBrainstormDate.textContent = `Créé le: ${formatDate(brainstorm.date)}`;
-            modalParticipantsContainer.innerHTML = ''; // Vider le conteneur
+            modalParticipantsContainer.innerHTML = ''; 
 
             (brainstorm.participants || []).forEach(p => {
                 const participantDetailDiv = document.createElement('div');
@@ -1126,10 +1211,9 @@
                 modalParticipantsContainer.appendChild(participantDetailDiv);
             });
 
-            // Attacher l'événement au bouton "Modifier" de la modale
             modalEditBtn.onclick = () => {
-                closeBrainstormDetailModal(); // Ferme la modale de détail
-                editBrainstorming(brainstorm.id); // Lance la modification
+                closeBrainstormDetailModal(); 
+                editBrainstorming(brainstorm.id); 
             };
 
             brainstormDetailModal.classList.add('open');
@@ -1139,10 +1223,9 @@
             brainstormDetailModal.classList.remove('open');
         }
 
-        // Écouteurs pour fermer la modale
         closeModalBtn.addEventListener('click', closeBrainstormDetailModal);
         brainstormDetailModal.addEventListener('click', (event) => {
-            if (event.target === brainstormDetailModal) { // Ne ferme que si le clic est sur l'overlay
+            if (event.target === brainstormDetailModal) { 
                 closeBrainstormDetailModal();
             }
         });
@@ -1154,29 +1237,25 @@
                 return;
             }
 
-            // Afficher la section de création/édition
             brainstormCreationSection.scrollIntoView({ behavior: 'smooth' });
             
-            // Pré-remplir le nom du brainstorming
             brainstormingNameInput.value = brainstormToEdit.name;
             editingBrainstormId = brainstormToEdit.id;
 
-            // Vider les participants actuels et ajouter ceux du brainstorming à éditer
             currentParticipants.clear();
-            brainstormingArea.innerHTML = ''; // Vider la zone d'édition
+            brainstormingArea.innerHTML = ''; 
             brainstormToEdit.participants.forEach(p => {
-                // S'assurer que le profil complet est disponible
-                const fullProfil = allProfils.find(ap => ap.id === p.id) || p; // Utilise le profil complet ou les données sauvegardées
+                const fullProfil = allProfils.find(ap => ap.id === p.id) || p; 
                 currentParticipants.set(p.id, {
-                    profil: fullProfil, // Important pour la photo
+                    profil: fullProfil, 
                     ideas: p.ideas,
-                    media: [] // Sera vide car la fonctionnalité média est désactivée
+                    media: [] 
                 });
-                createParticipantCard(fullProfil); // Recrée les cartes avec les données sauvegardées
+                createParticipantCard(fullProfil); 
             });
-            filterAndPopulateParticipants(); // Met à jour le sélecteur d'ajout de participants
+            filterAndPopulateParticipants(); 
             updateNoParticipantMessage();
-            checkSaveButtonValidity(); // Active le bouton d'enregistrement
+            checkSaveButtonValidity(); 
         }
         
         async function deleteBrainstorming(brainstormId, brainstormName) {
@@ -1192,36 +1271,38 @@
                 if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
                 console.log('Brainstorming supprimé.');
                 alert("Brainstorming supprimé avec succès !");
-                loadBrainstormings(); // Recharger la liste
+                loadBrainstormings(); 
             } catch (error) {
                 console.error('Erreur lors de la suppression du brainstorming:', error);
                 alert("Erreur lors de la suppression du brainstorming.");
             }
         }
 
+        // =========================================================================
+        // APPEL DE TOUTES LES FONCTIONS PRINCIPALES AU CHARGEMENT DU DOM
+        // =========================================================================
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Charger les composants header et footer
+            await Promise.all([
+                loadComponent("header.html", "header-placeholder"),
+                loadComponent("footer.html", "footer-placeholder")
+            ]);
 
-        // --- Logique du menu actif ---
-        function setActiveNavLink() {
-            const currentPath = window.location.pathname.split('/').pop() || "index.html";
-            document.querySelectorAll('nav a').forEach(link => {
-                const linkHref = new URL(link.href, window.location.origin).pathname.split('/').pop();
-                link.classList.toggle("active", linkHref === currentPath);
-            });
-        }
-
-
-        // --- Initialisation au chargement de la page ---
-        filterPoleSelect.addEventListener('change', filterAndPopulateParticipants);
-        brainstormingNameInput.addEventListener('input', checkSaveButtonValidity);
-        addParticipantBtn.addEventListener('click', addParticipantToBrainstorm);
-        saveBrainstormBtn.addEventListener('click', saveBrainstorming);
-        
-        await loadProfils(); // Charge les profils et initialise les filtres
-        await loadBrainstormings(); // Charge les brainstormings existants
-        setActiveNavLink(); // Active le lien du menu
-        updateNoParticipantMessage(); // Gère l'affichage du message "aucun participant"
-        checkSaveButtonValidity(); // Gère l'état initial du bouton de sauvegarde
-    });
+            // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
+            initializeHeaderDropdown();
+            updateActiveNavLinks();
+            
+            // Initialisation spécifique à la page Brainstorming
+            filterPoleSelect.addEventListener('change', filterAndPopulateParticipants);
+            brainstormingNameInput.addEventListener('input', checkSaveButtonValidity);
+            addParticipantBtn.addEventListener('click', addParticipantToBrainstorm);
+            saveBrainstormBtn.addEventListener('click', saveBrainstorming);
+            
+            await loadProfils(); 
+            await loadBrainstormings(); 
+            updateNoParticipantMessage(); 
+            checkSaveButtonValidity(); 
+        });
     </script>
 </body>
 </html>
