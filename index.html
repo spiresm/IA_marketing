@@ -18,6 +18,9 @@
             --grey-text: #555;
             --border-color: #ccc;
             --error-text: #dc3545;
+            /* NOUVEAU: Nouvelle couleur pour le fond du bandeau d'actualités */
+            --news-ticker-bg: #e0f2f7; /* Un bleu très clair et doux, presque blanc-bleu */
+            --news-ticker-text-color: var(--dark-blue); /* Texte plus foncé pour le contraste */
         }
         /* NOUVEAU: Forces la scrollbar pour éviter les décalages latéraux */
         html {
@@ -123,8 +126,9 @@
             display: flex;
             align-items: center;
             position: relative;
-            background-color: var(--primary-blue); /* Couleur de fond du bandeau */
-            color: white; /* Couleur du texte */
+            /* MODIFIÉ: Nouvelle couleur de fond plus douce */
+            background-color: var(--news-ticker-bg); 
+            color: var(--news-ticker-text-color); /* Couleur de texte plus foncée pour le contraste */
             padding: 15px 25px; /* Padding ajusté */
             border-radius: 12px; /* Coins arrondis */
             box-shadow: var(--card-shadow); /* Ombre pour le relief */
@@ -142,6 +146,17 @@
             white-space: nowrap;
             animation: ticker 40s linear infinite;
         }
+        .news-ticker-content .news-item-text {
+            /* Styles pour le texte de l'actualité */
+            font-weight: bold; /* Le titre de l'actualité en gras */
+        }
+        .news-ticker-content .news-item-meta {
+            /* Styles pour les méta-informations (auteur, pôle) */
+            font-style: italic;
+            margin-left: 8px; /* Espace entre le titre et les méta-infos */
+            color: var(--grey-text); /* Couleur du texte des méta-infos */
+        }
+
         @keyframes ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
         
         /* Styles pour le bouton "Laisser un message" */
@@ -331,6 +346,18 @@
     <footer id="footer-placeholder"><p>&copy; 2025 Espace IA. Tous droits réservés.</p></footer>
 
     <script>
+    // Variables pour les couleurs des pôles, comme dans admin-news.html
+    const defaultColorsByPole = {
+        "Pôle créa.": "#FF69B4", // Rose vif
+        "CRM": "#E55C5C", // Rouge doux
+        "Communication": "#0077b6", // Bleu principal
+        "Partenariats": "#FF9933", // Orange vif
+        "Marketing digital": "#8A2BE2", // Mauve / Bleu Violet
+        "Positionnement": "#20B2AA", // Vert Mer clair
+        "Staff": "#A9A9A9", // Gris neutre
+        "Autre": "#808080" // Gris foncé
+    };
+
     // Fonction utilitaire pour charger les composants externes (header/footer)
     async function loadComponent(url, placeholderId) {
         try {
@@ -665,20 +692,54 @@
     async function loadNewsTicker() {
         const newsTickerContent = document.getElementById('newsTickerContent');
         if (!newsTickerContent) return;
-        const NEWS_DATA_PATH = 'news-data.json';
+        // On récupère le fichier news-data.json qui contient les actualités
+        const NEWS_DATA_PATH = 'news-data.json'; 
         console.log("loadNewsTicker: Starting fetch for news-data.json");
         try {
-            const response = await fetch(NEWS_DATA_PATH);
+            // Ajout d'un paramètre de cache-busting pour s'assurer d'obtenir la dernière version du fichier
+            const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`);
             console.log("news-data.json fetch status:", response.status, response.ok);
-            if (!response.ok) throw new Error('Fichier news introuvable.');
-            const newsItems = await response.json();
+            if (!response.ok) {
+                // Si le fichier n'est pas trouvé (404), c'est qu'il n'y a pas encore de messages.
+                if (response.status === 404) {
+                    newsTickerContent.innerHTML = '<span>Aucune actualité récente à afficher.</span>';
+                    return;
+                }
+                throw new Error('Fichier news introuvable ou erreur de chargement.');
+            }
+            let newsItems = await response.json();
             console.log("News ticker data:", newsItems);
 
+            // Si newsItems n'est pas un tableau (e.g., c'est un objet vide ou un objet avec des clés timestamp), le convertir en tableau
+            if (!Array.isArray(newsItems)) {
+                newsItems = Object.values(newsItems);
+            }
+
+            // Filtrer les actualités de plus de 48 heures (si un timestamp est présent)
+            const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+            newsItems = newsItems.filter(item => {
+                return item.timestamp && new Date(item.timestamp) > fortyEightHoursAgo;
+            });
+
             if (newsItems.length > 0) {
-                const fullTextHtml = newsItems.map(item => `<span class="news-item">${escapeHtml(item.title)}</span>`).join(' &nbsp; • &nbsp; ');
-                newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml;
+                // Trier les actualités par date/timestamp décroissant (le plus récent en premier)
+                newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+
+                const fullTextHtml = newsItems.map(item => {
+                    const itemColor = item.color || defaultColorsByPole[item.pole] || defaultColorsByPole["Autre"];
+                    let metaInfo = '';
+                    if (item.collaborateur && item.collaborateur !== 'Non spécifié') {
+                        metaInfo += ` - ${escapeHtml(item.collaborateur)}`;
+                    }
+                    if (item.pole && item.pole !== 'Autre') {
+                        metaInfo += ` (${escapeHtml(item.pole)})`;
+                    }
+                    return `<span class="news-item"><span class="news-item-text" style="color: ${itemColor};">${escapeHtml(item.title)}</span><span class="news-item-meta">${metaInfo}</span></span>`;
+                }).join(' &nbsp; • &nbsp; ');
+                
+                newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml; // Dupliquer pour l'effet de défilement continu
             } else {
-                newsTickerContent.innerHTML = '<span>Aucune actualité.</span>';
+                newsTickerContent.innerHTML = '<span>Aucune actualité récente à afficher.</span>';
             }
             console.log("News ticker displayed.");
         } catch (error) {
