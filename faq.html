@@ -122,7 +122,7 @@
             display: none;
         }
         .faq-page.active {
-            display: block;
+            display: block !important; /* Ajout de !important pour le débogage */
             animation: fadeIn 0.5s;
         }
 
@@ -290,167 +290,166 @@
     </footer>
 
     <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-        // Fonction utilitaire pour charger les composants externes (header/footer)
-        async function loadComponent(url, placeholderId) {
-            try {
-                const res = await fetch(url);
-                if (!res.ok) {
-                    console.error(`Could not load ${url}, status: ${res.status}`);
-                    document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
-                    return;
-                }
-                document.getElementById(placeholderId).innerHTML = await res.text();
-                // console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
-            } catch (error) {
-                console.error(`Error loading ${url}:`, error);
+    // Fonction utilitaire pour charger les composants externes (header/footer)
+    async function loadComponent(url, placeholderId) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) {
+                console.error(`Could not load ${url}, status: ${res.status}`);
                 document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+                return;
+            }
+            document.getElementById(placeholderId).innerHTML = await res.text();
+            // console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
+        } catch (error) {
+            console.error(`Error loading ${url}:`, error);
+            document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+        }
+    }
+
+    // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
+    function initializeHeaderDropdown() {
+        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+        if (toolsResourcesBtn && toolsResourcesContent) {
+            toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+            window.removeEventListener('click', handleWindowClick);
+
+            toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+            window.addEventListener('click', handleWindowClick);
+
+            toolsResourcesContent.style.display = 'none';
+            toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+        } else {
+            console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+        }
+    }
+
+    // Gestionnaire d'événement pour le clic sur le bouton du dropdown
+    function handleDropdownClick(event) {
+        event.preventDefault(); 
+        const toolsResourcesBtn = event.currentTarget; 
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+        if (toolsResourcesContent.style.display === 'block') {
+            toolsResourcesContent.style.display = 'none';
+            toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+            toolsResourcesBtn.classList.remove('active');
+        } else {
+            toolsResourcesContent.style.display = 'block';
+            toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+            toolsResourcesBtn.classList.add('active');
+        }
+    }
+
+    // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
+    function handleWindowClick(event) {
+        const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+        if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+            if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                if (toolsResourcesBtn) { 
+                    toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                    toolsResourcesBtn.classList.remove('active');
+                }
             }
         }
+    }
 
-        // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
-        function initializeHeaderDropdown() {
-            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+    // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
+    function updateActiveNavLinks() {
+        const currentPath = window.location.pathname.split('/').pop();
 
-            if (toolsResourcesBtn && toolsResourcesContent) {
-                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
-                window.removeEventListener('click', handleWindowClick);
+        document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+            const linkHref = link.getAttribute('href');
+            const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
+            const currentFileName = currentPath.replace('.html', '');
 
-                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
-                window.addEventListener('click', handleWindowClick);
+            const isCurrentPage = (linkFileName === currentFileName) || 
+                                  (linkFileName === '' && currentFileName === 'index');
 
-                toolsResourcesContent.style.display = 'none';
-                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-
+            if (isCurrentPage) {
+                link.classList.add("active");
             } else {
-                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+                link.classList.remove("active");
             }
-        }
+        });
 
-        // Gestionnaire d'événement pour le clic sur le bouton du dropdown
-        function handleDropdownClick(event) {
-            event.preventDefault(); 
-            const toolsResourcesBtn = event.currentTarget; 
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+        const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
 
-            if (toolsResourcesContent.style.display === 'block') {
-                toolsResourcesContent.style.display = 'none';
-                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-                toolsResourcesBtn.classList.remove('active');
+        let dropdownHasActiveLink = false;
+        dropdownLinks.forEach(link => {
+            const linkHref = link.getAttribute('href');
+            const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
+            const currentFileName = currentPath.replace('.html', '');
+
+            const isCurrentSubPage = (linkFileName === currentFileName);
+
+            if (isCurrentSubPage) {
+                link.classList.add('active'); 
+                dropdownHasActiveLink = true;
             } else {
-                toolsResourcesContent.style.display = 'block';
-                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+                link.classList.remove('active');
+            }
+        });
+
+        if (toolsResourcesBtn) {
+            if (dropdownHasActiveLink) {
                 toolsResourcesBtn.classList.add('active');
-            }
-        }
-
-        // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
-        function handleWindowClick(event) {
-            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-
-            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
-                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
-                    toolsResourcesContent.style.display = 'none';
-                    if (toolsResourcesBtn) { 
-                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-                        toolsResourcesBtn.classList.remove('active');
-                    }
+            } else {
+                if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                    toolsResourcesBtn.classList.remove('active');
                 }
             }
         }
-
-        // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
-        function updateActiveNavLinks() {
-            const currentPath = window.location.pathname.split('/').pop();
-
-            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
-                const linkHref = link.getAttribute('href');
-                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
-                const currentFileName = currentPath.replace('.html', '');
-
-                const isCurrentPage = (linkFileName === currentFileName) || 
-                                      (linkFileName === '' && currentFileName === 'index');
-
-                if (isCurrentPage) {
-                    link.classList.add("active");
-                } else {
-                    link.classList.remove("active");
-                }
-            });
-
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
-
-            let dropdownHasActiveLink = false;
-            dropdownLinks.forEach(link => {
-                const linkHref = link.getAttribute('href');
-                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
-                const currentFileName = currentPath.replace('.html', '');
-
-                const isCurrentSubPage = (linkFileName === currentFileName);
-
-                if (isCurrentSubPage) {
-                    link.classList.add('active'); 
-                    dropdownHasActiveLink = true;
-                } else {
-                    link.classList.remove('active');
-                }
-            });
-
-            if (toolsResourcesBtn) {
-                if (dropdownHasActiveLink) {
-                    toolsResourcesBtn.classList.add('active');
-                } else {
-                    if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
-                        toolsResourcesBtn.classList.remove('active');
-                    }
-                }
-            }
-        }
+    }
         
-        document.addEventListener("DOMContentLoaded", async () => {
-            // Charger les composants header et footer
-            await Promise.all([
-                loadComponent("header.html", "header-placeholder"),
-                loadComponent("footer.html", "footer-placeholder")
-            ]);
+    document.addEventListener("DOMContentLoaded", async () => {
+        // Charger les composants header et footer
+        await Promise.all([
+            loadComponent("header.html", "header-placeholder"),
+            loadComponent("footer.html", "footer-placeholder")
+        ]);
 
-            // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
-            initializeHeaderDropdown();
-            updateActiveNavLinks();
+        // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
+        initializeHeaderDropdown();
+        updateActiveNavLinks();
 
-            // Reste du code spécifique à la page FAQ
-            function switchPage(pageNumber) {
-                document.querySelectorAll('.faq-page').forEach(page => {
-                    page.classList.remove('active');
-                });
+        // Reste du code spécifique à la page FAQ
+        function switchPage(pageNumber) {
+            document.querySelectorAll('.faq-page').forEach(page => {
+                page.classList.remove('active');
+            });
 
-                const targetPage = document.getElementById(`faq-page-${pageNumber}`);
-                if (targetPage) {
-                    targetPage.classList.add('active');
-                }
-
-                document.querySelectorAll('.pagination button').forEach(button => {
-                    button.classList.remove('active');
-                    if (parseInt(button.dataset.page) === pageNumber) {
-                        button.classList.add('active');
-                    }
-                });
+            const targetPage = document.getElementById(`faq-page-${pageNumber}`);
+            if (targetPage) {
+                targetPage.classList.add('active');
             }
 
             document.querySelectorAll('.pagination button').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const pageNumber = parseInt(event.target.dataset.page);
-                    switchPage(pageNumber);
-                });
+                button.classList.remove('active');
+                if (parseInt(button.dataset.page) === pageNumber) {
+                    button.classList.add('active');
+                }
             });
+        }
 
-            switchPage(1);
+        document.querySelectorAll('.pagination button').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const pageNumber = parseInt(event.target.dataset.page);
+                switchPage(pageNumber);
+            });
         });
+
+        switchPage(1); // Activer la première page par défaut
+    });
     </script>
 </body>
 </html>
