@@ -26,15 +26,10 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            /* NOUVEAU/MODIFIÉ: Cache le body au départ et prépare une transition */
-            opacity: 0;
-            transition: opacity 0.5s ease-in; /* Durée de la transition pour un effet doux */
-            overflow-x: hidden; /* Empêche le défilement horizontal inattendu */
+            /* Rétabli sans opacité ni transition */
+            overflow-x: hidden; 
         }
-        /* NOUVEAU: La classe qui rendra le body visible */
-        body.page-loaded {
-            opacity: 1;
-        }
+        /* body.page-loaded { opacity: 1; } <-- SUPPRIMÉ */
 
         main {
             padding: 40px 20px;
@@ -46,21 +41,16 @@
         /* Les styles du nav-wrapper et du menu-container seront maintenant dans header.html */
         /* Tous les styles liés au header, nav, dropdown doivent être dans header.html */
 
-        /* NOUVEAU: Styles pour le placeholder du header */
         #header-placeholder {
             min-height: 60px; /* Adaptez à la hauteur réelle de votre header pour éviter les sauts */
             background-color: var(--primary-blue); /* Couleur de fond de votre header */
-            display: flex; /* Pour potentiellement centrer un loader si vous en ajoutiez un */
+            display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        /* NOUVEAU: Le contenu injecté du header démarre invisible et fade-in */
-        #header-placeholder > div.nav-wrapper {
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.5s ease-in, visibility 0.5s ease-in;
-        }
+        /* Le contenu injecté du header apparaîtra instantanément */
+        /* #header-placeholder > div.nav-wrapper { opacity: 0; visibility: hidden; transition: opacity 0.5s ease-in, visibility 0.5s ease-in; } */ /* <-- SUPPRIMÉ */
 
         .content-section { max-width: 960px; width: 100%; margin: 0 auto; padding: 25px; box-sizing: border-box; background-color: #fff; border-radius: 12px; box-shadow: var(--card-shadow); position: relative; }
         .content-section h2, .content-section h3 { text-align: center; color: var(--dark-blue); margin-top: 0; margin-bottom: 25px; }
@@ -276,14 +266,8 @@
                 return;
             }
             document.getElementById(placeholderId).innerHTML = await res.text();
-            // NOUVEAU: Après que le contenu soit injecté, déclenchez la transition
-            const injectedContent = document.getElementById(placeholderId).querySelector('.nav-wrapper'); 
-            if (injectedContent) {
-                void injectedContent.offsetWidth; 
-                injectedContent.style.opacity = '1';
-                injectedContent.style.visibility = 'visible';
-            }
-            // console.log(`Component ${url} loaded successfully into #${placeholderId}.`); // Utile pour déboguer le chargement
+            // NOUVEAU: Après que le contenu soit injecté, le contenu de nav-wrapper sera visible instantanément.
+            // Aucune manipulation de style.opacity ou style.visibility n'est nécessaire ici.
         } catch (error) {
             console.error(`Error loading ${url}:`, error);
             document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
@@ -362,7 +346,10 @@
             const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
             const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
 
-            if (isCurrentPage(linkFileName, currentFileName, linkHref)) { /* Utiliser la fonction d'aide */
+            // Fonction d'aide pour la comparaison des chemins
+            const isCurrentPageMatch = (linkFileName === currentFileName) || (linkFileName === '' && currentFileName === 'index');
+
+            if (isCurrentPageMatch) { 
                 link.classList.add("active");
                 currentMainLinkFound = true;
             }
@@ -379,7 +366,9 @@
             const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
             const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
 
-            if (isCurrentPage(linkFileName, currentFileName, linkHref)) { /* Utiliser la fonction d'aide */
+            const isCurrentSubPageMatch = (linkFileName === currentFileName);
+
+            if (isCurrentSubPageMatch) { 
                 link.classList.add('active'); 
                 dropdownSublinkIsActive = true;
                 if (toolsResourcesBtn) {
@@ -391,18 +380,9 @@
 
         // Si aucune page principale ni aucune sous-page du dropdown n'est la page active,
         // s'assurer que le bouton du dropdown n'est pas actif (à moins qu'il ne soit ouvert).
-        if (!currentMainLinkFound && toolsResourcesBtn && toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+        if (!currentMainLinkFound && toolsResourcesBtn) {
             toolsResourcesBtn.classList.remove('active');
         }
-    }
-
-    // Fonction d'aide pour la comparaison des chemins (pour éviter la duplication de logique)
-    function isCurrentPage(linkFileName, currentFileName, originalLinkHref) {
-        // Gère le cas où le lien est vers la racine (/) et la page actuelle est index.html
-        if (originalLinkHref === '/' && currentFileName === 'index') {
-            return true;
-        }
-        return linkFileName === currentFileName;
     }
 
 
@@ -614,26 +594,151 @@
     
     // Le DOMContentLoaded global qui appelle toutes les fonctions
     document.addEventListener("DOMContentLoaded", async () => {
-        // Charger les composants (header et footer)
-        await Promise.all([
-            loadComponent("header.html", "header-placeholder"),
-            loadComponent("footer.html", "footer-placeholder")
-        ]);
+        // Fonction utilitaire pour charger les composants externes (header/footer)
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    console.error(`Could not load ${url}, status: ${res.status}`);
+                    document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+                    return;
+                }
+                document.getElementById(placeholderId).innerHTML = await res.text();
+            } catch (error) {
+                console.error(`Error loading ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+            }
+        }
 
-        // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
-        initializeHeaderDropdown();
-        updateActiveNavLinks(); 
+        // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
+        function initializeHeaderDropdown() {
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
 
-        // =========================================================================
-        // APPEL DE TOUTES LES FONCTIONS SPÉCIFIQUES À INDEX.HTML
-        // =========================================================================
-        loadAndInitVeille(); 
-        displayLatestAdditions();
-        loadNewsTicker();
+            if (toolsResourcesBtn && toolsResourcesContent) {
+                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+                window.removeEventListener('click', handleWindowClick);
 
-        // Révéler le body après tout chargement et initialisation
-        document.body.classList.add('page-loaded'); 
-    });
-</script>
+                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+                window.addEventListener('click', handleWindowClick);
+
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+            } else {
+                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+            }
+        }
+
+        // Gestionnaire d'événement pour le clic sur le bouton du dropdown
+        function handleDropdownClick(event) {
+            event.preventDefault(); 
+            const toolsResourcesBtn = event.currentTarget; 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                toolsResourcesBtn.classList.remove('active');
+            } else {
+                toolsResourcesContent.style.display = 'block';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+                toolsResourcesBtn.classList.add('active');
+            }
+        }
+
+        // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
+        function handleWindowClick(event) {
+            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                    toolsResourcesContent.style.display = 'none';
+                    if (toolsResourcesBtn) { 
+                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+
+        // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
+        function updateActiveNavLinks() {
+            const currentPath = window.location.pathname.split('/').pop();
+
+            // 1. Désactive tous les liens actifs existants dans le header injecté
+            document.querySelectorAll('#header-placeholder nav a.active').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            // 2. Active le lien de navigation principal correspondant à la page actuelle
+            let currentMainLinkFound = false;
+            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+                const linkHref = link.getAttribute('href');
+                // Normalise le chemin pour la comparaison, gère le cas '/' pour index.html
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
+                const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
+
+                const isCurrentPageMatch = (linkFileName === currentFileName) || (linkFileName === '' && currentFileName === 'index');
+
+                if (isCurrentPageMatch) { 
+                    link.classList.add("active");
+                    currentMainLinkFound = true;
+                }
+            });
+
+            // 3. Gère l'état actif du bouton "Outils & Ressources" et de ses sous-liens
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
+
+            let dropdownSublinkIsActive = false;
+            dropdownLinks.forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
+                const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
+
+                const isCurrentSubPageMatch = (linkFileName === currentFileName);
+
+                if (isCurrentSubPageMatch) { 
+                    link.classList.add('active'); 
+                    dropdownSublinkIsActive = true;
+                    if (toolsResourcesBtn) {
+                        toolsResourcesBtn.classList.add('active'); 
+                        currentMainLinkFound = true; 
+                    }
+                }
+            });
+
+            // Si aucune page principale ni aucune sous-page du dropdown n'est la page active,
+            // s'assurer que le bouton du dropdown n'est pas actif (à moins qu'il ne soit ouvert).
+            if (!currentMainLinkFound && toolsResourcesBtn) {
+                toolsResourcesBtn.classList.remove('active');
+            }
+        }
+
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Charger les composants (header et footer)
+            await Promise.all([
+                loadComponent("header.html", "header-placeholder"),
+                loadComponent("footer.html", "footer-placeholder")
+            ]);
+
+            // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
+            initializeHeaderDropdown();
+            updateActiveNavLinks(); 
+
+            // =========================================================================
+            // APPEL DE TOUTES LES FONCTIONS SPÉCIFIQUES À INDEX.HTML
+            // =========================================================================
+            loadAndInitVeille(); 
+            displayLatestAdditions();
+            loadNewsTicker();
+        });
+    </script>
 </body>
 </html>
