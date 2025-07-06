@@ -10,8 +10,8 @@
             <a href="index.html">Accueil</a>
             <a href="equipe.html">Équipe</a>
             
-            <div class="dropdown">
-                <a href="#" class="dropbtn">Outils & Ressources <i class="fas fa-caret-down"></i></a>
+            <div class="dropdown" id="toolsResourcesDropdown">
+                <a href="#" class="dropbtn" id="toolsResourcesBtn">Outils & Ressources <i class="fas fa-caret-down"></i></a>
                 <div class="dropdown-content">
                     <a href="outils.html">Outils</a>
                     <a href="galerie.html">Prompts</a>
@@ -82,10 +82,10 @@
 
 /* Styles de la navigation (la balise <nav>) */
 nav {
-    display: flex;
-    justify-content: center; /* Centre les éléments horizontalement */
+    display: flex; /* Utilisation de flexbox pour un meilleur alignement */
+    justify-content: center; 
     align-items: center;
-    flex-wrap: wrap; /* Permet aux éléments de passer à la ligne sur petits écrans */
+    flex-wrap: wrap; 
 }
 
 /* Styles pour tous les liens de navigation directs */
@@ -98,11 +98,11 @@ nav a {
     border-radius: 8px;
     transition: background 0.3s ease;
     margin: 0 5px;
-    white-space: nowrap; /* Empêche les liens de se casser sur plusieurs lignes */
+    white-space: nowrap; 
     position: relative;
 }
 nav a:hover {
-    background: rgba(255, 255, 255, 0.2); /* Effet de survol */
+    background: rgba(255, 255, 255, 0.2); 
 }
 /* Style pour le lien "actif" (page courante) */
 nav a.active {
@@ -121,16 +121,13 @@ nav a.active {
     padding: 2px 6px;
     font-size: 12px;
     font-weight: bold;
-    display: none; /* Masqué par défaut */
+    display: none; 
 }
 
 /* Styles pour le menu déroulant (dropdown) */
 .dropdown {
-    /* Ajout de display: inline-block pour s'assurer que le survol fonctionne bien avec les autres éléments inline */
-    display: inline-block; 
-    float: left; 
-    overflow: hidden;
-    position: relative; 
+    position: relative; /* Base pour le positionnement absolu du contenu */
+    display: inline-block; /* Permet au dropdown de s'aligner avec les autres liens */
 }
 
 .dropdown .dropbtn {
@@ -148,23 +145,28 @@ nav a.active {
     white-space: nowrap;
 }
 
-/* Style de survol pour le bouton principal du dropdown et son état actif */
-.dropdown:hover .dropbtn, nav a.dropbtn.active {
+/* Style de survol/actif pour le bouton principal du dropdown */
+.dropdown:hover .dropbtn, .dropbtn.active { /* Remarque: .dropbtn.active est géré par JS */
     background-color: white;
     color: var(--primary-blue);
 }
 
 .dropdown-content {
-    display: none !important; /* Ajout de !important ici comme test */
+    display: none; /* Caché par défaut, sera contrôlé par JS */
     position: absolute;
     background-color: white; 
     min-width: 160px;
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1001; /* Augmentation du z-index pour être sûr qu'il est au-dessus de tout */
+    z-index: 1001; /* Très haut pour être sûr */
     border-radius: 8px;
     overflow: hidden; 
     top: calc(100% + 5px); 
     left: 0;
+}
+
+/* Afficher le menu déroulant quand la classe 'show' est ajoutée par JS */
+.dropdown-content.show {
+    display: block; 
 }
 
 .dropdown-content a {
@@ -183,12 +185,6 @@ nav a.active {
 .dropdown-content a:hover {
     background-color: var(--background-grey); 
     color: var(--dark-blue);
-}
-
-/* Afficher le menu déroulant au survol du parent .dropdown */
-/* Cette règle doit être la plus spécifique et la dernière pour s'appliquer */
-.dropdown:hover .dropdown-content {
-    display: block !important; /* Ajout de !important ici */
 }
 
 /* --- Media Queries pour la responsivité --- */
@@ -213,7 +209,6 @@ nav a.active {
         overflow-x: hidden; 
         width: 100%; 
     }
-    /* Les liens et le dropdown prennent toute la largeur sur mobile */
     nav a, .dropdown, .dropdown .dropbtn { 
         width: 100%; 
         text-align: center;
@@ -232,3 +227,75 @@ nav a.active {
     }
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown');
+    const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+    const dropdownContent = toolsResourcesDropdown.querySelector('.dropdown-content');
+
+    // Gestion de l'ouverture/fermeture du dropdown au clic
+    if (toolsResourcesBtn && dropdownContent) {
+        toolsResourcesBtn.addEventListener('click', function(event) {
+            event.preventDefault(); // Empêche le lien de naviguer vers "#"
+            dropdownContent.classList.toggle('show');
+            // Optionnel: Ajouter/retirer la classe 'active' pour le bouton principal du dropdown au clic
+            this.classList.toggle('active', dropdownContent.classList.contains('show'));
+        });
+
+        // Fermer le dropdown si l'on clique en dehors
+        window.addEventListener('click', function(event) {
+            if (!event.target.closest('#toolsResourcesDropdown')) {
+                if (dropdownContent.classList.contains('show')) {
+                    dropdownContent.classList.remove('show');
+                    toolsResourcesBtn.classList.remove('active'); // Retire la classe active du bouton
+                }
+            }
+        });
+    }
+
+    // Gestion de la classe 'active' pour les liens de navigation.
+    // Cela s'applique après le chargement du header via loadComponent.
+    const currentPath = window.location.pathname.split('/').pop();
+
+    // Active les liens de navigation principaux (directs de <nav>)
+    document.querySelectorAll('nav > a').forEach(link => { 
+        const linkHref = link.getAttribute('href');
+        const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+
+        if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html")) {
+            link.classList.add("active");
+        } else {
+            link.classList.remove("active");
+        }
+    });
+
+    // Spécifique pour le menu déroulant :
+    // Si l'une des pages du dropdown est la page actuelle, activez le bouton parent du dropdown.
+    const dropdownLinks = toolsResourcesDropdown ? toolsResourcesDropdown.querySelectorAll('.dropdown-content a') : [];
+
+    let dropdownHasActiveLink = false;
+    dropdownLinks.forEach(link => {
+        const linkHref = link.getAttribute('href');
+        const linkFileName = linkHref ? linkHref.split('/').pop() : '';
+        if (linkFileName === currentPath) {
+            link.classList.add('active'); // Active le sous-lien spécifique
+            dropdownHasActiveLink = true;
+        } else {
+            link.classList.remove('active');
+        }
+    });
+
+    if (toolsResourcesBtn) {
+        if (dropdownHasActiveLink) {
+            toolsResourcesBtn.classList.add('active');
+        } else {
+            // S'assurer que 'active' est retiré si aucun sous-lien n'est actif
+            // et que le dropdown n'est pas ouvert par un clic
+            if (!dropdownContent.classList.contains('show')) {
+                toolsResourcesBtn.classList.remove('active');
+            }
+        }
+    }
+});
+</script>
