@@ -127,30 +127,27 @@
             const nextButton = document.getElementById('veille-scroll-right');
             const scrollContainer = grid.parentElement;
             if (!grid || !prevButton || !nextButton || !scrollContainer) return;
+
             const cards = grid.querySelectorAll('.veille-card');
             if (cards.length <= 1) { // Pas besoin de carrousel si 1 seule carte ou moins
                 prevButton.style.display = 'none';
                 nextButton.style.display = 'none';
                 return;
             }
-            prevButton.style.display = 'flex';
-            nextButton.style.display = 'flex';
-            let currentIndex = 0;
-            // Ne pas appliquer de transition directe sur la grille pour le scroll-snap
-            // La transition sera gérée par le scroll-behavior: smooth; du parent
 
+            // Affiche les flèches sur desktop et masque si pas assez de cartes
+            prevButton.style.display = window.innerWidth > 768 ? 'flex' : 'none';
+            nextButton.style.display = window.innerWidth > 768 ? 'flex' : 'none';
+
+            let currentIndex = 0;
             const updateCarousel = () => {
-                // Sur les petits écrans, le scroll-snap gère ça
                 if (window.innerWidth <= 768) {
+                    // Sur les petits écrans, on laisse le CSS scroll-snap gérer
+                    grid.style.transform = 'none';
                     // Cacher les boutons de navigation manuelle sur mobile si scroll-snap est actif
                     prevButton.style.display = 'none';
                     nextButton.style.display = 'none';
-                    grid.style.transform = 'none'; // Assurer que la transformation n'interfère pas
                     return;
-                } else {
-                    // Afficher les boutons sur les grands écrans
-                    prevButton.style.display = 'flex';
-                    nextButton.style.display = 'flex';
                 }
 
                 // Pour les grands écrans, gérer le défilement par transformation
@@ -158,6 +155,10 @@
                 grid.style.transform = `translateX(${offset}px)`;
                 prevButton.disabled = currentIndex === 0;
                 nextButton.disabled = currentIndex >= cards.length - 1;
+
+                // S'assurer que les boutons sont visibles sur desktop
+                prevButton.style.display = 'flex';
+                nextButton.style.display = 'flex';
             };
 
             nextButton.addEventListener('click', () => { if (currentIndex < cards.length - 1) { currentIndex++; updateCarousel(); }});
@@ -167,7 +168,9 @@
             window.addEventListener('resize', () => {
                 // Réinitialise la position pour éviter des problèmes de calculs
                 currentIndex = 0; // Réinitialise à la première carte au redimensionnement
+                grid.style.transition = 'none'; // Désactive temporairement la transition
                 updateCarousel();
+                setTimeout(() => { grid.style.transition = 'transform 0.5s ease-in-out'; }, 50); // Réactive la transition
             });
 
             // Appel initial
@@ -197,19 +200,17 @@
 
             const mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
             let mediaHtml = '';
-            const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl); // Utilisez firstVideoUrl si c'est la prop que vous avez
-            // Sinon, ajustez pour récupérer la première URL de vidéo ou image appropriée
+            const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl || (item.urls ? item.urls.find(url => getYouTubeVideoId(url)) : null));
             if (youtubeVideoId) {
                 mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="${escapeHtmlAttribute('Vignette pour ' + item.titre)}"></div>`;
             } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
                 mediaHtml = `<div class="card-image-container"><img src="${escapeHtmlAttribute(item.imageUrl)}" alt="${escapeHtmlAttribute('Vignette pour ' + item.titre)}"></div>`;
-            } else if (item.fileUrls && item.fileUrls.length > 0) { // Si fileUrls existe et pas de imageUrl
+            } else if (item.fileUrls && item.fileUrls.length > 0) {
                 const firstFile = item.fileUrls[0];
                 const fileExtension = firstFile.split('.').pop().toLowerCase();
                 if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
                     mediaHtml = `<div class="card-image-container"><img src="${escapeHtmlAttribute(firstFile)}" alt="${escapeHtmlAttribute('Vignette pour ' + item.titre)}"></div>`;
                 } else if (['mp4', 'webm', 'ogg'].includes(fileExtension)) {
-                    // Si c'est une vidéo hébergée, vous pourriez afficher une icône ou un poster
                     mediaHtml = `<div class="card-image-container" style="display:flex;justify-content:center;align-items:center;"><i class="fas fa-video fa-3x" style="color:#ccc;"></i></div>`;
                 }
             }
@@ -236,10 +237,6 @@
                 if (event.target.closest('.view-button')) { // Ajoutez d'autres classes de boutons si elles existent sur ces cartes
                     return;
                 }
-                // Ici, on pourrait ouvrir un panneau latéral général avec les détails de l'item
-                // Pour l'exemple, nous allons juste loguer
-                console.log(`Ouverture du panneau pour l'item ID: ${card.dataset.id}, Type: ${card.dataset.type}`);
-                // Vous devrez implémenter la fonction openGenericPanel(item, type)
                 // Pour l'instant, on redirige vers la page de la galerie/workflow concernée
                 window.location.href = `${card.dataset.type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}?id=${card.dataset.id}`;
             });
@@ -250,12 +247,12 @@
             const container = document.getElementById("latest-additions-grid");
             if (!container) return;
             container.innerHTML = '<p style="text-align:center;">Chargement des derniers ajouts...</p>';
-            const GET_TIPS_URL = "/.netlify/functions/get-tips";
-            const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
+            const GET_TIPS_URL = "/.netlify/functions/get-tips"; // Assurez-vous que cette fonction existe et est configurée
+            const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts"; // Assurez-vous que cette fonction existe et est configurée
             try {
                 const [tipsResponse, promptsResponse] = await Promise.all([
-                    fetch(GET_TIPS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
-                    fetch(GET_PROMPTS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])}))
+                    fetch(GET_TIPS_URL).catch(e => { console.error("Erreur fetch GET_TIPS_URL:", e); return {ok: false, json: () => Promise.resolve([])}; }),
+                    fetch(GET_PROMPTS_URL).catch(e => { console.error("Erreur fetch GET_PROMPTS_URL:", e); return {ok: false, json: () => Promise.resolve([])}; })
                 ]);
                 let tips = tipsResponse.ok ? await tipsResponse.json() : [];
                 let prompts = promptsResponse.ok ? await promptsResponse.json() : [];
@@ -265,16 +262,24 @@
                     auteur: item.auteur || "Inconnu",
                     date: item.date_creation || item.dateCreation || new Date().toISOString(),
                     outil: item.outil || "Non spécifié",
-                    imageUrl: item.imageUrl, // Conserve imageUrl tel quel
-                    fileUrls: item.fileUrls || [], // Conserve fileUrls
-                    // firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url)) // Si besoin de la première vidéo
+                    imageUrl: item.imageUrl,
+                    fileUrls: item.fileUrls || [],
+                    urls: item.urls || [], // Inclure toutes les URLs pour getYouTubeVideoId
                 });
                 tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
                 prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
                 container.innerHTML = '';
                 let itemsToDisplay = [];
+                // Ajouter les 2 derniers prompts et 2 derniers workflows
                 if (prompts.length > 0) itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
                 if (tips.length > 0) itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
+
+                // Optionnel: ajouter un deuxième item si disponible pour équilibrer la grille sur desktop
+                if (prompts.length > 1 && itemsToDisplay.length < 2) itemsToDisplay.push({ item: prompts[1], type: 'galerie' });
+                if (tips.length > 1 && itemsToDisplay.length < 2) itemsToDisplay.push({ item: tips[1], type: 'cas-usage' });
+
+                // S'assurer d'avoir au maximum 2 éléments (un prompt, un workflow, ou deux du même type si l'autre manque)
+                itemsToDisplay = itemsToDisplay.slice(0, 2);
 
                 if (itemsToDisplay.length > 0) {
                     itemsToDisplay.forEach(({ item, type }) => container.appendChild(createCard(item, type)));
@@ -293,13 +298,12 @@
         async function loadNewsTicker() {
             const newsTickerContent = document.getElementById('newsTickerContent');
             if (!newsTickerContent) return;
-            const NEWS_DATA_PATH = 'news-data.json'; // Assurez-vous que ce fichier existe
+            const NEWS_DATA_PATH = 'news-data.json'; // Assurez-vous que ce fichier existe et est accessible
             try {
                 const response = await fetch(NEWS_DATA_PATH);
                 if (!response.ok) throw new Error('Fichier news introuvable.');
                 const newsItems = await response.json();
                 if (newsItems.length > 0) {
-                    // Répéter le contenu pour un défilement continu
                     const fullTextHtml = newsItems.map(item => `<span class="news-item">${escapeHtml(item.title)}</span>`).join(' &nbsp; • &nbsp; ');
                     newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml; // Dupliquer pour un effet de boucle
                 } else {
