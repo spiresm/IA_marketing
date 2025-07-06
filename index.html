@@ -26,7 +26,16 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            /* NOUVEAU/MODIFIÉ: Cache le body au départ et prépare une transition */
+            opacity: 0;
+            transition: opacity 0.5s ease-in; /* Durée de la transition pour un effet doux */
+            overflow-x: hidden; /* Empêche le défilement horizontal inattendu */
         }
+        /* NOUVEAU: La classe qui rendra le body visible */
+        body.page-loaded {
+            opacity: 1;
+        }
+
         main {
             padding: 40px 20px;
             flex-grow: 1;
@@ -35,9 +44,23 @@
             gap: 30px;
         }
         /* Les styles du nav-wrapper et du menu-container seront maintenant dans header.html */
-        /* Les styles spécifiques au dropdown doivent être dans header.html */
-        /* J'ai inclus ici un ensemble minimal pour les variables root et les styles body/main */
         /* Tous les styles liés au header, nav, dropdown doivent être dans header.html */
+
+        /* NOUVEAU: Styles pour le placeholder du header */
+        #header-placeholder {
+            min-height: 60px; /* Adaptez à la hauteur réelle de votre header pour éviter les sauts */
+            background-color: var(--primary-blue); /* Couleur de fond de votre header */
+            display: flex; /* Pour potentiellement centrer un loader si vous en ajoutiez un */
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* NOUVEAU: Le contenu injecté du header démarre invisible et fade-in */
+        #header-placeholder > div.nav-wrapper {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease-in, visibility 0.5s ease-in;
+        }
 
         .content-section { max-width: 960px; width: 100%; margin: 0 auto; padding: 25px; box-sizing: border-box; background-color: #fff; border-radius: 12px; box-shadow: var(--card-shadow); position: relative; }
         .content-section h2, .content-section h3 { text-align: center; color: var(--dark-blue); margin-top: 0; margin-bottom: 25px; }
@@ -253,10 +276,17 @@
                 return;
             }
             document.getElementById(placeholderId).innerHTML = await res.text();
+            // NOUVEAU: Après que le contenu soit injecté, déclenchez la transition
+            const injectedContent = document.getElementById(placeholderId).querySelector('.nav-wrapper'); 
+            if (injectedContent) {
+                void injectedContent.offsetWidth; 
+                injectedContent.style.opacity = '1';
+                injectedContent.style.visibility = 'visible';
+            }
             // console.log(`Component ${url} loaded successfully into #${placeholderId}.`); // Utile pour déboguer le chargement
         } catch (error) {
             console.error(`Error loading ${url}:`, error);
-            document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Error loading: ${url}</p>`;
+            document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
         }
     }
 
@@ -319,50 +349,60 @@
     function updateActiveNavLinks() {
         const currentPath = window.location.pathname.split('/').pop();
 
+        // 1. Désactive tous les liens actifs existants dans le header injecté
+        document.querySelectorAll('#header-placeholder nav a.active').forEach(link => {
+            link.classList.remove('active');
+        });
+
+        // 2. Active le lien de navigation principal correspondant à la page actuelle
+        let currentMainLinkFound = false;
         document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
             const linkHref = link.getAttribute('href');
+            // Normalise le chemin pour la comparaison, gère le cas '/' pour index.html
             const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
-            const currentFileName = currentPath.replace('.html', '');
+            const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
 
-            const isCurrentPage = (linkFileName === currentFileName) || 
-                                  (linkFileName === '' && currentFileName === 'index');
-
-            if (isCurrentPage) {
+            if (isCurrentPage(linkFileName, currentFileName, linkHref)) { /* Utiliser la fonction d'aide */
                 link.classList.add("active");
-            } else {
-                link.classList.remove("active");
+                currentMainLinkFound = true;
             }
         });
 
+        // 3. Gère l'état actif du bouton "Outils & Ressources" et de ses sous-liens
         const toolsResourcesContent = document.getElementById('toolsResourcesContent');
         const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
         const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
 
-        let dropdownHasActiveLink = false;
+        let dropdownSublinkIsActive = false;
         dropdownLinks.forEach(link => {
             const linkHref = link.getAttribute('href');
             const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
-            const currentFileName = currentPath.replace('.html', '');
+            const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
 
-            const isCurrentSubPage = (linkFileName === currentFileName);
-
-            if (isCurrentSubPage) {
+            if (isCurrentPage(linkFileName, currentFileName, linkHref)) { /* Utiliser la fonction d'aide */
                 link.classList.add('active'); 
-                dropdownHasActiveLink = true;
-            } else {
-                link.classList.remove('active');
+                dropdownSublinkIsActive = true;
+                if (toolsResourcesBtn) {
+                    toolsResourcesBtn.classList.add('active'); 
+                    currentMainLinkFound = true; 
+                }
             }
         });
 
-        if (toolsResourcesBtn) {
-            if (dropdownHasActiveLink) {
-                toolsResourcesBtn.classList.add('active');
-            } else {
-                if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
-                    toolsResourcesBtn.classList.remove('active');
-                }
-            }
+        // Si aucune page principale ni aucune sous-page du dropdown n'est la page active,
+        // s'assurer que le bouton du dropdown n'est pas actif (à moins qu'il ne soit ouvert).
+        if (!currentMainLinkFound && toolsResourcesBtn && toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+            toolsResourcesBtn.classList.remove('active');
         }
+    }
+
+    // Fonction d'aide pour la comparaison des chemins (pour éviter la duplication de logique)
+    function isCurrentPage(linkFileName, currentFileName, originalLinkHref) {
+        // Gère le cas où le lien est vers la racine (/) et la page actuelle est index.html
+        if (originalLinkHref === '/' && currentFileName === 'index') {
+            return true;
+        }
+        return linkFileName === currentFileName;
     }
 
 
@@ -590,5 +630,10 @@
         loadAndInitVeille(); 
         displayLatestAdditions();
         loadNewsTicker();
+
+        // Révéler le body après tout chargement et initialisation
+        document.body.classList.add('page-loaded'); 
     });
 </script>
+</body>
+</html>
