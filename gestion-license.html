@@ -37,94 +37,7 @@
             min-height: 100vh;
             overflow-x: hidden;
             overflow-y: auto;
-            /* Supprimé: opacity: 0; transition: opacity... */
         }
-
-        /* --- Styles pour le Header et la Navigation --- */
-        .nav-wrapper {
-            background-color: var(--primary-blue);
-            width: 100%;
-            position: relative;
-            flex-shrink: 0;
-            padding: 5px 0;
-        }
-
-        .header-buttons-container {
-            position: absolute;
-            top: 5px;
-            right: 15px;
-            z-index: 10;
-            display: flex;
-            gap: 10px;
-        }
-
-        .dev-button-header {
-            padding: 5px 10px;
-            background-color: var(--dark-blue);
-            color: #fff;
-            text-decoration: none;
-            border-radius: 5px;
-            font-size: 0.8em;
-            font-weight: bold;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-        }
-
-        .dev-button-header:hover {
-            background-color: var(--primary-blue);
-            transform: translateY(-1px);
-        }
-
-        .menu-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 30px;
-            box-sizing: border-box;
-        }
-
-        nav {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        nav a {
-            text-decoration: none;
-            color: white;
-            font-weight: bold;
-            font-size: 1.1em;
-            padding: 10px 18px;
-            border-radius: 8px;
-            transition: background 0.3s ease;
-            margin: 0 5px;
-            white-space: nowrap;
-            position: relative;
-        }
-
-        nav a:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        nav a.active {
-            background-color: white;
-            color: var(--primary-blue);
-        }
-
-        .notif-bubble {
-            position: absolute;
-            top: 0px;
-            right: 0px;
-            background: red;
-            color: white;
-            border-radius: 50%;
-            padding: 2px 6px;
-            font-size: 12px;
-            font-weight: bold;
-            display: none;
-        }
-
-        /* Supprimé: Styles du Loader */
-        /* #loader, #loader.hidden, #loader .spinner, @keyframes spin, #loader p { display: none; } */
 
         /* --- Conteneur Principal --- */
         main {
@@ -132,7 +45,6 @@
             flex-grow: 1;
             width: 100%;
             box-sizing: border-box;
-            /* Supprimé: display: none; pour que le contenu soit visible immédiatement */
         }
         .main-container {
             max-width: 960px;
@@ -224,9 +136,6 @@
             cursor: not-allowed;
             box-shadow: none;
         }
-        button:disabled:hover {
-            background-color: #a0a0a0;
-        }
         #subscribeButton {
             background-color: #4CAF50; /* Bouton de souscription vert */
             margin-left: 10px;
@@ -315,6 +224,7 @@
         .table-link {
             color: var(--primary-blue);
             text-decoration: none;
+            font-weight: normal; /* Changé de bold pour un lien standard */
         }
         .table-link:hover {
             text-decoration: underline;
@@ -579,25 +489,130 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
 
     <script>
-        console.log("Script JavaScript chargé et démarré.");
-
         // Fonction utilitaire pour charger les composants externes (header/footer)
         async function loadComponent(url, placeholderId) {
             try {
                 const res = await fetch(url);
                 if (!res.ok) {
                     console.error(`Could not load ${url}, status: ${res.status}`);
-                    // Fallback si le composant ne se charge pas
                     document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
                     return;
                 }
                 document.getElementById(placeholderId).innerHTML = await res.text();
-                console.log(`Composant ${url} chargé avec succès dans #${placeholderId}.`);
+                // console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
             } catch (error) {
-                console.error(`Erreur lors du chargement de ${url}:`, error);
-                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+                console.error(`Error loading ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Error loading: ${url}</p>`;
             }
         }
+
+        // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
+        function initializeHeaderDropdown() {
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesBtn && toolsResourcesContent) {
+                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+                window.removeEventListener('click', handleWindowClick);
+
+                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+                window.addEventListener('click', handleWindowClick);
+
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+            } else {
+                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+            }
+        }
+
+        // Gestionnaire d'événement pour le clic sur le bouton du dropdown
+        function handleDropdownClick(event) {
+            event.preventDefault(); 
+            const toolsResourcesBtn = event.currentTarget; 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                toolsResourcesBtn.classList.remove('active');
+            } else {
+                toolsResourcesContent.style.display = 'block';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+                toolsResourcesBtn.classList.add('active');
+            }
+        }
+
+        // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
+        function handleWindowClick(event) {
+            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                    toolsResourcesContent.style.display = 'none';
+                    if (toolsResourcesBtn) { 
+                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
+        function updateActiveNavLinks() {
+            const currentPath = window.location.pathname.split('/').pop();
+
+            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
+                const currentFileName = currentPath.replace('.html', '');
+
+                const isCurrentPage = (linkFileName === currentFileName) || 
+                                      (linkFileName === '' && currentFileName === 'index');
+
+                if (isCurrentPage) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
+
+            let dropdownHasActiveLink = false;
+            dropdownLinks.forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
+                const currentFileName = currentPath.replace('.html', '');
+
+                const isCurrentSubPage = (linkFileName === currentFileName);
+
+                if (isCurrentSubPage) {
+                    link.classList.add('active'); 
+                    dropdownHasActiveLink = true;
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            if (toolsResourcesBtn) {
+                if (dropdownHasActiveLink) {
+                    toolsResourcesBtn.classList.add('active');
+                } else {
+                    if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // DEBUT DU CODE SPECIFIQUE A GESTION-LICENSE.HTML
+        // =========================================================================
 
         const TAUX_DE_CONVERSION_USD_EUR = 0.93;
 
@@ -1086,7 +1101,17 @@
 
 
         document.addEventListener('DOMContentLoaded', async function() {
-            console.log("DOM entièrement chargé. Début de l'initialisation des écouteurs d'événements...");
+            console.log("Script JavaScript chargé et démarré.");
+
+            // --- Charger les composants externes (header et footer) ---
+            await Promise.all([
+                loadComponent("header.html", "header-placeholder"),
+                loadComponent("footer.html", "footer-placeholder")
+            ]);
+            
+            // --- Initialiser le dropdown et les liens actifs APRÈS le chargement du header ---
+            initializeHeaderDropdown();
+            updateActiveNavLinks();
 
             // --- Éléments du DOM ---
             const loader = document.getElementById('loader');
@@ -1104,13 +1129,6 @@
             const addButton = document.getElementById('addButton');
             const tablePoleFilter = document.getElementById('tablePoleFilter');
 
-            // --- Initialisation UI/UX SANS FONDU ---
-            // Charger les composants externes (header et footer)
-            await Promise.all([
-                loadComponent("header.html", "header-placeholder"),
-                loadComponent("footer.html", "footer-placeholder")
-            ]);
-            
             // Masquer le loader immédiatement après le chargement des composants
             if (loader) {
                 loader.style.display = 'none';
@@ -1120,23 +1138,7 @@
             if (mainElement) {
                 mainElement.style.display = "block";
             }
-
-            // Gestion de la classe 'active' pour le menu (maintenu ici après chargement du header)
-            const currentPath = window.location.pathname.split('/').pop();
-            // Délai ajouté pour s'assurer que le header est bien dans le DOM
-            setTimeout(() => {
-                document.querySelectorAll('nav a').forEach(link => {
-                    const linkHref = link.getAttribute('href');
-                    const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-                    if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "gestion-license.html") {
-                        link.classList.add("active");
-                    } else {
-                        link.classList.remove("active");
-                    }
-                });
-            }, 0); // Exécuter immédiatement après que le reste du script principal soit évalué
-
-
+            
             // Désactiver le bouton d'ajout par défaut
             if (addButton) {
                 addButton.disabled = true;
@@ -1228,7 +1230,7 @@
                         this.classList.remove('cout-input-rouge');
                     }
                 });
-                 coutInput.addEventListener('change', function() {
+                coutInput.addEventListener('change', function() {
                     checkFormValidity();
                     const coutValue = parseFloat(this.value.replace(',', '.'));
                     if (isNaN(coutValue) || coutValue <= 0) {
@@ -1274,7 +1276,6 @@
                         renderLicencesTable();
                         showToast('Licence ajoutée avec succès !', 'success');
 
-                        // Réinitialiser le formulaire
                         licenseForm.reset();
                         if(poleSelect) poleSelect.value = '';
                         if(collaborateurSelect) collaborateurSelect.innerHTML = '<option value="">-- Sélectionner --</option>';
@@ -1311,6 +1312,124 @@
             }
             checkFormValidity();
         });
+
+        // =========================================================================
+        // FONCTIONS GLOBALES POUR LE CHARGEMENT DES COMPOSANTS ET LE HEADER/DROPDOWN
+        // (Ces fonctions doivent être définies une seule fois et globalement accessibles)
+        // Elles ont été déplacées ici pour éviter la duplication et assurer leur accessibilité.
+        // =========================================================================
+
+        // Fonction utilitaire pour charger les composants externes (header/footer)
+        // Cette fonction doit être définie une seule fois dans votre code JavaScript principal,
+        // idéalement dans un fichier utilitaire commun si vous en avez un.
+        /* C'est la même que celle au-dessus, elle est redéfinie ici pour référence si besoin */
+        // async function loadComponent(url, placeholderId) { /* ... */ }
+
+        // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
+        function initializeHeaderDropdown() {
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesBtn && toolsResourcesContent) {
+                // Supprime tout écouteur de clic précédent pour éviter la duplication
+                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+                window.removeEventListener('click', handleWindowClick);
+
+                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+                window.addEventListener('click', handleWindowClick);
+
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+            } else {
+                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+            }
+        }
+
+        // Gestionnaire d'événement pour le clic sur le bouton du dropdown
+        function handleDropdownClick(event) {
+            event.preventDefault(); 
+            const toolsResourcesBtn = event.currentTarget; 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                toolsResourcesBtn.classList.remove('active');
+            } else {
+                toolsResourcesContent.style.display = 'block';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+                toolsResourcesBtn.classList.add('active');
+            }
+        }
+
+        // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
+        function handleWindowClick(event) {
+            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+            // Vérifie si le clic n'est pas à l'intérieur du dropdown (bouton ou contenu)
+            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                    toolsResourcesContent.style.display = 'none';
+                    if (toolsResourcesBtn) { 
+                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
+        function updateActiveNavLinks() {
+            const currentPath = window.location.pathname.split('/').pop();
+
+            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
+                const currentFileName = currentPath.replace('.html', '');
+
+                const isCurrentPage = (linkFileName === currentFileName) || 
+                                      (linkFileName === '' && currentFileName === 'index');
+
+                if (isCurrentPage) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
+
+            let dropdownHasActiveLink = false;
+            dropdownLinks.forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
+                const currentFileName = currentPath.replace('.html', '');
+
+                const isCurrentSubPage = (linkFileName === currentFileName);
+
+                if (isCurrentSubPage) {
+                    link.classList.add('active'); 
+                    dropdownHasActiveLink = true;
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            if (toolsResourcesBtn) {
+                if (dropdownHasActiveLink) {
+                    toolsResourcesBtn.classList.add('active');
+                } else {
+                    if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
     </script>
 </body>
 </html>
