@@ -73,6 +73,38 @@
         }
 
         /* Styles spécifiques à la page de brainstorming */
+        .participant-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .participant-filters > div {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .participant-filters label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--grey-text);
+        }
+
+        .participant-filters input[type="text"],
+        .participant-filters select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            background-color: #f9fafb;
+            box-sizing: border-box;
+        }
+        
         .participant-selector {
             display: flex;
             gap: 15px;
@@ -80,8 +112,9 @@
             align-items: center;
             flex-wrap: wrap;
         }
+        /* Ajustement du select dans participant-selector pour ne pas prendre toute la largeur s'il y a un bouton */
         .participant-selector select {
-            flex-grow: 1;
+            flex-grow: 1; 
             padding: 10px 15px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -250,10 +283,13 @@
                 padding: 20px;
                 border-radius: 0;
             }
+            .participant-filters,
             .participant-selector {
                 flex-direction: column;
                 gap: 10px;
             }
+            .participant-filters input[type="text"],
+            .participant-filters select,
             .participant-selector select,
             .participant-selector button {
                 width: 100%;
@@ -280,13 +316,27 @@
                 <a href="faq.html">FAQ</a>
                 <a href="demandes_ia.html">Demandes</a>
                 <a href="gestion-license.html">Licenses</a>
-                <a href="brainstorming.html" class="active">Brainstorming</a> </nav>
+                <a href="brainstorming.html" class="active">Brainstorming</a>
+            </nav>
         </div>
     </div>
 
     <main>
         <section class="content-section">
             <h2>Session de Brainstorming</h2>
+            <div class="participant-filters">
+                <div>
+                    <label for="filter-pole">Filtrer par Pôle :</label>
+                    <select id="filter-pole">
+                        <option value="all">Tous les pôles</option>
+                        </select>
+                </div>
+                <div>
+                    <label for="search-collaborator">Rechercher un collaborateur :</label>
+                    <input type="text" id="search-collaborator" placeholder="Nom du collaborateur..." />
+                </div>
+            </div>
+            
             <div class="participant-selector">
                 <select id="participant-select">
                     <option value="">Sélectionner un participant...</option>
@@ -307,9 +357,12 @@
     <script>
     document.addEventListener("DOMContentLoaded", async () => {
         const apiBase = './.netlify/functions/';
-        let allProfils = []; // Stockera tous les profils
+        let allProfils = []; // Stockera tous les profils bruts
         let currentParticipants = new Set(); // Stocke les IDs des participants actuellement dans le brainstorming
 
+        // Éléments du DOM
+        const filterPoleSelect = document.getElementById('filter-pole');
+        const searchCollaboratorInput = document.getElementById('search-collaborator');
         const participantSelect = document.getElementById('participant-select');
         const addParticipantBtn = document.getElementById('add-participant-btn');
         const brainstormingArea = document.getElementById('brainstorming-area');
@@ -330,30 +383,56 @@
             return escaped.replace(/`/g, '\\`');
         };
 
-        // Charge les profils depuis l'API Netlify
+        // Normalise une chaîne de caractères pour la recherche (minuscules, sans accents)
+        const normalizeString = (str) => {
+            return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
+        };
+
+        // Charge les profils depuis l'API Netlify et initialise les filtres
         async function loadProfils() {
             try {
                 const response = await fetch(`${apiBase}getProfils`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 allProfils = await response.json();
-                populateParticipantSelect();
+                populatePoleFilter(); // Remplit le filtre par pôle
+                filterAndPopulateParticipants(); // Remplit le sélecteur de participants initial
             } catch (error) {
                 console.error('Erreur chargement profils:', error);
                 // Gérer l'erreur, par exemple afficher un message à l'utilisateur
             }
         }
 
-        // Remplit le sélecteur avec les profils disponibles
-        function populateParticipantSelect() {
+        // Remplit le sélecteur de pôle
+        function populatePoleFilter() {
+            const poles = [...new Set(allProfils.map(p => p.pole).filter(Boolean))].sort();
+            filterPoleSelect.innerHTML = '<option value="all">Tous les pôles</option>';
+            poles.forEach(pole => {
+                const option = document.createElement('option');
+                option.value = pole;
+                option.textContent = pole;
+                filterPoleSelect.appendChild(option);
+            });
+        }
+
+        // Filtre les profils et remplit le sélecteur de participants
+        function filterAndPopulateParticipants() {
+            const selectedPole = filterPoleSelect.value;
+            const searchTerm = normalizeString(searchCollaboratorInput.value);
+
+            const filteredProfils = allProfils.filter(profil => {
+                const matchesPole = (selectedPole === 'all' || profil.pole === selectedPole);
+                const matchesSearch = (!searchTerm || normalizeString(profil.name).includes(searchTerm));
+                // Exclut les participants déjà ajoutés au brainstorming
+                const notAlreadyAdded = !currentParticipants.has(profil.id);
+                return matchesPole && matchesSearch && notAlreadyAdded;
+            }).sort((a, b) => a.name.localeCompare(b.name)); // Trie par nom
+
             participantSelect.innerHTML = '<option value="">Sélectionner un participant...</option>';
-            allProfils.forEach(profil => {
-                // N'ajoute au sélecteur que les profils qui ne sont pas déjà ajoutés au brainstorming
-                if (!currentParticipants.has(profil.id)) {
-                    const option = document.createElement('option');
-                    option.value = profil.id;
-                    option.textContent = profil.name;
-                    participantSelect.appendChild(option);
-                }
+            filteredProfils.forEach(profil => {
+                const option = document.createElement('option');
+                option.value = profil.id;
+                option.textContent = profil.name;
+                participantSelect.appendChild(option);
             });
         }
 
@@ -370,8 +449,10 @@
                 createParticipantCard(profilToAdd);
                 currentParticipants.add(profilToAdd.id);
                 participantSelect.value = ''; // Réinitialise le sélecteur
-                populateParticipantSelect(); // Met à jour le sélecteur pour retirer le participant ajouté
+                filterAndPopulateParticipants(); // Met à jour le sélecteur pour retirer le participant ajouté
                 updateNoParticipantMessage();
+            } else {
+                alert("Ce participant est déjà ajouté ou n'existe pas.");
             }
         }
 
@@ -381,7 +462,8 @@
             card.className = 'participant-card';
             card.setAttribute('data-participant-id', profil.id); // Utile pour retrouver la carte
 
-            const photoUrl = profil.photo || 'https://placehold.co/60x60?text=Profil';
+            // Utilise profil.photo ou un placeholder si absent
+            const photoUrl = profil.photo || 'https://via.placeholder.com/60x60?text=Profil'; 
 
             card.innerHTML = `
                 <div class="participant-header">
@@ -415,16 +497,16 @@
             uploadArea.addEventListener('click', () => fileInput.click());
             uploadArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                uploadArea.style.borderColor = var(--dark-blue);
-                uploadArea.style.backgroundColor = '#e0f2f7';
+                uploadArea.style.borderColor = 'var(--dark-blue)'; // Utiliser les variables CSS
+                uploadArea.style.backgroundColor = '#e0f2f7'; // Couleur plus claire pour l'effet de survol
             });
             uploadArea.addEventListener('dragleave', () => {
-                uploadArea.style.borderColor = var(--light-blue);
+                uploadArea.style.borderColor = 'var(--light-blue)';
                 uploadArea.style.backgroundColor = 'transparent';
             });
             uploadArea.addEventListener('drop', (e) => {
                 e.preventDefault();
-                uploadArea.style.borderColor = var(--light-blue);
+                uploadArea.style.borderColor = 'var(--light-blue)';
                 uploadArea.style.backgroundColor = 'transparent';
                 handleFiles(e.dataTransfer.files, mediaPreview);
             });
@@ -503,7 +585,7 @@
                 if (confirm(`Voulez-vous vraiment retirer ${cardToRemove.querySelector('h3').textContent} du brainstorming ?`)) {
                     cardToRemove.remove();
                     currentParticipants.delete(id);
-                    populateParticipantSelect(); // Met à jour le sélecteur pour rajouter le participant
+                    filterAndPopulateParticipants(); // Met à jour le sélecteur pour rajouter le participant
                     updateNoParticipantMessage();
                 }
             }
@@ -529,8 +611,11 @@
 
 
         // Initialisation
-        await loadProfils();
         addParticipantBtn.addEventListener('click', addParticipantToBrainstorm);
+        filterPoleSelect.addEventListener('change', filterAndPopulateParticipants);
+        searchCollaboratorInput.addEventListener('input', filterAndPopulateParticipants); // Filtrer en temps réel
+        
+        await loadProfils(); // Charge les profils et initialise les filtres
         setActiveNavLink(); // Active le lien du menu
         updateNoParticipantMessage(); // Vérifie au chargement si des participants sont déjà là (non implémenté pour l'instant)
     });
