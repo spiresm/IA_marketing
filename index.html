@@ -26,10 +26,9 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            /* Rétabli sans opacité ni transition */
+            /* Rétabli sans opacité ni transition, comme demandé */
             overflow-x: hidden; 
         }
-        /* body.page-loaded { opacity: 1; } <-- SUPPRIMÉ */
 
         main {
             padding: 40px 20px;
@@ -50,7 +49,7 @@
         }
 
         /* Le contenu injecté du header apparaîtra instantanément */
-        /* #header-placeholder > div.nav-wrapper { opacity: 0; visibility: hidden; transition: opacity 0.5s ease-in, visibility 0.5s ease-in; } */ /* <-- SUPPRIMÉ */
+        /* #header-placeholder > div.nav-wrapper styles supprimés pour l'apparition instantanée */
 
         .content-section { max-width: 960px; width: 100%; margin: 0 auto; padding: 25px; box-sizing: border-box; background-color: #fff; border-radius: 12px; box-shadow: var(--card-shadow); position: relative; }
         .content-section h2, .content-section h3 { text-align: center; color: var(--dark-blue); margin-top: 0; margin-bottom: 25px; }
@@ -346,7 +345,6 @@
             const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
             const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
 
-            // Fonction d'aide pour la comparaison des chemins
             const isCurrentPageMatch = (linkFileName === currentFileName) || (linkFileName === '' && currentFileName === 'index');
 
             if (isCurrentPageMatch) { 
@@ -392,10 +390,14 @@
     async function loadAndInitVeille() {
         const grid = document.getElementById('veille-articles-grid');
         if (!grid) return;
+        console.log("loadAndInitVeille: Starting fetch for veille-articles.json");
         try {
             const response = await fetch('veille-articles.json'); 
+            console.log("veille-articles.json fetch status:", response.status, response.ok);
             if (!response.ok) throw new Error(`Fichier introuvable (statut: ${response.status})`);
             const articles = await response.json();
+            console.log("Veille articles data:", articles);
+
             if (!articles || articles.length === 0) {
                 grid.innerHTML = '<p style="padding: 20px; text-align: center;">Aucun article de veille.</p>';
                 return;
@@ -474,7 +476,7 @@
         card.className = 'addition-card';
         const mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
         let mediaHtml = '';
-        const youtubeVideoId = getYouTubeVideoId(item.firstVideoUrl);
+        const youtubeVideoId = item.firstVideoUrl ? getYouTubeVideoId(item.firstVideoUrl) : null;
         if (youtubeVideoId) {
             mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
         } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
@@ -511,12 +513,14 @@
         const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
         const GET_PROFILS_URL = "/.netlify/functions/getProfils";
 
+        console.log("displayLatestAdditions: Starting fetch for tips, prompts, profils.");
         try {
             const [tipsResponse, promptsResponse, profilsResponse] = await Promise.all([
-                fetch(GET_TIPS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
-                fetch(GET_PROMPTS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
-                fetch(GET_PROFILS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])}))
+                fetch(GET_TIPS_URL).catch(e => { console.error("GET_TIPS_URL failed:", e); return {ok: false, json: () => Promise.resolve([])}; }),
+                fetch(GET_PROMPTS_URL).catch(e => { console.error("GET_PROMPTS_URL failed:", e); return {ok: false, json: () => Promise.resolve([])}; }),
+                fetch(GET_PROFILS_URL).catch(e => { console.error("GET_PROFILS_URL failed:", e); return {ok: false, json: () => Promise.resolve([])}; })
             ]);
+            console.log("API responses received. Tips OK:", tipsResponse.ok, "Prompts OK:", promptsResponse.ok, "Profils OK:", profilsResponse.ok);
 
             let tips = tipsResponse.ok ? await tipsResponse.json() : [];
             let prompts = promptsResponse.ok ? await promptsResponse.json() : [];
@@ -554,15 +558,17 @@
 
             tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
             prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
-            container.innerHTML = '';
+            container.innerHTML = ''; // Clear "Chargement..."
             let itemsToDisplay = [];
             if (prompts.length > 0) itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
             if (tips.length > 0) itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
+
             if (itemsToDisplay.length > 0) {
                 itemsToDisplay.forEach(({ item, type }) => container.appendChild(createCard(item, type)));
             } else {
                 container.innerHTML = '<p>Aucun ajout récent.</p>';
             }
+            console.log("Latest additions displayed.");
         } catch (error) {
             console.error("Erreur de chargement des derniers ajouts:", error);
             container.innerHTML = `<p style="color: var(--error-text);">Erreur de chargement des derniers ajouts.</p>`;
@@ -576,16 +582,21 @@
         const newsTickerContent = document.getElementById('newsTickerContent');
         if (!newsTickerContent) return;
         const NEWS_DATA_PATH = 'news-data.json';
+        console.log("loadNewsTicker: Starting fetch for news-data.json");
         try {
             const response = await fetch(NEWS_DATA_PATH);
+            console.log("news-data.json fetch status:", response.status, response.ok);
             if (!response.ok) throw new Error('Fichier news introuvable.');
             const newsItems = await response.json();
+            console.log("News ticker data:", newsItems);
+
             if (newsItems.length > 0) {
                 const fullTextHtml = newsItems.map(item => `<span class="news-item">${escapeHtml(item.title)}</span>`).join(' &nbsp; • &nbsp; ');
                 newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml;
             } else {
                 newsTickerContent.innerHTML = '<span>Aucune actualité.</span>';
             }
+            console.log("News ticker displayed.");
         } catch (error) {
             console.error("Erreur chargement news ticker:", error);
             newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
@@ -594,6 +605,8 @@
     
     // Le DOMContentLoaded global qui appelle toutes les fonctions
     document.addEventListener("DOMContentLoaded", async () => {
+        console.log("DOMContentLoaded fired.");
+
         // Fonction utilitaire pour charger les composants externes (header/footer)
         async function loadComponent(url, placeholderId) {
             try {
@@ -604,6 +617,7 @@
                     return;
                 }
                 document.getElementById(placeholderId).innerHTML = await res.text();
+                // console.log(`Component ${url} loaded successfully into #${placeholderId}.`); 
             } catch (error) {
                 console.error(`Error loading ${url}:`, error);
                 document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
@@ -721,24 +735,24 @@
         }
 
 
-        document.addEventListener("DOMContentLoaded", async () => {
-            // Charger les composants (header et footer)
-            await Promise.all([
-                loadComponent("header.html", "header-placeholder"),
-                loadComponent("footer.html", "footer-placeholder")
-            ]);
+        // Charger les composants (header et footer) et initialiser le dropdown/nav
+        await Promise.all([
+            loadComponent("header.html", "header-placeholder"),
+            loadComponent("footer.html", "footer-placeholder")
+        ]);
 
-            // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
-            initializeHeaderDropdown();
-            updateActiveNavLinks(); 
+        initializeHeaderDropdown();
+        updateActiveNavLinks(); 
 
-            // =========================================================================
-            // APPEL DE TOUTES LES FONCTIONS SPÉCIFIQUES À INDEX.HTML
-            // =========================================================================
-            loadAndInitVeille(); 
-            displayLatestAdditions();
-            loadNewsTicker();
-        });
-    </script>
+        // =========================================================================
+        // APPEL DE TOUTES LES FONCTIONS SPÉCIFIQUES À INDEX.HTML
+        // =========================================================================
+        console.log("Calling content loading functions for index.html.");
+        loadAndInitVeille(); 
+        displayLatestAdditions();
+        loadNewsTicker();
+        console.log("Content loading functions called. Check console for fetch statuses.");
+    });
+</script>
 </body>
 </html>
