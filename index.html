@@ -118,13 +118,28 @@
             background: #fff; 
             border-radius: 12px; 
             box-shadow: var(--card-shadow); 
+            /* Supprime les transform/box-shadow ici pour les appliquer au hover du parent */
             display: flex; 
             flex-direction: column; 
             transition: transform 0.2s ease, box-shadow 0.2s ease; 
             overflow: hidden; 
             position: relative; /* Ajouté pour positionner l'image de profil */
         }
-        .addition-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+        /* Applique l'effet de survol directement sur la carte pour toute la zone cliquable */
+        .addition-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12); 
+        }
+
+        /* Nouveau style pour le lien qui englobe la carte */
+        .card-link-wrapper {
+            text-decoration: none; /* Supprime le soulignement du lien */
+            color: inherit; /* Hérite la couleur du texte des éléments internes */
+            display: flex; /* Permet au contenu de la carte de remplir l'espace */
+            flex-direction: column;
+            height: 100%; /* S'assure que le lien prend toute la hauteur de la carte parent */
+        }
+        
         .card-content-wrapper { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
         
         /* Titre principal de la carte (Dernier prompt/workflow) */
@@ -150,7 +165,10 @@
         .addition-card .card-image-container img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         .addition-card .card-meta { display: flex; flex-direction: column; gap: 8px; font-size: 0.9em; color: var(--grey-text); flex-grow: 1; margin-bottom: 15px; }
         .addition-card .meta-line { display: flex; align-items: center; gap: 8px; text-align: left; }
-        .addition-card .view-button { display: block; text-align: center; margin-top: auto; padding: 10px 15px; background-color: var(--primary-blue); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; transition: background-color 0.2s; }
+        /* Supprime le style du bouton "Voir plus", car il sera caché */
+        .addition-card .view-button { 
+            display: none; /* Cache l'ancien bouton "Voir plus" */
+        }
         
         /* NOUVEAU STYLE POUR L'IMAGE DE PROFIL */
         .profile-circle {
@@ -361,24 +379,24 @@
             }
             const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
             
-            // Utilisez item.profileImageUrl s'il est fourni par l'API, sinon utilisez une image par défaut ou une logique basée sur l'auteur
             const profileImgSrc = item.profileImageUrl || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P';
 
             card.innerHTML = `
-                <div class="card-content-wrapper">
-                    <h4>${mainCardTitle}</h4>
-                    <div class="profile-circle">
-                        <img src="${profileImgSrc}" alt="Profil de ${escapeHtml(item.auteur)}">
-                    </div>
-                    <div class="card-top-meta">${toolBadge}</div>
-                    <div class="card-subtitle">${escapeHtml(item.titre)}</div>
-                    ${mediaHtml}
-                    <div class="card-meta">
-                        <span class="meta-line"><strong>Auteur:</strong> ${escapeHtml(item.auteur)}</span>
-                        <span class="meta-line"><strong>Créé le:</strong> ${formatteDate(item.date)}</span>
-                    </div>
-                    <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="view-button">Voir plus</a>
-                </div>
+                <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="card-link-wrapper">
+                    <div class="card-content-wrapper">
+                        <h4>${mainCardTitle}</h4>
+                        <div class="profile-circle">
+                            <img src="${profileImgSrc}" alt="Profil de ${escapeHtml(item.auteur)}">
+                        </div>
+                        <div class="card-top-meta">${toolBadge}</div>
+                        <div class="card-subtitle">${escapeHtml(item.titre)}</div>
+                        ${mediaHtml}
+                        <div class="card-meta">
+                            <span class="meta-line"><strong>Auteur:</strong> ${escapeHtml(item.auteur)}</span>
+                            <span class="meta-line"><strong>Créé le:</strong> ${formatteDate(item.date)}</span>
+                        </div>
+                        </div>
+                </a>
             `;
             return card;
         };
@@ -388,23 +406,21 @@
             container.innerHTML = '<p>Chargement...</p>';
             const GET_TIPS_URL = "/.netlify/functions/get-tips";
             const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
-            const GET_PROFILS_URL = "/.netlify/functions/getProfils"; // Nouvelle URL pour récupérer les profils
+            const GET_PROFILS_URL = "/.netlify/functions/getProfils";
 
             try {
                 const [tipsResponse, promptsResponse, profilsResponse] = await Promise.all([
                     fetch(GET_TIPS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
                     fetch(GET_PROMPTS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
-                    fetch(GET_PROFILS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})) // Fetch les profils
+                    fetch(GET_PROFILS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])}))
                 ]);
 
                 let tips = tipsResponse.ok ? await tipsResponse.json() : [];
                 let prompts = promptsResponse.ok ? await promptsResponse.json() : [];
                 let profils = profilsResponse.ok ? await profilsResponse.json() : [];
 
-                // Créer un dictionnaire (map) des profils pour un accès rapide par nom d'auteur
                 const profilsMap = new Map();
                 profils.forEach(p => {
-                    // Normalisez le nom de l'auteur si nécessaire, ici on utilise p.name pour la clé
                     if (p.name) {
                         profilsMap.set(p.name.toLowerCase().trim(), p);
                     }
@@ -414,10 +430,10 @@
                     const normalizedAuteur = item.auteur ? item.auteur.toLowerCase().trim() : '';
                     const profilCorrespondant = profilsMap.get(normalizedAuteur);
                     
-                    let resolvedProfileImageUrl = 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P'; // Image par défaut
+                    let resolvedProfileImageUrl = 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P'; 
                     if (profilCorrespondant && profilCorrespondant.photo) {
                         resolvedProfileImageUrl = profilCorrespondant.photo;
-                    } else if (item.profileImageUrl) { // Si l'API retourne déjà une URL de profil (moins probable si on la cherche dans les profils)
+                    } else if (item.profileImageUrl) { 
                         resolvedProfileImageUrl = item.profileImageUrl;
                     }
 
@@ -429,7 +445,7 @@
                         outil: item.outil || "Non spécifié", 
                         imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'), 
                         firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url)),
-                        profileImageUrl: resolvedProfileImageUrl // Utilisez l'URL résolue
+                        profileImageUrl: resolvedProfileImageUrl
                     };
                 };
 
