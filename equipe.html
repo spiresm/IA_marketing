@@ -30,32 +30,9 @@
             padding: 40px 20px;
             flex-grow: 1;
         }
-        .nav-wrapper {
-            background-color: var(--primary-blue);
-            width: 100%;
-            position: relative;
-            flex-shrink: 0;
-            padding: 5px 0;
-        }
-        .menu-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 30px;
-            box-sizing: border-box;
-        }
-        nav { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; }
-        nav a {
-            text-decoration: none; color: white; font-weight: bold;
-            font-size: 1.1em; padding: 10px 18px; border-radius: 8px;
-            transition: background 0.3s ease; margin: 0 5px;
-            white-space: nowrap; position: relative;
-        }
-        nav a:hover, nav a.active { background-color: white; color: #0077b6; }
-        .notif-bubble {
-            position: absolute; top: 0px; right: 0px; background: red; color: white;
-            border-radius: 50%; padding: 2px 6px; font-size: 12px; font-weight: bold;
-            display: none;
-        }
+        /* Les styles du nav-wrapper et du menu-container seront maintenant dans header.html */
+        /* Tous les styles liés au header, nav, dropdown doivent être dans header.html */
+
         .content-section { max-width: 960px; margin: 25px auto; padding: 0 20px; box-sizing: border-box; }
         .action-button-container { text-align: center; margin-bottom: 25px; }
         .action-button {
@@ -312,21 +289,7 @@
 </head>
 <body>
 
-    <div class="nav-wrapper">
-        <div class="menu-container">
-            <nav>
-                <a href="index.html">Accueil</a>
-                <a href="equipe.html" class="active">Équipe</a>
-                <a href="outils.html">Outils</a>
-                <a href="galerie.html">Prompts</a>
-                <a href="cas-usages.html">Workflows</a>
-                <a href="charte.html">Chartes</a>
-                <a href="faq.html">FAQ</a>
-                <a href="demandes_ia.html">Demandes<span class="notif-bubble" id="notif-count">0</span></a>
-                <a href="gestion-license.html">Licenses</a>
-            </nav>
-        </div>
-    </div>
+    <div id="header-placeholder"></div>
 
     <main>
         <div class="content-section action-button-container">
@@ -356,262 +319,396 @@
     <footer id="footer-placeholder"><p>&copy; 2025 Espace IA. Tous droits réservés.</p></footer>
 
 <script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const apiBase = './.netlify/functions/';
-        let profils = [];
-        let galleryPrompts = [];
-        let sharedTips = [];
+    // Fonction utilitaire pour charger les composants externes (header/footer)
+    async function loadComponent(url, placeholderId) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) {
+                console.error(`Could not load ${url}, status: ${res.status}`);
+                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+                return;
+            }
+            document.getElementById(placeholderId).innerHTML = await res.text();
+            // console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
+        } catch (error) {
+            console.error(`Error loading ${url}:`, error);
+            document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Error loading: ${url}</p>`;
+        }
+    }
 
+    // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
+    function initializeHeaderDropdown() {
+        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+        if (toolsResourcesBtn && toolsResourcesContent) {
+            toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+            window.removeEventListener('click', handleWindowClick);
+
+            toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+            window.addEventListener('click', handleWindowClick);
+
+            toolsResourcesContent.style.display = 'none';
+            toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+        } else {
+            console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+        }
+    }
+
+    // Gestionnaire d'événement pour le clic sur le bouton du dropdown
+    function handleDropdownClick(event) {
+        event.preventDefault(); 
+        const toolsResourcesBtn = event.currentTarget; 
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+        if (toolsResourcesContent.style.display === 'block') {
+            toolsResourcesContent.style.display = 'none';
+            toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+            toolsResourcesBtn.classList.remove('active');
+        } else {
+            toolsResourcesContent.style.display = 'block';
+            toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+            toolsResourcesBtn.classList.add('active');
+        }
+    }
+
+    // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
+    function handleWindowClick(event) {
+        const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+        if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+            if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                if (toolsResourcesBtn) { 
+                    toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                    toolsResourcesBtn.classList.remove('active');
+                }
+            }
+        }
+    }
+
+
+    // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
+    function updateActiveNavLinks() {
+        const currentPath = window.location.pathname.split('/').pop();
+
+        document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+            const linkHref = link.getAttribute('href');
+            const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
+            const currentFileName = currentPath.replace('.html', '');
+
+            const isCurrentPage = (linkFileName === currentFileName) || 
+                                  (linkFileName === '' && currentFileName === 'index');
+
+            if (isCurrentPage) {
+                link.classList.add("active");
+            } else {
+                link.classList.remove("active");
+            }
+        });
+
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+        const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
+
+        let dropdownHasActiveLink = false;
+        dropdownLinks.forEach(link => {
+            const linkHref = link.getAttribute('href');
+            const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
+            const currentFileName = currentPath.replace('.html', '');
+
+            const isCurrentSubPage = (linkFileName === currentFileName);
+
+            if (isCurrentSubPage) {
+                link.classList.add('active'); 
+                dropdownHasActiveLink = true;
+            } else {
+                link.classList.remove('active');
+            }
+        });
+
+        if (toolsResourcesBtn) {
+            if (dropdownHasActiveLink) {
+                toolsResourcesBtn.classList.add('active');
+            } else {
+                if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                    toolsResourcesBtn.classList.remove('active');
+                }
+            }
+        }
+    }
+
+    // Données des profils (définies globalement ou récupérées de l'API)
+    let profils = [];
+    let galleryPrompts = [];
+    let sharedTips = [];
+
+    // Fonctions de l'application (fetchData, normalizeString, escapeHtml, renderProfils, etc.)
+    async function fetchData(action) {
+        try {
+            const response = await fetch(`./.netlify/functions/${action}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            console.error(`Erreur chargement ${action}:`, error);
+            return [];
+        }
+    }
+
+    function normalizeString(str) {
+        return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
+    }
+
+    function escapeHtmlAttribute(unsafe) {
+        if (typeof unsafe !== 'string') {
+            return '';
+        }
+        let escaped = JSON.stringify(unsafe);
+        if (escaped.startsWith('"') && escaped.endsWith('"')) {
+            escaped = escaped.slice(1, -1);
+        }
+        return escaped.replace(/`/g, '\\`');
+    }
+
+    function escapeHtml(unsafe) {
+        if (typeof unsafe !== 'string') return '';
+        return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function renderProfils(filteredProfils) {
         const listContainer = document.getElementById("profil-list");
+        if (!listContainer) return; // S'assurer que l'élément existe
+
+        listContainer.innerHTML = "";
+        if (filteredProfils.length === 0) {
+            listContainer.innerHTML = '<p>Aucun profil trouvé.</p>';
+            return;
+        }
+        filteredProfils.forEach(p => {
+            if (!p || !p.id) return;
+            const card = document.createElement("div");
+            card.className = "profil-card";
+            const hasNote = p.note && p.note.trim() !== '';
+
+            card.innerHTML = `
+                <div class="profil-card-clickable" title="${escapeHtmlAttribute('Voir les détails de ' + p.name)}">
+                    <span class="note-badge" style="display: ${hasNote ? 'inline-block' : 'none'}">Note</span>
+                    <img src="${p.photo || 'https://placehold.co/90x90?text=Profil'}" alt="${escapeHtmlAttribute('Photo de ' + p.name)}">
+                    <h3>${escapeHtml(p.name || 'N/A')}</h3>
+                    <p class="pole">${escapeHtml(p.pole || 'N/A')}</p>
+                </div>
+                <div class="note-editor">
+                    <textarea>${escapeHtml(p.note || '')}</textarea>
+                    <div class="actions">
+                        <button class="save-note">Enregistrer</button>
+                        <button class="clear-note">Effacer</button>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn-action btn-note" title="Ajouter/Voir la note"><i class="fas fa-sticky-note"></i></button>
+                    <button class="btn-action btn-edit" title="Éditer le profil"><i class="fas fa-edit"></i></button>
+                    <button class="btn-action btn-delete" title="Supprimer le profil"><i class="fas fa-trash-alt"></i></button>
+                </div>`;
+
+            card.querySelector('.profil-card-clickable').addEventListener('click', () => openSidePanel(p));
+            card.querySelector('.btn-edit').addEventListener('click', () => window.location.href = `profil.html?edit=${p.id}`);
+            card.querySelector('.btn-delete').addEventListener('click', () => confirmAndDelete(p.id, p.name));
+
+            const noteEditor = card.querySelector('.note-editor');
+            const noteTextarea = noteEditor.querySelector('textarea');
+            const noteBadge = card.querySelector('.note-badge');
+
+            card.querySelector('.btn-note').addEventListener('click', () => noteEditor.classList.toggle('open'));
+            noteEditor.querySelector('.save-note').addEventListener('click', async () => {
+                const newNote = noteTextarea.value;
+                const res = await fetch(`./.netlify/functions/updateProfil`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: p.id, note: newNote })
+                });
+                if(res.ok) {
+                    p.note = newNote;
+                    noteBadge.style.display = newNote.trim() ? 'inline-block' : 'none';
+                    noteEditor.classList.remove('open');
+                } else { alert("Erreur lors de la sauvegarde de la note."); }
+            });
+            noteEditor.querySelector('.clear-note').addEventListener('click', () => { noteTextarea.value = ''; });
+
+            listContainer.appendChild(card);
+        });
+    }
+
+    async function confirmAndDelete(profilId, profilName) {
+        if (confirm(`Êtes-vous sûr de vouloir supprimer le profil de ${profilName} ?`)) {
+            try {
+                const response = await fetch(`./.netlify/functions/deleteProfil?id=${profilId}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error("La suppression a échoué.");
+                profils = profils.filter(p => p.id !== profilId);
+                applyFilters();
+            } catch(err) {
+                alert("Erreur: " + err.message);
+            }
+        }
+    }
+
+    function applyFilters() {
         const filterPole = document.getElementById("filterPole");
         const searchInput = document.getElementById("searchInput");
+        const selectedPole = filterPole ? filterPole.value : '';
+        const searchQuery = searchInput ? searchInput.value.toLowerCase() : '';
+        
+        const filtered = profils.filter(p => {
+            const matchPole = !selectedPole || p.pole === selectedPole;
+            const matchSearch = !searchQuery ||
+                (p.name && p.name.toLowerCase().includes(searchQuery)) ||
+                (Array.isArray(p.tools) && p.tools.some(tool => tool.toLowerCase().includes(searchQuery)));
+            return matchPole && matchSearch;
+        });
+        renderProfils(filtered);
+    }
+
+    function openSidePanel(profil) {
         const sidePanel = document.getElementById("side-panel");
         const panelContent = document.getElementById("panel-content");
         const panelName = document.getElementById("panel-name");
         const panelPole = document.getElementById("panel-pole");
         const overlay = document.getElementById("side-panel-overlay");
-        const closePanelBtn = document.querySelector(".close-panel-btn");
 
-        async function fetchData(action) {
-            try {
-                const response = await fetch(`${apiBase}${action}`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return await response.json();
-            } catch (error) {
-                console.error(`Erreur chargement ${action}:`, error);
-                return [];
-            }
+        if(!profil || !sidePanel || !panelContent || !panelName || !panelPole || !overlay) return;
+
+        const header = sidePanel.querySelector('.side-panel-header');
+        let imgElement = header.querySelector('img');
+        if (!imgElement) {
+            imgElement = document.createElement('img');
+            header.insertBefore(imgElement, header.querySelector('h2'));
+        }
+        imgElement.src = profil.photo || 'https://placehold.co/120x120?text=Profil';
+        imgElement.alt = escapeHtmlAttribute('Photo de ' + profil.name);
+
+        panelName.textContent = profil.name;
+        panelPole.textContent = profil.pole || 'N/A';
+
+        let panelHtmlContent = '';
+
+        const promptsByAuthor = galleryPrompts.filter(p => normalizeString(p.auteur) === normalizeString(profil.name));
+        panelHtmlContent += `<h3 class="no-icon-no-border">Derniers Prompts Partagés</h3>`;
+        if (promptsByAuthor.length > 0) {
+            panelHtmlContent += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt =>
+                `<a href="galerie.html" title="${escapeHtmlAttribute(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/150'}" alt="${escapeHtmlAttribute(prompt.titre)}"></a>`
+            ).join('')}</div>`;
+        } else {
+            panelHtmlContent += '<p>Aucun prompt partagé.</p>';
         }
 
-        function normalizeString(str) {
-            return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
-        }
+        const tipsByAuthor = sharedTips.filter(tip => normalizeString(tip.auteur) === normalizeString(profil.name));
+        panelHtmlContent += `<h3 class="no-icon-no-border">Dernier Workflow Partagé</h3>`;
+        if (tipsByAuthor.length > 0) {
+            tipsByAuthor.sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation));
+            const latestTip = tipsByAuthor[0];
 
-        // Nouvelle fonction pour échapper les chaînes de caractères destinées aux attributs HTML
-        // Utilise JSON.stringify pour une robustesse maximale, puis retire les guillemets extérieurs
-        function escapeHtmlAttribute(unsafe) {
-            if (typeof unsafe !== 'string') {
-                return ''; // Gérer les non-chaînes
-            }
-            // JSON.stringify échappe guillemets, backslashs, etc.
-            // On retire les guillemets doubles ajoutés par stringify si la chaîne originale ne contient pas de guillemets
-            // et que la chaîne n'est pas vide (pour ne pas retourner "" pour une chaîne vide).
-            let escaped = JSON.stringify(unsafe);
-            // On retire les guillemets de début et fin si la chaîne est propre
-            if (escaped.startsWith('"') && escaped.endsWith('"')) {
-                escaped = escaped.slice(1, -1);
-            }
-            // Et on s'assure que les backticks qui pourraient se trouver dans la chaîne sont échappés pour le template literal.
-            // Bien que stringify s'en occupe déjà pour la plupart des caractères problématiques.
-            return escaped.replace(/`/g, '\\`');
-        }
+            const imageUrl = latestTip.imageUrl || (latestTip.fileUrls && latestTip.fileUrls.length > 0 ? latestTip.fileUrls[0] : null);
+            const imageHtml = imageUrl ? `<img src="${imageUrl}" alt="${escapeHtmlAttribute(latestTip.titre)}" class="tip-card-img">` : '';
 
-        // Ancienne fonction pour le contenu HTML (moins strict que les attributs)
-        function escapeHtml(unsafe) {
-            if (typeof unsafe !== 'string') return '';
-            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-        }
-
-        function renderProfils(filteredProfils) {
-            listContainer.innerHTML = "";
-            if (filteredProfils.length === 0) {
-                listContainer.innerHTML = '<p>Aucun profil trouvé.</p>';
-                return;
-            }
-            filteredProfils.forEach(p => {
-                if (!p || !p.id) return;
-                const card = document.createElement("div");
-                card.className = "profil-card";
-                const hasNote = p.note && p.note.trim() !== '';
-
-                card.innerHTML = `
-                    <div class="profil-card-clickable" title="${escapeHtmlAttribute('Voir les détails de ' + p.name)}">
-                        <span class="note-badge" style="display: ${hasNote ? 'inline-block' : 'none'}">Note</span>
-                        <img src="${p.photo || 'https://placehold.co/90x90?text=Profil'}" alt="${escapeHtmlAttribute('Photo de ' + p.name)}">
-                        <h3>${escapeHtml(p.name || 'N/A')}</h3>
-                        <p class="pole">${escapeHtml(p.pole || 'N/A')}</p>
+            panelHtmlContent += `
+                <a href="cas-usages.html" class="tip-card" title="${escapeHtmlAttribute(latestTip.titre)}">
+                    ${imageHtml}
+                    <div class="tip-card-text">
+                        <h4>${escapeHtml(latestTip.titre)}</h4>
+                        <p>${escapeHtml(latestTip.outil)}</p>
                     </div>
-                    <div class="note-editor">
-                        <textarea>${escapeHtml(p.note || '')}</textarea>
-                        <div class="actions">
-                            <button class="save-note">Enregistrer</button>
-                            <button class="clear-note">Effacer</button>
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn-action btn-note" title="Ajouter/Voir la note"><i class="fas fa-sticky-note"></i></button>
-                        <button class="btn-action btn-edit" title="Éditer le profil"><i class="fas fa-edit"></i></button>
-                        <button class="btn-action btn-delete" title="Supprimer le profil"><i class="fas fa-trash-alt"></i></button>
-                    </div>`;
-
-                card.querySelector('.profil-card-clickable').addEventListener('click', () => openSidePanel(p));
-                card.querySelector('.btn-edit').addEventListener('click', () => window.location.href = `profil.html?edit=${p.id}`);
-                card.querySelector('.btn-delete').addEventListener('click', () => confirmAndDelete(p.id, p.name));
-
-                const noteEditor = card.querySelector('.note-editor');
-                const noteTextarea = noteEditor.querySelector('textarea');
-                const noteBadge = card.querySelector('.note-badge');
-
-                card.querySelector('.btn-note').addEventListener('click', () => noteEditor.classList.toggle('open'));
-                noteEditor.querySelector('.save-note').addEventListener('click', async () => {
-                    const newNote = noteTextarea.value;
-                    const res = await fetch(`${apiBase}updateProfil`, {
-                        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: p.id, note: newNote })
-                    });
-                    if(res.ok) {
-                        p.note = newNote;
-                        noteBadge.style.display = newNote.trim() ? 'inline-block' : 'none';
-                        noteEditor.classList.remove('open');
-                    } else { alert("Erreur lors de la sauvegarde de la note."); }
-                });
-                noteEditor.querySelector('.clear-note').addEventListener('click', () => { noteTextarea.value = ''; });
-
-                listContainer.appendChild(card);
-            });
+                </a>`;
+        } else {
+            panelHtmlContent += '<p>Aucun workflow partagé.</p>';
         }
 
-        async function confirmAndDelete(profilId, profilName) {
-            if (confirm(`Êtes-vous sûr de vouloir supprimer le profil de ${profilName} ?`)) {
-                try {
-                    const response = await fetch(`${apiBase}deleteProfil?id=${profilId}`, { method: 'DELETE' });
-                    if (!response.ok) throw new Error("La suppression a échoué.");
-                    profils = profils.filter(p => p.id !== profilId);
-                    applyFilters();
-                } catch(err) {
-                    alert("Erreur: " + err.message);
-                }
-            }
+        const toolsList = (profil.tools && profil.tools.length > 0)
+            ? `<ul>${profil.tools.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` : '<p>Aucun outil spécifié.</p>';
+        panelHtmlContent += `<h3 class="tools-icon has-icon">Outils Favoris</h3>${toolsList}`;
+
+        if (profil.note) {
+            const noteContent = `<div class="note-content">${escapeHtml(profil.note)}</div>`;
+            panelHtmlContent += `<h3 class="note-icon has-icon">Note</h3>${noteContent}`;
         }
 
-        function applyFilters() {
-            const selectedPole = filterPole.value;
-            const searchQuery = searchInput.value.toLowerCase();
-            const filtered = profils.filter(p => {
-                const matchPole = !selectedPole || p.pole === selectedPole;
-                const matchSearch = !searchQuery ||
-                    (p.name && p.name.toLowerCase().includes(searchQuery)) ||
-                    (Array.isArray(p.tools) && p.tools.some(tool => tool.toLowerCase().includes(searchQuery)));
-                return matchPole && matchSearch;
-            });
-            renderProfils(filtered);
+        panelContent.innerHTML = panelHtmlContent;
+
+        sidePanel.classList.add("open");
+        overlay.classList.add("open");
+    }
+
+    function closeSidePanel() {
+        const sidePanel = document.getElementById("side-panel");
+        const overlay = document.getElementById("side-panel-overlay");
+        if (!sidePanel || !overlay) return;
+        sidePanel.classList.remove("open");
+        overlay.classList.remove("open");
+    }
+
+    async function initApp() {
+        const listContainer = document.getElementById("profil-list");
+        if (!listContainer) return;
+        listContainer.innerHTML = '<p>Chargement de l\'équipe...</p>';
+
+        const [profilsData, promptsData, tipsData] = await Promise.all([
+            fetchData('getProfils'),
+            fetchData('getGalleryPrompts'),
+            fetchData('get-tips')
+        ]);
+
+        profils = profilsData || [];
+        galleryPrompts = promptsData || [];
+
+        if (tipsData) {
+            sharedTips = tipsData.map(tip => ({
+                ...tip,
+                id: String(tip.id),
+                dateCreation: tip.date_creation || tip.dateCreation || new Date().toISOString(),
+                titre: tip.titre || "Titre non spécifié",
+                auteur: tip.auteur || "Auteur inconnu",
+                outil: tip.outil || "Non spécifié",
+                imageUrl: tip.imageUrl,
+                fileUrls: tip.fileUrls || []
+            }));
+        } else {
+            sharedTips = [];
         }
 
-        function openSidePanel(profil) {
-            if(!profil) return;
-
-            // Mise à jour de l'en-tête du panneau
-            const header = sidePanel.querySelector('.side-panel-header');
-            let imgElement = header.querySelector('img');
-            if (!imgElement) {
-                imgElement = document.createElement('img');
-                header.insertBefore(imgElement, header.querySelector('h2'));
-            }
-            imgElement.src = profil.photo || 'https://placehold.co/120x120?text=Profil';
-            imgElement.alt = escapeHtmlAttribute('Photo de ' + profil.name);
-
-            panelName.textContent = profil.name;
-            panelPole.textContent = profil.pole || 'N/A';
-
-            // --- Construction du contenu du panneau ---
-            let panelHtmlContent = '';
-
-            // 1. Section Derniers Prompts Partagés (sans icône ni ligne, texte réduit)
-            const promptsByAuthor = galleryPrompts.filter(p => normalizeString(p.auteur) === normalizeString(profil.name));
-            panelHtmlContent += `<h3 class="no-icon-no-border">Derniers Prompts Partagés</h3>`;
-            if (promptsByAuthor.length > 0) {
-                panelHtmlContent += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt =>
-                    // Utiliser escapeHtmlAttribute pour les attributs title et alt
-                    `<a href="galerie.html" title="${escapeHtmlAttribute(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/150'}" alt="${escapeHtmlAttribute(prompt.titre)}"></a>`
-                ).join('')}</div>`;
-            } else {
-                panelHtmlContent += '<p>Aucun prompt partagé.</p>';
-            }
-
-            // 2. Section Dernier Workflow Partagé (sans icône ni ligne, texte réduit)
-            const tipsByAuthor = sharedTips.filter(tip => normalizeString(tip.auteur) === normalizeString(profil.name));
-            panelHtmlContent += `<h3 class="no-icon-no-border">Dernier Workflow Partagé</h3>`;
-            if (tipsByAuthor.length > 0) {
-                tipsByAuthor.sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation));
-                const latestTip = tipsByAuthor[0];
-
-                const imageUrl = latestTip.imageUrl || (latestTip.fileUrls && latestTip.fileUrls.length > 0 ? latestTip.fileUrls[0] : null);
-                const imageHtml = imageUrl ? `<img src="${imageUrl}" alt="${escapeHtmlAttribute(latestTip.titre)}" class="tip-card-img">` : '';
-
-                panelHtmlContent += `
-                    <a href="cas-usages.html" class="tip-card" title="${escapeHtmlAttribute(latestTip.titre)}">
-                        ${imageHtml}
-                        <div class="tip-card-text">
-                            <h4>${escapeHtml(latestTip.titre)}</h4>
-                            <p>${escapeHtml(latestTip.outil)}</p>
-                        </div>
-                    </a>`;
-            } else {
-                panelHtmlContent += '<p>Aucun workflow partagé.</p>';
-            }
-
-            // 3. Section Outils Favoris (avec icône et ligne)
-            const toolsList = (profil.tools && profil.tools.length > 0)
-                ? `<ul>${profil.tools.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` : '<p>Aucun outil spécifié.</p>';
-            panelHtmlContent += `<h3 class="tools-icon has-icon">Outils Favoris</h3>${toolsList}`;
-
-            // 4. Section Note (si présente, avec icône et ligne)
-            if (profil.note) {
-                const noteContent = `<div class="note-content">${escapeHtml(profil.note)}</div>`;
-                panelHtmlContent += `<h3 class="note-icon has-icon">Note</h3>${noteContent}`;
-            }
-
-            panelContent.innerHTML = panelHtmlContent;
-
-            sidePanel.classList.add("open");
-            overlay.classList.add("open");
-        }
-
-        function closeSidePanel() {
-            sidePanel.classList.remove("open");
-            overlay.classList.remove("open");
-        }
-
-        async function initApp() {
-            listContainer.innerHTML = '<p>Chargement de l\'équipe...</p>';
-            const [profilsData, promptsData, tipsData] = await Promise.all([
-                fetchData('getProfils'),
-                fetchData('getGalleryPrompts'),
-                fetchData('get-tips')
-            ]);
-
-            profils = profilsData || [];
-            galleryPrompts = promptsData || [];
-
-            if (tipsData) {
-                sharedTips = tipsData.map(tip => ({
-                    ...tip,
-                    id: String(tip.id),
-                    dateCreation: tip.date_creation || tip.dateCreation || new Date().toISOString(),
-                    titre: tip.titre || "Titre non spécifié",
-                    auteur: tip.auteur || "Auteur inconnu",
-                    outil: tip.outil || "Non spécifié",
-                    imageUrl: tip.imageUrl,
-                    fileUrls: tip.fileUrls || []
-                }));
-            } else {
-                sharedTips = [];
-            }
-
+        const filterPole = document.getElementById("filterPole");
+        if (filterPole) {
             const poles = [...new Set(profils.map(p => p.pole).filter(Boolean))].sort();
             filterPole.innerHTML = '<option value="">Tous les pôles</option>' + poles.map(p => `<option value="${p}">${p}</option>`).join('');
+        }
 
-            applyFilters();
+        applyFilters();
 
-            filterPole.addEventListener("change", applyFilters);
-            searchInput.addEventListener("input", applyFilters);
-            closePanelBtn.addEventListener("click", closeSidePanel);
+        const searchInput = document.getElementById("searchInput");
+        const closePanelBtn = document.querySelector("#side-panel .close-panel-btn");
+        const overlay = document.getElementById("side-panel-overlay");
+
+        if (filterPole) filterPole.addEventListener("change", applyFilters);
+        if (searchInput) searchInput.addEventListener("input", applyFilters);
+        if (closePanelBtn) closePanelBtn.addEventListener("click", closeSidePanel);
+        if (overlay) {
             overlay.addEventListener("click", (e) => {
                 if (e.target === overlay) closeSidePanel();
             });
         }
+    }
 
+    // Le DOMContentLoaded global pour l'initialisation de la page Équipe
+    document.addEventListener("DOMContentLoaded", async () => {
+        // Charger les composants header et footer
+        await Promise.all([
+            loadComponent("header.html", "header-placeholder"),
+            loadComponent("footer.html", "footer-placeholder")
+        ]);
+
+        // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
+        initializeHeaderDropdown();
+        updateActiveNavLinks();
+
+        // Initialiser l'application spécifique à la page Équipe
         initApp();
     });
 </script>
-</body>
-</html>
