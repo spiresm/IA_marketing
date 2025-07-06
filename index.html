@@ -361,8 +361,8 @@
             }
             const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
             
-            // L'image de profil par défaut, à remplacer par la vraie URL de l'utilisateur
-            const profileImgSrc = item.profileImageUrl || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P'; // Exemple d'image par défaut
+            // Utilisez item.profileImageUrl s'il est fourni par l'API, sinon utilisez une image par défaut ou une logique basée sur l'auteur
+            const profileImgSrc = item.profileImageUrl || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P';
 
             card.innerHTML = `
                 <div class="card-content-wrapper">
@@ -388,24 +388,51 @@
             container.innerHTML = '<p>Chargement...</p>';
             const GET_TIPS_URL = "/.netlify/functions/get-tips";
             const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
+            const GET_PROFILS_URL = "/.netlify/functions/getProfils"; // Nouvelle URL pour récupérer les profils
+
             try {
-                const [tipsResponse, promptsResponse] = await Promise.all([
+                const [tipsResponse, promptsResponse, profilsResponse] = await Promise.all([
                     fetch(GET_TIPS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
-                    fetch(GET_PROMPTS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])}))
+                    fetch(GET_PROMPTS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})),
+                    fetch(GET_PROFILS_URL).catch(e => ({ok: false, json: () => Promise.resolve([])})) // Fetch les profils
                 ]);
+
                 let tips = tipsResponse.ok ? await tipsResponse.json() : [];
                 let prompts = promptsResponse.ok ? await promptsResponse.json() : [];
-                const normalizeItem = (item) => ({
-                    ...item, 
-                    titre: item.titre || "Titre", 
-                    auteur: item.auteur || "Inconnu", 
-                    date: item.date_creation || item.dateCreation, 
-                    outil: item.outil || "Non spécifié", 
-                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'), 
-                    firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url)),
-                    // Assurez-vous que l'API renvoie 'profileImageUrl' ou définissez une logique pour l'obtenir
-                    profileImageUrl: item.profileImageUrl || 'https://i.pravatar.cc/45?u=' + (item.auteur ? item.auteur.replace(/\s/g, '') : 'defaultuser') // Exemple d'image de profil basé sur l'auteur ou une image par défaut
+                let profils = profilsResponse.ok ? await profilsResponse.json() : [];
+
+                // Créer un dictionnaire (map) des profils pour un accès rapide par nom d'auteur
+                const profilsMap = new Map();
+                profils.forEach(p => {
+                    // Normalisez le nom de l'auteur si nécessaire, ici on utilise p.name pour la clé
+                    if (p.name) {
+                        profilsMap.set(p.name.toLowerCase().trim(), p);
+                    }
                 });
+
+                const normalizeItem = (item) => {
+                    const normalizedAuteur = item.auteur ? item.auteur.toLowerCase().trim() : '';
+                    const profilCorrespondant = profilsMap.get(normalizedAuteur);
+                    
+                    let resolvedProfileImageUrl = 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P'; // Image par défaut
+                    if (profilCorrespondant && profilCorrespondant.photo) {
+                        resolvedProfileImageUrl = profilCorrespondant.photo;
+                    } else if (item.profileImageUrl) { // Si l'API retourne déjà une URL de profil (moins probable si on la cherche dans les profils)
+                        resolvedProfileImageUrl = item.profileImageUrl;
+                    }
+
+                    return {
+                        ...item, 
+                        titre: item.titre || "Titre", 
+                        auteur: item.auteur || "Inconnu", 
+                        date: item.date_creation || item.dateCreation, 
+                        outil: item.outil || "Non spécifié", 
+                        imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'), 
+                        firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url)),
+                        profileImageUrl: resolvedProfileImageUrl // Utilisez l'URL résolue
+                    };
+                };
+
                 tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
                 prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
                 container.innerHTML = '';
@@ -418,7 +445,8 @@
                     container.innerHTML = '<p>Aucun ajout récent.</p>';
                 }
             } catch (error) {
-                container.innerHTML = `<p style="color: var(--error-text);">Erreur de chargement.</p>`;
+                console.error("Erreur de chargement des derniers ajouts:", error);
+                container.innerHTML = `<p style="color: var(--error-text);">Erreur de chargement des derniers ajouts.</p>`;
             }
         }
 
@@ -440,6 +468,7 @@
                     newsTickerContent.innerHTML = '<span>Aucune actualité.</span>';
                 }
             } catch (error) {
+                console.error("Erreur chargement news ticker:", error);
                 newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
             }
         }
