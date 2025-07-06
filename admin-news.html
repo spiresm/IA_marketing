@@ -55,7 +55,7 @@
             padding: 5px 0;
         }
         /* Les styles pour .header-buttons-container et .dev-button-header ne sont plus nécessaires
-           si ces éléments sont retirés de header.html */
+            si ces éléments sont retirés de header.html */
         .menu-container {
             max-width: 1200px;
             margin: 0 auto;
@@ -216,17 +216,19 @@
             border-radius: 8px;
             cursor: pointer;
             font-size: 1em;
-            transition: background-color 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.1s ease;
             margin-left: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .btn:hover {
             background-color: var(--dark-blue);
+            transform: translateY(-2px);
         }
         .btn:disabled {
             background-color: #a0a0a0;
             cursor: not-allowed;
             box-shadow: none;
+            transform: none;
         }
         .message-box {
             padding: 15px;
@@ -480,10 +482,13 @@
     <div id="footer-placeholder"></div>
 
     <script>
+        // Chemin vers le fichier JSON des actualités
         const NEWS_DATA_PATH = 'news-data.json';
+        // URLs des fonctions Netlify (ces URL sont relatives si les fonctions sont dans .netlify/functions/)
         const ADD_NEWS_FUNCTION_URL = '/.netlify/functions/addNews';
         const DELETE_NEWS_FUNCTION_URL = '/.netlify/functions/deleteNews';
 
+        // Éléments du DOM
         const newsForm = document.getElementById('newsForm');
         const poleSelect = document.getElementById('poleSelect');
         const collaborateurSelect = document.getElementById('collaborateurSelect');
@@ -493,6 +498,7 @@
         const currentNewsList = document.getElementById('currentNewsList');
         const refreshNewsListButton = document.getElementById('refreshNewsList');
 
+        // Données des collaborateurs par pôle (copiées de votre script)
         const collaborateursParPole = {
             "Pôle créa.": [
                 "Anne-Françoise LELEUX", "Baptiste TARTAS", "Béatrice MARLIER",
@@ -541,8 +547,9 @@
             ].sort()
         };
         const poles = Object.keys(collaborateursParPole).sort();
-        poles.unshift("Autre");
+        poles.unshift("Autre"); // Ajoute "Autre" au début de la liste des pôles
 
+        // Couleurs par défaut par pôle pour l'affichage des actualités (si non spécifié ailleurs)
         const defaultColorsByPole = {
             "Pôle créa.": "#FF69B4", // Rose vif
             "CRM": "#E55C5C", // Rouge doux
@@ -554,7 +561,9 @@
             "Autre": "#808080" // Gris foncé
         };
 
+        // --- Fonctions utilitaires (Toast, populate selectors, etc.) ---
 
+        // Affiche un message temporaire (succès/erreur)
         function showMessage(message, type) {
             messageBox.textContent = message;
             messageBox.className = `message-box ${type}`;
@@ -564,6 +573,7 @@
             }, 5000);
         }
 
+        // Remplit les sélecteurs de pôle et de collaborateur
         function populateSelectors() {
             poles.forEach(pole => {
                 const option = document.createElement('option');
@@ -571,12 +581,13 @@
                 option.textContent = pole;
                 poleSelect.appendChild(option);
             });
-            updateCollaborators();
+            updateCollaborators(); // Appelle pour peupler le sélecteur de collaborateur initialement
         }
 
+        // Met à jour la liste des collaborateurs en fonction du pôle sélectionné
         function updateCollaborators() {
             const selectedPole = poleSelect.value;
-            collaborateurSelect.innerHTML = '';
+            collaborateurSelect.innerHTML = ''; // Vide la liste actuelle
             
             const collabsForPole = collaborateursParPole[selectedPole] || [];
             
@@ -593,19 +604,22 @@
                     collaborateurSelect.appendChild(option);
                 });
             }
-            collaborateurSelect.value = collabsForPole[0] || 'Non spécifié';
+            collaborateurSelect.value = collabsForPole[0] || 'Non spécifié'; // Sélectionne le premier ou "Non spécifié"
         }
 
+        // --- Fonctions de gestion des actualités (ajout, suppression, chargement) ---
+
+        // Ajoute une nouvelle actualité au flux via une fonction Netlify
         async function addNewsItem(event) {
             event.preventDefault();
             addNewsButton.disabled = true;
             addNewsButton.textContent = 'Ajout en cours...';
-            messageBox.style.display = 'none';
+            messageBox.style.display = 'none'; // Cache les messages précédents
 
             const title = newsMessage.value.trim();
             const pole = poleSelect.value;
             const collaborateur = collaborateurSelect.value;
-            const color = defaultColorsByPole[pole] || '#333';
+            const color = defaultColorsByPole[pole] || '#333'; // Récupère la couleur ou une par défaut
 
             if (!title || !pole || !collaborateur) {
                 showMessage('Veuillez sélectionner un pôle, un collaborateur et taper un message.', 'error');
@@ -618,7 +632,8 @@
                 title: title,
                 pole: pole,
                 collaborateur: collaborateur,
-                color: color
+                color: color,
+                timestamp: new Date().toISOString() // Ajoute un timestamp pour le tri et la suppression
             };
 
             try {
@@ -637,15 +652,10 @@
 
                 const result = await response.json();
                 showMessage(`Actualité ajoutée avec succès ! Elle apparaîtra dans le flux et sur le site principal d'ici environ une minute, le temps du déploiement.`, 'success');
-                newsMessage.value = '';
-                poleSelect.value = poles[0];
-                updateCollaborators();
-                loadCurrentNewsItems();
-                
-                // REDIRECTION APRÈS AJOUT (COMMENTÉ, DÉCOMMENTEZ SI VOUS LA VOULEZ)
-                /* setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 3000); */
+                newsMessage.value = ''; // Réinitialise le champ message
+                poleSelect.value = poles[0]; // Réinitialise le pôle au premier
+                updateCollaborators(); // Réinitialise le collaborateur
+                loadCurrentNewsItems(); // Recharge la liste des actualités après l'ajout
                 
             } catch (error) {
                 showMessage(`Erreur lors de l'ajout : ${error.message}`, 'error');
@@ -656,6 +666,7 @@
             }
         }
 
+        // Supprime une actualité du flux via une fonction Netlify
         async function deleteNewsItem(timestampToDelete) {
             if (!confirm("Êtes-vous sûr de vouloir supprimer cette actualité ?")) {
                 return;
@@ -664,7 +675,7 @@
 
             try {
                 const response = await fetch(DELETE_NEWS_FUNCTION_URL, {
-                    method: 'POST',
+                    method: 'POST', // Utilise POST avec un body pour la suppression par timestamp
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -678,12 +689,7 @@
 
                 const result = await response.json();
                 showMessage(`Actualité supprimée avec succès ! Le site sera mis à jour dans quelques minutes. (${result.message})`, 'success');
-                loadCurrentNewsItems();
-
-                // REDIRECTION APRÈS SUPPRESSION (COMMENTÉ, DÉCOMMENTEZ SI VOUS LA VOULEZ)
-                /* setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 3000); */
+                loadCurrentNewsItems(); // Recharge la liste après suppression
                 
             } catch (error) {
                 showMessage(`Erreur lors de la suppression : ${error.message}`, 'error');
@@ -691,19 +697,21 @@
             }
         }
 
-        // Fonction pour charger et afficher les messages actuels dans le panneau
+        // Charge et affiche les actualités actuelles du flux
         async function loadCurrentNewsItems() {
-            currentNewsList.innerHTML = '<li>Chargement des messages actuels...</li>';
+            currentNewsList.innerHTML = '<li>Chargement des messages actuels...</li>'; // Message de chargement
             try {
                 // Ajout d'un paramètre de cache-busting pour s'assurer d'obtenir la dernière version du fichier
                 const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`);
                 if (response.ok) {
                     let newsItems = await response.json();
+                    
+                    // Si news-data.json est un objet (non tableau), le convertir en tableau de valeurs
                     if (!Array.isArray(newsItems)) {
-                        console.warn("Le fichier news-data.json n'est pas un tableau, tentative de conversion.");
                         newsItems = Object.values(newsItems);
                     }
 
+                    // Filtrer les actualités de plus de 48 heures (si un timestamp est présent)
                     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
                     newsItems = newsItems.filter(item => {
                         return !item.timestamp || new Date(item.timestamp) > fortyEightHoursAgo;
@@ -714,19 +722,24 @@
                         return;
                     }
 
+                    // Trier les actualités par date/timestamp décroissant (le plus récent en premier)
                     newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
-                    currentNewsList.innerHTML = '';
+                    currentNewsList.innerHTML = ''; // Vide la liste avant de la remplir
                     newsItems.forEach((item) => {
                         const li = document.createElement('li');
                         li.className = 'news-item-display';
                         
+                        // Calcul du temps écoulé et restant
                         const itemAge = new Date(item.timestamp);
                         const now = new Date();
                         const diffHours = Math.floor((now - itemAge) / (1000 * 60 * 60));
                         const remainingHours = 48 - diffHours;
                         
+                        // Affichage du titre avec la couleur du pôle
                         let itemTitleHtml = `<span style="color: ${item.color || defaultColorsByPole["Autre"]};">${item.title || 'Titre inconnu'}</span>`;
+                        
+                        // Affichage du collaborateur et du pôle (si pertinents)
                         let itemMetaDetailsHtml = '';
                         if ((item.collaborateur && item.collaborateur !== 'Non spécifié') || (item.pole && item.pole !== 'Autre')) {
                             let detailsParts = [];
@@ -741,17 +754,19 @@
                                 <span class="item-details-line">Il y a ${diffHours}h</span>
                                 <span class="item-details-line">Reste: ${remainingHours}h</span>
                             </div>
-                            <button class="delete-item-btn" title="Supprimer ce message">
+                            <button class="delete-item-btn" title="Supprimer cette actualité" data-timestamp="${item.timestamp}">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                         `;
                         const deleteButton = li.querySelector('.delete-item-btn');
-                        deleteButton.addEventListener('click', () => deleteNewsItem(item.timestamp));
+                        // Utilise l'attribut data-timestamp pour identifier l'élément à supprimer
+                        deleteButton.addEventListener('click', () => deleteNewsItem(deleteButton.dataset.timestamp));
                         currentNewsList.appendChild(li);
                     });
                     showMessage('Liste des messages actualisée.', 'success');
 
                 } else if (response.status === 404) {
+                    // Si le fichier n'existe pas encore, c'est comme s'il n'y avait pas de messages
                     currentNewsList.innerHTML = '<li>Aucun message actif dans le flux pour le moment.</li>';
                 } else {
                     throw new Error(`Erreur lors du chargement des messages : ${response.status} ${response.statusText}`);
@@ -763,83 +778,184 @@
             }
         }
 
-
-        // Fonction pour charger les composants header et footer
-        async function loadComponents() {
-            const headerPlaceholder = document.getElementById("header-placeholder");
-            const footerPlaceholder = document.getElementById("footer-placeholder");
+        // --- Fonctions globales de chargement des composants (pour le header/footer) ---
+        // Celles-ci sont répétées ici pour que la page admin-news.html soit autonome.
+        // Dans un projet réel, elles seraient dans un fichier JavaScript séparé importé par toutes les pages.
+        async function loadComponent(url, placeholderId) {
             try {
-                // Charger le header
-                const headerResponse = await fetch("header.html");
-                if (headerResponse.ok) {
-                    headerPlaceholder.innerHTML = await headerResponse.text();
-                } else {
-                    console.error("Erreur de chargement du header.html:", headerResponse.statusText);
-                    // Fallback minimal pour le header si le fichier n'est pas trouvé
-                    // Ce fallback doit être cohérent avec le header que vous voulez si header.html est absent
-                    headerPlaceholder.innerHTML = `
-                        <div class="nav-wrapper">
-                            <div class="menu-container">
-                                <nav>
-                                    <a href="index.html">Accueil</a><a href="equipe.html">Équipe</a><a href="outils.html">Outils</a><a href="galerie.html">Prompts</a><a href="cas-usages.html">Workflows</a><a href="charte.html">Chartes</a><a href="faq.html">FAQ</a><a href="demandes_ia.html">Demandes</a><a href="gestion-license.html">Licenses</a>
-                                </nav>
-                            </div>
-                        </div>`;
+                const res = await fetch(url);
+                if (!res.ok) {
+                    console.error(`Could not load ${url}, status: ${res.status}`);
+                    document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+                    return;
                 }
-
-                // Charger le footer
-                const footerResponse = await fetch("footer.html");
-                if (footerResponse.ok) {
-                    footerPlaceholder.innerHTML = await footerResponse.text();
-                } else {
-                    console.error("Erreur de chargement du footer.html:", footerResponse.statusText);
-                    footerPlaceholder.innerHTML = `<footer><p>&copy; 2025 Espace IA. Tous droits réservés.</p></footer>`;
-                }
-                
-                // Mettre à jour la classe active pour le menu après chargement
-                const currentPath = window.location.pathname.split('/').pop();
-                document.querySelectorAll('nav a').forEach(link => {
-                    const linkHref = link.getAttribute('href');
-                    const linkFileName = linkHref ? linkHref.split('/').pop() : '';
-                    if (linkFileName === currentPath || (currentPath === "" && linkFileName === "index.html") || linkFileName === "admin-news.html") {
-                        link.classList.add("active");
-                    } else {
-                        link.classList.remove("active");
-                    }
-                });
-
+                document.getElementById(placeholderId).innerHTML = await res.text();
             } catch (error) {
-                console.error("Erreur lors du chargement des composants:", error);
-                if (headerPlaceholder) headerPlaceholder.innerHTML = `<p style="color:red;text-align:center;">Erreur chargement Header.</p>`;
-                if (footerPlaceholder) footerPlaceholder.innerHTML = `<p style="color:red;text-align:center;">Erreur chargement Footer.</p>`;
+                console.error(`Error loading ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
             }
         }
 
+        function initializeHeaderDropdown() {
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
 
-        // Initialisation à l'ouverture de la page
-        document.addEventListener('DOMContentLoaded', async () => {
-            const loader = document.getElementById('loader');
-            const mainElement = document.querySelector("main");
-            if (loader) {
-                loader.style.display = 'flex';
+            if (toolsResourcesBtn && toolsResourcesContent) {
+                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+                window.removeEventListener('click', handleWindowClick);
+
+                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+                window.addEventListener('click', handleWindowClick);
+
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+            } else {
+                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+            }
+        }
+
+        function handleDropdownClick(event) {
+            event.preventDefault(); 
+            const toolsResourcesBtn = event.currentTarget; 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                toolsResourcesBtn.classList.remove('active');
+            } else {
+                toolsResourcesContent.style.display = 'block';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+                toolsResourcesBtn.classList.add('active');
+            }
+        }
+
+        function handleWindowClick(event) {
+            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                    toolsResourcesContent.style.display = 'none';
+                    if (toolsResourcesBtn) { 
+                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        function updateActiveNavLinks() {
+            let currentPath = window.location.pathname.split('/').pop();
+            let currentFileNameLower = currentPath.replace('.html', '').toLowerCase(); 
+            if (currentFileNameLower === '') { 
+                currentFileNameLower = 'index';
             }
 
-            await loadComponents();
+            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+                const linkHref = link.getAttribute('href');
+                const linkFileNameLower = linkHref ? linkHref.split('/').pop().replace('.html', '').toLowerCase() : ''; 
+                
+                const isHomePageLink = (linkHref === '/' || linkHref === '/index.html') && (currentFileNameLower === 'index' || currentFileNameLower === '');
 
+                const isCurrentPage = (linkFileNameLower === currentFileNameLower) || isHomePageLink;
+                
+                if (isCurrentPage) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
+            });
+
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
+
+            let dropdownHasActiveLink = false;
+            dropdownLinks.forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileNameLower = linkHref ? linkHref.split('/').pop().replace('.html', '').toLowerCase() : '';
+                let currentFileNameLowerDropdown = currentPath.replace('.html', '').toLowerCase();
+                if (currentFileNameLowerDropdown === '') {
+                    currentFileNameLowerDropdown = 'index';
+                }
+
+                const isCurrentSubPage = (linkFileNameLower === currentFileNameLowerDropdown);
+
+                if (isCurrentSubPage) { 
+                    link.classList.add('active'); 
+                    dropdownHasActiveLink = true;
+                    if (toolsResourcesBtn) {
+                        toolsResourcesBtn.classList.add('active'); 
+                    }
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            if (toolsResourcesBtn) {
+                if (dropdownHasActiveLink) {
+                    toolsResourcesBtn.classList.add('active');
+                } else {
+                    if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        // --- Authentification simple pour l'admin (pour démo) ---
+        const ADMIN_PASSWORD = "admin"; // Changez ceci pour un mot de passe plus complexe en production
+        function authenticateAdmin() {
+            const password = prompt("Veuillez entrer le mot de passe administrateur :");
+            if (password === ADMIN_PASSWORD) {
+                document.querySelector('main').style.display = 'block'; // Montre le contenu principal de la page
+            } else {
+                alert("Mot de passe incorrect. Accès refusé.");
+                window.location.href = '/'; // Redirige vers l'accueil si le mot de passe est faux
+            }
+        }
+
+        // =========================================================================
+        // DOMContentLoaded pour admin-news.html
+        // =========================================================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.display = 'flex'; // Affiche le loader au démarrage
+            }
+            
+            // Charger les composants header et footer
+            await Promise.all([
+                loadComponent("header.html", "header-placeholder"),
+                loadComponent("footer.html", "footer-placeholder")
+            ]);
+
+            // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
+            initializeHeaderDropdown();
+            updateActiveNavLinks();
+
+            // Remplir les sélecteurs de pôle et collaborateur
+            populateSelectors();
+            poleSelect.addEventListener('change', updateCollaborators);
+            
+            // Attacher l'écouteur d'événements pour le formulaire d'envoi de message
+            newsForm.addEventListener('submit', addNewsItem);
+            refreshNewsListButton.addEventListener('click', loadCurrentNewsItems);
+
+            // Charger les messages existants au démarrage
+            await loadCurrentNewsItems();
+
+            // Masquer le loader après le chargement initial et l'authentification
             if (loader) {
                 loader.style.display = 'none';
                 loader.classList.add('hidden');
             }
-            if (mainElement) {
-                mainElement.style.display = "block"; /* Correction ici */
-            }
 
-            populateSelectors();
-            poleSelect.addEventListener('change', updateCollaborators);
-            newsForm.addEventListener('submit', addNewsItem);
-            refreshNewsListButton.addEventListener('click', loadCurrentNewsItems);
-            
-            loadCurrentNewsItems();
+            // Authentifier l'utilisateur APRES que les composants soient chargés et que le loader puisse être masqué
+            authenticateAdmin(); 
         });
     </script>
 </body>
