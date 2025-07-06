@@ -20,6 +20,11 @@
             --light-border-dash: #e0e0e0; /* Nouvelle couleur pour les bordures en pointillé */
             --error-text: #dc3545;
         }
+        /* NOUVEAU: Forces la scrollbar pour éviter les décalages latéraux */
+        html {
+            overflow-y: scroll; 
+        }
+
         body {
             font-family: 'Segoe UI', 'Inter', sans-serif;
             margin: 0;
@@ -27,20 +32,44 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            /* Rétabli sans opacité ni transition */
+            overflow-x: hidden; 
         }
+        /* Suppression de 'body.page-loaded' */
+
         main {
             padding: 40px 20px;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
             gap: 40px; /* Plus d'espace entre les sections principales */
-            max-width: 1200px;
+            /* MODIFIÉ: Largeur maximale de la zone main */
+            max-width: 960px; /* Ajusté de 1200px à 960px */
             margin: 0 auto;
             width: 100%;
             box-sizing: border-box;
         }
-        /* Les styles du nav-wrapper et du menu-container seront maintenant dans header.html */
+        /* Les styles du nav-wrapper et du menu-container sont dans header.html */
         /* Tous les styles liés au header, nav, dropdown doivent être dans header.html */
+        
+        /* NOUVEAU: Styles pour le placeholder du header */
+        #header-placeholder {
+            min-height: 60px; /* Adaptez à la hauteur réelle de votre header pour éviter les sauts */
+            background-color: var(--primary-blue); /* Couleur de fond de votre header */
+            display: flex; /* Pour potentiellement centrer un loader si vous en ajoutiez un */
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* NOUVEAU: Styles pour le placeholder du footer */
+        #footer-placeholder {
+            min-height: 60px; /* Adaptez à la hauteur réelle de votre footer pour éviter les sauts */
+            background-color: #333; /* Couleur de fond de votre footer */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white; /* Couleur du texte par défaut */
+        }
         
         .content-section { 
             width: 100%; 
@@ -158,11 +187,6 @@
             background-position: right 1em center;
             background-size: 0.8em;
             transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .add-participant-section select:focus {
-            border-color: var(--primary-blue);
-            box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.2);
-            outline: none;
         }
         .add-participant-section button {
             padding: 12px 25px; /* Plus de padding */
@@ -751,9 +775,545 @@
     </div>
 
     <script>
-        // =========================================================================
-        // FONCTIONS GLOBALES POUR LE CHARGEMENT DES COMPOSANTS ET LE HEADER/DROPDOWN
-        // =========================================================================
+    // =========================================================================
+    // FONCTIONS GLOBALES POUR LE CHARGEMENT DES COMPOSANTS ET LE HEADER/DROPDOWN
+    // (Ces fonctions doivent être définies une seule fois et globalement accessibles)
+    // Elles sont incluses ici pour s'assurer qu'elles sont présentes pour la page.
+    // =========================================================================
+    async function loadComponent(url, placeholderId) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) {
+                console.error(`Could not load ${url}, status: ${res.status}`);
+                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+                return;
+            }
+            document.getElementById(placeholderId).innerHTML = await res.text();
+            // console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
+        } catch (error) {
+            console.error(`Error loading ${url}:`, error);
+            document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
+        }
+    }
+
+    function initializeHeaderDropdown() {
+        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+        if (toolsResourcesBtn && toolsResourcesContent) {
+            toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+            window.removeEventListener('click', handleWindowClick);
+
+            toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+            window.addEventListener('click', handleWindowClick);
+
+            toolsResourcesContent.style.display = 'none';
+            toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+        } else {
+            console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+        }
+    }
+
+    function handleDropdownClick(event) {
+        event.preventDefault(); 
+        const toolsResourcesBtn = event.currentTarget; 
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+        if (toolsResourcesContent.style.display === 'block') {
+            toolsResourcesContent.style.display = 'none';
+            toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+            toolsResourcesBtn.classList.remove('active');
+        } else {
+            toolsResourcesContent.style.display = 'block';
+            toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+            toolsResourcesBtn.classList.add('active');
+        }
+    }
+
+    function handleWindowClick(event) {
+        const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+        if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+            if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                if (toolsResourcesBtn) { 
+                    toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                    toolsResourcesBtn.classList.remove('active');
+                }
+            }
+        }
+    }
+
+    function updateActiveNavLinks() {
+        const currentPath = window.location.pathname.split('/').pop();
+
+        document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+            const linkHref = link.getAttribute('href');
+            const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
+            const currentFileName = currentPath.replace('.html', '');
+
+            const isCurrentPage = (linkFileName === currentFileName) || 
+                                  (linkFileName === '' && currentFileName === 'index');
+
+            if (isCurrentPage) {
+                link.classList.add("active");
+            } else {
+                link.classList.remove("active");
+            }
+        });
+
+        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+        const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
+
+        let dropdownHasActiveLink = false;
+        dropdownLinks.forEach(link => {
+            const linkHref = link.getAttribute('href');
+            const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
+            const currentFileName = currentPath.replace('.html', '');
+
+            const isCurrentSubPage = (linkFileName === currentFileName);
+
+            if (isCurrentSubPage) { 
+                link.classList.add('active'); 
+                dropdownHasActiveLink = true;
+                if (toolsResourcesBtn) {
+                    toolsResourcesBtn.classList.add('active'); 
+                }
+            } else {
+                link.classList.remove('active');
+            }
+        });
+
+        if (toolsResourcesBtn) {
+            if (dropdownHasActiveLink) {
+                toolsResourcesBtn.classList.add('active');
+            } else {
+                if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                    toolsResourcesBtn.classList.remove('active');
+                }
+            }
+        }
+    }
+        
+    // =========================================================================
+    // DEBUT DU CODE SPECIFIQUE A BRAINSTORMING.HTML
+    // =========================================================================
+
+    const apiBase = './.netlify/functions/';
+    let allProfils = []; 
+    let currentParticipants = new Map(); 
+    let allBrainstormings = []; 
+    let editingBrainstormId = null; 
+
+    const brainstormCreationSection = document.getElementById('brainstorm-creation-section');
+    const brainstormingNameInput = document.getElementById('brainstorming-name');
+    const filterPoleSelect = document.getElementById('filter-pole');
+    const participantSelect = document.getElementById('participant-select');
+    const addParticipantBtn = document.getElementById('add-participant-btn');
+    const brainstormingArea = document.getElementById('brainstorming-area');
+    const noParticipantMsg = document.getElementById('no-participant-msg');
+    const saveBrainstormBtn = document.getElementById('save-brainstorm-btn');
+    const brainstormingListSection = document.getElementById('brainstorming-list-section');
+    const brainstormingListDiv = document.getElementById('brainstorming-list');
+
+    const brainstormDetailModal = document.getElementById('brainstorm-detail-modal');
+    const closeModalBtn = brainstormDetailModal.querySelector('.close-modal-btn');
+    const modalBrainstormName = document.getElementById('modal-brainstorm-name');
+    const modalBrainstormDate = document.getElementById('modal-brainstorm-date');
+    const modalParticipantsContainer = document.getElementById('modal-participants-container');
+    const modalEditBtn = document.getElementById('modal-edit-btn');
+
+
+    // --- Fonctions utilitaires (celles-ci sont spécifiques à brainstorming.html) ---
+    const escapeHtml = (text) => {
+        if (text === null || text === undefined) return '';
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    };
+    const escapeHtmlAttribute = (unsafe) => {
+        if (typeof unsafe !== 'string') return '';
+        let escaped = JSON.stringify(unsafe);
+        if (escaped.startsWith('"') && escaped.endsWith('"')) {
+            escaped = escaped.slice(1, -1);
+        }
+        return escaped.replace(/`/g, '\\`');
+    };
+    const normalizeString = (str) => {
+        return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
+    };
+    const formatDate = (dateString) => {
+        if (!dateString) return 'Date inconnue';
+        try { return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }); } 
+        catch (e) { return 'Date invalide'; }
+    };
+
+    // --- Gestion des profils et des participants ---
+    async function loadProfils() {
+        try {
+            const response = await fetch(`${apiBase}getProfils`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            allProfils = await response.json();
+            populatePoleFilter();
+            filterAndPopulateParticipants();
+        } catch (error) {
+            console.error('Erreur chargement profils:', error);
+        }
+    }
+
+    function populatePoleFilter() {
+        const poles = [...new Set(allProfils.map(p => p.pole).filter(Boolean))].sort();
+        filterPoleSelect.innerHTML = '<option value="all">Tous les pôles</option>';
+        poles.forEach(pole => {
+            const option = document.createElement('option');
+            option.value = pole;
+            option.textContent = pole;
+            filterPoleSelect.appendChild(option);
+        });
+    }
+
+    function filterAndPopulateParticipants() {
+        const selectedPole = filterPoleSelect.value;
+        const filteredProfils = allProfils.filter(profil => {
+            const matchesPole = (selectedPole === 'all' || profil.pole === selectedPole);
+            const notAlreadyAdded = !currentParticipants.has(profil.id);
+            return matchesPole && notAlreadyAdded;
+        }).sort((a, b) => a.name.localeCompare(b.name));
+
+        participantSelect.innerHTML = '<option value="">Sélectionner un participant...</option>';
+        filteredProfils.forEach(profil => {
+            const option = document.createElement('option');
+            option.value = profil.id;
+            option.textContent = profil.name;
+            participantSelect.appendChild(option);
+        });
+    }
+
+    function addParticipantToBrainstorm() {
+        const selectedProfilId = participantSelect.value;
+        if (!selectedProfilId) {
+            alert("Veuillez sélectionner un participant.");
+            return;
+        }
+
+        const profilToAdd = allProfils.find(p => p.id === selectedProfilId);
+        if (profilToAdd && !currentParticipants.has(profilToAdd.id)) {
+            currentParticipants.set(profilToAdd.id, {
+                profil: profilToAdd,
+                ideas: '',
+                media: []
+            });
+            createParticipantCard(profilToAdd);
+            participantSelect.value = '';
+            filterAndPopulateParticipants();
+            updateNoParticipantMessage();
+            checkSaveButtonValidity();
+        } else {
+            alert("Ce participant est déjà ajouté ou n'existe pas.");
+        }
+    }
+
+    function createParticipantCard(profil) {
+        const card = document.createElement('div');
+        card.className = 'participant-card';
+        card.setAttribute('data-participant-id', profil.id);
+
+        const photoUrl = profil.photo || 'https://via.placeholder.com/60x60?text=Profil';
+        const participantData = currentParticipants.get(profil.id);
+
+        card.innerHTML = `
+            <div class="participant-header">
+                <img src="${escapeHtmlAttribute(photoUrl)}" alt="${escapeHtmlAttribute('Photo de ' + profil.name)}">
+                <h3>${escapeHtml(profil.name)}</h3>
+                <button class="remove-participant-btn" title="Retirer ce participant">&times;</button>
+            </div>
+            <div class="ideas-section">
+                <h4>Idées :</h4>
+                <textarea placeholder="Écrivez vos idées ici...">${escapeHtml(participantData.ideas || '')}</textarea>
+            </div>
+            <button class="save-participant-btn">Enregistrer les idées de ${escapeHtml(profil.name)}</button>
+        `;
+
+        card.querySelector('.remove-participant-btn').addEventListener('click', () => {
+            removeParticipantCard(profil.id);
+        });
+
+        card.querySelector('.save-participant-btn').addEventListener('click', () => {
+            saveParticipantIndividualData(profil.id, card);
+        });
+
+        brainstormingArea.appendChild(card);
+        updateNoParticipantMessage();
+    }
+
+    function saveParticipantIndividualData(participantId, cardElement) {
+        const ideas = cardElement.querySelector('.ideas-section textarea').value;
+        const participantData = currentParticipants.get(participantId);
+
+        if (participantData) {
+            participantData.ideas = ideas;
+            console.log(`Données individuelles pour ${participantData.profil.name} mises à jour.`);
+        }
+    }
+
+    function removeParticipantCard(id) {
+        const cardToRemove = brainstormingArea.querySelector(`[data-participant-id="${id}"]`);
+        if (cardToRemove) {
+            const profilName = currentParticipants.get(id)?.profil?.name || 'ce participant';
+            if (confirm(`Voulez-vous vraiment retirer ${profilName} du brainstorming ? Toutes ses idées non enregistrées seront perdues pour cette session.`)) {
+                cardToRemove.remove();
+                currentParticipants.delete(id);
+                filterAndPopulateParticipants();
+                updateNoParticipantMessage();
+                checkSaveButtonValidity();
+            }
+        }
+    }
+
+    function updateNoParticipantMessage() {
+        if (currentParticipants.size === 0) {
+            noParticipantMsg.style.display = 'block';
+        } else {
+            noParticipantMsg.style.display = 'none';
+        }
+    }
+    
+    function checkSaveButtonValidity() {
+        const isNameEntered = brainstormingNameInput.value.trim() !== '';
+        const hasParticipants = currentParticipants.size > 0;
+        saveBrainstormBtn.disabled = !(isNameEntered && hasParticipants);
+    }
+
+    // --- Gestion de la sauvegarde et du chargement des brainstormings ---
+
+    async function saveBrainstorming() {
+        const brainstormName = brainstormingNameInput.value.trim();
+        if (!brainstormName) {
+            alert("Veuillez donner un nom à ce brainstorming avant de l'enregistrer.");
+            return;
+        }
+        if (currentParticipants.size === 0) {
+            alert("Veuillez ajouter au moins un participant pour enregistrer le brainstorming.");
+            return;
+        }
+
+        currentParticipants.forEach((data, id) => {
+            const card = brainstormingArea.querySelector(`[data-participant-id="${id}"]`);
+            if (card) {
+                data.ideas = card.querySelector('.ideas-section textarea').value;
+            }
+        });
+
+        const participantsDataForSave = Array.from(currentParticipants.values()).map(data => ({
+            id: data.profil.id,
+            name: data.profil.name,
+            photo: data.profil.photo,
+            ideas: data.ideas,
+            media: [] 
+        }));
+
+        const brainstormingData = {
+            id: editingBrainstormId || Date.now().toString(), 
+            name: brainstormName,
+            date: new Date().toISOString(),
+            participants: participantsDataForSave
+        };
+
+        try {
+            const response = await fetch(`${apiBase}saveBrainstorming`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(brainstormingData)
+            });
+
+            if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+            const result = await response.json();
+            console.log('Brainstorming enregistré:', result);
+            alert("Brainstorming enregistré avec succès !");
+            
+            editingBrainstormId = null;
+            brainstormingNameInput.value = '';
+            currentParticipants.clear();
+            brainstormingArea.innerHTML = `<p id="no-participant-msg" style="text-align: center; color: var(--grey-text);">
+                Ajoutez des participants ci-dessus pour commencer le brainstorming.
+            </p>`;
+            filterAndPopulateParticipants(); 
+            checkSaveButtonValidity();
+
+            loadBrainstormings(); 
+        } catch (error) {
+            console.error('Erreur lors de l\'enregistrement du brainstorming:', error);
+            alert("Erreur lors de l'enregistrement du brainstorming.");
+        }
+    }
+
+    async function loadBrainstormings() {
+        brainstormingListDiv.innerHTML = '<p class="loading-message">Chargement des brainstormings...</p>';
+        try {
+            const response = await fetch(`${apiBase}getBrainstormings`);
+            if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+            allBrainstormings = await response.json();
+            renderBrainstormingList();
+        } catch (error) {
+            console.error('Erreur chargement des brainstormings enregistrés:', error);
+            brainstormingListDiv.innerHTML = '<p class="error-message">Impossible de charger les brainstormings.</p>';
+        }
+    }
+
+    function renderBrainstormingList() {
+        brainstormingListDiv.innerHTML = '';
+        if (allBrainstormings.length === 0) {
+            brainstormingListDiv.innerHTML = '<p class="loading-message">Aucun brainstorming enregistré pour l\'instant.</p>';
+            return;
+        }
+
+        allBrainstormings.forEach(b => {
+            const card = document.createElement('div');
+            card.className = 'summary-card';
+            card.setAttribute('data-brainstorm-id', b.id);
+
+            const participantAvatarsHtml = (b.participants || []).map(p => `
+                <div class="participant-summary">
+                    <img src="${escapeHtmlAttribute(p.photo || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P')}" alt="${escapeHtmlAttribute(p.name)}">
+                    <span>${escapeHtml(p.name.split(' ')[0])}</span>
+                </div>
+            `).join('');
+
+            card.innerHTML = `
+                <h3>${escapeHtml(b.name)}</h3>
+                <p>Créé le: ${formatDate(b.date)}</p>
+                <div class="participants-avatars">
+                    ${participantAvatarsHtml}
+                </div>
+                <div class="action-buttons">
+                    <button class="edit-btn"><i class="fas fa-edit"></i> Modifier</button>
+                    <button class="delete-btn"><i class="fas fa-trash-alt"></i> Supprimer</button>
+                </div>
+            `;
+            
+            card.addEventListener('click', (event) => {
+                if (!event.target.closest('button')) {
+                    openBrainstormDetailModal(b.id);
+                }
+            });
+
+            card.querySelector('.edit-btn').addEventListener('click', (event) => {
+                event.stopPropagation(); 
+                editBrainstorming(b.id);
+            });
+            card.querySelector('.delete-btn').addEventListener('click', (event) => {
+                event.stopPropagation(); 
+                deleteBrainstorming(b.id, b.name);
+            });
+            brainstormingListDiv.appendChild(card);
+        });
+    }
+
+    async function openBrainstormDetailModal(brainstormId) {
+        const brainstorm = allBrainstormings.find(b => b.id === brainstormId);
+        if (!brainstorm) {
+            console.error("Brainstorming non trouvé pour la modale:", brainstormId);
+            return;
+        }
+
+        modalBrainstormName.textContent = escapeHtml(brainstorm.name);
+        modalBrainstormDate.textContent = `Créé le: ${formatDate(brainstorm.date)}`;
+        modalParticipantsContainer.innerHTML = ''; 
+
+        (brainstorm.participants || []).forEach(p => {
+            const participantDetailDiv = document.createElement('div');
+            participantDetailDiv.className = 'modal-participant-detail';
+
+            participantDetailDiv.innerHTML = `
+                <div class="modal-participant-header">
+                    <img src="${escapeHtmlAttribute(p.photo || 'https://via.placeholder.com/50x50?text=Profil')}" alt="${escapeHtmlAttribute('Photo de ' + p.name)}">
+                    <h4>${escapeHtml(p.name)}</h4>
+                </div>
+                <div class="modal-participant-ideas">
+                    <h5>Idées :</h5>
+                    <p>${p.ideas ? escapeHtml(p.ideas) : 'Aucune idée enregistrée.'}</p>
+                </div>
+            `;
+            modalParticipantsContainer.appendChild(participantDetailDiv);
+        });
+
+        modalEditBtn.onclick = () => {
+            closeBrainstormDetailModal(); 
+            editBrainstorming(brainstorm.id); 
+        };
+
+        brainstormDetailModal.classList.add('open');
+    }
+
+    function closeBrainstormDetailModal() {
+        brainstormDetailModal.classList.remove('open');
+    }
+
+    closeModalBtn.addEventListener('click', closeBrainstormDetailModal);
+    brainstormDetailModal.addEventListener('click', (event) => {
+        if (event.target === brainstormDetailModal) { 
+            closeBrainstormDetailModal();
+        }
+    });
+    
+    async function editBrainstorming(brainstormId) {
+        const brainstormToEdit = allBrainstormings.find(b => b.id === brainstormId);
+        if (!brainstormToEdit) {
+            alert("Brainstorming non trouvé pour modification.");
+            return;
+        }
+
+        brainstormCreationSection.scrollIntoView({ behavior: 'smooth' });
+        
+        brainstormingNameInput.value = brainstormToEdit.name;
+        editingBrainstormId = brainstormToEdit.id;
+
+        currentParticipants.clear();
+        brainstormingArea.innerHTML = ''; 
+        brainstormToEdit.participants.forEach(p => {
+            const fullProfil = allProfils.find(ap => ap.id === p.id) || p; 
+            currentParticipants.set(p.id, {
+                profil: fullProfil, 
+                ideas: p.ideas,
+                media: [] 
+            });
+            createParticipantCard(fullProfil); 
+        });
+        filterAndPopulateParticipants(); 
+        updateNoParticipantMessage();
+        checkSaveButtonValidity(); 
+    }
+    
+    async function deleteBrainstorming(brainstormId, brainstormName) {
+        if (!confirm(`Voulez-vous vraiment supprimer le brainstorming "${brainstormName}" ?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${apiBase}saveBrainstorming?id=${brainstormId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+            console.log('Brainstorming supprimé.');
+            alert("Brainstorming supprimé avec succès !");
+            loadBrainstormings(); 
+        } catch (error) {
+            console.error('Erreur lors de la suppression du brainstorming:', error);
+            alert("Erreur lors de la suppression du brainstorming.");
+        }
+    }
+
+    // =========================================================================
+    // APPEL DE TOUTES LES FONCTIONS PRINCIPALES AU CHARGEMENT DU DOM
+    // =========================================================================
+    document.addEventListener("DOMContentLoaded", async () => {
+        console.log("DOMContentLoaded fired for Brainstorming page.");
+
+        // Fonction utilitaire pour charger les composants externes (header/footer)
         async function loadComponent(url, placeholderId) {
             try {
                 const res = await fetch(url);
@@ -763,7 +1323,6 @@
                     return;
                 }
                 document.getElementById(placeholderId).innerHTML = await res.text();
-                // console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
             } catch (error) {
                 console.error(`Error loading ${url}:`, error);
                 document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
@@ -827,7 +1386,7 @@
             document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
                 const linkHref = link.getAttribute('href');
                 const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
-                const currentFileName = currentPath.replace('.html', '');
+                const currentFileName = currentPath.replace('.html', '').replace('', 'index'); 
 
                 const isCurrentPage = (linkFileName === currentFileName) || 
                                       (linkFileName === '' && currentFileName === 'index');
@@ -846,14 +1405,17 @@
             let dropdownHasActiveLink = false;
             dropdownLinks.forEach(link => {
                 const linkHref = link.getAttribute('href');
-                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
-                const currentFileName = currentPath.replace('.html', '');
+                const linkFileName = linkHref ? link.split('/').pop().replace('.html', '') : '';
+                const currentFileName = currentPath.replace('.html', '').replace('', 'index'); 
 
                 const isCurrentSubPage = (linkFileName === currentFileName);
 
-                if (isCurrentSubPage) {
+                if (isCurrentSubPage) { 
                     link.classList.add('active'); 
                     dropdownHasActiveLink = true;
+                    if (toolsResourcesBtn) {
+                        toolsResourcesBtn.classList.add('active'); 
+                    }
                 } else {
                     link.classList.remove('active');
                 }
@@ -869,440 +1431,28 @@
                 }
             }
         }
+
+
+        // Charger les composants (header et footer) et initialiser le dropdown/nav
+        await Promise.all([
+            loadComponent("header.html", "header-placeholder"),
+            loadComponent("footer.html", "footer-placeholder")
+        ]);
+
+        initializeHeaderDropdown();
+        updateActiveNavLinks(); 
         
-        // =========================================================================
-        // DEBUT DU CODE SPECIFIQUE A BRAINSTORMING.HTML
-        // =========================================================================
-
-        const apiBase = './.netlify/functions/';
-        let allProfils = []; 
-        let currentParticipants = new Map(); 
-        let allBrainstormings = []; 
-        let editingBrainstormId = null; 
-
-        const brainstormCreationSection = document.getElementById('brainstorm-creation-section');
-        const brainstormingNameInput = document.getElementById('brainstorming-name');
-        const filterPoleSelect = document.getElementById('filter-pole');
-        const participantSelect = document.getElementById('participant-select');
-        const addParticipantBtn = document.getElementById('add-participant-btn');
-        const brainstormingArea = document.getElementById('brainstorming-area');
-        const noParticipantMsg = document.getElementById('no-participant-msg');
-        const saveBrainstormBtn = document.getElementById('save-brainstorm-btn');
-        const brainstormingListSection = document.getElementById('brainstorming-list-section');
-        const brainstormingListDiv = document.getElementById('brainstorming-list');
-
-        const brainstormDetailModal = document.getElementById('brainstorm-detail-modal');
-        const closeModalBtn = brainstormDetailModal.querySelector('.close-modal-btn');
-        const modalBrainstormName = document.getElementById('modal-brainstorm-name');
-        const modalBrainstormDate = document.getElementById('modal-brainstorm-date');
-        const modalParticipantsContainer = document.getElementById('modal-participants-container');
-        const modalEditBtn = document.getElementById('modal-edit-btn');
-
-
-        // --- Fonctions utilitaires (celles-ci sont spécifiques à brainstorming.html) ---
-        const escapeHtml = (text) => {
-            if (text === null || text === undefined) return '';
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return String(text).replace(/[&<>"']/g, m => map[m]);
-        };
-        const escapeHtmlAttribute = (unsafe) => {
-            if (typeof unsafe !== 'string') return '';
-            let escaped = JSON.stringify(unsafe);
-            if (escaped.startsWith('"') && escaped.endsWith('"')) {
-                escaped = escaped.slice(1, -1);
-            }
-            return escaped.replace(/`/g, '\\`');
-        };
-        const normalizeString = (str) => {
-            return str ? String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
-        };
-        const formatDate = (dateString) => {
-            if (!dateString) return 'Date inconnue';
-            try { return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }); } 
-            catch (e) { return 'Date invalide'; }
-        };
-
-        // --- Gestion des profils et des participants ---
-        async function loadProfils() {
-            try {
-                const response = await fetch(`${apiBase}getProfils`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                allProfils = await response.json();
-                populatePoleFilter();
-                filterAndPopulateParticipants();
-            } catch (error) {
-                console.error('Erreur chargement profils:', error);
-            }
-        }
-
-        function populatePoleFilter() {
-            const poles = [...new Set(allProfils.map(p => p.pole).filter(Boolean))].sort();
-            filterPoleSelect.innerHTML = '<option value="all">Tous les pôles</option>';
-            poles.forEach(pole => {
-                const option = document.createElement('option');
-                option.value = pole;
-                option.textContent = pole;
-                filterPoleSelect.appendChild(option);
-            });
-        }
-
-        function filterAndPopulateParticipants() {
-            const selectedPole = filterPoleSelect.value;
-            const filteredProfils = allProfils.filter(profil => {
-                const matchesPole = (selectedPole === 'all' || profil.pole === selectedPole);
-                const notAlreadyAdded = !currentParticipants.has(profil.id);
-                return matchesPole && notAlreadyAdded;
-            }).sort((a, b) => a.name.localeCompare(b.name));
-
-            participantSelect.innerHTML = '<option value="">Sélectionner un participant...</option>';
-            filteredProfils.forEach(profil => {
-                const option = document.createElement('option');
-                option.value = profil.id;
-                option.textContent = profil.name;
-                participantSelect.appendChild(option);
-            });
-        }
-
-        function addParticipantToBrainstorm() {
-            const selectedProfilId = participantSelect.value;
-            if (!selectedProfilId) {
-                alert("Veuillez sélectionner un participant.");
-                return;
-            }
-
-            const profilToAdd = allProfils.find(p => p.id === selectedProfilId);
-            if (profilToAdd && !currentParticipants.has(profilToAdd.id)) {
-                currentParticipants.set(profilToAdd.id, {
-                    profil: profilToAdd,
-                    ideas: '',
-                    media: []
-                });
-                createParticipantCard(profilToAdd);
-                participantSelect.value = '';
-                filterAndPopulateParticipants();
-                updateNoParticipantMessage();
-                checkSaveButtonValidity();
-            } else {
-                alert("Ce participant est déjà ajouté ou n'existe pas.");
-            }
-        }
-
-        function createParticipantCard(profil) {
-            const card = document.createElement('div');
-            card.className = 'participant-card';
-            card.setAttribute('data-participant-id', profil.id);
-
-            const photoUrl = profil.photo || 'https://via.placeholder.com/60x60?text=Profil';
-            const participantData = currentParticipants.get(profil.id);
-
-            card.innerHTML = `
-                <div class="participant-header">
-                    <img src="${escapeHtmlAttribute(photoUrl)}" alt="${escapeHtmlAttribute('Photo de ' + profil.name)}">
-                    <h3>${escapeHtml(profil.name)}</h3>
-                    <button class="remove-participant-btn" title="Retirer ce participant">&times;</button>
-                </div>
-                <div class="ideas-section">
-                    <h4>Idées :</h4>
-                    <textarea placeholder="Écrivez vos idées ici...">${escapeHtml(participantData.ideas || '')}</textarea>
-                </div>
-                <button class="save-participant-btn">Enregistrer les idées de ${escapeHtml(profil.name)}</button>
-            `;
-
-            card.querySelector('.remove-participant-btn').addEventListener('click', () => {
-                removeParticipantCard(profil.id);
-            });
-
-            card.querySelector('.save-participant-btn').addEventListener('click', () => {
-                saveParticipantIndividualData(profil.id, card);
-            });
-
-            brainstormingArea.appendChild(card);
-            updateNoParticipantMessage();
-        }
-
-        function saveParticipantIndividualData(participantId, cardElement) {
-            const ideas = cardElement.querySelector('.ideas-section textarea').value;
-            const participantData = currentParticipants.get(participantId);
-
-            if (participantData) {
-                participantData.ideas = ideas;
-                console.log(`Données individuelles pour ${participantData.profil.name} mises à jour.`);
-            }
-        }
-
-        function removeParticipantCard(id) {
-            const cardToRemove = brainstormingArea.querySelector(`[data-participant-id="${id}"]`);
-            if (cardToRemove) {
-                const profilName = currentParticipants.get(id)?.profil?.name || 'ce participant';
-                if (confirm(`Voulez-vous vraiment retirer ${profilName} du brainstorming ? Toutes ses idées non enregistrées seront perdues pour cette session.`)) {
-                    cardToRemove.remove();
-                    currentParticipants.delete(id);
-                    filterAndPopulateParticipants();
-                    updateNoParticipantMessage();
-                    checkSaveButtonValidity();
-                }
-            }
-        }
-
-        function updateNoParticipantMessage() {
-            if (currentParticipants.size === 0) {
-                noParticipantMsg.style.display = 'block';
-            } else {
-                noParticipantMsg.style.display = 'none';
-            }
-        }
+        // Initialisation spécifique à la page Brainstorming
+        filterPoleSelect.addEventListener('change', filterAndPopulateParticipants);
+        brainstormingNameInput.addEventListener('input', checkSaveButtonValidity);
+        addParticipantBtn.addEventListener('click', addParticipantToBrainstorm);
+        saveBrainstormBtn.addEventListener('click', saveBrainstorming);
         
-        function checkSaveButtonValidity() {
-            const isNameEntered = brainstormingNameInput.value.trim() !== '';
-            const hasParticipants = currentParticipants.size > 0;
-            saveBrainstormBtn.disabled = !(isNameEntered && hasParticipants);
-        }
-
-        // --- Gestion de la sauvegarde et du chargement des brainstormings ---
-
-        async function saveBrainstorming() {
-            const brainstormName = brainstormingNameInput.value.trim();
-            if (!brainstormName) {
-                alert("Veuillez donner un nom à ce brainstorming avant de l'enregistrer.");
-                return;
-            }
-            if (currentParticipants.size === 0) {
-                alert("Veuillez ajouter au moins un participant pour enregistrer le brainstorming.");
-                return;
-            }
-
-            currentParticipants.forEach((data, id) => {
-                const card = brainstormingArea.querySelector(`[data-participant-id="${id}"]`);
-                if (card) {
-                    data.ideas = card.querySelector('.ideas-section textarea').value;
-                }
-            });
-
-            const participantsDataForSave = Array.from(currentParticipants.values()).map(data => ({
-                id: data.profil.id,
-                name: data.profil.name,
-                photo: data.profil.photo,
-                ideas: data.ideas,
-                media: [] 
-            }));
-
-            const brainstormingData = {
-                id: editingBrainstormId || Date.now().toString(), 
-                name: brainstormName,
-                date: new Date().toISOString(),
-                participants: participantsDataForSave
-            };
-
-            try {
-                const response = await fetch(`${apiBase}saveBrainstorming`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(brainstormingData)
-                });
-
-                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-                const result = await response.json();
-                console.log('Brainstorming enregistré:', result);
-                alert("Brainstorming enregistré avec succès !");
-                
-                editingBrainstormId = null;
-                brainstormingNameInput.value = '';
-                currentParticipants.clear();
-                brainstormingArea.innerHTML = `<p id="no-participant-msg" style="text-align: center; color: var(--grey-text);">
-                    Ajoutez des participants ci-dessus pour commencer le brainstorming.
-                </p>`;
-                filterAndPopulateParticipants(); 
-                checkSaveButtonValidity();
-
-                loadBrainstormings(); 
-            } catch (error) {
-                console.error('Erreur lors de l\'enregistrement du brainstorming:', error);
-                alert("Erreur lors de l'enregistrement du brainstorming.");
-            }
-        }
-
-        async function loadBrainstormings() {
-            brainstormingListDiv.innerHTML = '<p class="loading-message">Chargement des brainstormings...</p>';
-            try {
-                const response = await fetch(`${apiBase}getBrainstormings`);
-                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-                allBrainstormings = await response.json();
-                renderBrainstormingList();
-            } catch (error) {
-                console.error('Erreur chargement des brainstormings enregistrés:', error);
-                brainstormingListDiv.innerHTML = '<p class="error-message">Impossible de charger les brainstormings.</p>';
-            }
-        }
-
-        function renderBrainstormingList() {
-            brainstormingListDiv.innerHTML = '';
-            if (allBrainstormings.length === 0) {
-                brainstormingListDiv.innerHTML = '<p class="loading-message">Aucun brainstorming enregistré pour l\'instant.</p>';
-                return;
-            }
-
-            allBrainstormings.forEach(b => {
-                const card = document.createElement('div');
-                card.className = 'summary-card';
-                card.setAttribute('data-brainstorm-id', b.id);
-
-                const participantAvatarsHtml = (b.participants || []).map(p => `
-                    <div class="participant-summary">
-                        <img src="${escapeHtmlAttribute(p.photo || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P')}" alt="${escapeHtmlAttribute(p.name)}">
-                        <span>${escapeHtml(p.name.split(' ')[0])}</span>
-                    </div>
-                `).join('');
-
-                card.innerHTML = `
-                    <h3>${escapeHtml(b.name)}</h3>
-                    <p>Créé le: ${formatDate(b.date)}</p>
-                    <div class="participants-avatars">
-                        ${participantAvatarsHtml}
-                    </div>
-                    <div class="action-buttons">
-                        <button class="edit-btn"><i class="fas fa-edit"></i> Modifier</button>
-                        <button class="delete-btn"><i class="fas fa-trash-alt"></i> Supprimer</button>
-                    </div>
-                `;
-                
-                card.addEventListener('click', (event) => {
-                    if (!event.target.closest('button')) {
-                        openBrainstormDetailModal(b.id);
-                    }
-                });
-
-                card.querySelector('.edit-btn').addEventListener('click', (event) => {
-                    event.stopPropagation(); 
-                    editBrainstorming(b.id);
-                });
-                card.querySelector('.delete-btn').addEventListener('click', (event) => {
-                    event.stopPropagation(); 
-                    deleteBrainstorming(b.id, b.name);
-                });
-                brainstormingListDiv.appendChild(card);
-            });
-        }
-
-        async function openBrainstormDetailModal(brainstormId) {
-            const brainstorm = allBrainstormings.find(b => b.id === brainstormId);
-            if (!brainstorm) {
-                console.error("Brainstorming non trouvé pour la modale:", brainstormId);
-                return;
-            }
-
-            modalBrainstormName.textContent = escapeHtml(brainstorm.name);
-            modalBrainstormDate.textContent = `Créé le: ${formatDate(brainstorm.date)}`;
-            modalParticipantsContainer.innerHTML = ''; 
-
-            (brainstorm.participants || []).forEach(p => {
-                const participantDetailDiv = document.createElement('div');
-                participantDetailDiv.className = 'modal-participant-detail';
-
-                participantDetailDiv.innerHTML = `
-                    <div class="modal-participant-header">
-                        <img src="${escapeHtmlAttribute(p.photo || 'https://via.placeholder.com/50x50?text=Profil')}" alt="${escapeHtmlAttribute('Photo de ' + p.name)}">
-                        <h4>${escapeHtml(p.name)}</h4>
-                    </div>
-                    <div class="modal-participant-ideas">
-                        <h5>Idées :</h5>
-                        <p>${p.ideas ? escapeHtml(p.ideas) : 'Aucune idée enregistrée.'}</p>
-                    </div>
-                `;
-                modalParticipantsContainer.appendChild(participantDetailDiv);
-            });
-
-            modalEditBtn.onclick = () => {
-                closeBrainstormDetailModal(); 
-                editBrainstorming(brainstorm.id); 
-            };
-
-            brainstormDetailModal.classList.add('open');
-        }
-
-        function closeBrainstormDetailModal() {
-            brainstormDetailModal.classList.remove('open');
-        }
-
-        closeModalBtn.addEventListener('click', closeBrainstormDetailModal);
-        brainstormDetailModal.addEventListener('click', (event) => {
-            if (event.target === brainstormDetailModal) { 
-                closeBrainstormDetailModal();
-            }
-        });
-        
-        async function editBrainstorming(brainstormId) {
-            const brainstormToEdit = allBrainstormings.find(b => b.id === brainstormId);
-            if (!brainstormToEdit) {
-                alert("Brainstorming non trouvé pour modification.");
-                return;
-            }
-
-            brainstormCreationSection.scrollIntoView({ behavior: 'smooth' });
-            
-            brainstormingNameInput.value = brainstormToEdit.name;
-            editingBrainstormId = brainstormToEdit.id;
-
-            currentParticipants.clear();
-            brainstormingArea.innerHTML = ''; 
-            brainstormToEdit.participants.forEach(p => {
-                const fullProfil = allProfils.find(ap => ap.id === p.id) || p; 
-                currentParticipants.set(p.id, {
-                    profil: fullProfil, 
-                    ideas: p.ideas,
-                    media: [] 
-                });
-                createParticipantCard(fullProfil); 
-            });
-            filterAndPopulateParticipants(); 
-            updateNoParticipantMessage();
-            checkSaveButtonValidity(); 
-        }
-        
-        async function deleteBrainstorming(brainstormId, brainstormName) {
-            if (!confirm(`Voulez-vous vraiment supprimer le brainstorming "${brainstormName}" ?`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`${apiBase}saveBrainstorming?id=${brainstormId}`, {
-                    method: 'DELETE'
-                });
-
-                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-                console.log('Brainstorming supprimé.');
-                alert("Brainstorming supprimé avec succès !");
-                loadBrainstormings(); 
-            } catch (error) {
-                console.error('Erreur lors de la suppression du brainstorming:', error);
-                alert("Erreur lors de la suppression du brainstorming.");
-            }
-        }
-
-        // =========================================================================
-        // APPEL DE TOUTES LES FONCTIONS PRINCIPALES AU CHARGEMENT DU DOM
-        // =========================================================================
-        document.addEventListener("DOMContentLoaded", async () => {
-            // Charger les composants header et footer
-            await Promise.all([
-                loadComponent("header.html", "header-placeholder"),
-                loadComponent("footer.html", "footer-placeholder")
-            ]);
-
-            // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
-            initializeHeaderDropdown();
-            updateActiveNavLinks();
-            
-            // Initialisation spécifique à la page Brainstorming
-            filterPoleSelect.addEventListener('change', filterAndPopulateParticipants);
-            brainstormingNameInput.addEventListener('input', checkSaveButtonValidity);
-            addParticipantBtn.addEventListener('click', addParticipantToBrainstorm);
-            saveBrainstormBtn.addEventListener('click', saveBrainstorming);
-            
-            await loadProfils(); 
-            await loadBrainstormings(); 
-            updateNoParticipantMessage(); 
-            checkSaveButtonValidity(); 
-        });
+        await loadProfils(); 
+        await loadBrainstormings(); 
+        updateNoParticipantMessage(); 
+        checkSaveButtonValidity(); 
+    });
     </script>
 </body>
 </html>
