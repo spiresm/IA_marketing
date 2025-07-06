@@ -25,13 +25,33 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            /* NOUVEAU/MODIFIÉ: Cache le body au départ et prépare une transition */
+            visibility: hidden; /* Masque le body avant le rendu */
+            opacity: 0;        /* Pour la transition d'opacité */
+            transition: opacity 0.5s ease-in; /* Durée de la transition */
+            overflow-x: hidden; /* Empêche le défilement horizontal inattendu */
         }
+        /* NOUVEAU: La classe qui rendra le body visible */
+        body.page-loaded {
+            visibility: visible;
+            opacity: 1;
+        }
+
         main {
             padding: 40px 20px;
             flex-grow: 1;
         }
         /* Les styles du nav-wrapper et du menu-container seront maintenant dans header.html */
         /* Tous les styles liés au header, nav, dropdown doivent être dans header.html */
+
+        /* NOUVEAU: Styles pour le placeholder du header */
+        #header-placeholder {
+            min-height: 60px; /* Adaptez à la hauteur réelle de votre header pour éviter les sauts */
+            background-color: var(--primary-blue); /* Couleur de fond de votre header */
+            display: flex; /* Pour potentiellement centrer un loader si vous en ajoutiez un */
+            justify-content: center;
+            align-items: center;
+        }
 
         .content-section { max-width: 960px; margin: 25px auto; padding: 0 20px; box-sizing: border-box; }
         .action-button-container { text-align: center; margin-bottom: 25px; }
@@ -139,6 +159,7 @@
             font-weight: bold;
             color: white;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            text-align: center;
         }
         .side-panel-header p.pole-detail {
             font-size: 1.2em;
@@ -332,7 +353,7 @@
             // console.log(`Component ${url} loaded successfully into #${placeholderId}.`);
         } catch (error) {
             console.error(`Error loading ${url}:`, error);
-            document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Error loading: ${url}</p>`;
+            document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
         }
     }
 
@@ -524,7 +545,7 @@
             card.querySelector('.btn-note').addEventListener('click', () => noteEditor.classList.toggle('open'));
             noteEditor.querySelector('.save-note').addEventListener('click', async () => {
                 const newNote = noteTextarea.value;
-                const res = await fetch(`./.netlify/functions/updateProfil`, {
+                const res = await fetch(`./.netlify/functions/updateProfil`, { // Utilisez l'action string directement ici
                     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: p.id, note: newNote })
                 });
                 if(res.ok) {
@@ -542,7 +563,7 @@
     async function confirmAndDelete(profilId, profilName) {
         if (confirm(`Êtes-vous sûr de vouloir supprimer le profil de ${profilName} ?`)) {
             try {
-                const response = await fetch(`./.netlify/functions/deleteProfil?id=${profilId}`, { method: 'DELETE' });
+                const response = await fetch(`./.netlify/functions/deleteProfil?id=${profilId}`, { method: 'DELETE' }); // Utilisez l'action string ici
                 if (!response.ok) throw new Error("La suppression a échoué.");
                 profils = profils.filter(p => p.id !== profilId);
                 applyFilters();
@@ -710,5 +731,8 @@
 
         // Initialiser l'application spécifique à la page Équipe
         initApp();
+
+        // Révéler le body après tout chargement et initialisation
+        document.body.classList.add('page-loaded'); 
     });
 </script>
