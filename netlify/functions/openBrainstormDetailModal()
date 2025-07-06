@@ -1,0 +1,153 @@
+// ... (votre code JavaScript précédent) ...
+
+        // Éléments du DOM pour la modale
+        const brainstormDetailModal = document.getElementById('brainstorm-detail-modal');
+        const closeModalBtn = brainstormDetailModal.querySelector('.close-modal-btn');
+        const modalBrainstormName = document.getElementById('modal-brainstorm-name');
+        const modalBrainstormDate = document.getElementById('modal-brainstorm-date');
+        const modalParticipantsContainer = document.getElementById('modal-participants-container');
+        const modalEditBtn = document.getElementById('modal-edit-btn');
+
+        // ... (votre fonction checkSaveButtonValidity) ...
+
+        // --- Gestion de la sauvegarde et du chargement des brainstormings ---
+
+        // ... (votre fonction saveBrainstorming) ...
+
+        // ... (votre fonction loadBrainstormings) ...
+
+        function renderBrainstormingList() {
+            brainstormingListDiv.innerHTML = '';
+            if (allBrainstormings.length === 0) {
+                brainstormingListDiv.innerHTML = '<p class="loading-message">Aucun brainstorming enregistré pour l\'instant.</p>';
+                return;
+            }
+
+            allBrainstormings.forEach(b => {
+                const card = document.createElement('div');
+                card.className = 'summary-card';
+                card.setAttribute('data-brainstorm-id', b.id);
+
+                const participantAvatarsHtml = (b.participants || []).map(p => `
+                    <div class="participant-summary">
+                        <img src="${escapeHtmlAttribute(p.photo || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P')}" alt="${escapeHtmlAttribute(p.name)}">
+                        <span>${escapeHtml(p.name.split(' ')[0])}</span>
+                    </div>
+                `).join('');
+
+                card.innerHTML = `
+                    <h3>${escapeHtml(b.name)}</h3>
+                    <p>Créé le: ${formatDate(b.date)}</p>
+                    <div class="participants-avatars">
+                        ${participantAvatarsHtml}
+                    </div>
+                    <div class="action-buttons">
+                        <button class="edit-btn"><i class="fas fa-edit"></i> Modifier</button>
+                        <button class="delete-btn"><i class="fas fa-trash-alt"></i> Supprimer</button>
+                    </div>
+                `;
+                
+                // Rendre la carte cliquable pour ouvrir la modale de détails
+                card.addEventListener('click', (event) => {
+                    // S'assurer que le clic n'est pas sur un bouton (éditer/supprimer)
+                    if (!event.target.closest('button')) {
+                        openBrainstormDetailModal(b.id);
+                    }
+                });
+
+                card.querySelector('.edit-btn').addEventListener('click', (event) => {
+                    event.stopPropagation(); // Empêche le déclenchement du clic sur la carte
+                    editBrainstorming(b.id);
+                });
+                card.querySelector('.delete-btn').addEventListener('click', (event) => {
+                    event.stopPropagation(); // Empêche le déclenchement du clic sur la carte
+                    deleteBrainstorming(b.id, b.name);
+                });
+                brainstormingListDiv.appendChild(card);
+            });
+        }
+
+        async function openBrainstormDetailModal(brainstormId) {
+            const brainstorm = allBrainstormings.find(b => b.id === brainstormId);
+            if (!brainstorm) {
+                console.error("Brainstorming non trouvé pour la modale:", brainstormId);
+                return;
+            }
+
+            modalBrainstormName.textContent = escapeHtml(brainstorm.name);
+            modalBrainstormDate.textContent = `Créé le: ${formatDate(brainstorm.date)}`;
+            modalParticipantsContainer.innerHTML = ''; // Vider le conteneur
+
+            (brainstorm.participants || []).forEach(p => {
+                const participantDetailDiv = document.createElement('div');
+                participantDetailDiv.className = 'modal-participant-detail';
+
+                const mediaHtml = (p.media || []).map(m => {
+                    // Assurez-vous que l'URL est correcte ici (permanente si uploadée)
+                    if (m.type && m.type.startsWith('image/')) return `<img src="${escapeHtmlAttribute(m.url)}" alt="${escapeHtmlAttribute(m.name)}" title="${escapeHtmlAttribute(m.name)}">`;
+                    if (m.type && m.type.startsWith('video/')) return `<video src="${escapeHtmlAttribute(m.url)}" controls preload="metadata" title="${escapeHtmlAttribute(m.name)}"></video>`;
+                    if (m.type && m.type.startsWith('audio/')) return `<audio src="${escapeHtmlAttribute(m.url)}" controls title="${escapeHtmlAttribute(m.name)}"></audio>`;
+                    return `<p class="file-name" title="${escapeHtmlAttribute(m.name)}">${escapeHtml(m.name)}</p>`;
+                }).join('');
+
+                participantDetailDiv.innerHTML = `
+                    <div class="modal-participant-header">
+                        <img src="${escapeHtmlAttribute(p.photo || 'https://via.placeholder.com/50x50?text=Profil')}" alt="${escapeHtmlAttribute('Photo de ' + p.name)}">
+                        <h4>${escapeHtml(p.name)}</h4>
+                    </div>
+                    <div class="modal-participant-ideas">
+                        <h5>Idées :</h5>
+                        <p>${p.ideas ? escapeHtml(p.ideas) : 'Aucune idée enregistrée.'}</p>
+                    </div>
+                    ${(p.media && p.media.length > 0) ? `
+                        <div class="modal-participant-media">
+                            <h5>Références :</h5>
+                            <div class="modal-media-grid">
+                                ${mediaHtml}
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+                modalParticipantsContainer.appendChild(participantDetailDiv);
+            });
+
+            // Attacher l'événement au bouton "Modifier" de la modale
+            modalEditBtn.onclick = () => {
+                closeBrainstormDetailModal(); // Ferme la modale de détail
+                editBrainstorming(brainstorm.id); // Lance la modification
+            };
+
+            brainstormDetailModal.classList.add('open');
+        }
+
+        function closeBrainstormDetailModal() {
+            brainstormDetailModal.classList.remove('open');
+        }
+
+        // Écouteurs pour fermer la modale
+        closeModalBtn.addEventListener('click', closeBrainstormDetailModal);
+        brainstormDetailModal.addEventListener('click', (event) => {
+            if (event.target === brainstormDetailModal) { // Ne ferme que si le clic est sur l'overlay
+                closeBrainstormDetailModal();
+            }
+        });
+        
+        // ... (votre fonction editBrainstorming) ...
+        // ... (votre fonction deleteBrainstorming) ...
+        // ... (votre fonction setActiveNavLink) ...
+
+        // --- Initialisation au chargement de la page ---
+        filterPoleSelect.addEventListener('change', filterAndPopulateParticipants);
+        brainstormingNameInput.addEventListener('input', checkSaveButtonValidity);
+        addParticipantBtn.addEventListener('click', addParticipantToBrainstorm);
+        saveBrainstormBtn.addEventListener('click', saveBrainstorming);
+        
+        await loadProfils(); // Charge les profils et initialise les filtres
+        await loadBrainstormings(); // Charge les brainstormings existants
+        setActiveNavLink(); // Active le lien du menu
+        updateNoParticipantMessage(); // Gère l'affichage du message "aucun participant"
+        checkSaveButtonValidity(); // Gère l'état initial du bouton de sauvegarde
+    });
+    </script>
+</body>
+</html>
