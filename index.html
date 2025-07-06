@@ -26,8 +26,16 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            /* Rétabli sans opacité ni transition, comme demandé */
+            /* NOUVEAU: Masque le body de manière agressive au chargement initial */
+            visibility: hidden; /* Cache le contenu avant le rendu */
+            opacity: 0;        /* En complément, pour une transition d'opacité */
+            transition: opacity 0.5s ease-in; /* Transition pour la révélation */
             overflow-x: hidden; 
+        }
+        /* NOUVEAU: Classe ajoutée par JS pour rendre le body visible */
+        body.page-loaded {
+            visibility: visible;
+            opacity: 1;
         }
 
         main {
@@ -49,7 +57,8 @@
         }
 
         /* Le contenu injecté du header apparaîtra instantanément */
-        /* #header-placeholder > div.nav-wrapper styles supprimés pour l'apparition instantanée */
+        /* Aucune manipulation de style.opacity ou style.visibility n'est nécessaire ici */
+
 
         .content-section { max-width: 960px; width: 100%; margin: 0 auto; padding: 25px; box-sizing: border-box; background-color: #fff; border-radius: 12px; box-shadow: var(--card-shadow); position: relative; }
         .content-section h2, .content-section h3 { text-align: center; color: var(--dark-blue); margin-top: 0; margin-bottom: 25px; }
@@ -265,8 +274,6 @@
                 return;
             }
             document.getElementById(placeholderId).innerHTML = await res.text();
-            // NOUVEAU: Après que le contenu soit injecté, le contenu de nav-wrapper sera visible instantanément.
-            // Aucune manipulation de style.opacity ou style.visibility n'est nécessaire ici.
         } catch (error) {
             console.error(`Error loading ${url}:`, error);
             document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
@@ -341,7 +348,7 @@
         let currentMainLinkFound = false;
         document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
             const linkHref = link.getAttribute('href');
-            // Normalise le chemin pour la comparaison, gère le cas '/' pour index.html
+            // Normalise le chemin pour la comparison, gère le cas '/' pour index.html
             const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
             const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
 
