@@ -118,11 +118,58 @@
         .scroll-arrow.right { right: 15px; }
         .scroll-arrow:disabled { opacity: 0.4; cursor: not-allowed; transform: translateY(-50%); }
 
-        .news-ticker-section { display: flex; align-items: center; position: relative; }
-        .news-ticker-container { flex-grow: 1; overflow: hidden; margin-right: 15px; }
-        .news-ticker-content { display: flex; white-space: nowrap; animation: ticker 40s linear infinite; }
+        /* Styles pour le bandeau d'actualités (flux RSS) */
+        .news-ticker-section {
+            display: flex;
+            align-items: center;
+            position: relative;
+            background-color: var(--primary-blue); /* Couleur de fond du bandeau */
+            color: white; /* Couleur du texte */
+            padding: 15px 25px; /* Padding ajusté */
+            border-radius: 12px; /* Coins arrondis */
+            box-shadow: var(--card-shadow); /* Ombre pour le relief */
+            max-width: 960px; /* Largeur max comme les autres sections */
+            margin: 0 auto; /* Centrage */
+            box-sizing: border-box; /* S'assure que padding et border sont inclus dans la largeur */
+        }
+        .news-ticker-container {
+            flex-grow: 1;
+            overflow: hidden;
+            margin-right: 20px; /* Espace entre le texte défilant et le bouton */
+        }
+        .news-ticker-content {
+            display: flex;
+            white-space: nowrap;
+            animation: ticker 40s linear infinite;
+        }
         @keyframes ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
         
+        /* Styles pour le bouton "Laisser un message" */
+        .message-button {
+            display: inline-flex; /* Utilisation de flex pour centrer l'icône et le texte */
+            align-items: center;
+            gap: 8px; /* Espace entre l'icône et le texte */
+            padding: 12px 22px; /* Padding comme les autres boutons */
+            background-color: var(--dark-blue); /* Couleur de fond cohérente */
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Ombre légère */
+        }
+        .message-button:hover {
+            background-color: var(--primary-blue); /* Effet de survol cohérent */
+            transform: translateY(-2px);
+        }
+        .message-button:active {
+            transform: translateY(0);
+        }
+        .message-button i {
+            font-size: 1.1em; /* Taille de l'icône */
+        }
+
+
         /* --- STYLES "DERNIERS AJOUTS" --- */
         .latest-additions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; }
         .addition-card { 
@@ -211,18 +258,33 @@
                      scroll-snap-type: x mandatory;
                      border-radius: 0;
             }
+            .veille-grid { gap: 15px; padding: 0 5%; transform: none !important; }
             .veille-card {
                 scroll-snap-align: center;
                 width: 90%;
                 flex: 0 0 90%;
                 padding: 25px;
             }
-            .veille-grid { gap: 15px; padding: 0 5%; transform: none !important; }
             .profile-circle {
                 top: 10px; 
                 right: 10px; 
                 width: 40px; 
                 height: 40px;
+                height: 40px;
+            }
+            /* Styles mobile pour le bandeau d'actualités et le bouton */
+            .news-ticker-section {
+                flex-direction: column; /* Empile le texte et le bouton */
+                padding: 15px; /* Ajuste le padding */
+            }
+            .news-ticker-container {
+                margin-right: 0; /* Pas de marge à droite sur mobile */
+                margin-bottom: 15px; /* Espace entre le texte et le bouton */
+                width: 100%; /* Prend toute la largeur */
+            }
+            .message-button {
+                width: 100%; /* Bouton prend toute la largeur */
+                justify-content: center; /* Centre le contenu du bouton */
             }
         }
     </style>
@@ -253,14 +315,16 @@
             </div>
         </section>
 
+        <section class="news-ticker-section">
+            <div class="news-ticker-container">
+                <div class="news-ticker-content" id="newsTickerContent"></div>
+            </div>
+            <a href="/admin-news.html" class="message-button"><i class="fas fa-comment-dots"></i> Laisser un message</a>
+        </section>
+
         <section class="content-section">
              <h2>Derniers ajouts</h2>
              <div id="latest-additions-grid" class="latest-additions-grid"></div>
-        </section>
-
-        <section class="news-ticker-section content-section">
-             <div class="news-ticker-container"><div class="news-ticker-content" id="newsTickerContent"></div></div>
-             <a href="#" class="message-button">Laisser un message</a>
         </section>
     </main>
     
@@ -277,8 +341,6 @@
                 return;
             }
             document.getElementById(placeholderId).innerHTML = await res.text();
-            // NOUVEAU: Après que le contenu soit injecté, le contenu de nav-wrapper sera visible instantanément.
-            // Aucune manipulation de style.opacity ou style.visibility n'est nécessaire ici.
         } catch (error) {
             console.error(`Error loading ${url}:`, error);
             document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
@@ -342,56 +404,66 @@
 
     // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
     function updateActiveNavLinks() {
-        const currentPath = window.location.pathname.split('/').pop();
+        let currentPath = window.location.pathname.split('/').pop();
+        // Convertir le nom du fichier actuel en minuscules pour la comparaison
+        // Gère aussi le cas où 'index.html' est simplement '/'
+        let currentFileNameLower = currentPath.replace('.html', '').toLowerCase(); 
+        if (currentFileNameLower === '') { // Si c'est '/', alors c'est l'index
+            currentFileNameLower = 'index';
+        }
 
-        // 1. Désactive tous les liens actifs existants dans le header injecté
-        document.querySelectorAll('#header-placeholder nav a.active').forEach(link => {
-            link.classList.remove('active');
-        });
 
-        // 2. Active le lien de navigation principal correspondant à la page actuelle
-        let currentMainLinkFound = false;
         document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
             const linkHref = link.getAttribute('href');
-            // Normalise le chemin pour la comparaison, gère le cas '/' pour index.html
-            const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
-            const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
+            // Convertir le nom du fichier du lien en minuscules pour la comparaison
+            const linkFileNameLower = linkHref ? linkHref.split('/').pop().replace('.html', '').toLowerCase() : ''; 
+            
+            // Gérer le cas où le href est juste '/' (pour la page d'accueil)
+            const isHomePageLink = (linkHref === '/' || linkHref === '/index.html') && (currentFileNameLower === 'index' || currentFileNameLower === '');
 
-            const isCurrentPageMatch = (linkFileName === currentFileName) || (linkFileName === '' && currentFileName === 'index');
-
-            if (isCurrentPageMatch) { 
+            const isCurrentPage = (linkFileNameLower === currentFileNameLower) || isHomePageLink;
+            
+            if (isCurrentPage) {
                 link.classList.add("active");
-                currentMainLinkFound = true;
+            } else {
+                link.classList.remove("active");
             }
         });
 
-        // 3. Gère l'état actif du bouton "Outils & Ressources" et de ses sous-liens
         const toolsResourcesContent = document.getElementById('toolsResourcesContent');
         const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
         const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
 
-        let dropdownSublinkIsActive = false;
+        let dropdownHasActiveLink = false;
         dropdownLinks.forEach(link => {
             const linkHref = link.getAttribute('href');
-            const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
-            const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
+            const linkFileNameLower = linkHref ? linkHref.split('/').pop().replace('.html', '').toLowerCase() : '';
+            let currentFileNameLowerDropdown = currentPath.replace('.html', '').toLowerCase();
+            if (currentFileNameLowerDropdown === '') {
+                currentFileNameLowerDropdown = 'index';
+            }
 
-            const isCurrentSubPageMatch = (linkFileName === currentFileName);
+            const isCurrentSubPage = (linkFileNameLower === currentFileNameLowerDropdown);
 
-            if (isCurrentSubPageMatch) { 
+            if (isCurrentSubPage) { 
                 link.classList.add('active'); 
-                dropdownSublinkIsActive = true;
+                dropdownHasActiveLink = true;
                 if (toolsResourcesBtn) {
                     toolsResourcesBtn.classList.add('active'); 
-                    currentMainLinkFound = true; 
                 }
+            } else {
+                link.classList.remove('active');
             }
         });
 
-        // Si aucune page principale ni aucune sous-page du dropdown n'est la page active,
-        // s'assurer que le bouton du dropdown n'est pas actif (à moins qu'il ne soit ouvert).
-        if (!currentMainLinkFound && toolsResourcesBtn) {
-            toolsResourcesBtn.classList.remove('active');
+        if (toolsResourcesBtn) {
+            if (dropdownHasActiveLink) {
+                toolsResourcesBtn.classList.add('active');
+            } else {
+                if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                    toolsResourcesBtn.classList.remove('active');
+                }
+            }
         }
     }
 
@@ -619,133 +691,6 @@
     document.addEventListener("DOMContentLoaded", async () => {
         console.log("DOMContentLoaded fired.");
 
-        // Fonction utilitaire pour charger les composants externes (header/footer)
-        async function loadComponent(url, placeholderId) {
-            try {
-                const res = await fetch(url);
-                if (!res.ok) {
-                    console.error(`Could not load ${url}, status: ${res.status}`);
-                    document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
-                    return;
-                }
-                document.getElementById(placeholderId).innerHTML = await res.text();
-            } catch (error) {
-                console.error(`Error loading ${url}:`, error);
-                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
-            }
-        }
-
-        // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
-        function initializeHeaderDropdown() {
-            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-
-            if (toolsResourcesBtn && toolsResourcesContent) {
-                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
-                window.removeEventListener('click', handleWindowClick);
-
-                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
-                window.addEventListener('click', handleWindowClick);
-
-                toolsResourcesContent.style.display = 'none';
-                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-
-            } else {
-                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
-            }
-        }
-
-        // Gestionnaire d'événement pour le clic sur le bouton du dropdown
-        function handleDropdownClick(event) {
-            event.preventDefault(); 
-            const toolsResourcesBtn = event.currentTarget; 
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-
-            if (toolsResourcesContent.style.display === 'block') {
-                toolsResourcesContent.style.display = 'none';
-                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-                toolsResourcesBtn.classList.remove('active');
-            } else {
-                toolsResourcesContent.style.display = 'block';
-                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
-                toolsResourcesBtn.classList.add('active');
-            }
-        }
-
-        // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
-        function handleWindowClick(event) {
-            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-
-            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
-                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
-                    toolsResourcesContent.style.display = 'none';
-                    if (toolsResourcesBtn) { 
-                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-                        toolsResourcesBtn.classList.remove('active');
-                    }
-                }
-            }
-        }
-
-
-        // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
-        function updateActiveNavLinks() {
-            const currentPath = window.location.pathname.split('/').pop();
-
-            // 1. Désactive tous les liens actifs existants dans le header injecté
-            document.querySelectorAll('#header-placeholder nav a.active').forEach(link => {
-                link.classList.remove('active');
-            });
-
-            // 2. Active le lien de navigation principal correspondant à la page actuelle
-            let currentMainLinkFound = false;
-            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
-                const linkHref = link.getAttribute('href');
-                // Normalise le chemin pour la comparaison, gère le cas '/' pour index.html
-                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
-                const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
-
-                const isCurrentPageMatch = (linkFileName === currentFileName) || (linkFileName === '' && currentFileName === 'index');
-
-                if (isCurrentPageMatch) { 
-                    link.classList.add("active");
-                    currentMainLinkFound = true;
-                }
-            });
-
-            // 3. Gère l'état actif du bouton "Outils & Ressources" et de ses sous-liens
-            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
-
-            let dropdownSublinkIsActive = false;
-            dropdownLinks.forEach(link => {
-                const linkHref = link.getAttribute('href');
-                const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : '';
-                const currentFileName = currentPath.replace('.html', '').replace('', 'index'); // 'index' si currentPath est vide
-
-                const isCurrentSubPageMatch = (linkFileName === currentFileName);
-
-                if (isCurrentSubPageMatch) { 
-                    link.classList.add('active'); 
-                    dropdownSublinkIsActive = true;
-                    if (toolsResourcesBtn) {
-                        toolsResourcesBtn.classList.add('active'); 
-                        currentMainLinkFound = true; 
-                    }
-                }
-            });
-
-            // Si aucune page principale ni aucune sous-page du dropdown n'est la page active,
-            // s'assurer que le bouton du dropdown n'est pas actif (à moins qu'il ne soit ouvert).
-            if (!currentMainLinkFound && toolsResourcesBtn) {
-                toolsResourcesBtn.classList.remove('active');
-            }
-        }
-
-
         // Charger les composants (header et footer) et initialiser le dropdown/nav
         await Promise.all([
             loadComponent("header.html", "header-placeholder"),
@@ -760,8 +705,8 @@
         // =========================================================================
         console.log("Calling content loading functions for index.html.");
         loadAndInitVeille(); 
+        loadNewsTicker(); // Chargement du flux RSS avant les derniers ajouts
         displayLatestAdditions();
-        loadNewsTicker();
         console.log("Content loading functions called. Check console for fetch statuses.");
     });
 </script>
