@@ -662,19 +662,19 @@
                     <input type="text" id="brainstorming-name" placeholder="Ex: Idées Campagne Marketing Q3" required />
                 </div>
                 
-                <div class="participant-filters" style="display: none;">
+                <div class="participant-filters">
                     <div>
                         <label for="filter-pole">Filtrer par Pôle :</label>
                         <select id="filter-pole">
                             <option value="all">Tous les pôles</option>
-                        </select>
+                            </select>
                     </div>
                 </div>
                 
                 <div class="add-participant-section">
                     <select id="participant-select">
                         <option value="">Sélectionner un participant...</option>
-                    </select>
+                        </select>
                     <button id="add-participant-btn"><i class="fas fa-user-plus"></i> Ajouter au Brainstorm</button>
                 </div>
             </div>
@@ -857,24 +857,24 @@
 
         // Éléments du DOM
         const brainstormingNameInput = document.getElementById('brainstorming-name');
-        const filterPoleSelect = document.getElementById('filter-pole'); // Sera masqué, mais gardé au cas où
+        const filterPoleSelect = document.getElementById('filter-pole');
         const participantSelect = document.getElementById('participant-select');
         const addParticipantBtn = document.getElementById('add-participant-btn');
-        const brainstormingIdeasTextarea = document.getElementById('brainstorm-ideas-textarea'); // Nouveau champ unique
-        const currentParticipantsDisplay = document.getElementById('current-participants-display'); // Affiche les participants ajoutés
+        const brainstormingIdeasTextarea = document.getElementById('brainstorm-ideas-textarea');
+        const currentParticipantsDisplay = document.getElementById('current-participants-display');
         const saveBrainstormBtn = document.getElementById('save-brainstorm-btn');
         const brainstormingListDiv = document.getElementById('brainstorming-list');
-        const noParticipantMsg = document.getElementById('no-participant-msg'); // Ce message sera retiré
         const brainstormDetailModal = document.getElementById('brainstorm-detail-modal');
         const closeDetailModalBtn = brainstormDetailModal.querySelector('.close-modal-btn');
         const modalBrainstormName = document.getElementById('modal-brainstorm-name');
         const modalBrainstormDate = document.getElementById('modal-brainstorm-date');
-        const modalBrainstormIdeasContent = document.getElementById('modal-brainstorm-ideas-content'); // Contenu d'idées unique dans la modale
+        const modalBrainstormIdeasContent = document.getElementById('modal-brainstorm-ideas-content');
         const modalEditBtn = document.getElementById('modal-edit-btn');
 
         let allUsers = []; // Pour stocker tous les utilisateurs disponibles
         let currentBrainstormParticipants = []; // Pour stocker les participants du brainstorming en cours
         let loadedBrainstormings = []; // Pour stocker les brainstormings chargés
+        let allPoles = []; // Pour stocker tous les pôles uniques
 
         // --- Fonctions de gestion de l'état local (simulé) ---
         function saveBrainstormingsToLocalStorage() {
@@ -886,17 +886,38 @@
             return data ? JSON.parse(data) : [];
         }
 
-        // --- Fonctions pour l'affichage et la gestion des participants (simplifié) ---
-        async function fetchUsers() {
+        // --- Fonctions pour l'affichage et la gestion des participants et filtres ---
+        async function fetchUsersAndPoles() {
             try {
-                const response = await fetch('data/users.json');
-                if (!response.ok) throw new Error('Network response was not ok.');
+                // Utilisez un chemin absolu si vous avez des problèmes avec le chemin relatif sur Netlify
+                // const response = await fetch('/data/users.json'); 
+                const response = await fetch('data/users.json'); // Chemin relatif est généralement correct si la structure est bonne
+                if (!response.ok) {
+                    throw new Error(`Erreur réseau: ${response.status} ${response.statusText}`);
+                }
                 allUsers = await response.json();
-                populateParticipantSelect(allUsers);
+                
+                // Extraire les pôles uniques
+                const poles = new Set(allUsers.map(user => user.pole).filter(pole => pole));
+                allPoles = ['all', ...Array.from(poles).sort()]; // Ajoute 'all' et trie
+
+                populatePoleFilter(allPoles);
+                populateParticipantSelect(allUsers); // Peupler avec tous les utilisateurs au début
             } catch (error) {
-                console.error('Erreur lors du chargement des utilisateurs:', error);
+                console.error('Erreur lors du chargement des utilisateurs ou des pôles:', error);
                 participantSelect.innerHTML = '<option value="">Erreur chargement des utilisateurs</option>';
+                filterPoleSelect.innerHTML = '<option value="all">Erreur chargement des pôles</option>';
             }
+        }
+
+        function populatePoleFilter(poles) {
+            filterPoleSelect.innerHTML = ''; // Vide les options existantes
+            poles.forEach(pole => {
+                const option = document.createElement('option');
+                option.value = pole;
+                option.textContent = pole === 'all' ? 'Tous les pôles' : pole;
+                filterPoleSelect.appendChild(option);
+            });
         }
 
         function populateParticipantSelect(usersToDisplay) {
@@ -910,7 +931,7 @@
                     participantSelect.appendChild(option);
                 }
             });
-            // Désactiver le bouton d'ajout si tous les participants sont déjà ajoutés
+            // Désactiver le bouton d'ajout si tous les participants sont déjà ajoutés ou si aucune option n'est disponible
             addParticipantBtn.disabled = participantSelect.options.length <= 1;
         }
 
@@ -922,6 +943,16 @@
             }
         }
 
+        // Écouteur pour le filtre de pôle
+        filterPoleSelect.addEventListener('change', () => {
+            const selectedPole = filterPoleSelect.value;
+            let filteredUsers = allUsers;
+            if (selectedPole !== 'all') {
+                filteredUsers = allUsers.filter(user => user.pole === selectedPole);
+            }
+            populateParticipantSelect(filteredUsers);
+        });
+
         // --- Fonctions de gestion du Brainstorming (un champ unique) ---
         addParticipantBtn.addEventListener('click', () => {
             const selectedUserId = participantSelect.value;
@@ -930,8 +961,14 @@
                 if (userToAdd && !currentBrainstormParticipants.some(p => p.id === userToAdd.id)) {
                     currentBrainstormParticipants.push(userToAdd);
                     updateCurrentParticipantsDisplay();
-                    populateParticipantSelect(allUsers); // Mettre à jour le select pour enlever le participant ajouté
-                    saveBrainstormBtn.disabled = brainstormingNameInput.value.trim() === ''; // Activer le bouton si le nom est rempli
+                    // Réactualiser le select des participants avec le filtre actuel appliqué
+                    const currentSelectedPole = filterPoleSelect.value;
+                    let usersForSelect = allUsers;
+                    if (currentSelectedPole !== 'all') {
+                        usersForSelect = allUsers.filter(user => user.pole === currentSelectedPole);
+                    }
+                    populateParticipantSelect(usersForSelect);
+                    saveBrainstormBtn.disabled = brainstormingNameInput.value.trim() === '';
                 }
             }
         });
@@ -942,7 +979,7 @@
         
         saveBrainstormBtn.addEventListener('click', () => {
             const brainstormName = brainstormingNameInput.value.trim();
-            const brainstormIdeas = brainstormingIdeasTextarea.value.trim(); // Récupère le texte du champ unique
+            const brainstormIdeas = brainstormingIdeasTextarea.value.trim();
 
             if (!brainstormName) {
                 alert('Veuillez donner un nom à votre brainstorming.');
@@ -954,7 +991,7 @@
             }
 
             const newBrainstorming = {
-                id: Date.now(), // ID unique basé sur le timestamp
+                id: Date.now(),
                 name: brainstormName,
                 date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
                 participants: currentBrainstormParticipants.map(p => ({
@@ -962,7 +999,7 @@
                     name: p.name,
                     avatar: p.avatar,
                 })),
-                ideas: brainstormIdeas // Stocke tout le texte du champ unique
+                ideas: brainstormIdeas
             };
 
             loadedBrainstormings.push(newBrainstorming);
@@ -973,16 +1010,18 @@
 
         function resetBrainstormingForm() {
             brainstormingNameInput.value = '';
-            brainstormingIdeasTextarea.value = ''; // Vide le champ d'idées
+            brainstormingIdeasTextarea.value = '';
             currentBrainstormParticipants = [];
             updateCurrentParticipantsDisplay();
-            populateParticipantSelect(allUsers); // Recharger toutes les options
+            // Recharger toutes les options dans le select des participants (sans filtre initial)
+            populateParticipantSelect(allUsers); 
+            filterPoleSelect.value = 'all'; // Réinitialiser le filtre de pôle
             saveBrainstormBtn.disabled = true;
         }
 
         // --- Fonctions pour l'affichage des brainstormings enregistrés ---
         function renderBrainstormingList() {
-            brainstormingListDiv.innerHTML = ''; // Effacer le contenu existant
+            brainstormingListDiv.innerHTML = '';
             if (loadedBrainstormings.length === 0) {
                 brainstormingListDiv.innerHTML = '<p class="loading-message">Aucun brainstorming enregistré pour le moment.</p>';
                 return;
@@ -1012,7 +1051,6 @@
                 brainstormingListDiv.appendChild(card);
             });
 
-            // Attacher les écouteurs d'événements après le rendu
             attachBrainstormingCardListeners();
         }
 
@@ -1027,7 +1065,7 @@
 
             document.querySelectorAll('.summary-card .delete-btn').forEach(button => {
                 button.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Empêche l'ouverture de la modale de détail
+                    event.stopPropagation();
                     const card = event.target.closest('.summary-card');
                     const brainstormId = parseInt(card.dataset.id);
                     if (confirm('Êtes-vous sûr de vouloir supprimer ce brainstorming ?')) {
@@ -1043,7 +1081,7 @@
             renderBrainstormingList();
         }
 
-        // --- Fonctions pour la modale de détails (adaptée au champ unique) ---
+        // --- Fonctions pour la modale de détails ---
         function openBrainstormDetailModal(id) {
             const brainstorm = loadedBrainstormings.find(b => b.id === id);
             if (!brainstorm) {
@@ -1053,26 +1091,22 @@
 
             modalBrainstormName.textContent = brainstorm.name;
             modalBrainstormDate.textContent = `Créé le: ${brainstorm.date}`;
-            modalBrainstormIdeasContent.textContent = brainstorm.ideas; // Affiche toutes les idées ici
-
-            // Afficher les participants dans un format simple si nécessaire, sinon la modale de détails est déjà adaptée
-            // Pour l'instant, on n'affiche que les idées globales, comme demandé.
+            modalBrainstormIdeasContent.textContent = brainstorm.ideas;
 
             modalEditBtn.onclick = () => {
-                // Pré-remplir le formulaire de création avec les données du brainstorming pour modification
                 brainstormingNameInput.value = brainstorm.name;
                 brainstormingIdeasTextarea.value = brainstorm.ideas;
-                currentBrainstormParticipants = [...brainstorm.participants]; // Copier les participants
+                currentBrainstormParticipants = [...brainstorm.participants];
                 updateCurrentParticipantsDisplay();
-                populateParticipantSelect(allUsers); // Rafraîchir les options disponibles
+                // Assurez-vous que le sélecteur de pôle est réinitialisé si l'utilisateur modifie
+                filterPoleSelect.value = 'all'; 
+                populateParticipantSelect(allUsers); // Recharger toutes les options
 
-                // Supprimer l'ancien brainstorming pour éviter les doublons lors de la sauvegarde
                 loadedBrainstormings = loadedBrainstormings.filter(b => b.id !== id);
                 saveBrainstormingsToLocalStorage();
                 renderBrainstormingList();
 
                 closeBrainstormDetailModal();
-                // Faire défiler la page vers la section de création si possible
                 document.getElementById('brainstorm-creation-section').scrollIntoView({ behavior: 'smooth' });
             };
 
@@ -1092,10 +1126,10 @@
 
         // --- Initialisation ---
         (async () => {
-            await fetchUsers();
+            await fetchUsersAndPoles(); // Nouvelle fonction qui charge les utilisateurs ET les pôles
             loadedBrainstormings = loadBrainstormingsFromLocalStorage();
             renderBrainstormingList();
-            updateCurrentParticipantsDisplay(); // Initialise l'affichage des participants actuels
+            updateCurrentParticipantsDisplay();
         })();
     });
     </script>
