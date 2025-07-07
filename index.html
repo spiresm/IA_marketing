@@ -120,13 +120,14 @@
             padding: 12px 22px; /* Padding comme les autres boutons */
             background-color: var(--primary-blue); /* Couleur de fond cohérente */
             color: white;
-            text-decoration: none;
-            border: none; /* Pas de bordure */
+            text-decoration: none; /* Important pour les liens qui agissent comme des boutons */
+            border: none;
             border-radius: 8px;
             font-weight: bold;
+            font-size: 1.1em; /* Coordonné avec les liens de navigation */
+            cursor: pointer;
             transition: background-color 0.2s, transform 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Ombre légère */
-            cursor: pointer; /* Indique que c'est cliquable */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .action-button:hover {
             background-color: var(--dark-blue); /* Effet de survol cohérent */
@@ -135,8 +136,11 @@
         .action-button:active {
             transform: translateY(0);
         }
-        .action-button i {
-            font-size: 1.1em; /* Taille de l'icône */
+        .action-button:disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
         }
         /* Applique le style .action-button au bouton de veille */
         .veille-card .view-article-button {
@@ -307,7 +311,8 @@
                 margin-bottom: 15px; /* Espace entre le texte et le bouton */
                 width: 100%; /* Prend toute la largeur */
             }
-            .message-button {
+            /* Les boutons mobiles hériteront aussi de action-button */
+            .action-button {
                 width: 100%; /* Bouton prend toute la largeur */
                 justify-content: center; /* Centre le contenu du bouton */
             }
@@ -315,471 +320,523 @@
     </style>
 </head>
 <body>
+    <div id="loader">
+        <div class="spinner"></div>
+        <p>Chargement des données...</p>
+    </div>
 
     <div id="header-placeholder"></div>
 
     <main>
-        <section class="veille-section-container">
-            <div class="veille-header">
-                <h3>Veille IA & Marketing</h3>
-                <div class="post-it-note">
-                    <i class="fas fa-robot post-it-icon"></i>
-                    <p>
-                        <strong>Veille Automatisée</strong>
-                        Générée par un workflow n8n.
-                    </p>
-                </div>
-            </div>
-            
-            <div class="veille-carousel-wrapper">
-                <div class="veille-scroll-container">
-                    <div id="veille-articles-grid" class="veille-grid"></div>
-                </div>
-                <button class="scroll-arrow left" id="veille-scroll-left"><i class="fas fa-chevron-left"></i></button>
-                <button class="scroll-arrow right" id="veille-scroll-right"><i class="fas fa-chevron-right"></i></button>
-            </div>
-        </section>
+        <div class="back-button-container">
+            <a href="index.html" class="action-button back-button">
+                <i class="fas fa-arrow-left"></i> Retour à l'accueil
+            </a>
+        </div>
 
-        <section class="news-ticker-section content-section"> 
-            <div class="news-ticker-container">
-                <div class="news-ticker-content" id="newsTickerContent"></div>
-            </div>
-            <a href="/admin-news.html" class="action-button"><i class="fas fa-comment-dots"></i> Laisser un message</a>
-        </section>
+        <div id="messageBox" class="message-box"></div>
 
-        <section class="content-section">
-             <h2>Derniers ajouts</h2>
-             <div id="latest-additions-grid" class="latest-additions-grid"></div>
-        </section>
+        <div class="admin-panels-wrapper">
+            <div class="container">
+                <h1>Ajouter une Actualité au Flux</h1>
+
+                <form id="newsForm">
+                    <div class="form-group">
+                        <label for="poleSelect">Pôle :</label>
+                        <select id="poleSelect" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="collaborateurSelect">Votre nom :</label>
+                        <select id="collaborateurSelect" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="newsMessage">Message :</label>
+                        <textarea id="newsMessage" rows="4" required placeholder="Tapez votre message ici..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="addNewsButton" class="action-button">Ajouter au Flux</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="current-news-section">
+                <h2>Messages Actuels du Flux</h2>
+                <ul id="currentNewsList" class="news-list">
+                    <li>Chargement des messages...</li>
+                </ul>
+                <button type="button" id="refreshNewsList" class="action-button">Actualiser la liste</button>
+            </div>
+        </div>
     </main>
-    
-    <footer id="footer-placeholder"><p>&copy; 2025 Espace IA. Tous droits réservés.</p></footer>
+
+    <div id="footer-placeholder"></div>
 
     <script>
-    // Variables pour les couleurs des pôles, comme dans admin-news.html
-    const defaultColorsByPole = {
-        "Pôle créa.": "#FF69B4", // Rose vif
-        "CRM": "#E55C5C", // Rouge doux
-        "Communication": "#0077b6", // Bleu principal
-        "Partenariats": "#FF9933", // Orange vif
-        "Marketing digital": "#8A2BE2", // Mauve / Bleu Violet
-        "Positionnement": "#20B2AA", // Vert Mer clair
-        "Staff": "#A9A9A9", // Gris neutre
-        "Autre": "#808080" // Gris foncé
-    };
+        // Chemin vers le fichier JSON des actualités
+        const NEWS_DATA_PATH = 'news-data.json';
+        // URLs des fonctions Netlify (ces URL sont relatives si les fonctions sont dans .netlify/functions/)
+        const ADD_NEWS_FUNCTION_URL = '/.netlify/functions/addNews';
+        const DELETE_NEWS_FUNCTION_URL = '/.netlify/functions/deleteNews';
 
-    // Fonction utilitaire pour charger les composants externes (header/footer)
-    async function loadComponent(url, placeholderId) {
-        try {
-            const res = await fetch(url);
-            if (!res.ok) {
-                console.error(`Could not load ${url}, status: ${res.status}`);
-                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
-                return;
-            }
-            document.getElementById(placeholderId).innerHTML = await res.text();
-        } catch (error) {
-            console.error(`Error loading ${url}:`, error);
-            document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
-        }
-    }
+        // Éléments du DOM
+        const newsForm = document.getElementById('newsForm');
+        const poleSelect = document.getElementById('poleSelect');
+        const collaborateurSelect = document.getElementById('collaborateurSelect');
+        const newsMessage = document.getElementById('newsMessage');
+        const addNewsButton = document.getElementById('addNewsButton');
+        const messageBox = document.getElementById('messageBox');
+        const currentNewsList = document.getElementById('currentNewsList');
+        const refreshNewsListButton = document.getElementById('refreshNewsList');
 
-    // Nouvelle fonction pour initialiser le dropdown, appelée APRÈS l'injection du header
-    function initializeHeaderDropdown() {
-        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-
-        if (toolsResourcesBtn && toolsResourcesContent) {
-            toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
-            window.removeEventListener('click', handleWindowClick);
-
-            toolsResourcesBtn.addEventListener('click', handleDropdownClick);
-            window.addEventListener('click', handleWindowClick);
-
-            toolsResourcesContent.style.display = 'none';
-            toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-
-        } else {
-            console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
-        }
-    }
-
-    // Gestionnaire d'événement pour le clic sur le bouton du dropdown
-    function handleDropdownClick(event) {
-        event.preventDefault(); 
-        const toolsResourcesBtn = event.currentTarget; 
-        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-
-        if (toolsResourcesContent.style.display === 'block') {
-            toolsResourcesContent.style.display = 'none';
-            toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-            toolsResourcesBtn.classList.remove('active');
-        } else {
-            toolsResourcesContent.style.display = 'block';
-            toolsResourcesBtn.setAttribute('aria-expanded', 'true');
-            toolsResourcesBtn.classList.add('active');
-        }
-    }
-
-    // Gestionnaire d'événement pour le clic sur la fenêtre pour fermer le dropdown
-    function handleWindowClick(event) {
-        const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
-        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-
-        if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
-            if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
-                toolsResourcesContent.style.display = 'none';
-                if (toolsResourcesBtn) { 
-                    toolsResourcesBtn.setAttribute('aria-expanded', 'false');
-                    toolsResourcesBtn.classList.remove('active');
-                }
-            }
-        }
-    }
-
-
-    // Fonction pour gérer la classe 'active' sur les liens de navigation (appelée après l'injection)
-    function updateActiveNavLinks() {
-        let currentPath = window.location.pathname.split('/').pop();
-        // Convertir le nom du fichier actuel en minuscules pour la comparaison
-        // Gère aussi le cas où 'index.html' est simplement '/'
-        let currentFileNameLower = currentPath.replace('.html', '').toLowerCase(); 
-        if (currentFileNameLower === '') { // Si c'est '/', alors c'est l'index
-            currentFileNameLower = 'index';
-        }
-
-
-        document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
-            const linkHref = link.getAttribute('href');
-            // Convertir le nom du fichier du lien en minuscules pour la comparaison
-            const linkFileNameLower = linkHref ? linkHref.split('/').pop().replace('.html', '').toLowerCase() : ''; 
-            
-            // Gérer le cas où le href est juste '/' (pour la page d'accueil)
-            const isHomePageLink = (linkHref === '/' || linkHref === '/index.html') && (currentFileNameLower === 'index' || currentFileNameLower === '');
-
-            const isCurrentPage = (linkFileNameLower === currentFileNameLower) || isHomePageLink;
-            
-            if (isCurrentPage) {
-                link.classList.add("active");
-            } else {
-                link.classList.remove("active");
-            }
-        });
-
-        const toolsResourcesContent = document.getElementById('toolsResourcesContent');
-        const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
-        const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
-
-        let dropdownHasActiveLink = false;
-        dropdownLinks.forEach(link => {
-            const linkHref = link.getAttribute('href');
-            const linkFileNameLower = linkHref ? linkHref.split('/').pop().replace('.html', '').toLowerCase() : '';
-            let currentFileNameLowerDropdown = currentPath.replace('.html', '').toLowerCase();
-            if (currentFileNameLowerDropdown === '') {
-                currentFileNameLowerDropdown = 'index';
-            }
-
-            const isCurrentSubPage = (linkFileNameLower === currentFileNameLowerDropdown);
-
-            if (isCurrentSubPage) { 
-                link.classList.add('active'); 
-                dropdownHasActiveLink = true;
-                if (toolsResourcesBtn) {
-                    toolsResourcesBtn.classList.add('active'); 
-                }
-            } else {
-                link.classList.remove('active');
-            }
-        });
-
-        if (toolsResourcesBtn) {
-            if (dropdownHasActiveLink) {
-                toolsResourcesBtn.classList.add('active');
-            } else {
-                if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
-                    toolsResourcesBtn.classList.remove('active');
-                }
-            }
-        }
-    }
-
-
-    // =========================================================================
-    // SECTION 1 : CARROUSEL DE VEILLE
-    // =========================================================================
-    async function loadAndInitVeille() {
-        const grid = document.getElementById('veille-articles-grid');
-        if (!grid) return;
-        console.log("loadAndInitVeille: Starting fetch for veille-articles.json");
-        try {
-            const response = await fetch('veille-articles.json'); 
-            console.log("veille-articles.json fetch status:", response.status, response.ok);
-            if (!response.ok) throw new Error(`Fichier introuvable (statut: ${response.status})`);
-            const articles = await response.json();
-            console.log("Veille articles data:", articles);
-
-            if (!articles || articles.length === 0) {
-                grid.innerHTML = '<p style="padding: 20px; text-align: center;">Aucun article de veille.</p>';
-                return;
-            }
-            grid.innerHTML = articles.map(article => `
-                <div class="veille-card">
-                    <div class="card-meta-info">
-                        <span class="meta-tag"><i class="fas fa-calendar-alt"></i> ${article.date || 'Date'}</span>
-                        <span class="meta-tag"><i class="fas fa-newspaper"></i> ${article.source || 'Source'}</span>
-                        <span class="meta-tag"><i class="fas fa-tag"></i> ${article.tag || 'Tag'}</span>
-                    </div>
-                    <h4>⚡ ${article.titre || 'Titre'}</h4>
-                    <div class="card-content"><p>${article.resume || 'Résumé'}</p></div>
-                    <div class="card-footer"><a href="${article.url || '#'}" target="_blank" class="action-button">Lire l’article</a></div>
-                </div>
-            `).join('');
-            initVeilleCarousel();
-        } catch (error) {
-            console.error("Erreur chargement veille:", error);
-            grid.innerHTML = `<p style="padding: 20px; text-align: center; color: var(--error-text);">Impossible de charger les articles.</p>`;
-        }
-    }
-
-    function initVeilleCarousel() {
-        const grid = document.getElementById('veille-articles-grid');
-        const prevButton = document.getElementById('veille-scroll-left');
-        const nextButton = document.getElementById('veille-scroll-right');
-        const scrollContainer = grid.parentElement;
-        if (!grid || !prevButton || !nextButton || !scrollContainer) return;
-        const cards = grid.querySelectorAll('.veille-card');
-        if (cards.length <= 1) return;
-        prevButton.style.display = 'flex';
-        nextButton.style.display = 'flex';
-        let currentIndex = 0;
-        grid.style.transition = 'transform 0.5s ease-in-out';
-        const updateCarousel = () => {
-            const offset = -currentIndex * scrollContainer.clientWidth;
-            grid.style.transform = `translateX(${offset}px)`;
-            prevButton.disabled = currentIndex === 0;
-            nextButton.disabled = currentIndex >= cards.length - 1;
+        // Données des collaborateurs par pôle (copiées de votre script)
+        const collaborateursParPole = {
+            "Pôle créa.": [
+                "Anne-Françoise LELEUX", "Baptiste TARTAS", "Béatrice MARLIER",
+                "Boris TEIRLYNCK", "Charlotte DELWARTE", "Céline DELENTREE", "Delphine BENROUBI",
+                "Faiza BOUMEDIAN", "Geneviève DE BEAUFFORT", "Giovanni CASCONE",
+                "Gregory KEPPENS", "Isabelle MARCHAL", "Isabelle VERTUONGEN",
+                "Jimmy DEGRÈVE", "Joel VAN HOEF", "Jonathan LACROIX",
+                "Jose ROJO", "Jose-Luis PENAFUERTE", "Mehdi HUSAIN",
+                "Michael EVRARD", "Patricia DAVIA", "Pierre LERMIER",
+                "Pierre-Jean GILOUX", "Steeve PIRES MADEIRA",
+                "Susana GONCALVES VALERIO",
+                "Tyan HOOGSTOEL", "Vinciane LE MEN",
+                "Sabrina LECLERCQ",
+                "Nathalie AUBRY",
+                "Jeremy DEHERTOGH",
+                "Dominique LEFEVRE",
+                "Virginie LONGE"
+            ].sort(),
+            "CRM": [
+                "Frédéric CARTON", "Inès BERNOUX", "Noémie ROSSEY",
+                "Yasmine AIT MASKOUR"
+            ].sort(),
+            "Communication": [
+                "Aurore CRABBE", "Elvis TCHANA", "Fabienne CULLUS",
+                "Marie NAUWELAERTS", "Régine CARPENTIER"
+            ].sort(),
+            "Partenariats": [
+                "Alinoe VANHAUDENHUYSE", "Catherine CARA", "Dominique CAFFIERS",
+                "Fiona KOPEINIG", "Isabelle DELENS",
+                "Laura DONATELLO", "Marie-Rose ANGE", "Naïm EL BOHALI",
+                "Nathalie DE RIJCKE"
+            ].sort(),
+            "Marketing digital": [
+                "Elise FONCK", "Gaëlle DEGEYE",
+                "Mathilde ARMILLAC", "Morgane CARLY", "Yasmine GHAZOUANE",
+                "Sara GARCIA"
+            ].sort(),
+            "Positionnement": [
+                "Amelie DE LANGE", "Philippe BLANJEAN",
+                "Samuel LALOUX"
+            ].sort(),
+            "Staff": [
+                "Meltem SIVLIN", "Nadia CURTO", "Vincent CRABBE",
+                "Olivier LEIDGENS", "Pierre DUBOIS", "Vitold GRAND'HENRY",
+                "Romain DELECOUR", "Noemie GORISSEN"
+            ].sort()
         };
-        nextButton.addEventListener('click', () => { if (currentIndex < cards.length - 1) { currentIndex++; updateCarousel(); }});
-        prevButton.addEventListener('click', () => { if (currentIndex > 0) { currentIndex--; updateCarousel(); }});
-        window.addEventListener('resize', () => {
-            if (window.innerWidth > 768) {
-                grid.style.transition = 'none'; 
-                updateCarousel();
-                setTimeout(() => { grid.style.transition = 'transform 0.5s ease-in-out'; }, 50);
-            } else {
-                grid.style.transform = 'none';
-            }
-        });
-        if (window.innerWidth > 768) updateCarousel();
-    }
-    
-    // =========================================================================
-    // SECTION 2 : DERNIERS AJOUTS
-    // =========================================================================
-    const escapeHtml = (text) => {
-        if (text === null || text === undefined) return '';
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return String(text).replace(/[&<>"']/g, m => map[m]);
-    };
-    const getYouTubeVideoId = (url) => {
-        if (!url) return null;
-        const match = url.match(/(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-        return match ? match[1] : null;
-    };
-    const formatteDate = (dateString) => {
-        if (!dateString) return 'Date inconnue';
-        try { return new Date(dateString).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }); } 
-        catch (e) { return 'Date invalide'; }
-    };
-    const createCard = (item, type) => {
-        const card = document.createElement("div");
-        card.className = 'addition-card';
-        const mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
-        let mediaHtml = '';
-        const youtubeVideoId = item.firstVideoUrl ? getYouTubeVideoId(item.firstVideoUrl) : null;
-        if (youtubeVideoId) {
-            mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
-        } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
-            mediaHtml = `<div class="card-image-container"><img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre)}"></div>`;
+        const poles = Object.keys(collaborateursParPole).sort();
+        poles.unshift("Autre"); // Ajoute "Autre" au début de la liste des pôles
+
+        // Couleurs par défaut par pôle pour l'affichage des actualités (si non spécifié ailleurs)
+        const defaultColorsByPole = {
+            "Pôle créa.": "#FF69B4", // Rose vif
+            "CRM": "#E55C5C", // Rouge doux
+            "Communication": "#0077b6", // Bleu principal
+            "Partenariats": "#FF9933", // Orange vif
+            "Marketing digital": "#8A2BE2", // Mauve / Bleu Violet
+            "Positionnement": "#20B2AA", // Vert Mer clair
+            "Staff": "#A9A9A9", // Gris neutre
+            "Autre": "#808080" // Gris foncé
+        };
+
+        // --- Fonctions utilitaires (Toast, populate selectors, etc.) ---
+
+        // Affiche un message temporaire (succès/erreur)
+        function showMessage(message, type) {
+            messageBox.textContent = message;
+            messageBox.className = `message-box ${type}`;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 5000);
         }
-        const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
-        
-        const profileImgSrc = item.profileImageUrl || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P';
 
-        card.innerHTML = `
-            <a href="${type === 'cas-usage' ? 'cas-usages.html' : 'galerie.html'}" class="card-link-wrapper">
-                <div class="card-content-wrapper">
-                    <h4>${mainCardTitle}</h4>
-                    <div class="profile-circle">
-                        <img src="${profileImgSrc}" alt="Profil de ${escapeHtml(item.auteur)}">
-                    </div>
-                    <div class="card-top-meta">${toolBadge}</div>
-                    <div class="card-subtitle">${escapeHtml(item.titre)}</div>
-                    ${mediaHtml}
-                    <div class="card-meta">
-                        <span class="meta-line"><strong>Auteur:</strong> ${escapeHtml(item.auteur)}</span>
-                        <span class="meta-line"><strong>Créé le:</strong> ${formatteDate(item.date)}</span>
-                    </div>
-                    </div>
-            </a>
-        `;
-        return card;
-    };
-    async function displayLatestAdditions() {
-        const container = document.getElementById("latest-additions-grid");
-        if (!container) return;
-        container.innerHTML = '<p>Chargement...</p>';
-        const GET_TIPS_URL = "/.netlify/functions/get-tips";
-        const GET_PROMPTS_URL = "/.netlify/functions/getGalleryPrompts";
-        const GET_PROFILS_URL = "/.netlify/functions/getProfils";
-
-        console.log("displayLatestAdditions: Starting fetch for tips, prompts, profils.");
-        try {
-            const [tipsResponse, promptsResponse, profilsResponse] = await Promise.all([
-                fetch(GET_TIPS_URL).catch(e => { console.error("GET_TIPS_URL failed:", e); return {ok: false, json: () => Promise.resolve([])}; }),
-                fetch(GET_PROMPTS_URL).catch(e => { console.error("GET_PROMPTS_URL failed:", e); return {ok: false, json: () => Promise.resolve([])}; }),
-                fetch(GET_PROFILS_URL).catch(e => { console.error("GET_PROFILS_URL failed:", e); return {ok: false, json: () => Promise.resolve([])}; })
-            ]);
-            console.log("API responses received. Tips OK:", tipsResponse.ok, "Prompts OK:", promptsResponse.ok, "Profils OK:", profilsResponse.ok);
-
-            let tips = tipsResponse.ok ? await tipsResponse.json() : [];
-            let prompts = promptsResponse.ok ? await promptsResponse.json() : [];
-            let profils = profilsResponse.ok ? await profils.json() : []; // Correction ici, il manquait .json()
-
-            const profilsMap = new Map();
-            profils.forEach(p => {
-                if (p.name) {
-                    profilsMap.set(p.name.toLowerCase().trim(), p);
-                }
+        // Remplit les sélecteurs de pôle et de collaborateur
+        function populateSelectors() {
+            poles.forEach(pole => {
+                const option = document.createElement('option');
+                option.value = pole;
+                option.textContent = pole;
+                poleSelect.appendChild(option);
             });
+            updateCollaborators(); // Appelle pour peupler le sélecteur de collaborateur initialement
+        }
 
-            const normalizeItem = (item) => {
-                const normalizedAuteur = item.auteur ? item.auteur.toLowerCase().trim() : '';
-                const profilCorrespondant = profilsMap.get(normalizedAuteur);
-                
-                let resolvedProfileImageUrl = 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P'; 
-                if (profilCorrespondant && profilCorrespondant.photo) {
-                    resolvedProfileImageUrl = profilCorrespondant.photo;
-                } else if (item.profileImageUrl) { 
-                    resolvedProfileImageUrl = item.profileImageUrl;
-                }
+        // Met à jour la liste des collaborateurs en fonction du pôle sélectionné
+        function updateCollaborators() {
+            const selectedPole = poleSelect.value;
+            collaborateurSelect.innerHTML = ''; // Vide la liste actuelle
+            
+            const collabsForPole = collaborateursParPole[selectedPole] || [];
+            
+            if (collabsForPole.length === 0) {
+                const option = document.createElement('option');
+                option.value = 'Non spécifié';
+                option.textContent = 'Non spécifié';
+                collaborateurSelect.appendChild(option);
+            } else {
+                collabsForPole.forEach(collab => {
+                    const option = document.createElement('option');
+                    option.value = collab;
+                    option.textContent = collab;
+                    collaborateurSelect.appendChild(option);
+                });
+            }
+            collaborateurSelect.value = collabsForPole[0] || 'Non spécifié'; // Sélectionne le premier ou "Non spécifié"
+        }
 
-                return {
-                    ...item, 
-                    titre: item.titre || "Titre", 
-                    auteur: item.auteur || "Inconnu", 
-                    date: item.date_creation || item.dateCreation, 
-                    outil: item.outil || "Non spécifié", 
-                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'), 
-                    firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url)),
-                    profileImageUrl: resolvedProfileImageUrl
-                };
+        // --- Fonctions de gestion des actualités (ajout, suppression, chargement) ---
+
+        // Ajoute une nouvelle actualité au flux via une fonction Netlify
+        async function addNewsItem(event) {
+            event.preventDefault();
+            addNewsButton.disabled = true;
+            addNewsButton.textContent = 'Ajout en cours...';
+            messageBox.style.display = 'none'; // Cache les messages précédents
+
+            const title = newsMessage.value.trim();
+            const pole = poleSelect.value;
+            const collaborateur = collaborateurSelect.value;
+            const color = defaultColorsByPole[pole] || '#333'; // Récupère la couleur ou une par défaut
+
+            if (!title || !pole || !collaborateur) {
+                showMessage('Veuillez sélectionner un pôle, un collaborateur et taper un message.', 'error');
+                addNewsButton.disabled = false;
+                addNewsButton.textContent = 'Ajouter au Flux';
+                return;
+            }
+
+            const newsItem = {
+                title: title,
+                pole: pole,
+                collaborateur: collaborateur,
+                color: color,
+                timestamp: new Date().toISOString() // Ajoute un timestamp pour le tri et la suppression
             };
 
-            tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
-            prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
-            container.innerHTML = ''; // Clear "Chargement..."
-            let itemsToDisplay = [];
-            if (prompts.length > 0) itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
-            if (tips.length > 0) itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
+            try {
+                const response = await fetch(ADD_NEWS_FUNCTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newsItem)
+                });
 
-            if (itemsToDisplay.length > 0) {
-                itemsToDisplay.forEach(({ item, type }) => container.appendChild(createCard(item, type)));
-            } else {
-                container.innerHTML = '<p>Aucun ajout récent.</p>';
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Échec de l'ajout : ${response.status} ${response.statusText} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                showMessage(`Actualité ajoutée avec succès ! Elle apparaîtra dans le flux et sur le site principal d'ici environ une minute, le temps du déploiement.`, 'success');
+                newsMessage.value = ''; // Réinitialise le champ message
+                poleSelect.value = poles[0]; // Réinitialise le pôle au premier
+                updateCollaborators(); // Réinitialise le collaborateur
+                loadCurrentNewsItems(); // Recharge la liste des actualités après l'ajout
+                
+            } catch (error) {
+                showMessage(`Erreur lors de l'ajout : ${error.message}`, 'error');
+                console.error("Erreur lors de l'ajout au flux:", error);
+            } finally {
+                addNewsButton.disabled = false;
+                addNewsButton.textContent = 'Ajouter au Flux';
             }
-            console.log("Latest additions displayed.");
-        } catch (error) {
-            console.error("Erreur de chargement des derniers ajouts:", error);
-            container.innerHTML = `<p style="color: var(--error-text);">Erreur de chargement des derniers ajouts.</p>`;
         }
-    }
 
-    // =========================================================================
-    // SECTION 3 : BANDEAU D'ACTUALITÉS
-    // =========================================================================
-    async function loadNewsTicker() {
-        const newsTickerContent = document.getElementById('newsTickerContent');
-        if (!newsTickerContent) return;
-        // On récupère le fichier news-data.json qui contient les actualités
-        const NEWS_DATA_PATH = 'news-data.json'; 
-        console.log("loadNewsTicker: Starting fetch for news-data.json");
-        try {
-            // Ajout d'un paramètre de cache-busting pour s'assurer d'obtenir la dernière version du fichier
-            const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`);
-            console.log("news-data.json fetch status:", response.status, response.ok);
-            if (!response.ok) {
-                // Si le fichier n'est pas trouvé (404), c'est qu'il n'y a pas encore de messages.
-                if (response.status === 404) {
-                    newsTickerContent.innerHTML = '<span>Aucune actualité récente à afficher.</span>';
+        // Supprime une actualité du flux via une fonction Netlify
+        async function deleteNewsItem(timestampToDelete) {
+            if (!confirm("Êtes-vous sûr de vouloir supprimer cette actualité ?")) {
+                return;
+            }
+            showMessage('Suppression en cours...', 'info');
+
+            try {
+                const response = await fetch(DELETE_NEWS_FUNCTION_URL, {
+                    method: 'POST', // Utilise POST avec un body pour la suppression par timestamp
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ timestamp: timestampToDelete })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Échec de la suppression : ${response.status} ${response.statusText} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                showMessage(`Actualité supprimée avec succès ! Le site sera mis à jour dans quelques minutes. (${result.message})`, 'success');
+                loadCurrentNewsItems(); // Recharge la liste après suppression
+                
+            } catch (error) {
+                showMessage(`Erreur lors de la suppression : ${error.message}`, 'error');
+                console.error("Erreur lors de la suppression du flux:", error);
+            }
+        }
+
+        // Charge et affiche les actualités actuelles du flux
+        async function loadCurrentNewsItems() {
+            currentNewsList.innerHTML = '<li>Chargement des messages actuels...</li>'; // Message de chargement
+            try {
+                // Ajout d'un paramètre de cache-busting pour s'assurer d'obtenir la dernière version du fichier
+                const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`);
+                if (response.ok) {
+                    let newsItems = await response.json();
+                    
+                    // Si newsItems n'est pas un tableau (e.g., c'est un objet vide ou un objet avec des clés timestamp), le convertir en tableau
+                    if (!Array.isArray(newsItems)) {
+                        newsItems = Object.values(newsItems);
+                    }
+
+                    // Filtrer les actualités de plus de 48 heures (si un timestamp est présent)
+                    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+                    newsItems = newsItems.filter(item => {
+                        return item.timestamp && new Date(item.timestamp) > fortyEightHoursAgo;
+                    });
+
+                    if (newsItems.length === 0) {
+                        currentNewsList.innerHTML = '<li>Aucun message actif dans le flux pour le moment.</li>';
+                        return;
+                    }
+
+                    // Trier les actualités par date/timestamp décroissant (le plus récent en premier)
+                    newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+
+                    currentNewsList.innerHTML = ''; // Vide la liste avant de le remplir
+                    newsItems.forEach((item) => {
+                        const li = document.createElement('li');
+                        li.className = 'news-item-display';
+                        
+                        // Calcul du temps écoulé et restant
+                        const itemAge = new Date(item.timestamp);
+                        const now = new Date();
+                        const diffHours = Math.floor((now - itemAge) / (1000 * 60 * 60));
+                        const remainingHours = 48 - diffHours;
+                        
+                        // Affichage du titre avec la couleur du pôle
+                        let itemTitleHtml = `<span style="color: ${item.color || defaultColorsByPole["Autre"]};">${item.title || 'Titre inconnu'}</span>`;
+                        
+                        // Affichage du collaborateur et du pôle (si pertinents)
+                        let itemMetaDetailsHtml = '';
+                        if ((item.collaborateur && item.collaborateur !== 'Non spécifié') || (item.pole && item.pole !== 'Autre')) {
+                            let detailsParts = [];
+                            if (item.collaborateur && item.collaborateur !== 'Non spécifié') detailsParts.push(item.collaborateur);
+                            if (item.pole && item.pole !== 'Autre') detailsParts.push(`<i>${item.pole}</i>`);
+                            itemMetaDetailsHtml = ` <span class="news-item-meta-info-text">(${detailsParts.join(' - ')})</span>`;
+                        }
+                        
+                        li.innerHTML = `
+                            <span class="news-text">${itemTitleHtml}${itemMetaDetailsHtml}</span>
+                            <div class="news-item-meta-details">
+                                <span class="item-details-line">Il y a ${diffHours}h</span>
+                                <span class="item-details-line">Reste: ${remainingHours}h</span>
+                            </div>
+                            <button class="delete-item-btn" title="Supprimer cette actualité" data-timestamp="${item.timestamp}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        `;
+                        const deleteButton = li.querySelector('.delete-item-btn');
+                        // Utilise l'attribut data-timestamp pour identifier l'élément à supprimer
+                        deleteButton.addEventListener('click', () => deleteNewsItem(deleteButton.dataset.timestamp));
+                        currentNewsList.appendChild(li);
+                    });
+                    showMessage('Liste des messages actualisée.', 'success');
+
+                } else if (response.status === 404) {
+                    // Si le fichier n'existe pas encore, c'est comme s'il n'y avait pas de messages
+                    currentNewsList.innerHTML = '<li>Aucun message actif dans le flux pour le moment.</li>';
+                } else {
+                    throw new Error(`Erreur lors du chargement des messages : ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                currentNewsList.innerHTML = '<li>Erreur lors du chargement des messages.</li>';
+                showMessage(`Erreur lors du chargement des messages : ${error.message}`, 'error');
+                console.error("Erreur de chargement des messages actuels:", error);
+            }
+        }
+
+        // --- Fonctions globales de chargement des composants (pour le header/footer) ---
+        // Celles-ci sont répétées ici pour que la page admin-news.html soit autonome.
+        // Dans un projet réel, elles seraient dans un fichier JavaScript séparé importé par toutes les pages.
+        async function loadComponent(url, placeholderId) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    console.error(`Could not load ${url}, status: ${res.status}`);
+                    document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
                     return;
                 }
-                throw new Error('Fichier news introuvable ou erreur de chargement.');
+                document.getElementById(placeholderId).innerHTML = await res.text();
+            } catch (error) {
+                console.error(`Error loading ${url}:`, error);
+                document.getElementById(placeholderId).innerHTML = `<p style="color:red; text-align:center;">Erreur chargement: ${url}</p>`;
             }
-            let newsItems = await response.json();
-            console.log("News ticker data:", newsItems);
+        }
 
-            // Si newsItems n'est pas un tableau (e.g., c'est un objet vide ou un objet avec des clés timestamp), le convertir en tableau
-            if (!Array.isArray(newsItems)) {
-                newsItems = Object.values(newsItems);
+        function initializeHeaderDropdown() {
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesBtn && toolsResourcesContent) {
+                toolsResourcesBtn.removeEventListener('click', handleDropdownClick); 
+                window.removeEventListener('click', handleWindowClick);
+
+                toolsResourcesBtn.addEventListener('click', handleDropdownClick);
+                window.addEventListener('click', handleWindowClick);
+
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+
+            } else {
+                console.warn("Éléments du dropdown 'Outils & Ressources' non trouvés après injection. Le script ne peut pas initialiser le menu.");
+            }
+        }
+
+        function handleDropdownClick(event) {
+            event.preventDefault(); 
+            const toolsResourcesBtn = event.currentTarget; 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+
+            if (toolsResourcesContent.style.display === 'block') {
+                toolsResourcesContent.style.display = 'none';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                toolsResourcesBtn.classList.remove('active');
+            } else {
+                toolsResourcesContent.style.display = 'block';
+                toolsResourcesBtn.setAttribute('aria-expanded', 'true');
+                toolsResourcesBtn.classList.add('active');
+            }
+        }
+
+        function handleWindowClick(event) {
+            const toolsResourcesDropdown = document.getElementById('toolsResourcesDropdown'); 
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+
+            if (toolsResourcesDropdown && !toolsResourcesDropdown.contains(event.target)) {
+                if (toolsResourcesContent && toolsResourcesContent.style.display === 'block') {
+                    toolsResourcesContent.style.display = 'none';
+                    if (toolsResourcesBtn) { 
+                        toolsResourcesBtn.setAttribute('aria-expanded', 'false');
+                        toolsResourcesBtn.classList.remove('active');
+                    }
+                }
+            }
+        }
+
+        function updateActiveNavLinks() {
+            let currentPath = window.location.pathname.split('/').pop();
+            let currentFileNameLower = currentPath.replace('.html', '').toLowerCase(); 
+            if (currentFileNameLower === '') { 
+                currentFileNameLower = 'index';
             }
 
-            // Filtrer les actualités de plus de 48 heures (si un timestamp est présent)
-            const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-            newsItems = newsItems.filter(item => {
-                return item.timestamp && new Date(item.timestamp) > fortyEightHoursAgo;
+            document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
+                const linkHref = link.getAttribute('href');
+                const linkFileNameLower = linkHref ? linkHref.split('/').pop().replace('.html', '').toLowerCase() : ''; 
+                
+                const isHomePageLink = (linkHref === '/' || linkHref === '/index.html') && (currentFileNameLower === 'index' || currentFileNameLower === '');
+
+                const isCurrentPage = (linkFileNameLower === currentFileNameLower) || isHomePageLink;
+                
+                if (isCurrentPage) {
+                    link.classList.add("active");
+                } else {
+                    link.classList.remove("active");
+                }
             });
 
-            if (newsItems.length > 0) {
-                // Trier les actualités par date/timestamp décroissant (le plus récent en premier)
-                newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+            const toolsResourcesContent = document.getElementById('toolsResourcesContent');
+            const toolsResourcesBtn = document.getElementById('toolsResourcesBtn');
+            const dropdownLinks = toolsResourcesContent ? toolsResourcesContent.querySelectorAll('a') : [];
 
-                const fullTextHtml = newsItems.map(item => {
-                    const itemColor = item.color || defaultColorsByPole[item.pole] || defaultColorsByPole["Autre"];
-                    let metaInfo = '';
-                    if (item.collaborateur && item.collaborateur !== 'Non spécifié') {
-                        metaInfo += ` - ${escapeHtml(item.collaborateur)}`;
+            let dropdownHasActiveLink = false;
+            dropdownLinks.forEach(link => {
+                const linkHref = link.getAttribute('href');
+                const linkFileNameLower = linkHref ? linkHref.split('/').pop().replace('.html', '').toLowerCase() : '';
+                let currentFileNameLowerDropdown = currentPath.replace('.html', '').toLowerCase();
+                if (currentFileNameLowerDropdown === '') {
+                    currentFileNameLowerDropdown = 'index';
+                }
+
+                const isCurrentSubPage = (linkFileNameLower === currentFileNameLowerDropdown);
+
+                if (isCurrentSubPage) { 
+                    link.classList.add('active'); 
+                    dropdownHasActiveLink = true;
+                    if (toolsResourcesBtn) {
+                        toolsResourcesBtn.classList.add('active'); 
                     }
-                    if (item.pole && item.pole !== 'Autre') {
-                        metaInfo += ` (${escapeHtml(item.pole)})`;
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+
+            if (toolsResourcesBtn) {
+                if (dropdownHasActiveLink) {
+                    toolsResourcesBtn.classList.add('active');
+                } else {
+                    if (toolsResourcesContent && toolsResourcesContent.style.display !== 'block') {
+                        toolsResourcesBtn.classList.remove('active');
                     }
-                    return `<span class="news-item"><span class="news-item-text" style="color: ${itemColor};">${escapeHtml(item.title)}</span><span class="news-item-meta">${metaInfo}</span></span>`;
-                }).join(' &nbsp; • &nbsp; ');
-                
-                newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml; // Dupliquer pour l'effet de défilement continu
-            } else {
-                newsTickerContent.innerHTML = '<span>Aucune actualité récente à afficher.</span>';
+                }
             }
-            console.log("News ticker displayed.");
-        } catch (error) {
-            console.error("Erreur chargement news ticker:", error);
-            newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
         }
-    }
-    
-    // Le DOMContentLoaded global qui appelle toutes les fonctions
-    document.addEventListener("DOMContentLoaded", async () => {
-        console.log("DOMContentLoaded fired.");
-
-        // Charger les composants (header et footer) et initialiser le dropdown/nav
-        await Promise.all([
-            loadComponent("header.html", "header-placeholder"),
-            loadComponent("footer.html", "footer-placeholder")
-        ]);
-
-        initializeHeaderDropdown();
-        updateActiveNavLinks(); 
-
+        
         // =========================================================================
-        // APPEL DE TOUTES LES FONCTIONS SPÉCIFIQUES À INDEX.HTML
+        // DOMContentLoaded pour admin-news.html
         // =========================================================================
-        console.log("Calling content loading functions for index.html.");
-        loadAndInitVeille(); 
-        loadNewsTicker(); // Chargement du flux RSS avant les derniers ajouts
-        displayLatestAdditions();
-        console.log("Content loading functions called. Check console for fetch statuses.");
-    });
-</script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const loader = document.getElementById('loader');
+            const mainElement = document.querySelector("main");
+
+            if (loader) {
+                loader.style.display = 'flex'; // Affiche le loader au démarrage
+            }
+            
+            // Charger les composants header et footer
+            await Promise.all([
+                loadComponent("header.html", "header-placeholder"),
+                loadComponent("footer.html", "footer-placeholder")
+            ]);
+
+            // Initialiser le dropdown et les liens actifs APRÈS le chargement du header
+            initializeHeaderDropdown();
+            updateActiveNavLinks();
+
+            // Remplir les sélecteurs de pôle et collaborateur
+            populateSelectors();
+            poleSelect.addEventListener('change', updateCollaborators);
+            
+            // Attacher l'écouteur d'événements pour le formulaire d'envoi de message
+            newsForm.addEventListener('submit', addNewsItem);
+            refreshNewsListButton.addEventListener('click', loadCurrentNewsItems);
+
+            // Charger les messages existants au démarrage
+            await loadCurrentNewsItems();
+
+            // Masquer le loader et afficher le main après tout le chargement
+            if (loader) {
+                loader.style.display = 'none';
+                loader.classList.add('hidden');
+            }
+            if (mainElement) {
+                mainElement.style.display = "block"; 
+            }
+        });
+    </script>
 </body>
 </html>
