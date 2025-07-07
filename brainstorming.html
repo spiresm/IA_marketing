@@ -843,7 +843,7 @@
             document.querySelectorAll('#header-placeholder nav > a').forEach(link => { 
                 const linkHref = link.getAttribute('href');
                 const linkFileName = linkHref ? linkHref.split('/').pop().replace('.html', '') : ''; 
-                const currentFileName = currentPath.不斷replace('.html', '');
+                const currentFileName = currentPath.replace('.html', ''); // CORRECTION ICI: .replace au lieu de .不斷replace
 
                 const isCurrentPage = (linkFileName === currentFileName) || 
                                         (linkFileName === '' && currentFileName === 'index');
@@ -1047,7 +1047,7 @@
 
         // --- Gestion de l'ajout d'images par drag&drop ou sélection de fichier ---
         addImageBtn.addEventListener('click', () => {
-            imageUploadInput.click(); // Déclenche le clic sur l'input de fichier caché
+            imageUploadInput.click(); 
         });
 
         imageUploadInput.addEventListener('change', (event) => {
@@ -1055,26 +1055,25 @@
             if (file) {
                 handleImageFile(file);
             }
-            event.target.value = ''; // Réinitialise l'input file
+            event.target.value = ''; 
         });
 
-        // Gestion du Drag & Drop sur le div éditable
         brainstormContentEditable.addEventListener('dragover', (event) => {
-            event.preventDefault(); // Nécessaire pour permettre le drop
+            event.preventDefault(); 
             event.stopPropagation();
-            event.dataTransfer.dropEffect = 'copy'; // Indique que le fichier sera copié
-            brainstormContentEditable.style.borderColor = 'var(--primary-blue)'; // Indique visuellement la zone de drop
+            event.dataTransfer.dropEffect = 'copy'; 
+            brainstormContentEditable.style.borderColor = 'var(--primary-blue)'; 
         });
 
         brainstormContentEditable.addEventListener('dragleave', (event) => {
             event.stopPropagation();
-            brainstormContentEditable.style.borderColor = 'var(--border-color)'; // Retire le style de survol
+            brainstormContentEditable.style.borderColor = 'var(--border-color)'; 
         });
 
         brainstormContentEditable.addEventListener('drop', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            brainstormContentEditable.style.borderColor = 'var(--border-color)'; // Retire le style de survol
+            brainstormContentEditable.style.borderColor = 'var(--border-color)'; 
 
             const files = event.dataTransfer.files;
             if (files.length > 0 && files[0].type.startsWith('image/')) {
@@ -1090,22 +1089,17 @@
                 return;
             }
 
-            // Option 1: Envoyer l'image à une fonction Netlify d'upload (recommandé pour la production)
-            // Cette partie NE PEUT PAS fonctionner sans une fonction Netlify 'uploadImage'
-            // qui gère l'upload vers un service comme Cloudinary ou S3.
+            const placeholderId = `img-placeholder-${Date.now()}`;
+            const placeholderHtml = `<p id="${placeholderId}" style="text-align: center; color: var(--grey-text);">Chargement de l'image... <i class="fas fa-spinner fa-spin"></i></p>`;
+            insertHtmlAtCaret(placeholderHtml);
+
             try {
-                // Créer un FormData pour envoyer le fichier
                 const formData = new FormData();
                 formData.append('image', file);
 
-                // Placeholder pour l'image pendant l'upload
-                const placeholderId = `img-placeholder-${Date.now()}`;
-                const placeholderHtml = `<p id="${placeholderId}" style="text-align: center; color: var(--grey-text);">Chargement de l'image... <i class="fas fa-spinner fa-spin"></i></p>`;
-                insertHtmlAtCaret(placeholderHtml);
-
-                const response = await fetch(`${apiBase}uploadImage`, { // <--- NOUVELLE FONCTION NETLIFY À CRÉER
+                const response = await fetch(`${apiBase}uploadImage`, { 
                     method: 'POST',
-                    body: formData, // FormData gère automatiquement le Content-Type: multipart/form-data
+                    body: formData, 
                 });
 
                 if (!response.ok) {
@@ -1114,14 +1108,12 @@
                 }
 
                 const result = await response.json();
-                const imageUrl = result.imageUrl; // Assurez-vous que votre fonction renvoie l'URL de l'image
+                const imageUrl = result.imageUrl; 
                 
-                // Remplacer le placeholder par l'image réelle
                 const placeholder = document.getElementById(placeholderId);
                 if (placeholder) {
                     placeholder.outerHTML = `<img src="${escapeHtmlAttribute(imageUrl)}" alt="Image insérée">`;
                 } else {
-                    // Fallback si le placeholder n'est pas trouvé (par ex. si le curseur a bougé)
                     insertHtmlAtCaret(`<img src="${escapeHtmlAttribute(imageUrl)}" alt="Image insérée">`);
                 }
 
@@ -1129,26 +1121,12 @@
 
             } catch (error) {
                 console.error('Erreur lors du téléchargement de l\'image:', error);
-                alert(`Erreur lors de l'insertion de l'image: ${error.message}. Assurez-vous que la fonction Netlify 'uploadImage' est configurée.`);
-                // Supprimer le placeholder si l'upload échoue
+                alert(`Erreur lors de l'insertion de l'image: ${error.message}. Assurez-vous que la fonction Netlify 'uploadImage' est configurée et fonctionne.`);
                 const placeholder = document.getElementById(placeholderId);
                 if (placeholder) {
                     placeholder.remove();
                 }
             }
-
-
-            /*
-            // Option 2: Insérer l'image en Base64 directement (pour tester, non recommandé pour la prod)
-            // Cela rendra votre fichier JSON très lourd et est très inefficace.
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const imageUrl = e.target.result; // URL Base64
-                const imgTag = `<img src="${escapeHtmlAttribute(imageUrl)}" alt="Image insérée">`;
-                insertHtmlAtCaret(imgTag);
-            };
-            reader.readAsDataURL(file);
-            */
         }
 
         // Insère du HTML à la position actuelle du curseur dans le contenteditable
@@ -1156,8 +1134,8 @@
             const sel = window.getSelection();
             if (sel.getRangeAt && sel.rangeCount) {
                 const range = sel.getRangeAt(0);
-                range.deleteContents(); // Supprime la sélection existante
-                const el = document.createElement("div");
+                range.deleteContents(); 
+                const el = document.createElement("div"); // Utilisez un div temporaire pour le parsing
                 el.innerHTML = html;
                 const frag = document.createDocumentFragment();
                 let node, lastNode;
@@ -1166,7 +1144,6 @@
                 }
                 range.insertNode(frag);
 
-                // Met le curseur après le contenu inséré
                 if (lastNode) {
                     range.setStartAfter(lastNode);
                     range.collapse(true);
@@ -1174,16 +1151,18 @@
                     sel.addRange(range);
                 }
             } else if (document.selection && document.selection.createRange) {
-                // Anciens navigateurs IE
                 document.selection.createRange().pasteHTML(html);
             }
-            // Assurez-vous que le placeholder est retiré si du contenu est ajouté
             checkPlaceholderVisibility();
+            // Déclenche un événement 'input' manuellement pour que la logique de sauvegarde soit aware d'un changement
+            brainstormContentEditable.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         // Gère la visibilité du placeholder du div contenteditable
         function checkPlaceholderVisibility() {
-            if (brainstormContentEditable.textContent.trim() === '' && brainstormContentEditable.innerHTML.trim() === '') {
+            // Vérifie si le div est vide de texte et d'éléments HTML
+            if (brainstormContentEditable.textContent.trim() === '' && brainstormContentEditable.innerHTML.trim().replace(/<br>/gi, '') === '') {
+                 // Remplace <br> car certains navigateurs (Chrome) ajoutent <br> dans les divs vides
                 brainstormContentEditable.setAttribute('data-placeholder', "Tapez vos idées ici ou glissez-déposez des images...");
             } else {
                 brainstormContentEditable.removeAttribute('data-placeholder');
@@ -1200,7 +1179,6 @@
                 alert("Veuillez donner un nom à ce brainstorming avant de l'enregistrer.");
                 return;
             }
-            // Le div contenteditable ne retourne pas de .value, mais .innerHTML
             const brainstormContent = brainstormContentEditable.innerHTML.trim(); 
 
             if (currentParticipants.size === 0) {
@@ -1212,7 +1190,7 @@
                 id: editingBrainstormId || Date.now().toString(), 
                 name: brainstormName,
                 date: new Date().toISOString(), 
-                content: brainstormContent, // Contient le HTML du div éditable
+                content: brainstormContent, 
                 intervenants: Array.from(currentParticipants.values()).map(p => ({
                     id: p.id,
                     name: p.name,
@@ -1239,8 +1217,8 @@
                 // Réinitialise le formulaire après une sauvegarde réussie
                 editingBrainstormId = null;
                 brainstormingNameInput.value = '';
-                brainstormContentEditable.innerHTML = ''; // Vide le div éditable
-                checkPlaceholderVisibility(); // Affiche le placeholder
+                brainstormContentEditable.innerHTML = ''; 
+                checkPlaceholderVisibility(); 
                 currentParticipants.clear();
                 updateCurrentParticipantsDisplay();
                 populatePoleFilter(); 
@@ -1348,7 +1326,7 @@
         closeModalBtn.addEventListener('click', closeBrainstormDetailModal);
         brainstormDetailModal.addEventListener('click', (event) => {
             if (event.target === brainstormDetailModal) { 
-                closeModalBtn.click(); // Simule le clic sur le bouton pour la logique de fermeture propre
+                closeModalBtn.click(); 
             }
         });
         
@@ -1366,7 +1344,7 @@
 
             // Charge le contenu HTML du brainstorming dans le div éditable
             brainstormContentEditable.innerHTML = brainstormToEdit.content || ''; 
-            checkPlaceholderVisibility(); // Vérifie le placeholder après chargement
+            checkPlaceholderVisibility(); 
             
             currentParticipants.clear();
             (brainstormToEdit.intervenants || []).forEach(p => {
@@ -1419,12 +1397,42 @@
             addParticipantBtn.addEventListener('click', addParticipantToBrainstorm);
             saveBrainstormBtn.addEventListener('click', saveBrainstorming);
             
-            // Écouteurs pour l'ajout d'images (bouton et drag&drop)
+            // Écouteurs pour l'ajout d'images
             addImageBtn.addEventListener('click', () => imageUploadInput.click());
+            imageUploadInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) { // Vérifie si un fichier a été sélectionné
+                    handleImageFile(file);
+                }
+                event.target.value = ''; // Réinitialise l'input file pour permettre la re-sélection du même fichier
+            });
             
-            // Le listener pour 'change' sur imageUploadInput a été déplacé dans handleImageFile
-            // La logique de Drag & Drop est directement sur brainstormContentEditable
-            
+            // Initialisation du Drag & Drop pour le div éditable
+            brainstormContentEditable.addEventListener('dragover', (event) => {
+                event.preventDefault(); // Nécessaire pour permettre le drop
+                event.stopPropagation();
+                event.dataTransfer.dropEffect = 'copy'; // Indique que le fichier sera copié
+                brainstormContentEditable.style.borderColor = 'var(--primary-blue)'; // Indique visuellement la zone de drop
+            });
+
+            brainstormContentEditable.addEventListener('dragleave', (event) => {
+                event.stopPropagation();
+                brainstormContentEditable.style.borderColor = 'var(--border-color)'; // Retire le style de survol
+            });
+
+            brainstormContentEditable.addEventListener('drop', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                brainstormContentEditable.style.borderColor = 'var(--border-color)'; // Retire le style de survol
+
+                const files = event.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('image/')) {
+                    handleImageFile(files[0]);
+                } else {
+                    alert("Veuillez glisser-déposer un fichier image valide.");
+                }
+            });
+
             await loadProfils(); 
             await loadBrainstormings(); 
             updateCurrentParticipantsDisplay(); 
