@@ -69,6 +69,22 @@
         .content-section { max-width: 960px; width: 100%; margin: 0 auto; padding: 25px; box-sizing: border-box; background-color: #fff; border-radius: 12px; box-shadow: var(--card-shadow); position: relative; }
         .content-section h2, .content-section h3 { text-align: center; color: var(--dark-blue); margin-top: 0; margin-bottom: 25px; }
 
+        /* NOUVEAU : Style générique pour les titres de section */
+        .section-title {
+            text-align: center;
+            color: var(--dark-blue);
+            margin-top: 0;
+            margin-bottom: 25px; /* Marge par défaut pour les titres de section */
+            font-size: 2em; /* Exemple: taille plus grande pour les titres de section principaux */
+            font-weight: 700; /* Gras */
+        }
+        /* Si vous voulez que la veille ait une taille de titre différente, ajustez spécifiquement */
+        .veille-header .section-title {
+            font-size: 1.6em; /* Plus petit pour la veille car il y a aussi un post-it */
+            margin-bottom: 0; /* Pas de marge en bas si le post-it est juste en dessous */
+        }
+
+
         .veille-section-container { padding: 0; background: none; box-shadow: none; max-width: 100%; }
         
         .veille-header {
@@ -77,11 +93,12 @@
             position: relative;
             padding-top: 15px;
         }
-        .veille-header h3 {
+        /* SUPPRIMÉ: Les styles du h3 ont été déplacés vers .section-title et .veille-header .section-title */
+        /* .veille-header h3 {
              text-align: center;
              color: var(--dark-blue);
              margin: 0;
-        }
+        } */
         .post-it-note {
             position: absolute;
             top: 0;
@@ -327,7 +344,7 @@
     <main>
         <section class="veille-section-container">
             <div class="veille-header">
-                <h3>Veille IA & Marketing</h3>
+                <h3 class="section-title">Veille IA & Marketing</h3>
                 <div class="post-it-note">
                     <i class="fas fa-robot post-it-icon"></i>
                     <p>
@@ -354,7 +371,7 @@
         </section>
 
         <section class="content-section">
-             <h2>Derniers ajouts</h2>
+             <h2 class="section-title">Derniers ajouts</h2>
              <div id="latest-additions-grid" class="latest-additions-grid"></div>
         </section>
     </main>
@@ -666,131 +683,3 @@
             });
 
             const normalizeItem = (item) => {
-                const normalizedAuteur = item.auteur ? item.auteur.toLowerCase().trim() : '';
-                const profilCorrespondant = profilsMap.get(normalizedAuteur);
-                
-                let resolvedProfileImageUrl = 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P'; 
-                if (profilCorrespondant && profilCorrespondant.photo) {
-                    resolvedProfileImageUrl = profilCorrespondant.photo;
-                } else if (item.profileImageUrl) { 
-                    resolvedProfileImageUrl = item.profileImageUrl;
-                }
-
-                return {
-                    ...item, 
-                    titre: item.titre || "Titre", 
-                    auteur: item.auteur || "Inconnu", 
-                    date: item.date_creation || item.dateCreation, 
-                    outil: item.outil || "Non spécifié", 
-                    imageUrl: item.imageUrl || (Array.isArray(item.fileUrls) && item.fileUrls.length > 0 ? item.fileUrls[0] : 'NO_IMAGE_PLACEHOLDER'), 
-                    firstVideoUrl: (Array.isArray(item.urls) ? item.urls : []).find(url => getYouTubeVideoId(url)),
-                    profileImageUrl: resolvedProfileImageUrl
-                };
-            };
-
-            tips = tips.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
-            prompts = prompts.map(normalizeItem).sort((a, b) => new Date(b.date) - new Date(a.date));
-            container.innerHTML = ''; // Clear "Chargement..."
-            let itemsToDisplay = [];
-            if (prompts.length > 0) itemsToDisplay.push({ item: prompts[0], type: 'galerie' });
-            if (tips.length > 0) itemsToDisplay.push({ item: tips[0], type: 'cas-usage' });
-
-            if (itemsToDisplay.length > 0) {
-                itemsToDisplay.forEach(({ item, type }) => container.appendChild(createCard(item, type)));
-            } else {
-                container.innerHTML = '<p>Aucun ajout récent.</p>';
-            }
-            console.log("Latest additions displayed.");
-        } catch (error) {
-            console.error("Erreur de chargement des derniers ajouts:", error);
-            container.innerHTML = `<p style="color: var(--error-text);">Erreur de chargement des derniers ajouts.</p>`;
-        }
-    }
-
-    // =========================================================================
-    // SECTION 3 : BANDEAU D'ACTUALITÉS
-    // =========================================================================
-    async function loadNewsTicker() {
-        const newsTickerContent = document.getElementById('newsTickerContent');
-        if (!newsTickerContent) return;
-        // On récupère le fichier news-data.json qui contient les actualités
-        const NEWS_DATA_PATH = 'news-data.json'; 
-        console.log("loadNewsTicker: Starting fetch for news-data.json");
-        try {
-            // Ajout d'un paramètre de cache-busting pour s'assurer d'obtenir la dernière version du fichier
-            const response = await fetch(`/${NEWS_DATA_PATH}?t=${Date.now()}`);
-            console.log("news-data.json fetch status:", response.status, response.ok);
-            if (!response.ok) {
-                // Si le fichier n'est pas trouvé (404), c'est qu'il n'y a pas encore de messages.
-                if (response.status === 404) {
-                    newsTickerContent.innerHTML = '<span>Aucune actualité récente à afficher.</span>';
-                    return;
-                }
-                throw new Error('Fichier news introuvable ou erreur de chargement.');
-            }
-            let newsItems = await response.json();
-            console.log("News ticker data:", newsItems);
-
-            // Si newsItems n'est pas un tableau (e.g., c'est un objet vide ou un objet avec des clés timestamp), le convertir en tableau
-            if (!Array.isArray(newsItems)) {
-                newsItems = Object.values(newsItems);
-            }
-
-            // Filtrer les actualités de plus de 48 heures (si un timestamp est présent)
-            const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-            newsItems = newsItems.filter(item => {
-                return item.timestamp && new Date(item.timestamp) > fortyEightHoursAgo;
-            });
-
-            if (newsItems.length > 0) {
-                // Trier les actualités par date/timestamp décroissant (le plus récent en premier)
-                newsItems.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-
-                const fullTextHtml = newsItems.map(item => {
-                    const itemColor = item.color || defaultColorsByPole[item.pole] || defaultColorsByPole["Autre"];
-                    let metaInfo = '';
-                    if (item.collaborateur && item.collaborateur !== 'Non spécifié') {
-                        metaInfo += ` - ${escapeHtml(item.collaborateur)}`;
-                    }
-                    if (item.pole && item.pole !== 'Autre') {
-                        metaInfo += ` (${escapeHtml(item.pole)})`;
-                    }
-                    return `<span class="news-item"><span class="news-item-text" style="color: ${itemColor};">${escapeHtml(item.title)}</span><span class="news-item-meta">${metaInfo}</span></span>`;
-                }).join(' &nbsp; • &nbsp; ');
-                
-                newsTickerContent.innerHTML = fullTextHtml + ' &nbsp; • &nbsp; ' + fullTextHtml; // Dupliquer pour l'effet de défilement continu
-            } else {
-                newsTickerContent.innerHTML = '<span>Aucune actualité récente à afficher.</span>';
-            }
-            console.log("News ticker displayed.");
-        } catch (error) {
-            console.error("Erreur chargement news ticker:", error);
-            newsTickerContent.innerHTML = '<span>Impossible de charger les actualités.</span>';
-        }
-    }
-    
-    // Le DOMContentLoaded global qui appelle toutes les fonctions
-    document.addEventListener("DOMContentLoaded", async () => {
-        console.log("DOMContentLoaded fired.");
-
-        // Charger les composants (header et footer) et initialiser le dropdown/nav
-        await Promise.all([
-            loadComponent("header.html", "header-placeholder"),
-            loadComponent("footer.html", "footer-placeholder")
-        ]);
-
-        initializeHeaderDropdown();
-        updateActiveNavLinks(); 
-
-        // =========================================================================
-        // APPEL DE TOUTES LES FONCTIONS SPÉCIFIQUES À INDEX.HTML
-        // =========================================================================
-        console.log("Calling content loading functions for index.html.");
-        loadAndInitVeille(); 
-        loadNewsTicker(); // Chargement du flux RSS avant les derniers ajouts
-        displayLatestAdditions();
-        console.log("Content loading functions called. Check console for fetch statuses.");
-    });
-</script>
-</body>
-</html>
