@@ -67,7 +67,8 @@
 
 
         .content-section { max-width: 960px; width: 100%; margin: 0 auto; padding: 25px; box-sizing: border-box; background-color: #fff; border-radius: 12px; box-shadow: var(--card-shadow); position: relative; }
-        .content-section h2, .content-section h3 { text-align: center; color: var(--dark-blue); margin-top: 0; margin-bottom: 25px; }
+        /* SUPPRIMÉ: Ces styles sont maintenant dans .section-title */
+        /* .content-section h2, .content-section h3 { text-align: center; color: var(--dark-blue); margin-top: 0; margin-bottom: 25px; } */
 
         /* NOUVEAU : Style générique pour les titres de section */
         .section-title {
@@ -683,3 +684,96 @@
             });
 
             const normalizeItem = (item) => {
+                const profile = profilsMap.get((item.auteur || '').toLowerCase().trim());
+                return {
+                    ...item,
+                    date: item.date || item.Date, // Assurer que la date est correcte
+                    profileImageUrl: profile ? profile.profileImageUrl : null
+                };
+            };
+
+            const latestTip = tips.length > 0 ? normalizeItem(tips.sort((a, b) => new Date(b.date) - new Date(a.date))[0]) : null;
+            const latestPrompt = prompts.length > 0 ? normalizeItem(prompts.sort((a, b) => new Date(b.date) - new Date(a.date))[0]) : null;
+
+            container.innerHTML = ''; // Nettoyer le message de chargement
+
+            if (latestPrompt) {
+                container.appendChild(createCard(latestPrompt, 'galerie'));
+            }
+            if (latestTip) {
+                container.appendChild(createCard(latestTip, 'cas-usage'));
+            }
+
+            if (!latestPrompt && !latestTip) {
+                container.innerHTML = '<p style="text-align: center;">Aucun nouvel ajout pour le moment.</p>';
+            }
+
+        } catch (error) {
+            console.error("Erreur lors du chargement des derniers ajouts:", error);
+            container.innerHTML = `<p style="text-align: center; color: var(--error-text);">Impossible de charger les derniers ajouts.</p>`;
+        }
+    }
+
+    // =========================================================================
+    // SECTION 3 : BANDEAU D'ACTUALITÉS (Flux RSS)
+    // =========================================================================
+    async function loadNewsTicker() {
+        const newsTickerContent = document.getElementById('newsTickerContent');
+        if (!newsTickerContent) return;
+
+        console.log("loadNewsTicker: Starting fetch for news-feed.");
+        try {
+            const response = await fetch('/.netlify/functions/news-feed');
+            if (!response.ok) {
+                console.error(`Failed to fetch news feed, status: ${response.status}`);
+                newsTickerContent.innerHTML = '<span style="color: var(--error-text);">Erreur de chargement des actualités.</span>';
+                return;
+            }
+            const newsItems = await response.json();
+            console.log("News feed data:", newsItems);
+
+            if (!newsItems || newsItems.length === 0) {
+                newsTickerContent.innerHTML = '<span>Aucune actualité récente.</span>';
+                return;
+            }
+
+            // Pour s'assurer que le défilement est fluide, dupliquer le contenu
+            const newsHtml = newsItems.map(item => {
+                const poleColor = defaultColorsByPole[item.pole] || defaultColorsByPole['Autre'];
+                return `
+                    <span class="news-item" style="margin-right: 50px;">
+                        <span class="news-item-text">${escapeHtml(item.title)}</span>
+                        <span class="news-item-meta" style="color: ${poleColor};">(${escapeHtml(item.author)} - ${escapeHtml(item.pole)})</span>
+                    </span>
+                `;
+            }).join('');
+
+            newsTickerContent.innerHTML = newsHtml + newsHtml; // Dupliquer pour un défilement continu
+            
+            // Redémarrer l'animation si le contenu change (nécessaire après rechargement AJAX)
+            newsTickerContent.style.animation = 'none';
+            void newsTickerContent.offsetWidth; // Force reflow
+            newsTickerContent.style.animation = 'ticker 40s linear infinite';
+
+
+        } catch (error) {
+            console.error("Erreur chargement news ticker:", error);
+            newsTickerContent.innerHTML = '<span style="color: var(--error-text);">Impossible de charger les actualités.</span>';
+        }
+    }
+
+
+    // =========================================================================
+    // INITIALISATION LORS DU CHARGEMENT DE LA PAGE
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadComponent('header.html', 'header-placeholder');
+        initializeHeaderDropdown(); // Initialiser le dropdown après que le header soit chargé
+        updateActiveNavLinks(); // Mettre à jour les liens actifs après que le header soit chargé
+        loadAndInitVeille();
+        displayLatestAdditions();
+        loadNewsTicker();
+    });
+    </script>
+</body>
+</html>
