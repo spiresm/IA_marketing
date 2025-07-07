@@ -253,6 +253,11 @@
             text-align: center;
             color: var(--grey-text);
             font-size: 0.95em;
+            display: flex; /* Utilisation de flexbox pour aligner les vignettes */
+            flex-wrap: wrap;
+            justify-content: center; /* Centre les vignettes */
+            align-items: center;
+            min-height: 40px; /* Pour éviter que le cadre ne s'écrase si aucun participant */
         }
         #add-image-section {
             display: flex;
@@ -1053,7 +1058,7 @@
                     const imgTag = `<img src="${escapeHtmlAttribute(imageUrl)}" alt="Image insérée">`;
                     
                     const textarea = brainstormingIdeasTextarea;
-                    const start = textarea.selectionStart; 
+                    const start = textarea.selectionStart;
                     const end = textarea.selectionEnd;
                     let text = textarea.value;
                     
@@ -1104,9 +1109,6 @@
             };
 
             try {
-                // IMPORTANT : Si vous utilisez un dossier local pour la persistance,
-                // cette partie nécessitera un traitement côté serveur ou une API tierce (ex: Firebase, Supabase)
-                // car le navigateur ne peut pas écrire directement sur des fichiers locaux.
                 const response = await fetch(`${apiBase}saveBrainstorming`, {
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
@@ -1114,8 +1116,10 @@
                 });
 
                 if (!response.ok) {
+                    // Tente de lire le message d'erreur du serveur
                     const errorText = await response.text();
-                    throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
+                    console.error(`Erreur du serveur lors de la sauvegarde: ${response.status} - ${errorText}`);
+                    throw new Error(`Erreur du serveur (${response.status}) : ${errorText}`);
                 }
                 const result = await response.json();
                 console.log('Brainstorming enregistré:', result);
@@ -1134,24 +1138,25 @@
                 loadBrainstormings(); // Recharge la liste des brainstormings pour afficher le nouveau/mis à jour
             } catch (error) {
                 console.error('Erreur lors de l\'enregistrement du brainstorming:', error);
-                alert(`Erreur lors de l'enregistrement du brainstorming: ${error.message}`);
+                alert(`Erreur lors de l'enregistrement du brainstorming: ${error.message}. Vérifiez les logs de votre fonction Netlify.`);
             }
         }
 
         async function loadBrainstormings() {
             brainstormingListDiv.innerHTML = '<p class="loading-message">Chargement des brainstormings...</p>';
             try {
-                // IMPORTANT : Si vous utilisez un dossier local,
-                // cette fonction `getBrainstormings` doit aussi être une Netlify Function ou un autre service.
                 const response = await fetch(`${apiBase}getBrainstormings`);
                 if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+                    // Tente de lire le message d'erreur du serveur
+                    const errorText = await response.text();
+                    console.error(`Erreur du serveur lors du chargement: ${response.status} - ${errorText}`);
+                    throw new Error(`Erreur du serveur (${response.status}) : ${errorText}`);
                 }
                 allBrainstormings = await response.json();
                 renderBrainstormingList();
             } catch (error) {
                 console.error('Erreur chargement des brainstormings enregistrés:', error);
-                brainstormingListDiv.innerHTML = '<p class="error-message">Impossible de charger les brainstormings. Vérifiez vos fonctions Netlify ou la source de données.</p>';
+                brainstormingListDiv.innerHTML = `<p class="error-message">Impossible de charger les brainstormings. Erreur: ${error.message}. Vérifiez vos fonctions Netlify.</p>`;
             }
         }
 
@@ -1266,22 +1271,21 @@
             }
 
             try {
-                // IMPORTANT : Si vous utilisez un dossier local, cette fonction `saveBrainstorming`
-                // doit aussi être une Netlify Function pour gérer la suppression.
                 const response = await fetch(`${apiBase}saveBrainstorming?id=${brainstormId}`, {
                     method: 'DELETE'
                 });
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
+                    console.error(`Erreur du serveur lors de la suppression: ${response.status} - ${errorText}`);
+                    throw new Error(`Erreur du serveur (${response.status}) : ${errorText}`);
                 }
                 console.log('Brainstorming supprimé.');
                 alert("Brainstorming supprimé avec succès !");
                 loadBrainstormings(); 
             } catch (error) {
                 console.error('Erreur lors de la suppression du brainstorming:', error);
-                alert(`Erreur lors de la suppression du brainstorming: ${error.message}`);
+                alert(`Erreur lors de la suppression du brainstorming: ${error.message}. Vérifiez les logs de votre fonction Netlify.`);
             }
         }
 
