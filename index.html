@@ -290,6 +290,23 @@
             object-fit: cover;     
         }
         footer { background-color: #333; color: white; text-align: center; padding: 20px; margin-top: auto; width: 100%; }
+        
+        /* NOUVEAU STYLE pour le message d'incitation à scroller */
+        .scroll-prompt-container {
+            text-align: center;
+            color: var(--grey-text);
+            font-size: 1.1em;
+            font-weight: bold;
+            margin: 20px auto;
+            opacity: 0; /* Caché par défaut */
+            transition: opacity 0.5s ease-in-out;
+            max-width: 960px;
+        }
+
+        .scroll-prompt-container.show {
+            opacity: 1; /* Apparaît quand la classe 'show' est ajoutée */
+        }
+        
         @media (max-width: 768px) {           
             main { padding: 20px 0; }           
             .content-section, .veille-carousel-wrapper { border-radius: 0; }           
@@ -352,6 +369,10 @@
                 <button class="scroll-arrow right" id="veille-scroll-right"><i class="fas fa-chevron-right"></i></button>            
             </div>        
         </section>
+
+        <div id="scroll-prompt" class="scroll-prompt-container">
+            <p>↓ Faites défiler pour voir plus de contenu ↓</p>
+        </div>
         
         <section class="content-section">             
             <h2 class="section-title">Derniers ajouts</h2> <div id="latest-additions-grid" class="latest-additions-grid"></div>        
@@ -505,48 +526,60 @@
     async function loadAndInitVeille() {         
         const grid = document.getElementById('veille-articles-grid');         
         if (!grid) return;         
-        console.log("loadAndInitVeille: Starting fetch for veille-articles.json");         
-        try {             
-            const response = await fetch('veille-articles.json');             
-            console.log("veille-articles.json fetch status:", response.status, response.ok);             
-            if (!response.ok) throw new Error(`Fichier introuvable (statut: ${response.status})`);             
-            const articles = await response.json();             
-            console.log("Veille articles data:", articles);
-            
-            if (!articles || articles.length === 0) {               
-                grid.innerHTML = '<p style="padding: 20px; text-align: center;">Aucun article de veille.</p>';               
-                return;             
-            }             
-            
-            grid.innerHTML = articles.map(article => {
-                // // MODIFIÉ : On crée une variable pour le HTML de l'image et sa mention.
-                const imageHtml = article.imageUrl
-                    ? `<div class="veille-image-container">
-                         <img src="${article.imageUrl}" alt="Image pour ${article.titre || 'Titre'}" class="veille-card-image">
-                         <p class="image-ai-mention">Image générée par IA</p>
-                       </div>`
-                    : ''; // Sinon, on ne met rien.
-
-                return `        
-                    <div class="veille-card">            
-                        <div class="card-meta-info">                
-                            <span class="meta-tag"><i class="fas fa-calendar-alt"></i> ${article.date || 'Date'}</span>                
-                            <span class="meta-tag"><i class="fas fa-newspaper"></i> ${article.source || 'Source'}</span>                
-                            <span class="meta-tag"><i class="fas fa-tag"></i> ${article.tag || 'Tag'}</span>            
-                        </div>
-                        ${imageHtml}
-                        <h4>⚡ ${article.titre || 'Titre'}</h4>            
-                        <div class="card-content"><p>${article.resume || 'Résumé'}</p></div>            
-                        <div class="card-footer"><a href="${article.url || '#'}" target="_blank" class="action-button">Lire l’article</a></div>        
-                    </div>        
-                `;
-            }).join('');
-            initVeilleCarousel();       
-        } catch (error) {             
-            console.error("Erreur chargement veille:", error);             
-            grid.innerHTML = `<p style="padding: 20px; text-align: center; color: var(--error-text);">Impossible de charger les articles.</p>`;       
-        }    
+        console.log("loadAndInitVeille: Starting to load hardcoded veille articles.");
+        
+        // Données des articles de veille (avec l'article RTBF Remix ajouté)
+        const articles = [
+            {
+                "titre": "RTBF Remix : un projet pour valoriser les archives de la RTBF grâce à l’IA",
+                "resume": "Un projet pilote utilisant l'IA pour analyser les archives de la radio et de la télévision belge, dans le but de mieux les valoriser et de les rendre plus accessibles au public.",
+                "url": "https://www.rtbf.be/info/societe/detail_rtbf-remix-un-projet-pour-valoriser-les-archives-de-la-rtbf-grace-a-l-ia?id=10729792",
+                "source": "RTBF",
+                "date": "2025-09-04",
+                "tag": "Archives, Médias, IA",
+                "imageUrl": "https://www.rtbf.be/image/570/427/9/75/a6/f8/11/a4/0c/ac/1d/18/d8/e5/bd/6d/rtbf-remix-un-projet-pour-valoriser-les-archives-de-la-rtbf-grace-a-l-ia_1611091539.jpg?q=70&width=800"
+            },
+            {
+                "titre": "Les 5 étapes d'un brief créatif efficace avec l'IA",
+                "resume": "L'IA est désormais un partenaire incontournable du processus créatif. Pour en tirer le meilleur parti, il est essentiel de maîtriser l'art du brief créatif. Découvrez comment structurer votre démarche en 5 étapes clés.",
+                "url": "https://example.com/brief-creatif-ia",
+                "source": "Creative Magazine",
+                "date": "2025-09-02",
+                "tag": "Créativité, Outils, IA"
+            },
+            // Ajoutez d'autres articles si nécessaire
+        ];
+        
+        if (!articles || articles.length === 0) {
+            grid.innerHTML = '<p style="padding: 20px; text-align: center;">Aucun article de veille.</p>';
+            return;
+        }
+        
+        grid.innerHTML = articles.map(article => {
+            const imageHtml = article.imageUrl
+                ? `<div class="veille-image-container">
+                     <img src="${article.imageUrl}" alt="Image pour ${article.titre || 'Titre'}" class="veille-card-image">
+                     <p class="image-ai-mention">Image générée par IA</p>
+                   </div>`
+                : '';
+            return `
+                <div class="veille-card">
+                    <div class="card-meta-info">
+                        <span class="meta-tag"><i class="fas fa-calendar-alt"></i> ${article.date || 'Date'}</span>
+                        <span class="meta-tag"><i class="fas fa-newspaper"></i> ${article.source || 'Source'}</span>
+                        <span class="meta-tag"><i class="fas fa-tag"></i> ${article.tag || 'Tag'}</span>
+                    </div>
+                    ${imageHtml}
+                    <h4>⚡ ${article.titre || 'Titre'}</h4>
+                    <div class="card-content"><p>${article.resume || 'Résumé'}</p></div>
+                    <div class="card-footer"><a href="${article.url || '#'}" target="_blank" class="action-button">Lire l’article</a></div>
+                </div>
+            `;
+        }).join('');
+        
+        initVeilleCarousel();
     }
+
 
     function initVeilleCarousel() {         
         const grid = document.getElementById('veille-articles-grid');         
@@ -767,8 +800,40 @@
             console.error("Erreur chargement news ticker:", error);             
             newsTickerContent.innerHTML = `<span style="color: var(--error-text);">Impossible de charger les actualités : ${error.message}</span>`; // Affiche l'erreur pour débogage
         }    
-    }        
+    }
     
+    // NOUVELLE FONCTION pour gérer le message de défilement
+    function initScrollPrompt() {
+        const scrollPrompt = document.getElementById('scroll-prompt');
+        if (!scrollPrompt) return;
+        
+        let inactivityTimer;
+        const inactivityThreshold = 4000; // 4 secondes d'inactivité
+
+        function showPrompt() {
+            scrollPrompt.classList.add('show');
+        }
+
+        function hidePrompt() {
+            scrollPrompt.classList.remove('show');
+        }
+
+        function resetTimer() {
+            clearTimeout(inactivityTimer);
+            hidePrompt();
+            inactivityTimer = setTimeout(showPrompt, inactivityThreshold);
+        }
+
+        // Événements pour détecter l'activité de l'utilisateur
+        window.addEventListener('scroll', resetTimer);
+        window.addEventListener('mousemove', resetTimer);
+        window.addEventListener('keypress', resetTimer);
+
+        // Initialisation au chargement de la page
+        resetTimer();
+    }
+
+
     // Le DOMContentLoaded global qui appelle toutes les fonctions
     document.addEventListener("DOMContentLoaded", async () => {         
         console.log("DOMContentLoaded fired.");
@@ -789,6 +854,10 @@
         loadAndInitVeille();            
         displayLatestAdditions();         
         loadNewsTicker();         
+        
+        // NOUVEL APPEL : Initialisation du message de défilement
+        initScrollPrompt();
+
         console.log("Content loading functions called. Check console for fetch statuses.");    
     });
     </script>
