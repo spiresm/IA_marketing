@@ -121,22 +121,14 @@
         .veille-card .card-meta-info { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; font-size: 0.9em; color: var(--grey-text); }
         .veille-card .meta-tag { display: flex; align-items: center; gap: 6px; background-color: #f0f2f5; padding: 5px 10px; border-radius: 15px; }
         
+        /* */
         .veille-card-image {
             width: 100%;
-            height: 220px; 
-            object-fit: cover;
+            height: 220px; /* Hauteur fixe pour l'image */
+            object-fit: cover; /* Assure que l'image couvre la zone sans se déformer */
             border-radius: 8px;
-            background-color: #eee;
-        }
-
-        /* */
-        .image-ai-mention {
-            font-size: 0.8em;
-            color: #999;
-            text-align: right;
-            font-style: italic;
-            margin-top: 5px;
-            margin-bottom: 20px;
+            margin-bottom: 20px; /* Espace entre l'image et le titre */
+            background-color: #eee; /* Couleur de fond pendant le chargement */
         }
         
         .veille-card h4 { text-align: left; font-size: 1.6em; color: var(--dark-blue); margin: 0 0 10px 0; }
@@ -340,7 +332,8 @@
                     <i class="fas fa-robot post-it-icon"></i>                    
                     <p>                        
                         <strong>Veille Automatisée</strong>                        
-                        Générée par un workflow n8n.                    </p>              
+                        Générée par un workflow n8n.                    
+                    </p>              
                 </div>            
             </div>                          
             <div class="veille-carousel-wrapper">              
@@ -516,14 +509,11 @@
                 grid.innerHTML = '<p style="padding: 20px; text-align: center;">Aucun article de veille.</p>';               
                 return;             
             }             
-            
+            // --- MODIFIÉ : Ajout de la logique pour l'image ---
             grid.innerHTML = articles.map(article => {
-                // // MODIFIÉ : On crée une variable pour le HTML de l'image et sa mention.
+                // On crée une variable pour le HTML de l'image. Si imageUrl existe, on crée la balise img.
                 const imageHtml = article.imageUrl
-                    ? `<div class="veille-image-container">
-                         <img src="${article.imageUrl}" alt="Image pour ${article.titre || 'Titre'}" class="veille-card-image">
-                         <p class="image-ai-mention">Image générée par IA</p>
-                       </div>`
+                    ? `<img src="${article.imageUrl}" alt="Image pour ${article.titre || 'Titre'}" class="veille-card-image">`
                     : ''; // Sinon, on ne met rien.
 
                 return `        
@@ -533,7 +523,7 @@
                             <span class="meta-tag"><i class="fas fa-newspaper"></i> ${article.source || 'Source'}</span>                
                             <span class="meta-tag"><i class="fas fa-tag"></i> ${article.tag || 'Tag'}</span>            
                         </div>
-                        ${imageHtml}
+                        ${imageHtml} {/* */}
                         <h4>⚡ ${article.titre || 'Titre'}</h4>            
                         <div class="card-content"><p>${article.resume || 'Résumé'}</p></div>            
                         <div class="card-footer"><a href="${article.url || '#'}" target="_blank" class="action-button">Lire l’article</a></div>        
@@ -604,30 +594,23 @@
         card.className = 'addition-card';
         const mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
         let mediaHtml = '';
+        const youtubeVideoId = item.firstVideoUrl ? getYouTubeVideoId(item.firstVideoUrl) : null;
         
         let resolvedImageUrl = item.imageUrl || item.vignetteUrl;
         
-        // Nouvelle logique : si l'URL n'est pas trouvée, essayons de la générer à partir de l'URL de la vidéo.
         if (!resolvedImageUrl && Array.isArray(item.urls) && item.urls.length > 0) {
-            const videoUrl = item.urls.find(url => url.includes('cloudinary.com') || url.includes('youtube.com') || url.includes('youtu.be'));
+            const videoUrl = item.urls.find(url => url.includes('cloudinary.com'));
             if (videoUrl) {
-                if (videoUrl.includes('cloudinary.com')) {
-                    // Logique pour Cloudinary : On génère la vignette à partir de l'URL de la vidéo
-                    resolvedImageUrl = videoUrl.replace('/video/upload/', '/video/upload/c_fill,g_auto,w_500,h_281/').replace(/\.[^/.]+$/, '.jpg');
-                } else {
-                    // Logique pour YouTube
-                    const youtubeId = getYouTubeVideoId(videoUrl);
-                    if (youtubeId) {
-                        resolvedImageUrl = `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`;
-                    }
-                }
+                 resolvedImageUrl = videoUrl.replace('/video/upload/', '/video/upload/c_fill,g_auto,w_500,h_281/').replace(/\.[^/.]+$/, '.jpg');
             }
         }
         
-        if (resolvedImageUrl && resolvedImageUrl !== 'NO_IMAGE_PLACEHOLDER') {
+        if (youtubeVideoId) {
+            mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette pour ${escapeHtml(item.titre || '')}"></div>`;
+        } else if (resolvedImageUrl && resolvedImageUrl !== 'NO_IMAGE_PLACEHOLDER') {
             mediaHtml = `<div class="card-image-container"><img src="${escapeHtml(resolvedImageUrl)}" alt="Vignette pour ${escapeHtml(item.titre || '')}"></div>`;
         }
-
+        
         const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
         
         const profileImgSrc = item.profileImageUrl || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P';
