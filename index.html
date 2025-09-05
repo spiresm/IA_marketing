@@ -605,11 +605,23 @@
         const mainCardTitle = type === 'galerie' ? 'Dernier prompt partagé' : 'Dernier workflow partagé';
         let mediaHtml = '';
         const youtubeVideoId = item.firstVideoUrl ? getYouTubeVideoId(item.firstVideoUrl) : null;
+        
+        // Nouvelle logique pour générer l'URL de la vignette Cloudinary si l'URL de l'image est manquante
+        let resolvedImageUrl = item.imageUrl;
+        if (!resolvedImageUrl && item.urls && item.urls.length > 0) {
+            const videoUrl = item.urls.find(url => url.includes('cloudinary.com'));
+            if (videoUrl) {
+                 resolvedImageUrl = videoUrl.replace('/video/upload/', '/video/upload/c_fill,g_auto,w_500,h_281/').replace(/\.[^/.]+$/, '.jpg');
+            }
+        }
+        
+        // Remplacer l'ancienne logique
         if (youtubeVideoId) {
             mediaHtml = `<div class="card-image-container"><img src="https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg" alt="Vignette pour ${escapeHtml(item.titre || '')}"></div>`;
-        } else if (item.imageUrl && item.imageUrl !== 'NO_IMAGE_PLACEHOLDER') {
-            mediaHtml = `<div class="card-image-container"><img src="${escapeHtml(item.imageUrl)}" alt="Vignette pour ${escapeHtml(item.titre || '')}"></div>`;
+        } else if (resolvedImageUrl && resolvedImageUrl !== 'NO_IMAGE_PLACEHOLDER') {
+            mediaHtml = `<div class="card-image-container"><img src="${escapeHtml(resolvedImageUrl)}" alt="Vignette pour ${escapeHtml(item.titre || '')}"></div>`;
         }
+        
         const toolBadge = item.outil && item.outil !== 'Non spécifié' ? `<span class="outil-badge">${escapeHtml(item.outil)}</span>` : '';
         
         const profileImgSrc = item.profileImageUrl || 'https://via.placeholder.com/45/0077b6/FFFFFF?text=P';
