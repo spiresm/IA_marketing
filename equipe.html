@@ -271,12 +271,12 @@
             object-fit: cover;
             border-radius: 10px;
             border: 3px solid var(--primary-blue); /* Bordure bleue */
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         .gallery-images-container img:hover {
             transform: scale(1.05);
-            box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
         }
 
         footer {
@@ -480,7 +480,13 @@
     // Fonctions de l'application (fetchData, normalizeString, escapeHtml, renderProfils, etc.)
     async function fetchData(action) {
         try {
-            const response = await fetch(`./.netlify/functions/${action}`);
+            // 🚫 caching agressif : on désactive via cache-busting & hints
+            const url = `./.netlify/functions/${action}?t=${Date.now()}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Cache-Control': 'no-cache' },
+                cache: 'no-store'
+            });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.json();
         } catch (error) {
@@ -599,7 +605,8 @@
         renderProfils(filtered);
     }
 
-    function openSidePanel(profil) {
+    // ⬇️⬇️⬇️ Correction: re-fetch des données fraîches à chaque ouverture + tri explicite
+    async function openSidePanel(profil) {
         const sidePanel = document.getElementById("side-panel");
         const panelContent = document.getElementById("panel-content");
         const panelName = document.getElementById("panel-name");
@@ -607,6 +614,33 @@
         const overlay = document.getElementById("side-panel-overlay");
 
         if(!profil || !sidePanel || !panelContent || !panelName || !panelPole || !overlay) return;
+
+        // 🔄 Rafraîchir prompts & workflows à l’ouverture pour éviter les données figées
+        try {
+            const [promptsData, tipsData] = await Promise.all([
+                fetchData('getGalleryPrompts'),
+                fetchData('get-tips')
+            ]);
+
+            if (Array.isArray(promptsData)) {
+                galleryPrompts = promptsData;
+            }
+
+            if (Array.isArray(tipsData)) {
+                sharedTips = tipsData.map(tip => ({
+                    ...tip,
+                    id: String(tip.id),
+                    dateCreation: tip.date_creation || tip.dateCreation || new Date().toISOString(),
+                    titre: tip.titre || "Titre non spécifié",
+                    auteur: tip.auteur || "Auteur inconnu",
+                    outil: tip.outil || "Non spécifié",
+                    imageUrl: tip.imageUrl,
+                    fileUrls: tip.fileUrls || []
+                }));
+            }
+        } catch(e) {
+            console.warn('Refresh latéral échoué :', e);
+        }
 
         const header = sidePanel.querySelector('.side-panel-header');
         let imgElement = header.querySelector('img');
@@ -622,7 +656,11 @@
 
         let panelHtmlContent = '';
 
-        const promptsByAuthor = galleryPrompts.filter(p => normalizeString(p.auteur) === normalizeString(profil.name));
+        // Prompts par auteur : triés du + récent au + ancien si date dispo
+        const promptsByAuthor = (galleryPrompts || [])
+            .filter(p => normalizeString(p.auteur) === normalizeString(profil.name))
+            .sort((a, b) => new Date(b.dateCreation || b.createdAt || 0) - new Date(a.dateCreation || a.createdAt || 0));
+
         panelHtmlContent += `<h3 class="no-icon-no-border">Derniers Prompts Partagés</h3>`;
         if (promptsByAuthor.length > 0) {
             panelHtmlContent += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt =>
@@ -632,12 +670,14 @@
             panelHtmlContent += '<p>Aucun prompt partagé.</p>';
         }
 
-        const tipsByAuthor = sharedTips.filter(tip => normalizeString(tip.auteur) === normalizeString(profil.name));
+        // Workflows par auteur : triés du + récent au + ancien
+        const tipsByAuthor = (sharedTips || [])
+            .filter(tip => normalizeString(tip.auteur) === normalizeString(profil.name))
+            .sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation));
+
         panelHtmlContent += `<h3 class="no-icon-no-border">Dernier Workflow Partagé</h3>`;
         if (tipsByAuthor.length > 0) {
-            tipsByAuthor.sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation));
             const latestTip = tipsByAuthor[0];
-
             const imageUrl = latestTip.imageUrl || (latestTip.fileUrls && latestTip.fileUrls.length > 0 ? latestTip.fileUrls[0] : null);
             const imageHtml = imageUrl ? `<img src="${imageUrl}" alt="${escapeHtmlAttribute(latestTip.titre)}" class="tip-card-img">` : '';
 
@@ -743,3 +783,5 @@
         initApp();
     });
 </script>
+</body>
+</html>
