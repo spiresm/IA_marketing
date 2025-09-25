@@ -656,58 +656,27 @@
 
         let panelHtmlContent = '';
 
-        
+        // Prompts par auteur : triés du + récent au + ancien si date dispo
+        // Prompts globaux (3 derniers) — on conserve le même nom de variable pour rester compatible
+        const promptsByAuthor = [...(galleryPrompts || [])]
+            .sort((a, b) => new Date(b.dateCreation || b.createdAt || 0) - new Date(a.dateCreation || a.createdAt || 0))
+            .slice(0, 3);
 
-        // Helpers image sûrs (placeholder si casse ou si ce n'est pas une image)
-        function isImageUrl(u){ return typeof u === 'string' && /(\.png|\.jpe?g|\.gif|\.webp|\.svg)(\?|$)/i.test(u); }
-        function safeImg(url, alt, size='150x150', cls=''){
-          const fallback = `https://placehold.co/${size}?text=Aperçu`;
-          const finalUrl = (url && isImageUrl(url)) ? url : fallback;
-          return `<img src="${finalUrl}" alt="${escapeHtmlAttribute(alt)}" class="${cls}" onerror="this.onerror=null;this.src='${fallback}'">`;
-        }
-
-// ▼▼ Toujours GLOBAL: 3 derniers prompts, tous auteurs confondus
-        const latestPrompts = [...(galleryPrompts || [])]
-          .sort((a, b) => new Date(b.dateCreation || b.createdAt || 0) - new Date(a.dateCreation || a.createdAt || 0))
-          .slice(0, 3);
-
-        panelHtmlContent += `<h3 class="no-icon-no-border">Derniers Prompts (globaux)</h3>`;
-        if (latestPrompts.length > 0) {
-          panelHtmlContent += `<div class="gallery-images-container">${
-            latestPrompts.map(p => {
-              const img = safeImg(p.imageUrl, p.titre, '150x150');
-              return `<a href="galerie.html" title="${escapeHtmlAttribute(p.titre)}">${img}</a>`;
-            }).join('')
-          }</div>`;
+        panelHtmlContent += `<h3 class="no-icon-no-border">Derniers Prompts Partagés</h3>`;
+        if (promptsByAuthor.length > 0) {
+            panelHtmlContent += `<div class="gallery-images-container">${promptsByAuthor.slice(0, 3).map(prompt =>
+                `<a href="galerie.html" title="${escapeHtmlAttribute(prompt.titre)}"><img src="${prompt.imageUrl || 'https://placehold.co/150'}" onerror="this.onerror=null;this.src=\'https://placehold.co/150?text=Aperçu\'" alt="${escapeHtmlAttribute(prompt.titre)}"></a>`
+            ).join('')}</div>`;
         } else {
-          panelHtmlContent += '<p>Aucun prompt partagé.</p>';
+            panelHtmlContent += '<p>Aucun prompt partagé.</p>';
         }
 
-        // ▼▼ Toujours GLOBAL: dernier workflow, tous auteurs confondus
-        const latestTip = [...(sharedTips || [])]
-          .sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation))[0];
-
-        panelHtmlContent += `<h3 class="no-icon-no-border">Dernier Workflow (global)</h3>`;
-        if (latestTip) {
-          const wfImgUrl = latestTip.imageUrl || (Array.isArray(latestTip.fileUrls) ? latestTip.fileUrls.find(isImageUrl) : null);
-          const wfImg = safeImg(wfImgUrl, latestTip.titre, '100x100', 'tip-card-img');
-          panelHtmlContent += `
-            <a href="cas-usages.html" class="tip-card" title="${escapeHtmlAttribute(latestTip.titre)}">
-              ${wfImg}
-              <div class="tip-card-text">
-                <h4>${escapeHtml(latestTip.titre)}</h4>
-                <p>${escapeHtml(latestTip.outil || '')}</p>
-              </div>
-            </a>`;
-        } else {
-          panelHtmlContent += '<p>Aucun workflow partagé.</p>';
-        }
-
-        \1
- Workflows par auteur : triés du + récent au + ancien
-        const tipsByAuthor = (sharedTips || [])
-            .filter(tip => normalizeString(tip.auteur) === normalizeString(profil.name))
-            .sort((a, b) => new Date(b.dateCreation) - new Date(a.dateCreation));
+        // Workflows par auteur : triés du + récent au + ancien
+        // Workflows globaux (dernier) — on conserve le même nom de variable pour rester compatible
+        const tipsByAuthor = (function(){
+            const arr = [...(sharedTips || [])].sort((a,b) => new Date(b.dateCreation) - new Date(a.dateCreation));
+            return arr.length ? [arr[0]] : [];
+        })();
 
         panelHtmlContent += `<h3 class="no-icon-no-border">Dernier Workflow Partagé</h3>`;
         if (tipsByAuthor.length > 0) {
