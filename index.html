@@ -493,21 +493,7 @@
     // =========================================================================    
     // SECTION 1 : CARROUSEL DE VEILLE    
     // =========================================================================    
-    async 
-<script>
-// Génère la balise <img> d’un article en testant plusieurs extensions.
-function localArticleImgTag(index, altText) {
-  const n = String(index + 1).padStart(2, '0');
-  // Chemin relatif depuis index.html (pas de / initial)
-  const base = `images-articles/article${n}`;
-  const src = `${base}.png`;
-  // onerror -> masquer pour éviter l'icône cassée
-  const onerr = "this.style.display='none'; console.warn('Image introuvable:', this.src);";
-  return `<img class="veille-card-image" src="${src}" alt="${altText}" onerror="${onerr}">`;
-}
-</script>
-
-function loadAndInitVeille() {         
+    async function loadAndInitVeille() {         
         const grid = document.getElementById('veille-articles-grid');         
         if (!grid) return;         
         console.log("loadAndInitVeille: Starting fetch for veille-articles.json");         
@@ -522,25 +508,25 @@ function loadAndInitVeille() {
                 grid.innerHTML = '<p style="padding: 20px; text-align: center;">Aucun article de veille.</p>';               
                 return;             
             }             
-            // --- MODIFIÉ : Ajout de la logique pour l'image ---
+            // --- PATCH IMG LOCALE (images-articles/articleNN.png) ---
             grid.innerHTML = articles.map((article, idx) => {
-  const imageHtml = localArticleImgTag(idx, `Image pour ${article.titre || 'Titre'}`);
-  return `
-    <div class="veille-card">
-      <div class="card-meta-info">
-        <span class="meta-tag"><i class="fas fa-calendar-alt"></i> ${article.date || 'Date'}</span>
-        <span class="meta-tag"><i class="fas fa-newspaper"></i> ${article.source || 'Source'}</span>
-        <span class="meta-tag"><i class="fas fa-tag"></i> ${article.tag || 'Tag'}</span>
-      </div>
-      ${imageHtml}
-      <h4>⚡ ${article.titre || 'Titre'}</h4>
-      <div class="card-content"><p>${article.resume || 'Résumé'}</p></div>
-      <div class="card-footer">
-        <a href="${article.url || '#'}" target="_blank" class="action-button">Lire l’article</a>
-      </div>
-    </div>
-  `;
-}).join('');
+                const n = String(idx + 1).padStart(2, '0');
+                const localSrc = `images-articles/article${n}.png`;
+                const imageHtml = `<img class="veille-card-image" src="${localSrc}" alt="Image pour ${article.titre || 'Titre'}" onerror="this.style.display='none'">`;
+
+                return `        
+                    <div class="veille-card">            
+                        <div class="card-meta-info">                
+                            <span class="meta-tag"><i class="fas fa-calendar-alt"></i> ${article.date || 'Date'}</span>                
+                            <span class="meta-tag"><i class="fas fa-newspaper"></i> ${article.source || 'Source'}</span>                
+                            <span class="meta-tag"><i class="fas fa-tag"></i> ${article.tag || 'Tag'}</span>            
+                        </div>            
+                        ${imageHtml}
+                        <h4>⚡ ${article.titre || 'Titre'}</h4>            
+                        <div class="card-content"><p>${article.resume || 'Résumé'}</p></div>            
+                        <div class="card-footer"><a href="${article.url || '#'}" target="_blank" class="action-button">Lire l’article</a></div>        
+                    </div>`;
+            }).join('');
             initVeilleCarousel();       
         } catch (error) {             
             console.error("Erreur chargement veille:", error);             
